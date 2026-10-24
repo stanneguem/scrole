@@ -524,7 +524,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                               ),
                             SizedBox(
                               width: (MediaQuery.of(context).size.width - 32)
-                                  .clamp(0.0, 400.0),
+                                  .clamp(0.0, 400.0)
+                                  .toDouble(),
                               child: Container(
                                 constraints: BoxConstraints(
                                   maxHeight: MediaQuery.of(context).size.height * 0.64,
