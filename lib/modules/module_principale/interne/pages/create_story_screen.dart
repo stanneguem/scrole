@@ -465,7 +465,7 @@ class _SharedPostStoryPreview extends StatelessWidget {
     // Reuse the exact feed card instead of maintaining a second, divergent
     // design for story reshares. The card is displayed as a preview only:
     // its actions and media are not tappable on the story-creation screen.
-    final originalPost = post.sharedPost ?? post;
+    final originalPost = post;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
