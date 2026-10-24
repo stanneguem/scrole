@@ -48,6 +48,11 @@ import 'package:scrole/modules/module_discussion_direct/centre/services/chat_ser
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Register Android App Links before the heavier bootstrap work. On a cold
+  // start, delaying this until the first rendered frame can lose the incoming
+  // URL on some devices. Navigation itself stays queued until GetMaterialApp
+  // has mounted.
+  unawaited(AppDeepLinkService.instance.initialize());
   bootLog('WidgetsFlutterBinding.ensureInitialized terminé');
 
   PlatformDispatcher.instance.onError = (error, stack) {
@@ -132,7 +137,6 @@ Future<void> _bootstrap() async {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       bootLog('premier frame terminé');
-      unawaited(AppDeepLinkService.instance.initialize());
     });
   } catch (e, st) {
     debugPrint('[Boot] Erreur phase critique : $e');
