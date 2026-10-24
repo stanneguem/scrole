@@ -384,45 +384,55 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
             ),
             const SizedBox(height: 20),
             if (_isOwnStory)
-              ListTile(
+              Material(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  tileColor: colorScheme.errorContainer.withValues(alpha: 0.3),
+                  leading: Icon(
+                    Icons.delete_outline_rounded,
+                    color: colorScheme.error,
+                  ),
+                  title: Text(
+                    'Supprimer la story',
+                    style: TextStyle(
+                      color: colorScheme.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _storiesController.deleteStory(_currentStory.id);
+                    if (mounted) Navigator.of(context).pop();
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+            Material(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                tileColor: colorScheme.errorContainer.withValues(alpha: 0.3),
                 leading: Icon(
-                  Icons.delete_outline_rounded,
-                  color: colorScheme.error,
+                  Icons.cancel_outlined,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 title: Text(
-                  'Supprimer la story',
+                  'Annuler',
                   style: TextStyle(
-                    color: colorScheme.error,
-                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  await _storiesController.deleteStory(_currentStory.id);
-                  if (mounted) Navigator.of(context).pop();
-                },
+                onTap: () => Navigator.of(context).pop(),
               ),
-            const SizedBox(height: 8),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              leading: Icon(
-                Icons.cancel_outlined,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Annuler',
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onTap: () => Navigator.of(context).pop(),
             ),
           ],
         ),
