@@ -405,6 +405,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   bool _failed = false;
   bool _isMuted = false;
   bool _playbackOverlaysDismissed = false;
+  double _playbackOverlayOpacity = 1;
   Worker? _preferencesWorker;
 
   @override
@@ -476,7 +477,11 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     final elapsedMs = controller.value.position.inMilliseconds;
     const fadeDurationMs = 2500;
     final opacity = (1 - (elapsedMs / fadeDurationMs)).clamp(0.0, 1.0);
-    widget.onPlaybackOverlayOpacityChanged?.call(opacity);
+    if ((_playbackOverlayOpacity - opacity).abs() >= 0.03 || elapsedMs >= fadeDurationMs) {
+      _playbackOverlayOpacity = opacity;
+      widget.onPlaybackOverlayOpacityChanged?.call(opacity);
+      if (mounted) setState(() {});
+    }
     if (elapsedMs >= fadeDurationMs) {
       _playbackOverlaysDismissed = true;
       widget.onPlaybackOverlayOpacityChanged?.call(0);
@@ -580,7 +585,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
               child: IgnorePointer(
                 ignoring: _playbackOverlaysDismissed,
                 child: AnimatedOpacity(
-                  opacity: _playbackOverlaysDismissed ? 0 : 1,
+                  opacity: _playbackOverlayOpacity,
                   duration: const Duration(milliseconds: 180),
                   child: Material(
                     color: Colors.black.withValues(alpha: 0.62),
