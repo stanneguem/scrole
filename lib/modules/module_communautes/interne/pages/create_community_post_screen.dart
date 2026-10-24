@@ -765,6 +765,9 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final displayName = fullName.isEmpty ? (username.isEmpty ? 'profile_default_username'.tr : username) : fullName;
     final avatarUrl = profile['photo_url']?.toString() ?? '';
     final isCertified = profile['is_certified'] == true || profile['is_verified'] == true || profile['is_certified'] == 1 || profile['is_verified'] == 1;
+    final certificationUserId = Supabase.instance.client.auth.currentUser?.id
+        ?? profile['user_id']?.toString()
+        ?? profile['id']?.toString();
 
     final isCommunity = widget.communityId != null && widget.communityId!.isNotEmpty;
 
@@ -856,7 +859,10 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                     if (isCertified) ...[
                                       const SizedBox(width: 4),
-                                      const UserCertifiedBadge(size: 15),
+                                      UserCertifiedBadge(
+                                        size: 15,
+                                        userId: certificationUserId,
+                                      ),
                                     ],
                                   ],
                                 ),
