@@ -71,7 +71,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       } else {
         setState(() => _isPaused = false);
         if (_replyController.text.trim().isEmpty) {
-          _animController.forward();
+          if (_currentStoryHasVideo) {
+            _animController.stop();
+          } else {
+            _animController.forward();
+          }
         }
       }
     });
