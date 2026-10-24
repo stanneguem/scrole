@@ -1139,24 +1139,30 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
             // Bottom action bar
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openGallery,
                     icon: Icon(Icons.camera_alt_rounded, color: colorScheme.onSurface, size: 24),
                     tooltip: 'Galerie photos et vidéos (max $maxPostMedia médias)',
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openPollCreator,
                     icon: Icon(Icons.poll_rounded, color: _pollData != null ? colorScheme.primary : colorScheme.onSurface, size: 24),
                     tooltip: 'Sondage',
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: () async {
                       final result = await Get.to<List<CommunityHashtag>>(() => CommunityPostHashtagSelectionScreen(
                         initialSelected: _selectedHashtags,
