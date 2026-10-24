@@ -59,7 +59,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: queued, error: queueError } = await admin
-      .schema("private")
       .from("story_media_cleanup_queue")
       .select("id,object_key,attempts")
       .order("created_at", { ascending: true })
@@ -72,7 +71,7 @@ Deno.serve(async (req: Request) => {
       const key = String(item.object_key ?? "");
       // Revalidate keys before passing them to R2; never allow arbitrary object deletion.
       if (!/^stories\/[0-9a-f-]+\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp|avif|gif|mp4|mov)$/i.test(key)) {
-        await admin.schema("private").from("story_media_cleanup_queue").update({
+        await admin.from("story_media_cleanup_queue").update({
           attempts: Number(item.attempts ?? 0) + 1,
           last_error: "invalid_story_object_key",
           last_attempt_at: new Date().toISOString(),
@@ -82,14 +81,14 @@ Deno.serve(async (req: Request) => {
       }
       try {
         await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-        const { error } = await admin.schema("private").from("story_media_cleanup_queue").delete().eq("id", item.id);
+        const { error } = await admin.from("story_media_cleanup_queue").delete().eq("id", item.id);
         if (error) throw error;
         deletedCount++;
       } catch (error) {
         failedCount++;
         const message = error instanceof Error ? error.message : String(error);
         console.error("[story-media-cleanup] R2 deletion failed", { key, error: message });
-        await admin.schema("private").from("story_media_cleanup_queue").update({
+        await admin.from("story_media_cleanup_queue").update({
           attempts: Number(item.attempts ?? 0) + 1,
           last_error: message.slice(0, 1000),
           last_attempt_at: new Date().toISOString(),
