@@ -560,12 +560,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                 // including videos. The previous custom video card
                                 // omitted the feed interaction/counter bar and clipped
                                 // tall cards before their actions could be seen.
-                                child: IgnorePointer(
-                                  child: FeedPostCard(
-                                    post: _currentStory.sharedPost!,
-                                    onReactionTap: (_) {},
-                                    onCommentTap: () {},
-                                  ),
+                                child: FeedPostCard(
+                                  post: _currentStory.sharedPost!,
+                                  autoplayVideos: true,
+                                  onReactionTap: (_) {},
+                                  onCommentTap: () {},
                                 ),
                               ),
                             ),
