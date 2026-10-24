@@ -14,6 +14,7 @@ import '../controllers/stories_controller.dart';
 import '../widgets/feed_post_card.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/stories_repository.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/home_feed_repository.dart';
+import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final List<EventStoryGroup> groups;
