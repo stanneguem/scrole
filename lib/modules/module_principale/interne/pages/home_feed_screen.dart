@@ -262,6 +262,93 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   }
 }
 
+class _StoryPublishingRing extends StatefulWidget {
+  const _StoryPublishingRing();
+
+  @override
+  State<_StoryPublishingRing> createState() => _StoryPublishingRingState();
+}
+
+class _StoryPublishingRingState extends State<_StoryPublishingRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _rotationController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 66,
+      height: 66,
+      child: AnimatedBuilder(
+        animation: _rotationController,
+        builder: (context, child) => Transform.rotate(
+          angle: _rotationController.value * 2 * 3.141592653589793,
+          child: CustomPaint(
+            painter: _StoryPublishingRingPainter(
+              trackColor: colorScheme.surface.withValues(alpha: 0.95),
+              colors: [
+                colorScheme.primary.withValues(alpha: 0.18),
+                colorScheme.primary,
+                colorScheme.tertiary,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StoryPublishingRingPainter extends CustomPainter {
+  const _StoryPublishingRingPainter({
+    required this.trackColor,
+    required this.colors,
+  });
+
+  final Color trackColor;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 3.5;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = trackColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth,
+    );
+
+    final progressPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: colors,
+        stops: const [0.0, 0.62, 1.0],
+      ).createShader(rect);
+    canvas.drawArc(rect, -1.5707963267948966, 4.55, false, progressPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StoryPublishingRingPainter oldDelegate) =>
+      oldDelegate.trackColor != trackColor || oldDelegate.colors != colors;
+}
+
 class _StoriesRow extends GetView<StoriesController> {
   const _StoriesRow();
 
@@ -327,15 +414,10 @@ class _StoriesRow extends GetView<StoriesController> {
                             ),
                           ),
                           if (controller.isPublishingStory.value)
-                            Positioned.fill(
+                            const Positioned.fill(
                               child: IgnorePointer(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(1),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-                                    backgroundColor: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                                  ),
+                                child: Center(
+                                  child: _StoryPublishingRing(),
                                 ),
                               ),
                             ),
@@ -358,7 +440,18 @@ class _StoriesRow extends GetView<StoriesController> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      const Text('Ma story', style: TextStyle(fontSize: 11)),
+                      Text(
+                        controller.isPublishingStory.value ? 'Publication…' : 'Ma story',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: controller.isPublishingStory.value
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                          fontWeight: controller.isPublishingStory.value
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
                     ],
                   ),
                 ),
