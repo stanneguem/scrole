@@ -22,7 +22,6 @@ import 'package:scrole/modules/module_communautes/centre/services/community_serv
 import 'package:scrole/modules/module_communautes/centre/models/news/community_hashtag.dart';
 import 'community_poll_composer_screen.dart';
 import 'community_post_hashtag_selection_screen.dart';
-import 'community_post_settings_screen.dart';
 
 class CreateCommunityPostScreen extends StatefulWidget {
   final String communityName;
@@ -884,19 +883,13 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                   )
                                 else
-                                  // Audience Selector for general posts
-                                  DropdownButton<String>(
-                                    value: _audience,
-                                    isDense: true,
-                                    underline: const SizedBox.shrink(),
-                                    items: const [
-                                      DropdownMenuItem(value: 'public', child: Text('Public')),
-                                      DropdownMenuItem(value: 'followers', child: Text('Followers')),
-                                      DropdownMenuItem(value: 'friends', child: Text('Amis')),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) setState(() => _audience = val);
-                                    },
+                                  Text(
+                                    'Publier un post sur mon fil',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                               ],
                             ),
@@ -1179,25 +1172,6 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     tooltip: 'Hashtags',
                   ),
 
-                  IconButton(
-                    onPressed: () async {
-                      final result = await Get.to<Map<String, dynamic>>(() => CommunityPostSettingsScreen(
-                        initialCommentsEnabled: _commentsEnabled,
-                        initialSharingEnabled: _sharingEnabled,
-                        isCommunityPost: isCommunity,
-                        initialAllowPromotion: _allowPromotion,
-                      ));
-                      if (result != null) {
-                        setState(() {
-                          _commentsEnabled = result['commentsEnabled'] ?? true;
-                          _sharingEnabled = result['sharingEnabled'] ?? true;
-                          _allowPromotion = result['allowPromotion'] ?? _allowPromotion;
-                        });
-                      }
-                    },
-                    icon: Icon(Icons.settings_outlined, color: colorScheme.onSurface, size: 24),
-                    tooltip: 'Paramètres',
-                  ),
                 ],
               ),
             ),
