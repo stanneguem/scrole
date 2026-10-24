@@ -111,6 +111,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   }
 
   bool get _currentStoryHasVideo {
+    if (_currentStory.kind == 'video') {
+      return (_currentStory.imageUrl ?? '').trim().isNotEmpty;
+    }
     if (_currentStory.kind != 'post') return false;
     final post = _currentStory.sharedPost;
     return post != null && post.media.any((media) => media.isVideo && (media.url ?? '').trim().isNotEmpty);
@@ -429,7 +432,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
               fit: StackFit.expand,
               children: [
                 // --- Media / Background ---
-                if (_currentStory.kind == 'image' &&
+                if (_currentStory.kind == 'video' &&
+                    _currentStory.imageUrl != null &&
+                    _currentStory.imageUrl!.isNotEmpty)
+                  _StoryVideoPlayer(
+                    objectKey: _currentStory.imageUrl!,
+                    onCompleted: _nextStory,
+                  )
+                else if (_currentStory.kind == 'image' &&
                     _currentStory.imageUrl != null)
                   Center(
                     child: AppCachedImage(
@@ -2279,6 +2289,111 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Plays a standalone video story from its private R2 object key. Playback is
+/// non-looping and the story advances only after the video reaches its end.
+class _StoryVideoPlayer extends StatefulWidget {
+  final String objectKey;
+  final VoidCallback onCompleted;
+
+  const _StoryVideoPlayer({required this.objectKey, required this.onCompleted});
+
+  @override
+  State<_StoryVideoPlayer> createState() => _StoryVideoPlayerState();
+}
+
+class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
+  VideoPlayerController? _controller;
+  bool _failed = false;
+  bool _completionHandled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      String url = widget.objectKey;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        final response = await Supabase.instance.client.functions.invoke(
+          'r2-media-upload',
+          body: {'action': 'create-download-url', 'object_key': widget.objectKey},
+        );
+        if (response.status < 200 || response.status >= 300 || response.data is! Map) {
+          throw StateError('Impossible de résoudre la vidéo privée de la story.');
+        }
+        url = (response.data as Map)['url']?.toString() ?? '';
+        if (url.isEmpty) throw StateError('URL de lecture de la vidéo absente.');
+      }
+      final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+      _controller = controller;
+      controller.addListener(_onVideoChanged);
+      await controller.initialize();
+      if (!mounted) return;
+      await controller.setLooping(false);
+      await controller.setVolume(1);
+      setState(() {});
+      await controller.play();
+    } catch (e) {
+      debugPrint('[STORY] Standalone video initialization failed: $e');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  void _onVideoChanged() {
+    final controller = _controller;
+    if (!mounted || controller == null || !controller.value.isInitialized) return;
+    if (controller.value.hasError) {
+      setState(() => _failed = true);
+      return;
+    }
+    if (controller.value.duration > Duration.zero &&
+        controller.value.position >= controller.value.duration &&
+        !_completionHandled) {
+      _completionHandled = true;
+      widget.onCompleted();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onVideoChanged);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (_failed) {
+      return const Center(child: Icon(Icons.error_outline_rounded, color: Colors.white, size: 48));
+    }
+    if (controller == null || !controller.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
+    }
+    return GestureDetector(
+      onTap: () {
+        if (controller.value.isPlaying) {
+          controller.pause();
+        } else {
+          controller.play();
+        }
+      },
+      child: SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: controller.value.size.width,
+            height: controller.value.size.height,
+            child: VideoPlayer(controller),
+          ),
+        ),
       ),
     );
   }
