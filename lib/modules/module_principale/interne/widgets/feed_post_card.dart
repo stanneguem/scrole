@@ -19,6 +19,7 @@ import '../../../../modules/module_communautes/interne/widgets/community/poll_ca
 import '../controllers/home_feed_controller.dart';
 import '../../externe/repositories/home_feed_repository.dart';
 import '../pages/create_story_screen.dart';
+import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
 
 /// Composant de texte extensible avec bouton "Voir plus" / "Voir moins"
 class ExpandableTextWidget extends StatefulWidget {
@@ -1374,11 +1375,12 @@ class _ShareSheetWidget extends StatelessWidget {
                   label: 'Republier',
                   onTap: () {
                     Navigator.of(context).pop();
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => _RepublishFeedSheet(post: post),
+                    Get.to(
+                      () => CreateCommunityPostScreen(
+                        communityName: '',
+                        sharedPost: post,
+                      ),
+                      transition: Transition.cupertino,
                     );
                   },
                 ),
