@@ -431,7 +431,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                           DropdownMenuItem(value: 'followers', child: Text('Abonnés')),
                           DropdownMenuItem(value: 'friends', child: Text('Amis')),
                         ],
-                        onChanged: (value) => setState(() => _audience = value ?? 'public'),
+                        onChanged: (value) {
+                          if (value != null) setState(() => _audience = value);
+                        },
                       ),
                     ),
                   ],
