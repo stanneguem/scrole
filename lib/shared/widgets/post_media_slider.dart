@@ -10,6 +10,8 @@ import 'media_full_screen_page.dart';
 class PostMediaSlider extends StatefulWidget {
   /// Parent feed post ID; autoplay requires at least half of that card to be visible.
   final String? autoplayPostId;
+  /// Forces inline playback for contexts such as a shared-post story card.
+  final bool forceAutoplayVideos;
   final List<PostMedia> media;
   final String? heroTagPrefix;
   final int likesCount;
@@ -21,6 +23,7 @@ class PostMediaSlider extends StatefulWidget {
   const PostMediaSlider({
     super.key,
     this.autoplayPostId,
+    this.forceAutoplayVideos = false,
     required this.media,
     this.heroTagPrefix,
     this.likesCount = 0,
@@ -110,6 +113,8 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                     child: item.isVideo
                         ? _InlineFeedVideo(
                             key: ValueKey('feed_video_${_getHeroTag(index)}'),
+                            autoplayPostId: widget.autoplayPostId,
+                            forceAutoplay: widget.forceAutoplayVideos,
                             url: item.url ?? '',
                             thumbnailUrl: item.thumbnailUrl,
                             onOpenFullScreen: () => _openFullScreen(context, index),
@@ -360,6 +365,7 @@ class FeedVideoAutoplayGate {
 
 class _InlineFeedVideo extends StatefulWidget {
   final String? autoplayPostId;
+  final bool forceAutoplay;
   final String url;
   final String? thumbnailUrl;
   final VoidCallback onOpenFullScreen;
@@ -367,6 +373,7 @@ class _InlineFeedVideo extends StatefulWidget {
   const _InlineFeedVideo({
     super.key,
     this.autoplayPostId,
+    this.forceAutoplay = false,
     required this.url,
     required this.thumbnailUrl,
     required this.onOpenFullScreen,
@@ -396,12 +403,13 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     } else {
       _cardEligible = true;
     }
+    _autoPlay = widget.forceAutoplay;
     try {
       if (Get.isRegistered<PreferencesService>()) {
         final service = Get.find<PreferencesService>();
-        _autoPlay = service.preferences.value.autoPlayVideos;
+        _autoPlay = widget.forceAutoplay || service.preferences.value.autoPlayVideos;
         _preferencesWorker = ever(service.preferences, (prefs) {
-          if (!mounted || _autoPlay == prefs.autoPlayVideos) return;
+          if (!mounted || widget.forceAutoplay || _autoPlay == prefs.autoPlayVideos) return;
           setState(() => _autoPlay = prefs.autoPlayVideos);
           if (!_autoPlay) {
             _controller?.pause();
