@@ -509,7 +509,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               : null,
         );
         if (!mounted) return;
-        Get.back();
+        FocusManager.instance.primaryFocus?.unfocus();
+        Get.back(closeOverlays: true);
         unawaited(feedController.fetchFeed(refresh: true));
         Get.snackbar(
           'Succès',
@@ -632,7 +633,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         }));
       }
       if (!mounted) return;
-      Get.back();
+      FocusManager.instance.primaryFocus?.unfocus();
+      Get.back(closeOverlays: true);
       if (isCommunity) {
         if (feedController != null) {
           unawaited(feedController.fetchCommunityFeed(isRefresh: true));
