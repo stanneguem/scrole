@@ -2281,31 +2281,47 @@ class _RepublicationPostCard extends StatelessWidget {
                                   ],
                                   // Read-only stats for the original post.
                                   // Each item wraps independently on narrow screens.
-                                  Wrap(
-                                    alignment: WrapAlignment.start,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 12,
-                                    runSpacing: 6,
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      _SharedPostStat(
-                                        icon: Icons.north_rounded,
-                                        count: shared.likeCount,
+                                      Expanded(
+                                        child: Wrap(
+                                          alignment: WrapAlignment.start,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 12,
+                                          runSpacing: 6,
+                                          children: [
+                                            _SharedPostStat(
+                                              icon: Icons.north_rounded,
+                                              count: shared.likeCount,
+                                            ),
+                                            _SharedPostStat(
+                                              icon: Icons.south_rounded,
+                                              count: shared.dislikeCount,
+                                            ),
+                                            _SharedPostStat(
+                                              icon: Icons.chat_bubble_outline_rounded,
+                                              count: shared.commentCount,
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      _SharedPostStat(
-                                        icon: Icons.south_rounded,
-                                        count: shared.dislikeCount,
-                                      ),
-                                      _SharedPostStat(
-                                        icon: Icons.bar_chart_outlined,
-                                        count: shared.viewCount,
-                                      ),
-                                      _SharedPostStat(
-                                        icon: Icons.chat_bubble_outline_rounded,
-                                        count: shared.commentCount,
-                                      ),
-                                      _SharedPostStat(
-                                        icon: Icons.ios_share_rounded,
-                                        count: shared.shareCount,
+                                      const SizedBox(width: 8),
+                                      Wrap(
+                                        alignment: WrapAlignment.end,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        spacing: 12,
+                                        runSpacing: 6,
+                                        children: [
+                                          _SharedPostStat(
+                                            icon: Icons.bar_chart_outlined,
+                                            count: shared.viewCount,
+                                          ),
+                                          _SharedPostStat(
+                                            icon: Icons.ios_share_rounded,
+                                            count: shared.shareCount,
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
