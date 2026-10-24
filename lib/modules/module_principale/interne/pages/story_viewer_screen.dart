@@ -37,6 +37,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   late AnimationController _animController;
   late AnimationController _heartsAnimationController;
   bool _isPaused = false;
+  double _videoProgress = 0.0;
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   final StoriesController _storiesController = Get.find<StoriesController>();
@@ -124,9 +125,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   void _startStory() {
     if (!_isPaused && !_commentFocusNode.hasFocus) {
       if (_currentStoryHasVideo) {
-        // A video repost advances only when the actual video reaches its end.
+        // Video duration is reflected in the header progress bar.
         _animController.stop();
         _animController.value = 0;
+        _videoProgress = 0.0;
       } else {
         _animController.forward(from: 0.0);
       }
@@ -182,6 +184,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   }
 
   void _nextStory() {
+    _videoProgress = 0.0;
     if (_storyIndex < _currentGroup.stories.length - 1) {
       setState(() => _storyIndex++);
       _startStory();
@@ -197,6 +200,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   }
 
   void _prevStory() {
+    _videoProgress = 0.0;
     if (_storyIndex > 0) {
       setState(() => _storyIndex--);
       _startStory();
@@ -264,13 +268,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     final screenWidth = MediaQuery.of(context).size.width;
     if (details.globalPosition.dx < screenWidth / 3) {
       _prevStory();
-    } else if (_currentStoryHasVideo) {
-      // A video story cannot be skipped forward by tapping the right side;
-      // it completes only when the player reports the end of the video.
-      return;
     } else if (details.globalPosition.dx > screenWidth * 2 / 3) {
+      // Left/right zones navigate between all story types.
       _nextStory();
-    } else {
+    } else if (!_currentStoryHasVideo) {
       _resumeStoryTimer();
     }
   }
@@ -450,7 +451,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     _currentStory.imageUrl != null &&
                     _currentStory.imageUrl!.isNotEmpty)
                   _StoryVideoPlayer(
+                    key: ValueKey(_currentStory.id),
                     objectKey: _currentStory.imageUrl!,
+                    onProgress: (progress) {
+                      if (mounted && (_videoProgress - progress).abs() >= 0.01) {
+                        setState(() => _videoProgress = progress);
+                      }
+                    },
                     onCompleted: _nextStory,
                   )
                 else if (_currentStory.kind == 'image' &&
@@ -515,17 +522,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   ),
                                 ),
                               ),
-                            GestureDetector(
-                              onTap: () {
-                                if (_currentStory.sharedPostId != null && _currentStory.sharedPostCanOpenOriginal) {
-                                  _openOriginalPost(
-                                    _currentStory.sharedPostId!,
-                                  );
-                                }
-                              },
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 32)
+                                  .clamp(0.0, 400.0),
                               child: Container(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 400,
+                                constraints: BoxConstraints(
+                                  maxHeight: MediaQuery.of(context).size.height * 0.64,
                                 ),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.surface,
@@ -540,16 +542,24 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                 ),
                                 clipBehavior: Clip.antiAlias,
                                 child: _currentStory.sharedPost!.media.any(
-                                  (media) => media.isVideo && (media.url ?? '').trim().isNotEmpty,
+                                  (media) => media.isVideo && media.url.trim().isNotEmpty,
                                 )
                                     ? _StorySharedVideoPost(
+                                        key: ValueKey('shared-story-video-${_currentStory.id}'),
                                         post: _currentStory.sharedPost!,
+                                        onProgress: (progress) {
+                                          if (mounted && (_videoProgress - progress).abs() >= 0.01) {
+                                            setState(() => _videoProgress = progress);
+                                          }
+                                        },
                                         onCompleted: _nextStory,
                                       )
-                                    : FeedPostCard(
-                                        post: _currentStory.sharedPost!,
-                                        onReactionTap: (_) {},
-                                        onCommentTap: () {},
+                                    : IgnorePointer(
+                                        child: FeedPostCard(
+                                          post: _currentStory.sharedPost!,
+                                          onReactionTap: (_) {},
+                                          onCommentTap: () {},
+                                        ),
                                       ),
                               ),
                             ),
@@ -601,7 +611,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                       value: idx < _storyIndex
                                           ? 1.0
                                           : idx == _storyIndex
-                                          ? _animController.value
+                                          ? (_currentStoryHasVideo
+                                              ? _videoProgress
+                                              : _animController.value)
                                           : 0.0,
                                       backgroundColor: Colors.white24,
                                       valueColor:
@@ -2175,12 +2187,25 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
 
 /// Story-specific video player: unlike the feed player it never loops, and
 /// the story advances only when the source video finishes.
+String _formatOriginalPostDate(String raw) {
+  final date = DateTime.tryParse(raw)?.toLocal();
+  if (date == null) return raw;
+  final now = DateTime.now();
+  final sameDay = date.year == now.year && date.month == now.month && date.day == now.day;
+  final clock = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  if (sameDay) return "Aujourd’hui à $clock";
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} · $clock';
+}
+
 class _StorySharedVideoPost extends StatefulWidget {
   final CommunityPost post;
+  final ValueChanged<double> onProgress;
   final VoidCallback onCompleted;
 
   const _StorySharedVideoPost({
+    super.key,
     required this.post,
+    required this.onProgress,
     required this.onCompleted,
   });
 
@@ -2227,6 +2252,13 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
       setState(() => _failed = true);
       return;
     }
+    if (controller.value.duration > Duration.zero) {
+      widget.onProgress(
+        (controller.value.position.inMilliseconds /
+                controller.value.duration.inMilliseconds)
+            .clamp(0.0, 1.0),
+      );
+    }
     if (controller.value.position >= controller.value.duration &&
         controller.value.duration > Duration.zero &&
         !_completionHandled) {
@@ -2252,15 +2284,54 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            widget.post.authorName,
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                backgroundImage: widget.post.authorObj?.photoUrl != null &&
+                        widget.post.authorObj!.photoUrl!.trim().isNotEmpty
+                    ? NetworkImage(widget.post.authorObj!.photoUrl!)
+                    : null,
+                child: widget.post.authorObj?.photoUrl == null ||
+                        widget.post.authorObj!.photoUrl!.trim().isEmpty
+                    ? Text(widget.post.authorName.trim().isNotEmpty
+                        ? widget.post.authorName.trim()[0].toUpperCase()
+                        : 'U')
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Flexible(
+                        child: Text(widget.post.authorName,
+                          style: TextStyle(color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700, fontSize: 14),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                      if ((widget.post.authorObj?.username ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Flexible(child: Text(
+                          '@${widget.post.authorObj!.username.replaceFirst(RegExp(r'^@'), '')}',
+                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                          maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ],
+                      if (widget.post.authorObj?.isCertified == true) ...[
+                        const SizedBox(width: 4),
+                        UserCertifiedBadge(size: 14, userId: widget.post.authorObj!.userId),
+                      ],
+                    ]),
+                    Text(_formatOriginalPostDate(widget.post.timeAgo),
+                      style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (widget.post.content.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -2292,17 +2363,7 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
               ),
             ),
           ),
-          if (controller?.value.isInitialized == true && !_failed)
-            VideoProgressIndicator(
-              controller!,
-              allowScrubbing: false,
-              colors: const VideoProgressColors(
-                playedColor: Colors.white,
-                bufferedColor: Colors.white38,
-                backgroundColor: Colors.white12,
-              ),
-            ),
-        ],
+remove progress from video card        ],
       ),
     );
   }
@@ -2312,9 +2373,15 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
 /// non-looping and the story advances only after the video reaches its end.
 class _StoryVideoPlayer extends StatefulWidget {
   final String objectKey;
+  final ValueChanged<double> onProgress;
   final VoidCallback onCompleted;
 
-  const _StoryVideoPlayer({required this.objectKey, required this.onCompleted});
+  const _StoryVideoPlayer({
+    super.key,
+    required this.objectKey,
+    required this.onProgress,
+    required this.onCompleted,
+  });
 
   @override
   State<_StoryVideoPlayer> createState() => _StoryVideoPlayerState();
@@ -2367,6 +2434,13 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
       setState(() => _failed = true);
       return;
     }
+    if (controller.value.duration > Duration.zero) {
+      widget.onProgress(
+        (controller.value.position.inMilliseconds /
+                controller.value.duration.inMilliseconds)
+            .clamp(0.0, 1.0),
+      );
+    }
     if (controller.value.duration > Duration.zero &&
         controller.value.position >= controller.value.duration &&
         !_completionHandled) {
@@ -2391,14 +2465,8 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
     if (controller == null || !controller.value.isInitialized) {
       return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
-    return GestureDetector(
-      onTap: () {
-        if (controller.value.isPlaying) {
-          controller.pause();
-        } else {
-          controller.play();
-        }
-      },
+    // The story viewer owns navigation; the video itself is not tappable.
+    return IgnorePointer(
       child: SizedBox.expand(
         child: FittedBox(
           fit: BoxFit.contain,
