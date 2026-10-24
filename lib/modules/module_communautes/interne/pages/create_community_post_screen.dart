@@ -502,7 +502,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         final feedController = Get.find<HomeFeedController>();
         await feedController.sharePost(
           originalPostId: sharedPost.sharedPostId ?? sharedPost.id,
-          communityId: null,
+          communityId: widget.communityId,
           audience: _audience,
           comment: _textController.text.trim().isNotEmpty
               ? _textController.text.trim()
@@ -511,12 +511,28 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         if (!mounted) return;
         FocusManager.instance.primaryFocus?.unfocus();
         Get.back(closeOverlays: true);
-        unawaited(feedController.fetchFeed(refresh: true));
-        Get.snackbar(
-          'Succès',
-          'Publication repartagée sur votre fil.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        if (widget.communityId != null && widget.communityId!.isNotEmpty) {
+          try {
+            final communityFeed = Get.find<CommunityFeedController>(
+              tag: widget.communityId,
+            );
+            unawaited(communityFeed.fetchCommunityFeed(isRefresh: true));
+          } catch (e) {
+            debugPrint('[POST_ACTIONS] Community feed refresh skipped: $e');
+          }
+          Get.snackbar(
+            'Succès',
+            'Publication repartagée dans ${widget.communityName}.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          unawaited(feedController.fetchFeed(refresh: true));
+          Get.snackbar(
+            'Succès',
+            'Publication repartagée sur votre fil.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
       } catch (e) {
         debugPrint('[POST_ACTIONS] Republish from composer error: $e');
         if (mounted) {
