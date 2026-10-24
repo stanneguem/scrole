@@ -210,7 +210,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   bool get _isOwnStory => _currentGroup.relation == 'own';
 
   void _resumeStoryTimer() {
-    if (_currentStoryHasVideo) {
+    if (_currentStoryHasVideo ||
+        (_currentStory.kind == 'image' &&
+            _imageLoadedStoryId != _currentStory.id)) {
       _animController.stop();
     } else {
       _animController.forward();
@@ -246,6 +248,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   void _prevStory() {
     _videoProgress = 0.0;
+    _imageLoadedStoryId = null;
     if (_storyIndex > 0) {
       setState(() => _storyIndex--);
       _startStory();
