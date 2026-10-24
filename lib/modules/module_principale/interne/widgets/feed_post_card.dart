@@ -1775,12 +1775,28 @@ class _CommunityShareListSheetState extends State<_CommunityShareListSheet> {
                               ? NetworkImage(avatar)
                               : null,
                           child: avatar == null || avatar.isEmpty
-                              ? Text(name[0].toUpperCase())
+                              ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'C')
                               : null,
                         ),
-                        title: Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            if (communityId.isNotEmpty) ...[
+                              const SizedBox(width: 5),
+                              EntityCertifiedBadge(
+                                entityType: 'community',
+                                entityId: communityId,
+                                size: 15,
+                              ),
+                            ],
+                          ],
                         ),
                         trailing: const Icon(
                           Icons.arrow_forward_ios_rounded,
@@ -1788,16 +1804,16 @@ class _CommunityShareListSheetState extends State<_CommunityShareListSheet> {
                         ),
                         onTap: () {
                           Navigator.of(context).pop();
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => _CommunityPublishSheet(
-                              post: widget.post,
-                              communityId: communityId,
-                              communityName: name,
-                            ),
-                          );
+                          Future.microtask(() {
+                            Get.to(
+                              () => CreateCommunityPostScreen(
+                                communityName: name,
+                                communityId: communityId,
+                                sharedPost: widget.post,
+                              ),
+                              transition: Transition.cupertino,
+                            );
+                          });
                         },
                       );
                     },
