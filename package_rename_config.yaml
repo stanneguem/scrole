@@ -1,0 +1,4 @@
+package_rename_config:
+  android:
+    app_name: "Scrole"
+    package_name: "com.scrole.app"

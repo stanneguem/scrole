@@ -1,0 +1,4 @@
+- [x] 1. Mettre à jour `MainLayoutPage` (`main_navigation_screen.dart`), `CustomBottomNav` (`buton_nav.dart`), `MainLayoutController` (`main_layout_controller.dart`) et `ExpandableAddMenu` (`boutton_expand.dart`) pour remplacer l'onglet Communautés par Messagerie (`DirectMessagesScreen`).
+- [x] 2. Nettoyer les routes (`app_routes.dart` / `app_pages.dart`).
+- [x] 3. Supprimer le dossier `lib/modules/module_communautes/`.
+- [x] 4. Exécuter `flutter test` et `flutter analyze` pour valider l'intégrité de la V1.

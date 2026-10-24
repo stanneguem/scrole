@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "267698917909",
+    "project_id": "scrole-cd3c3",
+    "storage_bucket": "scrole-cd3c3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:267698917909:android:418594495f80abe766b41c",
+        "android_client_info": {
+          "package_name": "com.scrole.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoCggB3wxgCQFKmqygwmYD3j6yt3uuMl0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
