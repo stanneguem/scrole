@@ -37,7 +37,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   late AnimationController _animController;
   late AnimationController _heartsAnimationController;
   bool _isPaused = false;
+  String? _imageLoadedStoryId;
   double _videoProgress = 0.0;
+    _imageLoadedStoryId = null;
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   final StoriesController _storiesController = Get.find<StoriesController>();
@@ -144,18 +146,40 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   }
 
   void _startStory() {
-    if (!_isPaused && !_commentFocusNode.hasFocus) {
-      if (_currentStoryHasVideo) {
-        // Video duration is reflected in the header progress bar.
-        _animController.stop();
-        _animController.value = 0;
-        _videoProgress = 0.0;
-      } else {
-        _animController.forward(from: 0.0);
+    if (_isPaused || _commentFocusNode.hasFocus) return;
+    if (_currentStory.kind == 'image') {
+      // Wait for the actual image frame, including private R2 media.
+      _animController.stop();
+      if (_imageLoadedStoryId == _currentStory.id) {
+        _beginCurrentImageStory();
       }
-      _markCurrentViewed();
       _precacheNextStory();
+      return;
     }
+    if (_currentStoryHasVideo) {
+      _animController.stop();
+      _animController.value = 0;
+      _videoProgress = 0.0;
+    } else {
+      _animController.forward(from: 0.0);
+    }
+    _markCurrentViewed();
+    _precacheNextStory();
+  }
+
+  void _beginCurrentImageStory() {
+    if (!mounted || _isPaused || _commentFocusNode.hasFocus ||
+        _currentStory.kind != 'image' ||
+        _imageLoadedStoryId != _currentStory.id) return;
+    _animController.forward(from: 0.0);
+    _markCurrentViewed();
+  }
+
+  void _onCurrentStoryImageLoaded(String storyId) {
+    if (!mounted || _currentStory.id != storyId ||
+        _imageLoadedStoryId == storyId) return;
+    setState(() => _imageLoadedStoryId = storyId);
+    _beginCurrentImageStory();
   }
 
   void _markCurrentViewed() {
@@ -257,27 +281,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     }
   }
 
-  Future<void> _shareCurrentStory() async {
-    final story = _currentStory;
-    final author = _currentGroup.author.displayName;
-    final parts = <String>[
-      'Story de $author sur Scrole',
-      if ((story.content ?? '').trim().isNotEmpty) story.content!.trim(),
-      if ((story.imageUrl ?? '').trim().isNotEmpty) story.imageUrl!.trim(),
-    ];
-    try {
-      await SharePlus.instance.share(ShareParams(text: parts.join('\n\n')));
-    } catch (e) {
-      if (mounted) {
-        Get.snackbar(
-          'Erreur',
-          'Impossible de partager cette story.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-      debugPrint('[STORY] Error sharing story: $e');
-    }
-  }
+
 
   void _onTapDown(TapDownDetails details) {
     if (_commentFocusNode.hasFocus || _isPaused) return;
@@ -482,8 +486,20 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     _currentStory.imageUrl != null)
                   Center(
                     child: AppCachedImage(
+                      key: ValueKey('story-image-${_currentStory.id}'),
                       imageUrl: _currentStory.imageUrl!,
                       fit: BoxFit.cover,
+                      onImageLoaded: () => _onCurrentStoryImageLoaded(_currentStory.id),
+                      placeholder: const Center(
+                        child: SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
                   )
                 else if (_currentStory.kind == 'post')
@@ -869,23 +885,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   ),
                                 ),
                               ),
-
-                            // Share story with the device share sheet.
-                            InkWell(
-                              onTap: _shareCurrentStory,
-                              borderRadius: BorderRadius.circular(16),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                child: Icon(
-                                  Icons.ios_share_rounded,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                              ),
-                            ),
 
                             // 2. Comments icon & count (Both own & other stories)
                             InkWell(
