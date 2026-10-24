@@ -173,12 +173,10 @@ class FeedPostCard extends StatelessWidget {
                 children: [
                   // 1. En-tête de la communauté si présente et hors du fil propre de cette communauté
                   if (showCommunityHeader) ...[
-                    GestureDetector(
-                      onTap: () => _onCommunityTap(post.communityId!),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
                             ClipOval(
                               child:
                                   post.communityLogoUrl != null &&
@@ -230,17 +228,10 @@ class FeedPostCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
-                    const Divider(height: 1, thickness: 0.5),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                   ],
 
                   // 2. Ligne Auteur + Contenu de la carte
