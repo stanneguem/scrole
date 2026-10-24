@@ -89,3 +89,38 @@ begin
   end loop;
 end
 $migration$;
+
+-- Resolve PostgREST ambiguity between the 7-argument RPC and the 8-argument
+-- allow_reshare wrapper. The wrapper's final boolean must be explicit so a
+-- call without p_allow_reshare can only resolve to the 7-argument function.
+do $fix_overload$
+declare
+  v_def text;
+  v_updated text;
+begin
+  select pg_get_functiondef(
+    'public.create_story(uuid,text,text,text,text,text,jsonb,boolean)'::regprocedure
+  ) into v_def;
+
+  v_updated := replace(
+    v_def,
+    'p_allow_reshare boolean DEFAULT false',
+    'p_allow_reshare boolean'
+  );
+  v_updated := replace(
+    v_updated,
+    'p_allow_reshare boolean default false',
+    'p_allow_reshare boolean'
+  );
+
+  if v_updated = v_def and position('p_allow_reshare boolean DEFAULT false' in v_def) = 0
+     and position('p_allow_reshare boolean default false' in v_def) = 0 then
+    raise notice 'create_story 8-argument wrapper already has no default for p_allow_reshare';
+  elsif v_updated <> v_def then
+    execute v_updated;
+  end if;
+end
+$fix_overload$;
+
+-- Refresh PostgREST's function metadata after the migration is applied.
+notify pgrst, 'reload schema';
