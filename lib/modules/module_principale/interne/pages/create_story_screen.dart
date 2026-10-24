@@ -10,15 +10,19 @@ import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_post_mentions_screen.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_post_settings_screen.dart';
 import 'package:scrole/modules/module_principale/interne/controllers/stories_controller.dart';
+import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
+import 'package:scrole/modules/module_principale/externe/repositories/home_feed_repository.dart';
 
 class CreateStoryScreen extends StatefulWidget {
   final String? prefilledText;
   final String? prefilledMediaUrl;
+  final CommunityPost? sharedPost;
 
   const CreateStoryScreen({
     super.key,
     this.prefilledText,
     this.prefilledMediaUrl,
+    this.sharedPost,
   });
 
   @override
@@ -32,6 +36,8 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
 
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
+  String _background = 'sunset';
+  String _audience = 'public';
   List<Map<String, dynamic>> _selectedMentions = [];
   List<String> _selectedMentionIds = [];
 
@@ -58,7 +64,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
   }
 
   bool get _canPublish =>
-      _textController.text.trim().isNotEmpty || _selectedFiles.isNotEmpty;
+      widget.sharedPost != null ||
+      _textController.text.trim().isNotEmpty ||
+      _selectedFiles.isNotEmpty;
 
   Future<void> _openMediaPicker() async {
     final maxAllowed = 10 - _selectedFiles.length;
@@ -110,29 +118,57 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
     }
   }
 
-  void _publish() {
-    // Publish story method
+  Future<void> _publish() async {
     if (!_canPublish || _isPublishing) return;
-
     setState(() => _isPublishing = true);
 
-    final storiesController = Get.isRegistered<StoriesController>()
-        ? Get.find<StoriesController>()
-        : Get.put(StoriesController());
+    try {
+      final sharedPost = widget.sharedPost;
+      if (sharedPost != null) {
+        // Keep the original post linked in the story instead of copying its
+        // media file. This preserves video playback and the original post card.
+        await HomeFeedRepository().sharePostToStory(
+          p_id: const Uuid().v4(),
+          p_original_post_id: sharedPost.sharedPostId ?? sharedPost.id,
+          p_caption: _textController.text.trim().isNotEmpty
+              ? _textController.text.trim()
+              : null,
+          p_background: _background,
+          p_audience: _audience,
+        );
+        if (!mounted) return;
+        Get.back();
+        Get.snackbar(
+          'Succès',
+          'Publication ajoutée à votre story avec succès !',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
 
-    final kind = _selectedFiles.isNotEmpty ? 'image' : 'text';
-
-    storiesController.createStory(
-      kind: kind,
-      content: _textController.text.trim().isNotEmpty ? _textController.text.trim() : null,
-      imageFile: _selectedFiles.isNotEmpty ? _selectedFiles.first : null,
-      mentions: _selectedMentionIds,
-      allowReshare: _sharingEnabled,
-    ).whenComplete(() {
+      final storiesController = Get.isRegistered<StoriesController>()
+          ? Get.find<StoriesController>()
+          : Get.put(StoriesController());
+      final kind = _selectedFiles.isNotEmpty ? 'image' : 'text';
+      await storiesController.createStory(
+        kind: kind,
+        content: _textController.text.trim().isNotEmpty ? _textController.text.trim() : null,
+        imageFile: _selectedFiles.isNotEmpty ? _selectedFiles.first : null,
+        mentions: _selectedMentionIds,
+        allowReshare: _sharingEnabled,
+      );
+      if (mounted) Get.back();
+    } catch (e) {
+      Get.snackbar(
+        'Erreur',
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
       if (mounted) setState(() => _isPublishing = false);
-    });
-
-    Get.back();
+    }
   }
 
   @override
@@ -155,7 +191,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Créer une story'),
+        title: Text(widget.sharedPost == null ? 'Créer une story' : 'Partager en story'),
         titleTextStyle: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
         leading: IconButton(
           onPressed: () => Get.back(),
@@ -266,6 +302,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                       ),
                     ),
 
+                    if (widget.sharedPost != null)
+                      _SharedPostStoryPreview(post: widget.sharedPost!, colorScheme: colorScheme),
+
                     // Champ de texte
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -288,7 +327,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                     ),
 
                     // Media preview grid
-                    if (_selectedFiles.isNotEmpty)
+                    if (widget.sharedPost == null && _selectedFiles.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: SizedBox(
@@ -345,7 +384,8 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
               ),
               child: Row(
                 children: [
-                  IconButton(
+                  if (widget.sharedPost == null)
+                    IconButton(
                     onPressed: _openMediaPicker,
                     icon: Icon(Icons.photo_library_outlined, color: colorScheme.primary),
                     tooltip: 'Ajouter des médias',
@@ -355,6 +395,26 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                     icon: Icon(Icons.alternate_email_rounded, color: colorScheme.primary),
                     tooltip: 'Mentionner',
                   ),
+                  if (widget.sharedPost != null) ...[
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _audience,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Audience',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'public', child: Text('Public')),
+                          DropdownMenuItem(value: 'followers', child: Text('Abonnés')),
+                          DropdownMenuItem(value: 'friends', child: Text('Amis')),
+                        ],
+                        onChanged: (value) => setState(() => _audience = value ?? 'public'),
+                      ),
+                    ),
+                  ],
                   IconButton(
                     onPressed: _openSettings,
                     icon: Icon(Icons.settings_outlined, color: colorScheme.primary),
@@ -365,6 +425,110 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _SharedPostStoryPreview extends StatelessWidget {
+  final CommunityPost post;
+  final ColorScheme colorScheme;
+
+  const _SharedPostStoryPreview({
+    required this.post,
+    required this.colorScheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final original = post.sharedPost ?? post;
+    final media = original.media.isNotEmpty ? original.media.first : null;
+    final isVideo = media?.isVideo == true;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                  child: Icon(Icons.person_outline, size: 19, color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    original.authorName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Icon(Icons.repeat_rounded, size: 18, color: colorScheme.primary),
+              ],
+            ),
+          ),
+          if (original.content.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Text(
+                original.content,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colorScheme.onSurface, height: 1.35),
+              ),
+            ),
+          if (media != null)
+            SizedBox(
+              height: 190,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
+                    AppCachedImage(imageUrl: media.thumbnailUrl!, fit: BoxFit.cover)
+                  else if (!isVideo && media.url.isNotEmpty)
+                    AppCachedImage(imageUrl: media.url, fit: BoxFit.cover)
+                  else
+                    ColoredBox(color: Colors.black87),
+                  if (isVideo)
+                    const Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(isVideo ? Icons.videocam_outlined : Icons.article_outlined, size: 16, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Text(
+                  isVideo ? 'Publication vidéo' : 'Publication partagée',
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
