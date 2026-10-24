@@ -1993,16 +1993,19 @@ class _RepublicationPostCard extends StatelessWidget {
     final hasSharedPost = post.sharedPostId != null;
     final username = post.authorObj?.username ?? '';
     final isCertified = post.authorObj?.isCertified == true;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final cardHorizontalPadding =
+        screenWidth < 360 ? 10.0 : (screenWidth < 600 ? 14.0 : 18.0);
 
     return Container(
       width: double.infinity,
       color: colorScheme.surface,
       child: Stack(
         children: [
-          // Keep the repost avatar on the same x-axis as ordinary post avatars.
+          // Align the republisher avatar and connector with regular post cards.
           Positioned(
-            left: 35,
-            top: 52,
+            left: cardHorizontalPadding + 20,
+            top: 64,
             bottom: 0,
             child: IgnorePointer(
               child: Container(
@@ -2011,9 +2014,14 @@ class _RepublicationPostCard extends StatelessWidget {
               ),
             ),
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: cardHorizontalPadding,
+              vertical: 12,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               ClipOval(
                 child:
                     post.authorObj?.photoUrl != null &&
@@ -2346,6 +2354,7 @@ class _RepublicationPostCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
         ],
       ),
