@@ -261,6 +261,7 @@ class _R2SignedImage extends StatefulWidget {
     this.borderRadius,
     this.placeholder,
     this.errorWidget,
+    this.onImageLoaded,
   });
 
   final String objectKey;
@@ -270,6 +271,7 @@ class _R2SignedImage extends StatefulWidget {
   final BorderRadius? borderRadius;
   final Widget? placeholder;
   final Widget? errorWidget;
+  final VoidCallback? onImageLoaded;
 
   @override
   State<_R2SignedImage> createState() => _R2SignedImageState();
