@@ -49,6 +49,7 @@ dependencies:
   mobile_scanner: ^7.4.0
   sqflite: ^2.4.3
   lottie: ^3.5.1
+  app_links: ^6.4.1
   share_plus: ^13.3.0
   emoji_picker_flutter: ^4.5.0
   record: ^7.1.1
