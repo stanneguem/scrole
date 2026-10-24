@@ -113,20 +113,6 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
     }
   }
 
-  Future<void> _openSettings() async {
-    final result = await Get.to<Map<String, dynamic>>(
-      () => CommunityPostSettingsScreen(
-        initialCommentsEnabled: _commentsEnabled,
-        initialSharingEnabled: _sharingEnabled,
-      ),
-    );
-    if (result != null) {
-      setState(() {
-        _commentsEnabled = result['commentsEnabled'] ?? true;
-        _sharingEnabled = result['sharingEnabled'] ?? true;
-      });
-    }
-  }
 
   Future<void> _publish() async {
     if (!_canPublish || _isPublishing) return;
@@ -433,11 +419,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                     icon: Icon(Icons.alternate_email_rounded, color: colorScheme.primary),
                     tooltip: 'Mentionner',
                   ),
-                  IconButton(
-                    onPressed: _openSettings,
-                    icon: Icon(Icons.settings_outlined, color: colorScheme.primary),
-                    tooltip: 'Paramètres',
-                  ),
+
                 ],
               ),
             ),
