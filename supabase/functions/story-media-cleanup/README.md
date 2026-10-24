@@ -1,17 +1,29 @@
-# Story media cleanup (Cloudflare R2)
+# Nettoyage des médias de stories (Cloudflare R2)
 
-This cleanup is intentionally additive. Applying the migration does not delete existing stories or R2 objects.
+## Fonctionnement
+- Toute suppression d'une story image/vidéo met en file sa clé R2 canonique.
+- Une story de repartage (`kind = 'post'`) ne déclenche jamais la suppression du média du post original.
+- La fonction Edge `story-media-cleanup` supprime les lignes de stories expirées et vide la file R2.
+- Les échecs restent dans `public.story_media_cleanup_queue` avec le nombre de tentatives et la dernière erreur; le prochain passage réessaie.
+- La tâche `story-media-cleanup-every-10-minutes` est planifiée toutes les 10 minutes dans `pg_cron`.
 
-## What it does
-- Any existing story deletion RPC that deletes from `public.stories` triggers a queue entry for that story's own canonical `stories/{author_id}/{uploadId}.{extension}` key.
-- Repost stories (`kind = 'post'`) have no owned media key and are never used to delete the original post's media.
-- The `story-media-cleanup` Edge Function removes expired story rows, drains queued R2 deletes, and keeps failures in the queue for retry.
-- R2 delete is idempotent; repeat runs are safe.
+## Secrets requis côté Edge Function
+Les secrets suivants doivent exister dans l'environnement Supabase Edge Functions:
+- `R2_ACCOUNT_ID`
+- `R2_PRIVATE_ACCESS_KEY_ID`
+- `R2_PRIVATE_SECRET_ACCESS_KEY`
+- `R2_PRIVATE_BUCKET_NAME`
+- `R2_PRIVATE_ENDPOINT` (facultatif; sinon l'endpoint est dérivé du compte)
 
-## Deploy and schedule
-1. Deploy `supabase/functions/story-media-cleanup/index.ts` as Edge Function `story-media-cleanup`.
-2. Ensure its runtime has the existing Supabase service-role secret and these R2 secrets: `R2_ACCOUNT_ID`, `R2_PRIVATE_ACCESS_KEY_ID`, `R2_PRIVATE_SECRET_ACCESS_KEY`, `R2_PRIVATE_BUCKET_NAME`; optionally `R2_PRIVATE_ENDPOINT`.
-3. Schedule a POST every 10–15 minutes to `/functions/v1/story-media-cleanup`, with header `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` and `Content-Type: application/json`. Store the service-role key in Supabase Vault / scheduler secrets; do not commit it or put it in the Flutter app.
-4. Monitor function logs and the `public.story_media_cleanup_queue` table. Failed deletions remain queued in `public.story_media_cleanup_queue` with attempt count and last error, then are retried on the next run.
+Ils sont privés et ne doivent jamais être ajoutés au dépôt ou à l'application Flutter.
 
-The migration and function must be reviewed and deployed by the project owner; this change does not apply any remote migration or deploy the function automatically.
+## Authentification de la tâche planifiée
+Le cron appelle la fonction avec le JWT de passerelle stocké dans Vault sous `fcm_webhook_anon_key`, plus le secret de worker stocké sous `media_gc_worker_secret`. La fonction conserve `verify_jwt = true` et vérifie le secret via `verify_worker_secret`. La clé `service_role` n'est pas copiée dans la commande cron.
+
+## Vérification
+- Vérifier la fonction dans Supabase Edge Functions et ses logs.
+- Vérifier le job avec `select jobname, schedule, active from cron.job where jobname = 'story-media-cleanup-every-10-minutes';`
+- Vérifier la file avec `select count(*) from public.story_media_cleanup_queue;`
+- Consulter `last_error`, `attempts` et `last_attempt_at` pour les échecs.
+
+La migration de file et la planification sont additives. Le job est activé côté projet Supabase; aucune clé secrète n'est stockée dans Git.
