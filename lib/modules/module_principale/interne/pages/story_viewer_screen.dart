@@ -544,9 +544,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   .clamp(0.0, 400.0)
                                   .toDouble(),
                               child: Container(
-                                constraints: BoxConstraints(
-                                  maxHeight: MediaQuery.of(context).size.height * 0.64,
-                                ),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(18),
@@ -559,26 +556,17 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   ],
                                 ),
                                 clipBehavior: Clip.antiAlias,
-                                child: _currentStory.sharedPost!.media.any(
-                                  (media) => media.isVideo && media.url.trim().isNotEmpty,
-                                )
-                                    ? _StorySharedVideoPost(
-                                        key: ValueKey('shared-story-video-${_currentStory.id}'),
-                                        post: _currentStory.sharedPost!,
-                                        onProgress: (progress) {
-                                          if (mounted && (_videoProgress - progress).abs() >= 0.01) {
-                                            setState(() => _videoProgress = progress);
-                                          }
-                                        },
-                                        onCompleted: _nextStory,
-                                      )
-                                    : IgnorePointer(
-                                        child: FeedPostCard(
-                                          post: _currentStory.sharedPost!,
-                                          onReactionTap: (_) {},
-                                          onCommentTap: () {},
-                                        ),
-                                      ),
+                                // Reuse the exact feed card for every shared post,
+                                // including videos. The previous custom video card
+                                // omitted the feed interaction/counter bar and clipped
+                                // tall cards before their actions could be seen.
+                                child: IgnorePointer(
+                                  child: FeedPostCard(
+                                    post: _currentStory.sharedPost!,
+                                    onReactionTap: (_) {},
+                                    onCommentTap: () {},
+                                  ),
+                                ),
                               ),
                             ),
                           ],
