@@ -105,7 +105,7 @@ class StoryItem {
                map['liked'] == 1,
       sharedPost: shared,
       sharedPostId: map['shared_post_id']?.toString(),
-      sharedPostCanOpenOriginal: map['shared_post_can_open_original'] == true || map['shared_post_can_open_original'] == null,
+      sharedPostCanOpenOriginal: map['shared_post_can_open_original'] == true,
     );
   }
 }
