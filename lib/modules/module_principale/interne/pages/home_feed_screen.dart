@@ -326,6 +326,19 @@ class _StoriesRow extends GetView<StoriesController> {
                                   : null,
                             ),
                           ),
+                          if (controller.isPublishingStory.value)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(1),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                                    backgroundColor: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                              ),
+                            ),
                           Positioned(
                             bottom: 0,
                             right: 0,
