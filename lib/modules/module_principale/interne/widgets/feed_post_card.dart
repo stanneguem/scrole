@@ -156,7 +156,7 @@ class FeedPostCard extends StatelessWidget {
             // Draw the connector below the author avatar, keeping it behind the
             // card content and aligned to the shared avatar center (x = 36).
             Positioned(
-              left: 35,
+              left: cardHorizontalPadding + 20,
               top: showCommunityHeader ? 58 : 64,
               bottom: 0,
               child: IgnorePointer(
@@ -213,7 +213,7 @@ class FeedPostCard extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: colorScheme.primary,
+                                        color: colorScheme.onSurface,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
