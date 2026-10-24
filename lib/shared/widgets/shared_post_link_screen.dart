@@ -3,9 +3,7 @@ import 'package:get/get.dart';
 
 import '../../modules/module_principale/centre/models/community_post.dart';
 import '../../modules/module_principale/externe/repositories/home_feed_repository.dart';
-import '../../modules/module_principale/interne/enums/community_post_reaction.dart';
 import '../../modules/module_principale/interne/widgets/feed_post_card.dart';
-import 'profile_post_detail_screen.dart';
 
 /// Resolves a shared post link and displays it with the exact same card widget
 /// used by the home feed, instead of rebuilding a visually different version.
@@ -106,14 +104,14 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
                 onCommentTap: () {
                   Get.snackbar(
                     'Commentaires',
-                    'Ouvre les commentaires depuis le fil d’actualité pour le moment.',
+                    'Les commentaires peuvent être ouverts depuis le fil d’actualité.',
                     snackPosition: SnackPosition.BOTTOM,
                   );
                 },
                 onShareTap: () {
                   Get.snackbar(
                     'Partager',
-                    'Utilise le bouton de partage de la publication.',
+                    'Le partage de cette publication est disponible depuis le fil d’actualité.',
                     snackPosition: SnackPosition.BOTTOM,
                   );
                 },
