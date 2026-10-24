@@ -14,10 +14,12 @@ class MediaGallerySheet extends StatefulWidget {
     super.key,
     required this.onSelected,
     this.maxSelection = maxPostPhotos,
+    this.allowMixedMedia = true,
   });
 
   final Function(List<XFile>) onSelected;
   final int maxSelection;
+  final bool allowMixedMedia;
 
   @override
   State<MediaGallerySheet> createState() => _MediaGallerySheetState();
@@ -33,12 +35,13 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   static const int _pageSize = 60;
   
   bool _isOpeningMedia = false;
-  static const Set<String> _videoExtensions = {'mp4', 'mov'};
+  static const Set<String> _videoExtensions = {'mp4', 'mov', 'm4v'};
   bool _isSupportedAsset(AssetEntity asset) {
     if (asset.type == AssetType.image) return true;
     if (asset.type != AssetType.video) return false;
     final title = asset.title ?? '';
-    return _videoExtensions.contains(p.extension(title).replaceFirst('.', '').toLowerCase());
+    final extension = p.extension(title).replaceFirst('.', '').toLowerCase();
+    return _videoExtensions.contains(extension);
   }
   AssetPathEntity? _currentPath;
 
@@ -53,7 +56,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
       if (ps.isAuth || ps == PermissionState.limited) {
         final paths = await PhotoManager.getAssetPathList(
-          type: RequestType.common,
+          type: widget.allowMixedMedia ? RequestType.common : RequestType.image,
           onlyAll: true,
           filterOption: FilterOptionGroup(
             containsLivePhotos: false,
@@ -96,7 +99,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       
       if (mounted) {
         setState(() {
-          _allAssets.addAll(entities);
+          _allAssets.addAll(entities.where(_isSupportedAsset));
           _hasMore = entities.length == _pageSize;
           _isLoadingMore = false;
         });
