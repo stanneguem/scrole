@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -150,11 +151,13 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
       final storiesController = Get.isRegistered<StoriesController>()
           ? Get.find<StoriesController>()
           : Get.put(StoriesController());
-      final kind = _selectedFiles.isNotEmpty ? 'image' : 'text';
+      final selectedFile = _selectedFiles.isNotEmpty ? _selectedFiles.first : null;
+      final extension = selectedFile == null ? '' : p.extension(selectedFile.path).toLowerCase();
+      final kind = selectedFile == null ? 'text' : ({'.mp4', '.mov'}.contains(extension) ? 'video' : 'image');
       await storiesController.createStory(
         kind: kind,
         content: _textController.text.trim().isNotEmpty ? _textController.text.trim() : null,
-        imageFile: _selectedFiles.isNotEmpty ? _selectedFiles.first : null,
+        imageFile: selectedFile,
         mentions: _selectedMentionIds,
         allowReshare: _sharingEnabled,
       );
