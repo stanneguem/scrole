@@ -76,7 +76,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
           if (_currentStoryHasVideo) {
             _animController.stop();
           } else {
-            _animController.forward();
+            _resumeStoryTimer();
           }
         }
       }
@@ -162,6 +162,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   EventStoryGroup get _currentGroup => widget.groups[_groupIndex];
   StoryItem get _currentStory => _currentGroup.stories[_storyIndex];
   bool get _isOwnStory => _currentGroup.relation == 'own';
+
+  void _resumeStoryTimer() {
+    if (_currentStoryHasVideo) {
+      _animController.stop();
+    } else {
+      _animController.forward();
+    }
+  }
 
   String _formatStoryAge(DateTime createdAt) {
     final elapsed = DateTime.now().difference(createdAt);
@@ -259,13 +267,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     } else if (details.globalPosition.dx > screenWidth * 2 / 3) {
       _nextStory();
     } else {
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
   void _onCancel() {
     if (_commentFocusNode.hasFocus || _isPaused) return;
-    _animController.forward();
+    _resumeStoryTimer();
   }
 
   Future<void> _showViewersSheet() async {
@@ -281,7 +289,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -298,7 +306,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -390,7 +398,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -889,7 +897,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
