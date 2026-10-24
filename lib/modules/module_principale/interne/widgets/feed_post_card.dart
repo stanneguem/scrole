@@ -986,8 +986,11 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
       children: [
         // Left Block: Like, Dislike, Comment
         Row(
@@ -1937,6 +1940,29 @@ class _CommunityPublishSheetState extends State<_CommunityPublishSheet> {
   }
 }
 
+class _SharedPostStat extends StatelessWidget {
+  final IconData icon;
+  final int count;
+
+  const _SharedPostStat({required this.icon, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 3),
+        Text(
+          NumberFormatter.formatCount(count),
+          style: TextStyle(fontSize: 12, color: color),
+        ),
+      ],
+    );
+  }
+}
+
 class _RepublicationPostCard extends StatelessWidget {
   final CommunityPost post;
   final ValueChanged<PostReaction> onReactionTap;
@@ -2254,114 +2280,33 @@ class _RepublicationPostCard extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 8),
                                   ],
-                                  // Read-only stats bar of original post
+                                  // Read-only stats for the original post.
+                                  // Each item wraps independently on narrow screens.
                                   Wrap(
-                                    alignment: WrapAlignment.spaceBetween,
+                                    alignment: WrapAlignment.start,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 12,
                                     runSpacing: 6,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.north_rounded,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.likeCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.south_rounded,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.dislikeCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.bar_chart_outlined,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                NumberFormatter.formatCount(
-                                                  shared.viewCount,
-                                                ),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      _SharedPostStat(
+                                        icon: Icons.north_rounded,
+                                        count: shared.likeCount,
                                       ),
-                                      Row(
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons
-                                                    .chat_bubble_outline_rounded,
-                                                size: 15,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.commentCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.ios_share_rounded,
-                                                size: 15,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.shareCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      _SharedPostStat(
+                                        icon: Icons.south_rounded,
+                                        count: shared.dislikeCount,
+                                      ),
+                                      _SharedPostStat(
+                                        icon: Icons.bar_chart_outlined,
+                                        count: shared.viewCount,
+                                      ),
+                                      _SharedPostStat(
+                                        icon: Icons.chat_bubble_outline_rounded,
+                                        count: shared.commentCount,
+                                      ),
+                                      _SharedPostStat(
+                                        icon: Icons.ios_share_rounded,
+                                        count: shared.shareCount,
                                       ),
                                     ],
                                   ),
