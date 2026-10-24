@@ -1363,11 +1363,9 @@ class _ShareSheetWidget extends StatelessWidget {
                   label: 'Ma story',
                   onTap: () {
                     Navigator.of(context).pop();
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => _SharePostToStorySheet(post: post),
+                    Get.to(
+                      () => CreateStoryScreen(sharedPost: post),
+                      transition: Transition.cupertino,
                     );
                   },
                 ),
