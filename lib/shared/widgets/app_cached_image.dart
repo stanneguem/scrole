@@ -16,6 +16,7 @@ class AppCachedImage extends StatelessWidget {
   final int? lowResolutionWidth;
   final int? highResolutionWidth;
   final int imageQuality;
+  final VoidCallback? onImageLoaded;
 
   const AppCachedImage({
     super.key,
@@ -30,6 +31,7 @@ class AppCachedImage extends StatelessWidget {
     this.lowResolutionWidth,
     this.highResolutionWidth,
     this.imageQuality = 80,
+    this.onImageLoaded,
   });
 
   @override
@@ -45,6 +47,7 @@ class AppCachedImage extends StatelessWidget {
       return _R2SignedImage(
         objectKey: imageUrl, width: width, height: height, fit: fit,
         borderRadius: borderRadius, placeholder: placeholder, errorWidget: errorWidget,
+        onImageLoaded: onImageLoaded,
       );
     }
     // Storage object keys (e.g. `{uid}/chat/media/file.jpg`) are not files.
@@ -64,6 +67,14 @@ class AppCachedImage extends StatelessWidget {
           width: width,
           height: height,
           fit: fit,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (frame != null || wasSynchronouslyLoaded) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onImageLoaded?.call();
+              });
+            }
+            return child;
+          },
           errorBuilder: (_, __, ___) => errorWidget ?? _buildErrorWidget(),
         ),
       );
@@ -118,6 +129,12 @@ class AppCachedImage extends StatelessWidget {
         height: height,
         fit: fit,
         placeholder: (context, url) => placeholder ?? _buildPlaceholder(),
+        imageBuilder: (context, provider) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            onImageLoaded?.call();
+          });
+          return Image(image: provider, width: width, height: height, fit: fit);
+        },
         errorWidget: (context, url, error) =>
             errorWidget ?? _buildErrorWidget(),
       ),
@@ -303,6 +320,7 @@ class _R2SignedImageState extends State<_R2SignedImage> {
           imageUrl: snapshot.data!, width: widget.width, height: widget.height,
           fit: widget.fit, borderRadius: widget.borderRadius,
           placeholder: widget.placeholder, errorWidget: widget.errorWidget,
+          onImageLoaded: widget.onImageLoaded,
         );
       },
     );
