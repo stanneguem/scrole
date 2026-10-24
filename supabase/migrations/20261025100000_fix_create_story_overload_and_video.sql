@@ -53,5 +53,42 @@ begin
 end
 $migration$;
 
+-- Allow standalone video stories while preserving existing text, image, and
+-- shared-post story records. Video media uses image_url to store its private
+-- R2 object key, and does not use shared_post_id.
+alter table public.stories
+  drop constraint if exists stories_kind_check;
+alter table public.stories
+  add constraint stories_kind_check
+  check (kind = any (array['text'::text, 'image'::text, 'post'::text, 'video'::text]));
+
+alter table public.stories
+  drop constraint if exists stories_kind_content_check;
+alter table public.stories
+  add constraint stories_kind_content_check
+  check (
+    (
+      kind = 'text'::text
+      and nullif(btrim(content), ''::text) is not null
+      and image_url is null
+      and shared_post_id is null
+    )
+    or (
+      kind = 'image'::text
+      and image_url is not null
+      and shared_post_id is null
+    )
+    or (
+      kind = 'video'::text
+      and image_url is not null
+      and shared_post_id is null
+    )
+    or (
+      kind = 'post'::text
+      and shared_post_id is not null
+      and image_url is null
+    )
+  );
+
 -- Ensure PostgREST refreshes the available RPC signatures.
 notify pgrst, 'reload schema';
