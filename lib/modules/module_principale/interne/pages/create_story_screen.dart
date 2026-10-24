@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:video_player/video_player.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
