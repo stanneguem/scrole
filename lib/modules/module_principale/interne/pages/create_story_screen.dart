@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'package:get/get.dart';
 import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
@@ -127,24 +129,55 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
 
   Future<void> _publish() async {
     if (!_canPublish || _isPublishing) return;
-    setState(() => _isPublishing = true);
 
+    final sharedPost = widget.sharedPost;
+    final caption = _textController.text.trim();
+    final selectedFile = _selectedFiles.isNotEmpty ? _selectedFiles.first : null;
+    final mentions = List<String>.from(_selectedMentionIds);
+    final allowReshare = _sharingEnabled;
+    final background = _background;
+    final storiesController = Get.isRegistered<StoriesController>()
+        ? Get.find<StoriesController>()
+        : Get.put(StoriesController());
+
+    if (storiesController.isPublishingStory.value) return;
+
+    setState(() => _isPublishing = true);
+    storiesController.isPublishingStory.value = true;
+
+    // Close the composer immediately. The upload continues in the controller
+    // while the user's own story avatar displays a rotating progress ring.
+    Get.back();
+    unawaited(_publishInBackground(
+      storiesController: storiesController,
+      sharedPost: sharedPost,
+      caption: caption,
+      selectedFile: selectedFile,
+      mentions: mentions,
+      allowReshare: allowReshare,
+      background: background,
+    ));
+  }
+
+  Future<void> _publishInBackground({
+    required StoriesController storiesController,
+    required CommunityPost? sharedPost,
+    required String caption,
+    required File? selectedFile,
+    required List<String> mentions,
+    required bool allowReshare,
+    required String background,
+  }) async {
     try {
-      final sharedPost = widget.sharedPost;
       if (sharedPost != null) {
-        // Keep the original post linked in the story instead of copying its
-        // media file. This preserves video playback and the original post card.
         await HomeFeedRepository().sharePostToStory(
           p_id: const Uuid().v4(),
           p_original_post_id: sharedPost.sharedPostId ?? sharedPost.id,
-          p_caption: _textController.text.trim().isNotEmpty
-              ? _textController.text.trim()
-              : null,
-          p_background: _background,
+          p_caption: caption.isNotEmpty ? caption : null,
+          p_background: background,
           p_audience: 'followers',
         );
-        if (!mounted) return;
-        Get.back();
+        await storiesController.fetchStories();
         Get.snackbar(
           'Succès',
           'Publication ajoutée à votre story avec succès !',
@@ -153,20 +186,20 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         return;
       }
 
-      final storiesController = Get.isRegistered<StoriesController>()
-          ? Get.find<StoriesController>()
-          : Get.put(StoriesController());
-      final selectedFile = _selectedFiles.isNotEmpty ? _selectedFiles.first : null;
-      final extension = selectedFile == null ? '' : p.extension(selectedFile.path).toLowerCase();
-      final kind = selectedFile == null ? 'text' : ({'.mp4', '.mov'}.contains(extension) ? 'video' : 'image');
+      final extension = selectedFile == null
+          ? ''
+          : p.extension(selectedFile.path).toLowerCase();
+      final kind = selectedFile == null
+          ? 'text'
+          : ({'.mp4', '.mov'}.contains(extension) ? 'video' : 'image');
+
       await storiesController.createStory(
         kind: kind,
-        content: _textController.text.trim().isNotEmpty ? _textController.text.trim() : null,
+        content: caption.isNotEmpty ? caption : null,
         imageFile: selectedFile,
-        mentions: _selectedMentionIds,
-        allowReshare: _sharingEnabled,
+        mentions: mentions,
+        allowReshare: allowReshare,
       );
-      if (mounted) Get.back();
     } catch (e) {
       Get.snackbar(
         'Erreur',
@@ -176,7 +209,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         colorText: Colors.white,
       );
     } finally {
-      if (mounted) setState(() => _isPublishing = false);
+      storiesController.isPublishingStory.value = false;
     }
   }
 
@@ -335,59 +368,37 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                       ),
                     ),
 
-                    // Media preview grid
+                    // Large media preview: videos can be played before publishing.
                     if (widget.sharedPost == null && _selectedFiles.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SizedBox(
-                          height: 120,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _selectedFiles.length,
-                            itemBuilder: (context, index) {
-                              final file = _selectedFiles[index];
-                              return Stack(
-                                children: [
-                                  Container(
-                                    width: 100,
-                                    margin: const EdgeInsets.only(right: 8),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: colorScheme.outlineVariant),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: _isVideoFile(_selectedFiles.first)
+                                  ? _StoryVideoPreview(file: _selectedFiles.first)
+                                  : Image.file(
+                                      _selectedFiles.first,
+                                      width: double.infinity,
+                                      height: 300,
+                                      fit: BoxFit.contain,
                                     ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: _isVideoFile(file)
-                                      ? const ColoredBox(
-                                          color: Colors.black,
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.play_circle_fill_rounded,
-                                              color: Colors.white,
-                                              size: 38,
-                                            ),
-                                          ),
-                                        )
-                                      : Image.file(file, fit: BoxFit.cover),
-                                  ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 12,
-                                    child: GestureDetector(
-                                      onTap: () => setState(() => _selectedFiles.removeAt(index)),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.black54,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.close, size: 14, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                            ),
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Material(
+                                color: Colors.black54,
+                                shape: const CircleBorder(),
+                                child: IconButton(
+                                  tooltip: 'Retirer le média',
+                                  onPressed: () => setState(() => _selectedFiles.clear()),
+                                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
@@ -430,6 +441,130 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
   }
 }
 
+
+class _StoryVideoPreview extends StatefulWidget {
+  final File file;
+
+  const _StoryVideoPreview({required this.file});
+
+  @override
+  State<_StoryVideoPreview> createState() => _StoryVideoPreviewState();
+}
+
+class _StoryVideoPreviewState extends State<_StoryVideoPreview> {
+  late final VideoPlayerController _controller;
+  late final Future<void> _initialized;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.file(widget.file);
+    _initialized = _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _controller.initialize();
+    await _controller.setLooping(true);
+    await _controller.setVolume(1);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _initialized,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Container(
+            height: 280,
+            width: double.infinity,
+            color: Colors.black,
+            alignment: Alignment.center,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.white, size: 32),
+                SizedBox(height: 8),
+                Text('Impossible de prévisualiser cette vidéo', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          );
+        }
+        if (snapshot.connectionState != ConnectionState.done ||
+            !_controller.value.isInitialized) {
+          return const SizedBox(
+            height: 280,
+            width: double.infinity,
+            child: ColoredBox(
+              color: Colors.black,
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+          );
+        }
+
+        final ratio = _controller.value.aspectRatio;
+        return GestureDetector(
+          onTap: () {
+            if (_controller.value.isPlaying) {
+              _controller.pause();
+            } else {
+              _controller.play();
+            }
+            setState(() {});
+          },
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 380),
+            color: Colors.black,
+            child: AspectRatio(
+              aspectRatio: ratio > 0 ? ratio : 9 / 16,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  VideoPlayer(_controller),
+                  if (!_controller.value.isPlaying)
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black38,
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 42,
+                      ),
+                    ),
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 10,
+                    child: VideoProgressIndicator(
+                      _controller,
+                      allowScrubbing: true,
+                      colors: const VideoProgressColors(
+                        playedColor: Colors.white,
+                        bufferedColor: Colors.white38,
+                        backgroundColor: Colors.white24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 class _SharedPostStoryPreview extends StatelessWidget {
   final CommunityPost post;
