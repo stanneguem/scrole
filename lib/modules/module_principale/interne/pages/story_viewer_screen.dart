@@ -460,10 +460,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         child: Transform.translate(
           offset: Offset(0, _dragOffsetY),
           child: GestureDetector(
-            onTapDown: _onTapDown,
-            onTapUp: _onTapUp,
-            onTapCancel: _onCancel,
-            onDoubleTap: _isOwnStory ? null : _toggleStoryLike,
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -606,6 +602,55 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                       textAlign: TextAlign.center,
                     ),
                   ),
+
+                // Explicit left/center/right hit zones sit above media and
+                // repost cards, but below the header and footer controls.
+                // This avoids VideoPlayer or a post card winning the gesture arena.
+                Positioned(
+                  top: 64,
+                  left: 0,
+                  right: 0,
+                  bottom: 132,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (!_commentFocusNode.hasFocus && !_isPaused) {
+                              _prevStory();
+                            }
+                          },
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (!_commentFocusNode.hasFocus && !_isPaused &&
+                                !_currentStoryHasVideo) {
+                              _resumeStoryTimer();
+                            }
+                          },
+                          onDoubleTap: _isOwnStory ? null : _toggleStoryLike,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (!_commentFocusNode.hasFocus && !_isPaused) {
+                              _nextStory();
+                            }
+                          },
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
                 // --- Top Progress Bars & Header ---
                 SafeArea(
@@ -2395,8 +2440,42 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _StoryPostMetric(icon: Icons.thumb_up_alt_outlined, count: widget.post.likeCount),
+              _StoryPostMetric(icon: Icons.thumb_down_alt_outlined, count: widget.post.dislikeCount),
+              _StoryPostMetric(icon: Icons.mode_comment_outlined, count: widget.post.commentCount),
+              _StoryPostMetric(icon: Icons.visibility_outlined, count: widget.post.viewCount),
+              _StoryPostMetric(icon: Icons.repeat_rounded, count: widget.post.shareCount),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _StoryPostMetric extends StatelessWidget {
+  final IconData icon;
+  final int count;
+
+  const _StoryPostMetric({required this.icon, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 3),
+        Text(
+          formatCompactNumber(count),
+          style: TextStyle(fontSize: 10, color: color),
+        ),
+      ],
     );
   }
 }
