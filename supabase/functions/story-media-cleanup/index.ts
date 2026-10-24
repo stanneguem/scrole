@@ -24,14 +24,19 @@ Deno.serve(async (req: Request) => {
     return json({ error: "cleanup_not_configured" }, 503);
   }
 
-  // This endpoint is for trusted scheduler/service-role calls only.
-  const auth = req.headers.get("Authorization") ?? "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token || token !== serviceKey) return json({ error: "service_role_required" }, 401);
-
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // Scheduler uses the project's existing Vault-backed worker secret, validated server-side.
+  // The gateway JWT remains enabled; the service-role key is never placed in cron SQL.
+  const workerSecret = req.headers.get("x-worker-secret") ?? "";
+  if (workerSecret.length < 32) return json({ error: "worker_secret_required" }, 401);
+  const { data: validWorker, error: workerError } = await admin.rpc("verify_worker_secret", {
+    p_name: "media_gc_worker_secret",
+    p_secret: workerSecret,
+  });
+  if (workerError || validWorker !== true) return json({ error: "worker_secret_invalid" }, 401);
   const s3 = new S3Client({
     region: "auto",
     endpoint,
