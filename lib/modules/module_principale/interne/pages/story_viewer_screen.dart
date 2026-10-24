@@ -96,18 +96,39 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     _precacheNextStory();
   }
 
+  bool _isPrecacheableStoryImage(String? value) {
+    final raw = value?.trim() ?? '';
+    if (raw.isEmpty) return false;
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasAuthority ||
+        (uri.scheme != 'https' && uri.scheme != 'http')) {
+      // Story media may be stored as an R2 object key (for example
+      // stories/<user>/<file>.jpg). NetworkImage cannot load that key directly.
+      return false;
+    }
+    final path = uri.path.toLowerCase();
+    return !path.endsWith('.mp4') &&
+        !path.endsWith('.mov') &&
+        !path.endsWith('.m3u8') &&
+        !path.endsWith('.webm');
+  }
+
   void _precacheNextStory() {
     if (_storyIndex < _currentGroup.stories.length - 1) {
-      final url = _currentGroup.stories[_storyIndex + 1].imageUrl;
-      if (url != null && url.isNotEmpty) {
-        precacheImage(NetworkImage(url), context);
+      final nextStory = _currentGroup.stories[_storyIndex + 1];
+      final url = nextStory.imageUrl;
+      if (nextStory.kind != 'video' && _isPrecacheableStoryImage(url)) {
+        precacheImage(NetworkImage(url!.trim()), context)
+            .catchError((Object _) {});
       }
     } else if (_groupIndex < widget.groups.length - 1) {
       final nextGroup = widget.groups[_groupIndex + 1];
       if (nextGroup.stories.isNotEmpty) {
-        final url = nextGroup.stories.first.imageUrl;
-        if (url != null && url.isNotEmpty) {
-          precacheImage(NetworkImage(url), context).catchError((Object _) {});
+        final nextStory = nextGroup.stories.first;
+        final url = nextStory.imageUrl;
+        if (nextStory.kind != 'video' && _isPrecacheableStoryImage(url)) {
+          precacheImage(NetworkImage(url!.trim()), context)
+              .catchError((Object _) {});
         }
       }
     }
