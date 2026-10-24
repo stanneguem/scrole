@@ -26,6 +26,7 @@ begin
       and i.indisunique
       and not i.indisprimary
       and pg_get_indexdef(i.indexrelid) ilike '%shared_post_id%'
+      and pg_get_indexdef(i.indexrelid) ilike '%author_id%'
   loop
     if v.constraint_name is not null then
       execute format('alter table %I.%I drop constraint %I',
