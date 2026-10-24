@@ -189,6 +189,7 @@ class StoriesController extends GetxController {
   final RxList<EventStoryGroup> followingGroups = <EventStoryGroup>[].obs;
   final RxList<EventStoryGroup> suggestedGroups = <EventStoryGroup>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool isPublishingStory = false.obs;
 
   List<EventStoryGroup> get storyGroups => [
         if (ownGroup.value != null) ownGroup.value!,
