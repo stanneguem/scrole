@@ -106,6 +106,8 @@ class FeedPostCard extends StatelessWidget {
   final VoidCallback? onJoinCommunity;
   final VoidCallback? onRetryPublishing;
   final String? currentCommunityId;
+  /// Enables inline video autoplay when this card is embedded in a story.
+  final bool autoplayVideos;
 
   const FeedPostCard({
     super.key,
@@ -118,6 +120,7 @@ class FeedPostCard extends StatelessWidget {
     this.onJoinCommunity,
     this.onRetryPublishing,
     this.currentCommunityId,
+    this.autoplayVideos = false,
   });
 
   @override
@@ -131,6 +134,7 @@ class FeedPostCard extends StatelessWidget {
         onMoreTap: onMoreTap,
         onHidePost: onHidePost,
         currentCommunityId: currentCommunityId,
+        autoplayVideos: autoplayVideos,
       );
     }
 
@@ -444,6 +448,7 @@ class FeedPostCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(14),
                                     child: PostMediaSlider(
                                       heroTagPrefix: 'post_${post.id}',
+                                      forceAutoplayVideos: autoplayVideos,
                                       media: post.media,
                                       likesCount: post.likeCount,
                                       dislikesCount: post.dislikeCount,
@@ -1938,6 +1943,7 @@ class _RepublicationPostCard extends StatelessWidget {
   final VoidCallback? onMoreTap;
   final VoidCallback? onHidePost;
   final String? currentCommunityId;
+  final bool autoplayVideos;
 
   const _RepublicationPostCard({
     required this.post,
@@ -1947,6 +1953,7 @@ class _RepublicationPostCard extends StatelessWidget {
     this.onMoreTap,
     this.onHidePost,
     this.currentCommunityId,
+    this.autoplayVideos = false,
   });
 
   @override
@@ -2226,6 +2233,7 @@ class _RepublicationPostCard extends StatelessWidget {
                                       child: PostMediaSlider(
                                         heroTagPrefix:
                                             'shared_${shared.id}_${post.id}',
+                                        forceAutoplayVideos: autoplayVideos,
                                         media: shared.media,
                                         likesCount: shared.likeCount,
                                         dislikesCount: shared.dislikeCount,
