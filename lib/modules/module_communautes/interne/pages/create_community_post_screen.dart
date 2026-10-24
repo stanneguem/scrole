@@ -1140,9 +1140,6 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             // Bottom action bar
             Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
-              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
