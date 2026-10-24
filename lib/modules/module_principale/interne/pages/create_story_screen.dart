@@ -40,7 +40,6 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
   String _background = 'sunset';
-  String _audience = 'followers';
   List<Map<String, dynamic>> _selectedMentions = [];
   List<String> _selectedMentionIds = [];
 
@@ -142,7 +141,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
               ? _textController.text.trim()
               : null,
           p_background: _background,
-          p_audience: _audience,
+          p_audience: 'followers',
         );
         if (!mounted) return;
         Get.back();
