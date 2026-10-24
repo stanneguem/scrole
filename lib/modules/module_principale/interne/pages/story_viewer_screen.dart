@@ -2305,11 +2305,7 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
       await controller.setLooping(false);
       await controller.setVolume(1);
       setState(() {});
-      if (widget.isPaused) {
-        await controller.pause();
-      } else {
-        await controller.play();
-      }
+      await controller.play();
     } catch (e) {
       debugPrint('[STORY] Shared video failed to initialize: $e');
       if (mounted) setState(() => _failed = true);
