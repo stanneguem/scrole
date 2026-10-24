@@ -264,6 +264,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     final screenWidth = MediaQuery.of(context).size.width;
     if (details.globalPosition.dx < screenWidth / 3) {
       _prevStory();
+    } else if (_currentStoryHasVideo) {
+      // A video story cannot be skipped forward by tapping the right side;
+      // it completes only when the player reports the end of the video.
+      return;
     } else if (details.globalPosition.dx > screenWidth * 2 / 3) {
       _nextStory();
     } else {
