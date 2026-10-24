@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:video_player/video_player.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -70,8 +71,11 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
       _textController.text.trim().isNotEmpty ||
       _selectedFiles.isNotEmpty;
 
+  bool _isVideoFile(File file) =>
+      const {'.mp4', '.mov'}.contains(p.extension(file.path).toLowerCase());
+
   Future<void> _openMediaPicker() async {
-    final maxAllowed = 10 - _selectedFiles.length;
+    final maxAllowed = 1;
     if (maxAllowed <= 0) return;
 
     await showModalBottomSheet<void>(
@@ -84,7 +88,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         onSelected: (files) {
           if (files.isNotEmpty) {
             setState(() {
-              _selectedFiles.addAll(files.map((f) => File(f.path)));
+              _selectedFiles
+                ..clear()
+                ..addAll(files.take(1).map((f) => File(f.path)));
             });
           }
         },
@@ -351,7 +357,18 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                       border: Border.all(color: colorScheme.outlineVariant),
                                     ),
                                     clipBehavior: Clip.antiAlias,
-                                    child: Image.file(file, fit: BoxFit.cover),
+                                    child: _isVideoFile(file)
+                                      ? const ColoredBox(
+                                          color: Colors.black,
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.play_circle_fill_rounded,
+                                              color: Colors.white,
+                                              size: 38,
+                                            ),
+                                          ),
+                                        )
+                                      : Image.file(file, fit: BoxFit.cover),
                                   ),
                                   Positioned(
                                     top: 4,
