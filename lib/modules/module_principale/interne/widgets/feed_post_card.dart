@@ -1412,7 +1412,7 @@ class _ShareSheetWidget extends StatelessWidget {
                   label: 'Autres apps',
                   onTap: () async {
                     Navigator.of(context).pop();
-                    final url = 'https://scrole.app/posts/${post.id}';
+                    final url = 'https://scrole.fun/post/${post.id}';
                     await Share.share(
                       'Regardez cette publication sur Scrole : $url',
                     );
