@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
@@ -105,9 +106,21 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     }
   }
 
+  bool get _currentStoryHasVideo {
+    if (_currentStory.kind != 'post') return false;
+    final post = _currentStory.sharedPost;
+    return post != null && post.media.any((media) => media.isVideo && (media.url ?? '').trim().isNotEmpty);
+  }
+
   void _startStory() {
     if (!_isPaused && !_commentFocusNode.hasFocus) {
-      _animController.forward(from: 0.0);
+      if (_currentStoryHasVideo) {
+        // A video repost advances only when the actual video reaches its end.
+        _animController.stop();
+        _animController.value = 0;
+      } else {
+        _animController.forward(from: 0.0);
+      }
       _markCurrentViewed();
       _precacheNextStory();
     }
@@ -498,11 +511,18 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   ],
                                 ),
                                 clipBehavior: Clip.antiAlias,
-                                child: FeedPostCard(
-                                  post: _currentStory.sharedPost!,
-                                  onReactionTap: (_) {},
-                                  onCommentTap: () {},
-                                ),
+                                child: _currentStory.sharedPost!.media.any(
+                                  (media) => media.isVideo && (media.url ?? '').trim().isNotEmpty,
+                                )
+                                    ? _StorySharedVideoPost(
+                                        post: _currentStory.sharedPost!,
+                                        onCompleted: _nextStory,
+                                      )
+                                    : FeedPostCard(
+                                        post: _currentStory.sharedPost!,
+                                        onReactionTap: (_) {},
+                                        onCommentTap: () {},
+                                      ),
                               ),
                             ),
                           ],
@@ -2119,6 +2139,141 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Story-specific video player: unlike the feed player it never loops, and
+/// the story advances only when the source video finishes.
+class _StorySharedVideoPost extends StatefulWidget {
+  final CommunityPost post;
+  final VoidCallback onCompleted;
+
+  const _StorySharedVideoPost({
+    required this.post,
+    required this.onCompleted,
+  });
+
+  @override
+  State<_StorySharedVideoPost> createState() => _StorySharedVideoPostState();
+}
+
+class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
+  VideoPlayerController? _controller;
+  bool _failed = false;
+  bool _completionHandled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final video = widget.post.media.firstWhere(
+      (media) => media.isVideo && (media.url ?? '').trim().isNotEmpty,
+    );
+    _controller = VideoPlayerController.networkUrl(Uri.parse(video.url!))
+      ..addListener(_onVideoChanged);
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final controller = _controller;
+    if (controller == null) return;
+    try {
+      await controller.initialize();
+      if (!mounted) return;
+      await controller.setLooping(false);
+      await controller.setVolume(1);
+      setState(() {});
+      await controller.play();
+    } catch (e) {
+      debugPrint('[STORY] Shared video failed to initialize: $e');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  void _onVideoChanged() {
+    final controller = _controller;
+    if (!mounted || controller == null || !controller.value.isInitialized) return;
+    if (controller.value.hasError) {
+      setState(() => _failed = true);
+      return;
+    }
+    if (controller.value.position >= controller.value.duration &&
+        controller.value.duration > Duration.zero &&
+        !_completionHandled) {
+      _completionHandled = true;
+      widget.onCompleted();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onVideoChanged);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.post.authorName,
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (widget.post.content.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              widget.post.content,
+              style: TextStyle(color: colorScheme.onSurface),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 10),
+          AspectRatio(
+            aspectRatio: controller?.value.isInitialized == true
+                ? controller!.value.aspectRatio
+                : 9 / 16,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ColoredBox(
+                color: Colors.black,
+                child: controller?.value.isInitialized == true && !_failed
+                    ? VideoPlayer(controller!)
+                    : Center(
+                        child: Icon(
+                          _failed ? Icons.error_outline_rounded : Icons.play_circle_outline_rounded,
+                          color: Colors.white,
+                          size: 44,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          if (controller?.value.isInitialized == true && !_failed)
+            VideoProgressIndicator(
+              controller!,
+              allowScrubbing: false,
+              colors: const VideoProgressColors(
+                playedColor: Colors.white,
+                bufferedColor: Colors.white38,
+                backgroundColor: Colors.white12,
+              ),
+            ),
         ],
       ),
     );
