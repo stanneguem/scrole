@@ -71,7 +71,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
       _selectedFiles.isNotEmpty;
 
   bool _isVideoFile(File file) =>
-      const {'.mp4', '.mov', '.m4v'}.contains(p.extension(file.path).toLowerCase());
+      const {'.mp4', '.mov'}.contains(p.extension(file.path).toLowerCase());
 
   Future<void> _openMediaPicker() async {
     final maxAllowed = 1;
@@ -158,7 +158,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
           : Get.put(StoriesController());
       final selectedFile = _selectedFiles.isNotEmpty ? _selectedFiles.first : null;
       final extension = selectedFile == null ? '' : p.extension(selectedFile.path).toLowerCase();
-      final kind = selectedFile == null ? 'text' : ({'.mp4', '.mov', '.m4v'}.contains(extension) ? 'video' : 'image');
+      final kind = selectedFile == null ? 'text' : ({'.mp4', '.mov'}.contains(extension) ? 'video' : 'image');
       await storiesController.createStory(
         kind: kind,
         content: _textController.text.trim().isNotEmpty ? _textController.text.trim() : null,
