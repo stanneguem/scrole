@@ -2440,54 +2440,8 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _StoryPostMetric(icon: Icons.thumb_up_alt_outlined, count: widget.post.likeCount),
-              _StoryPostMetric(icon: Icons.thumb_down_alt_outlined, count: widget.post.dislikeCount),
-              _StoryPostMetric(icon: Icons.mode_comment_outlined, count: widget.post.commentCount),
-              _StoryPostMetric(icon: Icons.visibility_outlined, count: widget.post.viewCount),
-              _StoryPostMetric(icon: Icons.repeat_rounded, count: widget.post.shareCount),
-            ],
-          ),
         ],
       ),
-    );
-  }
-}
-
-String _formatStoryMetricCount(int value) {
-  if (value < 1000) return value.toString();
-  if (value < 1000000) {
-    final scaled = value / 1000;
-    final formatted = scaled.toStringAsFixed(scaled < 10 ? 1 : 0);
-    return '${formatted.endsWith('.0') ? formatted.substring(0, formatted.length - 2) : formatted}K';
-  }
-  final scaled = value / 1000000;
-  final formatted = scaled.toStringAsFixed(scaled < 10 ? 1 : 0);
-  return '${formatted.endsWith('.0') ? formatted.substring(0, formatted.length - 2) : formatted}M';
-}
-
-class _StoryPostMetric extends StatelessWidget {
-  final IconData icon;
-  final int count;
-
-  const _StoryPostMetric({required this.icon, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 3),
-        Text(
-          _formatStoryMetricCount(count),
-          style: TextStyle(fontSize: 10, color: color),
-        ),
-      ],
     );
   }
 }
