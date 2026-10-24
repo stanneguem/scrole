@@ -470,6 +470,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   _StoryVideoPlayer(
                     key: ValueKey(_currentStory.id),
                     objectKey: _currentStory.imageUrl!,
+                    isPaused: _isPaused || _commentFocusNode.hasFocus,
                     onProgress: (progress) {
                       if (mounted && (_videoProgress - progress).abs() >= 0.01) {
                         setState(() => _videoProgress = progress);
@@ -614,6 +615,18 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                       Expanded(
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
+                          // Hold anywhere in the center zone to pause the story;
+                          // releasing resumes the image timer or the video.
+                          onLongPressStart: (_) {
+                            if (_commentFocusNode.hasFocus || _isPaused) return;
+                            _animController.stop();
+                            setState(() => _isPaused = true);
+                          },
+                          onLongPressEnd: (_) {
+                            if (_commentFocusNode.hasFocus || !_isPaused) return;
+                            setState(() => _isPaused = false);
+                            _resumeStoryTimer();
+                          },
                           onTap: () {
                             if (!_commentFocusNode.hasFocus && !_isPaused &&
                                 !_currentStoryHasVideo) {
@@ -2292,7 +2305,11 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
       await controller.setLooping(false);
       await controller.setVolume(1);
       setState(() {});
-      await controller.play();
+      if (widget.isPaused) {
+        await controller.pause();
+      } else {
+        await controller.play();
+      }
     } catch (e) {
       debugPrint('[STORY] Shared video failed to initialize: $e');
       if (mounted) setState(() => _failed = true);
@@ -2437,12 +2454,14 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
 /// non-looping and the story advances only after the video reaches its end.
 class _StoryVideoPlayer extends StatefulWidget {
   final String objectKey;
+  final bool isPaused;
   final ValueChanged<double> onProgress;
   final VoidCallback onCompleted;
 
   const _StoryVideoPlayer({
     super.key,
     required this.objectKey,
+    required this.isPaused,
     required this.onProgress,
     required this.onCompleted,
   });
@@ -2460,6 +2479,28 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
   void initState() {
     super.initState();
     _initialize();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StoryVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isPaused != widget.isPaused) {
+      _syncPlaybackState();
+    }
+  }
+
+  Future<void> _syncPlaybackState() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    try {
+      if (widget.isPaused) {
+        await controller.pause();
+      } else {
+        await controller.play();
+      }
+    } catch (e) {
+      debugPrint('[STORY] Unable to update video pause state: $e');
+    }
   }
 
   Future<void> _initialize() async {
