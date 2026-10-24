@@ -14,6 +14,7 @@ import 'package:scrole/modules/module_communautes/interne/pages/community_post_s
 import 'package:scrole/modules/module_principale/interne/controllers/stories_controller.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/home_feed_repository.dart';
+import 'package:scrole/modules/module_principale/interne/widgets/feed_post_card.dart';
 
 class CreateStoryScreen extends StatefulWidget {
   final String? prefilledText;
@@ -39,7 +40,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
   String _background = 'sunset';
-  String _audience = 'public';
+  String _audience = 'followers';
   List<Map<String, dynamic>> _selectedMentions = [];
   List<String> _selectedMentionIds = [];
 
@@ -427,7 +428,6 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'public', child: Text('Public')),
                           DropdownMenuItem(value: 'followers', child: Text('Abonnés')),
                           DropdownMenuItem(value: 'friends', child: Text('Amis')),
                         ],
@@ -462,93 +462,22 @@ class _SharedPostStoryPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final original = post.sharedPost ?? post;
-    final media = original.media.isNotEmpty ? original.media.first : null;
-    final isVideo = media?.isVideo == true;
+    // Reuse the exact feed card instead of maintaining a second, divergent
+    // design for story reshares. The card is displayed as a preview only:
+    // its actions and media are not tappable on the story-creation screen.
+    final originalPost = post.sharedPost ?? post;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 17,
-                  backgroundColor: colorScheme.surfaceContainerHighest,
-                  child: Icon(Icons.person_outline, size: 19, color: colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    original.authorName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                Icon(Icons.repeat_rounded, size: 18, color: colorScheme.primary),
-              ],
-            ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: IgnorePointer(
+          child: FeedPostCard(
+            post: originalPost,
+            onReactionTap: (_) {},
+            onCommentTap: () {},
           ),
-          if (original.content.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: Text(
-                original.content,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: colorScheme.onSurface, height: 1.35),
-              ),
-            ),
-          if (media != null)
-            SizedBox(
-              height: 190,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
-                    AppCachedImage(imageUrl: media.thumbnailUrl!, fit: BoxFit.cover)
-                  else if (!isVideo && media.url.isNotEmpty)
-                    AppCachedImage(imageUrl: media.url, fit: BoxFit.cover)
-                  else
-                    ColoredBox(color: Colors.black87),
-                  if (isVideo)
-                    const Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Icon(isVideo ? Icons.videocam_outlined : Icons.article_outlined, size: 16, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Text(
-                  isVideo ? 'Publication vidéo' : 'Publication partagée',
-                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
