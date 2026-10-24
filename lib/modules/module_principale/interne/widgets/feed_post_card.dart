@@ -986,15 +986,13 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 8,
-      runSpacing: 4,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Left Block: Like, Dislike, Comment
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Expanded(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
           children: [
             // 1. Upvote / Like
             InkWell(
@@ -1104,9 +1102,10 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
               ),
             ),
           ],
+          ),
         ),
 
-        // Right Block: Views, Share
+        // Right Block: Views, Share, pinned to the right edge
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
