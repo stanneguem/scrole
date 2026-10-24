@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
 import 'package:scrole/app_controller.dart';
@@ -228,6 +229,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
     final displayName = fullName.isEmpty ? (username.isEmpty ? 'profile_default_username'.tr : username) : fullName;
     final avatarUrl = profile['photo_url']?.toString() ?? '';
     final isCertified = profile['is_certified'] == true || profile['is_verified'] == true || profile['is_certified'] == 1 || profile['is_verified'] == 1;
+    final certificationUserId = Supabase.instance.client.auth.currentUser?.id
+        ?? profile['user_id']?.toString()
+        ?? profile['id']?.toString();
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -317,7 +321,10 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                     ),
                                     if (isCertified) ...[
                                       const SizedBox(width: 4),
-                                      const UserCertifiedBadge(size: 15),
+                                      UserCertifiedBadge(
+                                        size: 15,
+                                        userId: certificationUserId,
+                                      ),
                                     ],
                                   ],
                                 ),
