@@ -2344,16 +2344,24 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
             ),
           ],
           const SizedBox(height: 10),
-          AspectRatio(
-            aspectRatio: controller?.value.isInitialized == true
-                ? controller!.value.aspectRatio
-                : 9 / 16,
+          SizedBox(
+            width: double.infinity,
+            height: (MediaQuery.of(context).size.height * 0.34)
+                .clamp(150.0, 280.0)
+                .toDouble(),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: ColoredBox(
                 color: Colors.black,
                 child: controller?.value.isInitialized == true && !_failed
-                    ? VideoPlayer(controller!)
+                    ? FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: controller!.value.size.width,
+                          height: controller.value.size.height,
+                          child: VideoPlayer(controller),
+                        ),
+                      )
                     : Center(
                         child: Icon(
                           _failed ? Icons.error_outline_rounded : Icons.play_circle_outline_rounded,
