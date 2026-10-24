@@ -15,7 +15,7 @@ import '../../../../app/repository_global/r2_media_repository.dart';
 
 class StoryItem {
   final String id;
-  final String kind; // 'text' | 'image'
+  final String kind; // 'text' | 'image' | 'video'
   final String? content;
   final String? imageUrl;
   final String? background;
@@ -364,7 +364,7 @@ class StoriesController extends GetxController {
         }
       } catch (e, st) {
         debugPrint('[STORY] [Controller] Story image compression/upload error: $e\n$st');
-        Get.snackbar('Erreur', 'Échec de l\'upload de l\'image', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar('Erreur', 'Échec de l\'upload du média de la story', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
         return;
       }
     }
