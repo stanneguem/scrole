@@ -33,6 +33,19 @@ begin
                                       'p_kind not in (''image'', ''text'', ''video'')');
     v_updated := replace(v_updated, 'v_kind not in (''image'', ''text'')',
                                       'v_kind not in (''image'', ''text'', ''video'')');
+    -- Handle formatting variants commonly emitted by PL/pgSQL migrations.
+    v_updated := replace(v_updated, 'p_kind not in (''text'',''image'')',
+                                      'p_kind not in (''text'',''image'',''video'')');
+    v_updated := replace(v_updated, 'p_kind NOT IN (''text'',''image'')',
+                                      'p_kind NOT IN (''text'',''image'',''video'')');
+    v_updated := replace(v_updated, 'v_kind not in (''text'',''image'')',
+                                      'v_kind not in (''text'',''image'',''video'')');
+    v_updated := replace(v_updated, 'v_kind NOT IN (''text'',''image'')',
+                                      'v_kind NOT IN (''text'',''image'',''video'')');
+    v_updated := replace(v_updated, 'p_kind not in (''image'',''text'')',
+                                      'p_kind not in (''image'',''text'',''video'')');
+    v_updated := replace(v_updated, 'v_kind not in (''image'',''text'')',
+                                      'v_kind not in (''image'',''text'',''video'')');
 
     if v_updated <> v_def then
       execute v_updated;
