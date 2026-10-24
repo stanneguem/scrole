@@ -39,6 +39,7 @@ class PostMediaSlider extends StatefulWidget {
 
 class _PostMediaSliderState extends State<PostMediaSlider> {
   int _currentIndex = 0;
+  double _videoOverlayOpacity = 1;
   late final PageController _pageController;
 
   @override
@@ -115,6 +116,10 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                             key: ValueKey('feed_video_${_getHeroTag(index)}'),
                             autoplayPostId: widget.autoplayPostId,
                             forceAutoplay: widget.forceAutoplayVideos,
+                            onPlaybackOverlayOpacityChanged: (opacity) {
+                              if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
+                              setState(() => _videoOverlayOpacity = opacity);
+                            },
                             url: item.url ?? '',
                             thumbnailUrl: item.thumbnailUrl,
                             onOpenFullScreen: () => _openFullScreen(context, index),
@@ -132,12 +137,18 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
             Positioned(
               right: 12,
               top: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                child: Text(
-                  '${_currentIndex + 1}/$len',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: _videoOverlayOpacity,
+                  duration: const Duration(milliseconds: 180),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                    child: Text(
+                      '${_currentIndex + 1}/$len',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -366,6 +377,7 @@ class FeedVideoAutoplayGate {
 class _InlineFeedVideo extends StatefulWidget {
   final String? autoplayPostId;
   final bool forceAutoplay;
+  final ValueChanged<double>? onPlaybackOverlayOpacityChanged;
   final String url;
   final String? thumbnailUrl;
   final VoidCallback onOpenFullScreen;
@@ -374,6 +386,7 @@ class _InlineFeedVideo extends StatefulWidget {
     super.key,
     this.autoplayPostId,
     this.forceAutoplay = false,
+    this.onPlaybackOverlayOpacityChanged,
     required this.url,
     required this.thumbnailUrl,
     required this.onOpenFullScreen,
@@ -391,6 +404,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   bool _cardEligible = false;
   bool _failed = false;
   bool _isMuted = false;
+  bool _playbackOverlaysDismissed = false;
   Worker? _preferencesWorker;
 
   @override
@@ -438,6 +452,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
       // the viewer mute/unmute without opening the fullscreen player.
       await controller.setVolume(_isMuted ? 0 : 1);
       _controller = controller;
+      controller.addListener(_updatePlaybackOverlayOpacity);
       setState(() {});
       await controller.play();
     } catch (error) {
@@ -446,6 +461,25 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
       if (mounted) setState(() => _failed = true);
     } finally {
       _initializing = false;
+    }
+  }
+
+  void _updatePlaybackOverlayOpacity() {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized ||
+        !controller.value.isPlaying || _playbackOverlaysDismissed) {
+      return;
+    }
+
+    // Fade the media counter and speaker control away during the first
+    // 2.5 seconds of playback, then keep them hidden for the rest of the clip.
+    final elapsedMs = controller.value.position.inMilliseconds;
+    const fadeDurationMs = 2500;
+    final opacity = (1 - (elapsedMs / fadeDurationMs)).clamp(0.0, 1.0);
+    widget.onPlaybackOverlayOpacityChanged?.call(opacity);
+    if (elapsedMs >= fadeDurationMs) {
+      _playbackOverlaysDismissed = true;
+      widget.onPlaybackOverlayOpacityChanged?.call(0);
     }
   }
 
@@ -483,6 +517,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     _preferencesWorker?.dispose();
     final postId = widget.autoplayPostId;
     if (postId != null) FeedVideoAutoplayGate.unregister(postId, _onCardVisibilityChanged);
+    _controller?.removeListener(_updatePlaybackOverlayOpacity);
     _controller?.dispose();
     super.dispose();
   }
@@ -542,10 +577,15 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
             Positioned(
               right: 10,
               bottom: 10,
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.62),
-                shape: const CircleBorder(),
-                child: IconButton(
+              child: IgnorePointer(
+                ignoring: _playbackOverlaysDismissed,
+                child: AnimatedOpacity(
+                  opacity: _playbackOverlaysDismissed ? 0 : 1,
+                  duration: const Duration(milliseconds: 180),
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.62),
+                    shape: const CircleBorder(),
+                    child: IconButton(
                   tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
@@ -565,6 +605,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
                     _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                     color: Colors.white,
                     size: 22,
+                    ),
                   ),
                 ),
               ),
