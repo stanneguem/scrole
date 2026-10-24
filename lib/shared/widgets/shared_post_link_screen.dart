@@ -22,20 +22,21 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: colors.surface,
-      appBar: AppBar(
-        title: const Text('Publication Scrole'),
-        centerTitle: true,
-      ),
-      body: FutureBuilder<CommunityPost>(
-        future: _postFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError || !snapshot.hasData) {
-            return Center(
+    return FutureBuilder<CommunityPost>(
+      future: _postFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Scaffold(
+            backgroundColor: colors.surface,
+            appBar: AppBar(title: const Text('Publication Scrole'), centerTitle: true),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Scaffold(
+            backgroundColor: colors.surface,
+            appBar: AppBar(title: const Text('Publication Scrole'), centerTitle: true),
+            body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -55,11 +56,11 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
                   ],
                 ),
               ),
-            );
-          }
-          return ProfilePostDetailScreen(post: snapshot.data!);
-        },
-      ),
+            ),
+          );
+        }
+        return ProfilePostDetailScreen(post: snapshot.data!);
+      },
     );
   }
 }
