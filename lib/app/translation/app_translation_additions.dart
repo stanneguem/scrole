@@ -120,7 +120,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Membres…",
       'community_member_count_one': "1 membre",
-      'community_member_count_many': "{count} membres",
+      'community_member_count_many': "@count membres",
 
       'community_creation_pending_message': "La communauté est en cours de création sur le serveur.",
       'community_feed_loading': "Chargement des publications…",
@@ -985,7 +985,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Members…",
       'community_member_count_one': "1 member",
-      'community_member_count_many': "{count} members",
+      'community_member_count_many': "@count members",
 
       'community_creation_pending_message': "The community is still being created on the server.",
       'community_feed_loading': "Loading posts…",
@@ -1846,7 +1846,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Miembros…",
       'community_member_count_one': "1 miembro",
-      'community_member_count_many': "{count} miembros",
+      'community_member_count_many': "@count miembros",
 
       'community_creation_pending_message': "La comunidad todavía se está creando en el servidor.",
       'community_feed_loading': "Cargando publicaciones…",
@@ -2623,7 +2623,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Mitglieder…",
       'community_member_count_one': "1 Mitglied",
-      'community_member_count_many': "{count} Mitglieder",
+      'community_member_count_many': "@count Mitglieder",
 
       'community_creation_pending_message': "Die Community wird noch auf dem Server erstellt.",
       'community_feed_loading': "Beiträge werden geladen…",
@@ -3383,7 +3383,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Membri…",
       'community_member_count_one': "1 membro",
-      'community_member_count_many': "{count} membri",
+      'community_member_count_many': "@count membri",
 
       'community_creation_pending_message': "La community è ancora in fase di creazione sul server.",
       'community_feed_loading': "Caricamento dei post…",
@@ -4143,7 +4143,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Membros…",
       'community_member_count_one': "1 membro",
-      'community_member_count_many': "{count} membros",
+      'community_member_count_many': "@count membros",
 
       'community_creation_pending_message': "A comunidade ainda está sendo criada no servidor.",
       'community_feed_loading': "Carregando publicações…",
@@ -4903,7 +4903,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "成员…",
       'community_member_count_one': "1 位成员",
-      'community_member_count_many': "{count} 位成员",
+      'community_member_count_many': "@count 位成员",
 
       'community_creation_pending_message': "社群仍在服务器上创建中。",
       'community_feed_loading': "正在加载帖子…",
@@ -5663,7 +5663,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "メンバー…",
       'community_member_count_one': "メンバー 1 人",
-      'community_member_count_many': "メンバー {count} 人",
+      'community_member_count_many': "メンバー @count 人",
 
       'community_creation_pending_message': "コミュニティはサーバー上で作成中です。",
       'community_feed_loading': "投稿を読み込み中…",
@@ -6422,7 +6422,7 @@ class AppTranslationAdditions {
 
       'community_member_count_loading': "Участники…",
       'community_member_count_one': "1 участник",
-      'community_member_count_many': "Участников: {count}",
+      'community_member_count_many': "Участников: @count",
 
       'community_creation_pending_message': "Сообщество ещё создаётся на сервере.",
       'community_feed_loading': "Загрузка публикаций…",
