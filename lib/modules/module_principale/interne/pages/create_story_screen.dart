@@ -416,27 +416,6 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                     icon: Icon(Icons.alternate_email_rounded, color: colorScheme.primary),
                     tooltip: 'Mentionner',
                   ),
-                  if (widget.sharedPost != null) ...[
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _audience,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Audience',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: 'followers', child: Text('Abonnés')),
-                          DropdownMenuItem(value: 'friends', child: Text('Amis')),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) setState(() => _audience = value);
-                        },
-                      ),
-                    ),
-                  ],
                   IconButton(
                     onPressed: _openSettings,
                     icon: Icon(Icons.settings_outlined, color: colorScheme.primary),
