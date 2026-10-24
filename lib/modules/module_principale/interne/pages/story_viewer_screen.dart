@@ -2364,7 +2364,7 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
               ),
             ),
           ),
-remove progress from video card        ],
+        ],
       ),
     );
   }
