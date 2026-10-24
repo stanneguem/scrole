@@ -17,6 +17,7 @@ import 'package:scrole/app/repository_global/centre_interets_repository.dart';
 import 'package:scrole/app/service_global/language_service.dart';
 import 'package:scrole/app/service_global/notification_service.dart';
 import 'package:scrole/app/service_global/app_config_service.dart';
+import 'package:scrole/app/service_global/app_deep_link_service.dart';
 import 'package:scrole/app/service_global/connectivity_service.dart';
 import 'package:scrole/app/service_global/device_service.dart';
 import 'package:scrole/app/service_global/media_service.dart';
@@ -131,6 +132,7 @@ Future<void> _bootstrap() async {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       bootLog('premier frame terminé');
+      unawaited(AppDeepLinkService.instance.initialize());
     });
   } catch (e, st) {
     debugPrint('[Boot] Erreur phase critique : $e');
