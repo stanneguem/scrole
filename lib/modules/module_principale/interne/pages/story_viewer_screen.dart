@@ -39,7 +39,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   bool _isPaused = false;
   String? _imageLoadedStoryId;
   double _videoProgress = 0.0;
-    _imageLoadedStoryId = null;
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   final StoriesController _storiesController = Get.find<StoriesController>();
@@ -230,6 +229,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   void _nextStory() {
     _videoProgress = 0.0;
+    _imageLoadedStoryId = null;
     if (_storyIndex < _currentGroup.stories.length - 1) {
       setState(() => _storyIndex++);
       _startStory();
