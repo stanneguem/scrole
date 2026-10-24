@@ -18,16 +18,18 @@ class StoriesRepository {
   }) async {
     try {
       debugPrint('[STORY] [Repository] Calling RPC create_story with p_id=$p_id, kind=$p_kind, audience=$p_audience');
+      // Always pass every argument because the 8-argument RPC overload
+      // deliberately has no defaults; this also avoids PostgREST overload ambiguity.
       final params = <String, dynamic>{
         'p_id': p_id,
         'p_kind': p_kind,
+        'p_content': p_content,
+        'p_image_url': p_image_url,
+        'p_background': p_background,
         'p_audience': p_audience,
+        'p_poll': p_poll,
         'p_allow_reshare': p_allow_reshare,
       };
-      if (p_content != null && p_content.isNotEmpty) params['p_content'] = p_content;
-      if (p_image_url != null && p_image_url.isNotEmpty) params['p_image_url'] = p_image_url;
-      if (p_background != null && p_background.isNotEmpty) params['p_background'] = p_background;
-      if (p_poll != null) params['p_poll'] = p_poll;
 
       final response = await client.rpc('create_story', params: params);
       debugPrint('[STORY] [Repository] RPC create_story successful for p_id=$p_id, response=$response');
