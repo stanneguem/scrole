@@ -476,7 +476,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _openPollCreator() async {
     if (_selectedMedia.isNotEmpty || (_prefilledUrl != null && _prefilledUrl!.isNotEmpty)) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de photos.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_photos'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     final pollMap = await Get.to<Map<String, dynamic>>(() => const CommunityPollComposerScreen(), transition: Transition.rightToLeft);
@@ -504,17 +504,17 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final content = _textController.text.trim();
 
     if (content.isEmpty && filesToPublish.isEmpty && videosToPublish.isEmpty && _pollData == null) {
-      Get.snackbar('Publication vide', 'Une publication doit contenir du texte, un média ou un sondage.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_empty_title'.tr, 'post_composer_empty_message'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
     if (_pollData != null && content.isEmpty) {
-      Get.snackbar('Question manquante', 'Écris la question du sondage ou du quiz avant de publier.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_question_missing'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
     if (filesToPublish.length + videosToPublish.length > maxPostMedia) {
-      Get.snackbar('Limite dépassée', 'Maximum $maxPostMedia médias autorisés (photos et vidéos confondues).', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_limit_title'.tr, 'post_composer_media_limit'.trParams({'max': '$maxPostMedia'}), backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
@@ -621,7 +621,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _openGallery() async {
     if (_pollData != null) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de photos.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_photos'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
@@ -657,7 +657,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       final isVideo = const {'mp4', 'mov'}.contains(extension);
       if (!isVideo) {
         if (_selectedPhotoCount >= maxPostPhotos) {
-          Get.snackbar('Limite de photos atteinte', 'Vous pouvez ajouter au maximum $maxPostPhotos photos par publication.');
+          Get.snackbar('post_composer_photo_limit_title'.tr, 'post_composer_photo_limit_message'.trParams({'max': '$maxPostPhotos'}));
           continue;
         }
         setState(() {
@@ -684,7 +684,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           try {
             await verify.initialize();
             if (verify.value.duration > const Duration(seconds: 29)) {
-              Get.snackbar('Découpage insuffisant', 'La vidéo doit durer 29 secondes maximum.');
+              Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
               continue;
             }
           } finally {
@@ -697,7 +697,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           _prefilledUrl = null;
         });
       } catch (e) {
-        if (mounted) Get.snackbar('Vidéo incompatible', 'Cette vidéo ne peut pas être lue par Scrole. Choisissez un MP4 ou MOV compatible.');
+        if (mounted) Get.snackbar('post_composer_video_invalid_title'.tr, 'post_composer_video_invalid_message'.tr);
         debugPrint('[POST_COMPOSER] incompatible gallery video: $e');
       }
     }
@@ -709,7 +709,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       return;
     }
     if (_selectedMediaCount >= maxPostMedia) {
-      Get.snackbar('Limite atteinte', 'Une publication peut contenir au maximum $maxPostMedia médias.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_media_limit_title'.tr, 'post_composer_media_limit_message'.trParams({'max': '$maxPostMedia'}), backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     try {
@@ -732,7 +732,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         try {
           await verify.initialize();
           if (verify.value.duration > const Duration(seconds: 29)) {
-            Get.snackbar('Découpage insuffisant', 'La vidéo découpée doit durer 29 secondes maximum. Recommence le découpage.', backgroundColor: Colors.black87, colorText: Colors.white);
+            Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
             return;
           }
         } finally {
@@ -745,7 +745,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         _prefilledUrl = null;
       });
     } catch (e) {
-      if (mounted) Get.snackbar('Vidéo impossible à sélectionner', e.toString(), backgroundColor: Colors.black87, colorText: Colors.white);
+      if (mounted) Get.snackbar('post_composer_video_select_error'.tr, e.toString(), backgroundColor: Colors.black87, colorText: Colors.white);
     }
   }
 
@@ -774,7 +774,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Créer une publication'),
+        title: Text('post_composer_title'.tr),
         titleTextStyle: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
         leading: IconButton(
           onPressed: () => Get.back(),
@@ -794,7 +794,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               child: _isPublishing
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(
-                      'Publier',
+                      'post_composer_publish'.tr,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -874,7 +874,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      'Dans ${widget.communityName}',
+                                      'post_composer_community_label'.trParams({'name': widget.communityName}),
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
@@ -884,7 +884,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                   )
                                 else
                                   Text(
-                                    'Publier un post sur mon fil',
+                                    'post_composer_feed_label'.tr,
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
@@ -910,7 +910,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         maxLength: 5000,
                         style: AppTextStyles.bodyXL.copyWith(fontSize: 18, height: 1.4, color: colorScheme.onSurface),
                         decoration: InputDecoration(
-                          hintText: _pollData != null ? 'Posez votre question pour le sondage...' : 'Quoi de neuf ? (max 5000 chars)',
+                          hintText: _pollData != null ? 'post_composer_poll_question'.tr : 'post_composer_whats_new'.tr,
                           hintStyle: AppTextStyles.bodyXL.copyWith(fontSize: 18, color: colorScheme.outline.withValues(alpha: 0.5)),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -1016,7 +1016,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                   ),
                                   IconButton(
-                                    tooltip: 'Supprimer le sondage',
+                                    tooltip: 'post_composer_delete_poll'.tr,
                                     onPressed: () => setState(() => _pollData = null),
                                     icon: const Icon(Icons.close_rounded),
                                   ),
@@ -1051,7 +1051,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                         const SizedBox(width: 9),
                                         Expanded(child: Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface))),
                                         if (isCorrect)
-                                          const Text('Bonne réponse', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
+                                          Text('post_composer_correct_answer'.tr, style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
                                       ],
                                     ),
                                   ),
@@ -1151,14 +1151,14 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openGallery,
                     icon: Icon(Icons.camera_alt_rounded, color: colorScheme.onSurface, size: 24),
-                    tooltip: 'Galerie photos et vidéos (max $maxPostMedia médias)',
+                    tooltip: 'post_composer_media_tooltip'.trParams({'max': '$maxPostMedia'}),
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openPollCreator,
                     icon: Icon(Icons.poll_rounded, color: _pollData != null ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Sondage',
+                    tooltip: 'post_composer_poll_tooltip'.tr,
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
@@ -1175,7 +1175,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       }
                     },
                     icon: Icon(Icons.tag_rounded, color: _selectedHashtags.isNotEmpty ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Hashtags',
+                    tooltip: 'post_composer_hashtags_tooltip'.tr,
                   ),
 
                 ],
