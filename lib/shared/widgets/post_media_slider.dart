@@ -591,25 +591,26 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
                     color: Colors.black.withValues(alpha: 0.62),
                     shape: const CircleBorder(),
                     child: IconButton(
-                  tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
-                  padding: const EdgeInsets.all(9),
-                  onPressed: () async {
-                    final controller = _controller;
-                    if (controller == null || !controller.value.isInitialized) return;
-                    final mute = !_isMuted;
-                    try {
-                      await controller.setVolume(mute ? 0 : 1);
-                      if (mounted) setState(() => _isMuted = mute);
-                    } catch (error) {
-                      debugPrint('[POST_MEDIA] unable to change inline video volume: $error');
-                    }
-                  },
-                  icon: Icon(
-                    _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    color: Colors.white,
-                    size: 22,
+                      tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+                      padding: const EdgeInsets.all(9),
+                      onPressed: () async {
+                        final controller = _controller;
+                        if (controller == null || !controller.value.isInitialized) return;
+                        final mute = !_isMuted;
+                        try {
+                          await controller.setVolume(mute ? 0 : 1);
+                          if (mounted) setState(() => _isMuted = mute);
+                        } catch (error) {
+                          debugPrint('[POST_MEDIA] unable to change inline video volume: $error');
+                        }
+                      },
+                      icon: Icon(
+                        _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ),
