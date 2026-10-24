@@ -18,6 +18,8 @@ import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:scrole/shared/constants/post_media_limits.dart';
 import 'package:scrole/modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 import 'package:scrole/modules/module_principale/interne/controllers/home_feed_controller.dart';
+import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
+import 'package:scrole/modules/module_principale/interne/widgets/feed_post_card.dart';
 import 'package:scrole/modules/module_communautes/centre/services/community_service.dart';
 import 'package:scrole/modules/module_communautes/centre/models/news/community_hashtag.dart';
 import 'community_poll_composer_screen.dart';
@@ -28,6 +30,7 @@ class CreateCommunityPostScreen extends StatefulWidget {
   final String? communityId;
   final String? prefilledText;
   final String? prefilledMediaUrl;
+  final CommunityPost? sharedPost;
 
   const CreateCommunityPostScreen({
     super.key,
@@ -35,6 +38,7 @@ class CreateCommunityPostScreen extends StatefulWidget {
     this.communityId,
     this.prefilledText,
     this.prefilledMediaUrl,
+    this.sharedPost,
   });
 
   @override
@@ -102,6 +106,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
   bool get _canPublish =>
+      widget.sharedPost != null ||
       _textController.text.trim().isNotEmpty ||
       _selectedMedia.isNotEmpty ||
       (_prefilledUrl != null && _prefilledUrl!.isNotEmpty) ||
@@ -488,7 +493,44 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
   Future<void> _publish() async {
-    if (!_canPublish) return;
+    if (!_canPublish || _isPublishing) return;
+
+    final sharedPost = widget.sharedPost;
+    if (sharedPost != null) {
+      setState(() => _isPublishing = true);
+      try {
+        final feedController = Get.find<HomeFeedController>();
+        await feedController.sharePost(
+          originalPostId: sharedPost.sharedPostId ?? sharedPost.id,
+          communityId: null,
+          audience: _audience,
+          comment: _textController.text.trim().isNotEmpty
+              ? _textController.text.trim()
+              : null,
+        );
+        if (!mounted) return;
+        Get.back();
+        unawaited(feedController.fetchFeed(refresh: true));
+        Get.snackbar(
+          'Succès',
+          'Publication repartagée sur votre fil.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      } catch (e) {
+        debugPrint('[POST_ACTIONS] Republish from composer error: $e');
+        if (mounted) {
+          setState(() => _isPublishing = false);
+          Get.snackbar(
+            'Erreur',
+            e.toString().replaceFirst('Exception: ', ''),
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      }
+      return;
+    }
 
     final orderedMedia = List<_SelectedPostMedia>.from(_selectedMedia);
     List<File> filesToPublish = orderedMedia.where((m) => !m.isVideo).map((m) => m.file).toList();
@@ -926,6 +968,21 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       ),
                     ),
                     _buildLiveSuggestions(colorScheme),
+
+                    if (widget.sharedPost != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: IgnorePointer(
+                            child: FeedPostCard(
+                              post: widget.sharedPost!,
+                              onReactionTap: (_) {},
+                              onCommentTap: () {},
+                            ),
+                          ),
+                        ),
+                      ),
 
                     if (_selectedHashtags.isNotEmpty)
                       Padding(
