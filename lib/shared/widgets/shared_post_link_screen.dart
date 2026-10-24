@@ -3,9 +3,12 @@ import 'package:get/get.dart';
 
 import '../../modules/module_principale/centre/models/community_post.dart';
 import '../../modules/module_principale/externe/repositories/home_feed_repository.dart';
+import '../../modules/module_principale/interne/enums/community_post_reaction.dart';
+import '../../modules/module_principale/interne/widgets/feed_post_card.dart';
 import 'profile_post_detail_screen.dart';
 
-/// Resolves a shared post link using the same access rules as the backend RPC.
+/// Resolves a shared post link and displays it with the exact same card widget
+/// used by the home feed, instead of rebuilding a visually different version.
 class SharedPostLinkScreen extends StatefulWidget {
   const SharedPostLinkScreen({super.key, required this.postId});
 
@@ -28,21 +31,28 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
             backgroundColor: colors.surface,
-            appBar: AppBar(title: const Text('Publication Scrole'), centerTitle: true),
+            appBar: AppBar(
+              title: const Text('Publication Scrole'),
+              centerTitle: true,
+            ),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return Scaffold(
             backgroundColor: colors.surface,
-            appBar: AppBar(title: const Text('Publication Scrole'), centerTitle: true),
+            appBar: AppBar(
+              title: const Text('Publication Scrole'),
+              centerTitle: true,
+            ),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.link_off_rounded, size: 44, color: colors.onSurfaceVariant),
+                    Icon(Icons.link_off_rounded,
+                        size: 44, color: colors.onSurfaceVariant),
                     const SizedBox(height: 12),
                     const Text(
                       'Cette publication est indisponible ou tu n’as pas accès à son contenu.',
@@ -59,7 +69,59 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
             ),
           );
         }
-        return ProfilePostDetailScreen(post: snapshot.data!);
+
+        final post = snapshot.data!;
+        return Scaffold(
+          backgroundColor: colors.surface,
+          appBar: AppBar(
+            title: const Text('Publication'),
+            centerTitle: true,
+            scrolledUnderElevation: 0,
+          ),
+          body: ListView(
+            padding: const EdgeInsets.only(bottom: 28),
+            children: [
+              FeedPostCard(
+                post: post,
+                onReactionTap: (reaction) async {
+                  try {
+                    await HomeFeedRepository().setCommunityPostReaction(
+                      post.id,
+                      reaction == PostReaction.like
+                          ? 'like'
+                          : reaction == PostReaction.dislike
+                              ? 'dislike'
+                              : null,
+                    );
+                  } catch (error) {
+                    if (context.mounted) {
+                      Get.snackbar(
+                        'Réaction impossible',
+                        'Connecte-toi ou réessaie dans un instant.',
+                        snackPosition: SnackPosition.BOTTOM,
+                      );
+                    }
+                  }
+                },
+                onCommentTap: () {
+                  Get.snackbar(
+                    'Commentaires',
+                    'Ouvre les commentaires depuis le fil d’actualité pour le moment.',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                },
+                onShareTap: () {
+                  Get.snackbar(
+                    'Partager',
+                    'Utilise le bouton de partage de la publication.',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                },
+                onMoreTap: () {},
+              ),
+            ],
+          ),
+        );
       },
     );
   }
