@@ -4,13 +4,16 @@ import 'package:get/get.dart';
 import '../../modules/module_principale/centre/models/community_post.dart';
 import '../../modules/module_principale/externe/repositories/home_feed_repository.dart';
 import '../../modules/module_principale/interne/widgets/feed_post_card.dart';
+import '../../modules/module_principale/interne/widgets/community_comments_sheet.dart';
+import '../../modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 
 /// Opens a shared post using the same FeedPostCard and width constraints as
 /// HomeFeedScreen so its appearance matches the original feed card.
 class SharedPostLinkScreen extends StatefulWidget {
-  const SharedPostLinkScreen({super.key, required this.postId});
+  const SharedPostLinkScreen({super.key, required this.postId, this.commentId});
 
   final String postId;
+  final String? commentId;
 
   @override
   State<SharedPostLinkScreen> createState() => _SharedPostLinkScreenState();
@@ -19,6 +22,38 @@ class SharedPostLinkScreen extends StatefulWidget {
 class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
   late final Future<CommunityPost> _postFuture =
       HomeFeedRepository().getPost(widget.postId);
+  bool _targetCommentOpened = false;
+
+  CommunityFeedController _commentsController(CommunityPost post) {
+    final tag = 'mention_post_${post.id}';
+    if (!Get.isRegistered<CommunityFeedController>(tag: tag)) {
+      Get.put(CommunityFeedController(null, post.communityId), tag: tag);
+    }
+    return Get.find<CommunityFeedController>(tag: tag);
+  }
+
+  Future<void> _openComments(CommunityPost post, {String? targetCommentId}) async {
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CommunityCommentsSheet(
+        post: post,
+        controller: _commentsController(post),
+        targetCommentId: targetCommentId,
+      ),
+    );
+  }
+
+  void _openTargetCommentAfterBuild(CommunityPost post) {
+    final commentId = widget.commentId?.trim();
+    if (_targetCommentOpened || commentId == null || commentId.isEmpty) return;
+    _targetCommentOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openComments(post, targetCommentId: commentId);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +111,7 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
         }
 
         final post = snapshot.data!;
+        _openTargetCommentAfterBuild(post);
 
         return Scaffold(
           backgroundColor: colorScheme.surface,
@@ -113,19 +149,22 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
                         }
                       }
                     },
-                    onCommentTap: () {
-                      Get.snackbar(
-                        'Commentaires',
-                        'Les commentaires de cette publication ne sont pas encore raccordés sur cette page.',
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
-                    },
-                    onShareTap: () {
-                      Get.snackbar(
-                        'Partager',
-                        'Le partage de cette publication n’est pas encore raccordé sur cette page.',
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
+                    onCommentTap: () => _openComments(post),
+                    onShareTap: () async {
+                      try {
+                        await HomeFeedRepository().sharePost(
+                          p_id: DateTime.now().microsecondsSinceEpoch.toString(),
+                          p_original_post_id: post.sharedPostId ?? post.id,
+                          p_audience: 'public',
+                        );
+                        if (context.mounted) {
+                          Get.snackbar('Partage', 'Publication partagée.', snackPosition: SnackPosition.BOTTOM);
+                        }
+                      } catch (error) {
+                        if (context.mounted) {
+                          Get.snackbar('Partage impossible', 'Réessaie dans un instant.', snackPosition: SnackPosition.BOTTOM);
+                        }
+                      }
                     },
                     onMoreTap: () {},
                   ),
