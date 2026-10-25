@@ -7,7 +7,7 @@ class NotificationRepository {
 
   Future<List<RemoteNotificationModel>> getMyNotifications({int limit = 50}) async {
     final response = await _client.rpc(
-      'get_my_notifications',
+      'get_localized_notifications',
       params: {'p_limit': limit},
     );
 
