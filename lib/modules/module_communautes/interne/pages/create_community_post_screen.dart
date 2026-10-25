@@ -146,7 +146,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final cursor = _textController.selection.baseOffset;
     if (cursor >= 0 && cursor <= value.length) {
       final prefix = value.substring(0, cursor);
-      final match = RegExp(r'(^|\\s)([@*~])([^\\s@*~]*)$').firstMatch(prefix);
+      final match = RegExp(r'(^|\s)([@*~])([^\s@*~]*)$').firstMatch(prefix);
       if (match != null) {
         _hideLiveSuggestions();
         final trigger = match.group(2)!;
