@@ -382,7 +382,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         children: [
                           for (final hours in [1, 6, 12, 24, 48, 72, 168])
                             ChoiceChip(
-                              label: Text(hours == 168 ? 'poll_duration_7_days'.tr : hours < 24 ? '${hours} h' : '${hours ~/ 24} jours'),
+                              label: Text(hours == 168 ? 'poll_duration_7_days'.tr : hours < 24 ? 'poll_duration_hours'.trParams({'count': '$hours'}) : 'poll_duration_days'.trParams({'count': '${hours ~/ 24}'})),
                               selected: _durationHours == hours,
                               onSelected: (_) => setState(() => _durationHours = hours),
                               showCheckmark: true,
