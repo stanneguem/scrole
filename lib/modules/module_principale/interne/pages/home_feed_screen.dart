@@ -101,14 +101,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<HomeFeedController>()) {
-      Get.put(HomeFeedController());
-    }
+    // Keep the feed controller owned by this screen's lifetime. A parent route
+    // closing must not dispose the controller while this screen is still mounted.
+    final feedController = Get.isRegistered<HomeFeedController>()
+        ? Get.find<HomeFeedController>()
+        : Get.put(HomeFeedController(), permanent: true);
     if (!Get.isRegistered<StoriesController>()) {
-      Get.put(StoriesController());
+      Get.put(StoriesController(), permanent: true);
     }
 
-    final feedController = Get.find<HomeFeedController>();
     final storiesController = Get.find<StoriesController>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _openNotificationTarget();
