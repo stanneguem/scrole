@@ -20,6 +20,7 @@ class AppDeepLinkService {
   StreamSubscription<AuthState>? _authSubscription;
 
   String? _pendingPostId;
+  String? _pendingCommentId;
   String? _pendingLink;
   String? _lastHandledLink;
   DateTime? _lastHandledAt;
@@ -59,7 +60,10 @@ class AppDeepLinkService {
     final postId = segments[1].trim();
     if (postId.isEmpty || postId.length > 128) return;
 
-    final canonicalLink = 'https://scrole.fun/post/$postId';
+    final commentId = uri.queryParameters['comment'] ?? uri.queryParameters['commentId'] ?? uri.queryParameters['comment_id'];
+    final canonicalLink = commentId == null || commentId.trim().isEmpty
+        ? 'https://scrole.fun/post/$postId'
+        : 'https://scrole.fun/post/$postId?comment=${Uri.encodeComponent(commentId.trim())}';
     if (_pendingLink == canonicalLink) return;
 
     // app_links can emit the same cold-start URL through both the stream and
@@ -73,6 +77,7 @@ class AppDeepLinkService {
 
     debugPrint('[AppDeepLinkService] Post link received: $canonicalLink');
     _pendingPostId = postId;
+    _pendingCommentId = commentId?.trim().isEmpty == true ? null : commentId?.trim();
     _pendingLink = canonicalLink;
     _scheduleNavigation();
   }
@@ -119,6 +124,7 @@ class AppDeepLinkService {
 
   Future<void> _openPendingPost() async {
     final postId = _pendingPostId;
+    final commentId = _pendingCommentId;
     final link = _pendingLink;
     if (postId == null || link == null || _isOpening) return;
 
@@ -147,11 +153,12 @@ class AppDeepLinkService {
 
     _isOpening = true;
     _pendingPostId = null;
+    _pendingCommentId = null;
     _pendingLink = null;
     try {
       debugPrint('[AppDeepLinkService] Opening post detail: $postId');
       await Get.to<void>(
-        () => SharedPostLinkScreen(postId: postId),
+        () => SharedPostLinkScreen(postId: postId, commentId: commentId),
         preventDuplicates: true,
       );
       _lastHandledLink = link;
@@ -159,6 +166,7 @@ class AppDeepLinkService {
     } catch (error, stack) {
       // Retain the URL if navigation fails, so it can be retried.
       _pendingPostId = postId;
+      _pendingCommentId = commentId;
       _pendingLink = link;
       debugPrint('[AppDeepLinkService] Could not open post $postId: $error\n$stack');
     } finally {
