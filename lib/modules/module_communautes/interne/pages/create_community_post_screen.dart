@@ -238,8 +238,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         width: MediaQuery.of(context).size.width - 32,
         child: CompositedTransformFollower(
           link: _mentionLayerLink, showWhenUnlinked: false,
-          targetAnchor: Alignment.topLeft, followerAnchor: Alignment.bottomLeft,
-          offset: const Offset(0, -8),
+          targetAnchor: Alignment.bottomLeft, followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 8),
           child: Material(
             elevation: 12, color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(14), clipBehavior: Clip.antiAlias,
