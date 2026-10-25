@@ -134,7 +134,7 @@ class NotificationService {
         Get.locale ??
         Get.deviceLocale ??
         WidgetsBinding.instance.platformDispatcher.locale;
-    const supported = ['fr', 'en', 'es', 'de'];
+    const supported = ['fr', 'en', 'es', 'de', 'it', 'pt', 'zh', 'ja', 'ru'];
     return supported.contains(locale.languageCode) ? locale.languageCode : 'fr';
   }
 
