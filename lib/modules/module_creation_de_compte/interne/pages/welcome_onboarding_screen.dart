@@ -30,11 +30,14 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       final uid = _db.auth.currentUser?.id;
       if (uid == null) throw StateError('Session utilisateur absente');
       final profiles = await _db.from('user_profiles')
-          .select('user_id, username, first_name, last_name, avatar_url')
-          .neq('user_id', uid).limit(20);
+          .select('user_id, username, first_name, last_name, photo_url, account_status, deleted_at')
+          .neq('user_id', uid)
+          .eq('account_status', 'active')
+          .isFilter('deleted_at', null)
+          .limit(20);
       final communities = await _db.from('communities')
-          .select('id, name, slug, description, photo_profile, visibility, member_count')
-          .eq('visibility', 'public').limit(20);
+          .select('id, name, slug, description, photo_profile, visibility, status, require_manual_approval')
+          .eq('visibility', 'public').eq('status', 'active').limit(20);
       if (!mounted) return;
       _users = (profiles as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
       _communities = (communities as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
@@ -66,6 +69,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       final decoded = response is String ? jsonDecode(response) : response;
       final result = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
       final pending = result['status']?.toString() == 'pending' ||
+          result['status']?.toString() == 'en_attente' ||
           result['membership_status']?.toString() == 'pending' ||
           result['request_status']?.toString() == 'en_attente';
       if (mounted) {
@@ -147,7 +151,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       separatorBuilder: (_, __) => Divider(height: 1, color: colors.outlineVariant.withValues(alpha: .5)),
       itemBuilder: (context, index) {
         final user = _users[index]; final id = user['user_id']?.toString() ?? '';
-        final followed = _followed.contains(id); final avatar = user['avatar_url']?.toString() ?? '';
+        final followed = _followed.contains(id); final avatar = user['photo_url']?.toString() ?? '';
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
           leading: CircleAvatar(radius: 25, backgroundColor: colors.surfaceContainerHighest,
@@ -180,7 +184,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
             child: avatar.isEmpty ? const Icon(Icons.groups_outlined) : null),
           title: Text(community['name']?.toString() ?? 'Communauté', maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: Text(description.trim().isNotEmpty ? description : '${community['member_count'] ?? 0} membres',
+          subtitle: Text(description.trim().isNotEmpty ? description : (community['require_manual_approval'] == true ? 'Communauté avec validation des demandes' : 'Communauté publique'),
             maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: FilledButton.tonal(
             onPressed: joined || _busy.contains(id) ? null : () => _join(community),
