@@ -438,10 +438,11 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
     return res;
   }
 
-  Future<void> leaveCommunity(String communityId) async {
-    await _repo.leaveCommunityRpc(communityId);
+  Future<Map<String, dynamic>> leaveCommunity(String communityId) async {
+    final result = await _repo.leaveCommunityRpc(communityId);
     await _dao.deleteCommunity(communityId);
     await reconcileMyCommunities();
+    return result;
   }
 
   Future<CommunityModel> createCommunity({
