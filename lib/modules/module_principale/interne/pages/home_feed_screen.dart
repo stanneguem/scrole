@@ -28,6 +28,51 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   final ScrollController _scrollController = ScrollController();
   final RxBool _showScrollToTop = false.obs;
+  bool _notificationTargetHandled = false;
+
+  Future<void> _openNotificationTarget() async {
+    if (_notificationTargetHandled) return;
+    final args = Get.arguments;
+    if (args is! Map) return;
+    final postId = (args['targetPostId'] ?? args['postId'] ?? args['post_id'])?.toString();
+    if (postId == null || postId.isEmpty) return;
+    _notificationTargetHandled = true;
+    final commentId = (args['targetCommentId'] ?? args['commentId'] ?? args['comment_id'])?.toString();
+
+    try {
+      final post = await HomeFeedRepository().getPost(postId);
+      if (!mounted) return;
+      final feed = Get.find<HomeFeedController>();
+      feed.posts.removeWhere((item) => item.id == post.id);
+      feed.posts.insert(0, post);
+      feed.posts.refresh();
+      if (commentId != null && commentId.isNotEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        if (!mounted) return;
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => CommunityCommentsSheet(
+            post: post,
+            controller: Get.isRegistered<CommunityFeedController>()
+                ? Get.find<CommunityFeedController>()
+                : Get.put(CommunityFeedController(null, post.eventId)),
+            targetCommentId: commentId,
+          ),
+        );
+      }
+    } catch (e, st) {
+      debugPrint('[HomeFeedScreen] Failed to open notification post target: $e\\n$st');
+      if (mounted) {
+        Get.snackbar(
+          'Contenu indisponible',
+          'Cette publication ou ce commentaire n’est plus accessible.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -65,6 +110,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
     final feedController = Get.find<HomeFeedController>();
     final storiesController = Get.find<StoriesController>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openNotificationTarget();
+    });
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
