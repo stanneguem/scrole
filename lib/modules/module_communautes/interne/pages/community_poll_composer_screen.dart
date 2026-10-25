@@ -64,15 +64,15 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
   bool _validateOptions() {
     final labels = _optionControllers.map((c) => c.text.trim()).toList();
     if (labels.any((label) => label.isEmpty)) {
-      Get.snackbar('Options incomplètes', 'Renseigne chaque option avant de continuer.');
+      Get.snackbar('poll_error_options_incomplete'.tr, 'poll_error_fill_options'.tr);
       return false;
     }
     if (labels.toSet().length != labels.length) {
-      Get.snackbar('Options en double', 'Chaque option doit être différente.');
+      Get.snackbar('poll_error_options_duplicate'.tr, 'poll_error_options_unique'.tr);
       return false;
     }
     if (_isQuiz && _correctIndex == null) {
-      Get.snackbar('Bonne réponse requise', 'Sélectionne la bonne réponse avec le bouton de validation.');
+      Get.snackbar('poll_error_correct_required'.tr, 'poll_error_select_correct'.tr);
       return false;
     }
     return true;
@@ -117,15 +117,15 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
   }
 
   String get _stepTitle => switch (_step) {
-    0 => 'Choisis un format',
-    1 => 'Prépare les réponses',
-    _ => _isQuiz ? 'Finalise ton quiz' : 'Durée du sondage',
+    0 => 'poll_step_choose_format'.tr,
+    1 => 'poll_step_prepare_answers'.tr,
+    _ => _isQuiz ? 'poll_step_finish_quiz'.tr : 'poll_step_duration'.tr,
   };
 
   String get _stepDescription => switch (_step) {
-    0 => 'Quel type d’interaction veux-tu publier ?',
-    1 => _isQuiz ? 'Ajoute les réponses et indique la bonne.' : 'Propose des choix simples et faciles à comprendre.',
-    _ => _isQuiz ? 'Ajoute une explication pour enrichir les réponses.' : 'Choisis combien de temps les votes restent ouverts.',
+    0 => 'poll_prompt_choose_type'.tr,
+    1 => _isQuiz ? 'poll_prompt_quiz_answers'.tr : 'poll_prompt_simple_choices'.tr,
+    _ => _isQuiz ? 'poll_prompt_quiz_explanation'.tr : 'poll_prompt_vote_duration'.tr,
   };
 
   @override
@@ -135,11 +135,11 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          tooltip: _step == 0 ? 'Fermer' : 'Étape précédente',
+          tooltip: _step == 0 ? 'poll_close'.tr : 'poll_previous_step'.tr,
           onPressed: _previous,
           icon: Icon(_step == 0 ? Icons.close_rounded : Icons.arrow_back_rounded),
         ),
-        title: const Text('Créer une interaction'),
+        title: Text('poll_create_title'.tr),
         centerTitle: false,
       ),
       body: SafeArea(
@@ -168,7 +168,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                     ],
                   ),
                   const SizedBox(height: 9),
-                  Text('ÉTAPE ${_step + 1} SUR 3',
+                  Text('poll_step_counter'.trParams({'step': '${_step + 1}'}),
                     style: theme.textTheme.labelSmall?.copyWith(
                       letterSpacing: 1.2, fontWeight: FontWeight.w800, color: colors.primary)),
                 ],
@@ -189,8 +189,8 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                       _KindTile(
                         selected: _kind == 'single',
                         icon: Icons.radio_button_checked_rounded,
-                        title: 'Sondage classique',
-                        subtitle: 'Une réponse par personne',
+                        title: 'poll_kind_single'.tr,
+                        subtitle: 'poll_subtitle_single'.tr,
                         accent: colors.primary,
                         onTap: () => _selectKind('single'),
                       ),
@@ -198,8 +198,8 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                       _KindTile(
                         selected: _kind == 'multiple',
                         icon: Icons.checklist_rounded,
-                        title: 'Choix multiples',
-                        subtitle: 'Plusieurs réponses possibles',
+                        title: 'poll_kind_multiple'.tr,
+                        subtitle: 'poll_subtitle_multiple'.tr,
                         accent: colors.primary,
                         onTap: () => _selectKind('multiple'),
                       ),
@@ -207,8 +207,8 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                       _KindTile(
                         selected: _kind == 'quiz',
                         icon: Icons.lightbulb_rounded,
-                        title: 'Quiz',
-                        subtitle: 'Teste les connaissances avec une bonne réponse',
+                        title: 'poll_kind_quiz'.tr,
+                        subtitle: 'poll_subtitle_quiz'.tr,
                         accent: colors.tertiary,
                         onTap: () => _selectKind('quiz'),
                       ),
@@ -216,8 +216,8 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                       _KindTile(
                         selected: _isThisOrThat,
                         icon: Icons.compare_arrows_rounded,
-                        title: 'Tu préfères…',
-                        subtitle: 'Deux options, un choix rapide',
+                        title: 'poll_kind_this_or_that'.tr,
+                        subtitle: 'poll_subtitle_this_or_that'.tr,
                         accent: colors.secondary,
                         onTap: () => _selectKind('this_or_that'),
                       ),
@@ -234,18 +234,18 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                           const SizedBox(width: 10),
                           Expanded(child: Text(
                             _isQuiz
-                              ? 'Appuie sur la coche à côté de la bonne réponse.'
+                              ? 'poll_hint_quiz_correct'.tr
                               : _isThisOrThat
-                                ? 'Renseigne les deux choix qui seront proposés.'
+                                ? 'poll_hint_this_or_that'.tr
                                 : _kind == 'multiple'
-                                  ? 'Les participants pourront sélectionner plusieurs choix.'
-                                  : 'Chaque participant pourra sélectionner un seul choix.',
+                                  ? 'poll_hint_multiple'.tr
+                                  : 'poll_hint_single'.tr,
                             style: TextStyle(fontSize: 12, height: 1.35, color: colors.onSurfaceVariant))),
                         ]),
                       ),
                       const SizedBox(height: 18),
                       Row(children: [
-                        Expanded(child: Text('Tes options', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+                        Expanded(child: Text('poll_options_title'.tr, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
                         Text('${_optionControllers.length}/${_isThisOrThat ? 2 : 6}',
                           style: theme.textTheme.labelMedium?.copyWith(color: colors.onSurfaceVariant)),
                       ]),
@@ -283,7 +283,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                               maxLength: 120,
                               decoration: InputDecoration(
                                 counterText: '',
-                                hintText: 'Réponse ${index + 1}',
+                                hintText: 'poll_answer_hint'.trParams({'number': '${index + 1}'}),
                                 filled: true,
                                 fillColor: colors.surfaceContainerLow,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
@@ -294,7 +294,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                             if (_optionControllers.length > 2) ...[
                               const SizedBox(width: 2),
                               IconButton(
-                                tooltip: 'Supprimer cette réponse',
+                                tooltip: 'poll_remove_answer'.tr,
                                 onPressed: () => _removeOption(index),
                                 icon: Icon(Icons.remove_circle_outline_rounded, color: colors.error),
                               ),
@@ -306,7 +306,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         OutlinedButton.icon(
                           onPressed: _addOption,
                           icon: const Icon(Icons.add_rounded),
-                          label: const Text('Ajouter une réponse'),
+                          label: Text('poll_add_answer'.tr),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size.fromHeight(46),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -317,7 +317,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         Row(children: [
                           const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
                           const SizedBox(width: 7),
-                          Text('Réponse ${_correctIndex! + 1} définie comme correcte',
+                          Text('poll_correct_answer_set'.trParams({'number': '${_correctIndex! + 1}'}),
                             style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w700)),
                         ]),
                       ],
@@ -333,14 +333,14 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         child: Row(children: [
                           Icon(Icons.lightbulb_rounded, color: colors.tertiary, size: 25),
                           const SizedBox(width: 11),
-                          Expanded(child: Text('Un quiz permet de révéler la bonne réponse et d’expliquer pourquoi.',
+                          Expanded(child: Text('poll_quiz_explanation_info'.tr,
                             style: TextStyle(color: colors.onSurfaceVariant, height: 1.4, fontSize: 13))),
                         ]),
                       ),
                       const SizedBox(height: 20),
-                      Text('Explication', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                      Text('poll_explanation_title'.tr, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 5),
-                      Text('Facultatif', style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+                      Text('poll_optional'.tr, style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
                       const SizedBox(height: 10),
                       TextField(
                         controller: _explanationController,
@@ -348,7 +348,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         maxLength: 500,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
-                          hintText: 'Pourquoi cette réponse est-elle correcte ?',
+                          hintText: 'poll_explanation_hint'.tr,
                           filled: true,
                           fillColor: colors.surfaceContainerLow,
                           contentPadding: const EdgeInsets.all(15),
@@ -368,9 +368,9 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                           Icon(Icons.schedule_rounded, color: colors.primary, size: 25),
                           const SizedBox(width: 11),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Durée du vote', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                            Text('poll_duration_title'.tr, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
                             const SizedBox(height: 3),
-                            Text('Les votes se fermeront automatiquement à la fin de cette période.',
+                            Text('poll_duration_description'.tr,
                               style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant, height: 1.35)),
                           ])),
                         ]),
@@ -382,7 +382,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         children: [
                           for (final hours in [1, 6, 12, 24, 48, 72, 168])
                             ChoiceChip(
-                              label: Text(hours == 168 ? '7 jours' : hours < 24 ? '${hours} h' : '${hours ~/ 24} jours'),
+                              label: Text(hours == 168 ? 'poll_duration_7_days'.tr : hours < 24 ? '${hours} h' : '${hours ~/ 24} jours'),
                               selected: _durationHours == hours,
                               onSelected: (_) => setState(() => _durationHours = hours),
                               showCheckmark: true,
@@ -396,7 +396,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         child: Row(children: [
                           Icon(Icons.lock_clock_outlined, color: colors.onSurfaceVariant),
                           const SizedBox(width: 10),
-                          Expanded(child: Text('Tu pourras voir les résultats au fur et à mesure des votes.',
+                          Expanded(child: Text('poll_results_live_info'.tr,
                             style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant, height: 1.4))),
                         ]),
                       ),
@@ -417,7 +417,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                   Expanded(child: OutlinedButton(
                     onPressed: _saving ? null : _previous,
                     style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: const StadiumBorder(), elevation: 0),
-                    child: const Text('Retour'),
+                    child: Text('poll_back'.tr),
                   )),
                   const SizedBox(width: 10),
                 ],
@@ -427,7 +427,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                     onPressed: _saving ? null : _next,
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder()),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Text(_step == 2 ? 'Ajouter à la publication' : 'Continuer'),
+                      Text(_step == 2 ? 'poll_add_to_post'.tr : 'poll_continue'.tr),
                       const SizedBox(width: 8),
                       Icon(_step == 2 ? Icons.check_rounded : Icons.arrow_forward_rounded, size: 19),
                     ]),
