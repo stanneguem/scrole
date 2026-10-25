@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../app_controller.dart';
+import '../../../../app_controller.dart';
 
 class WelcomeOnboardingScreen extends StatefulWidget {
   const WelcomeOnboardingScreen({super.key});
