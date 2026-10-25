@@ -150,21 +150,12 @@ class _SharedPostLinkScreenState extends State<SharedPostLinkScreen> {
                       }
                     },
                     onCommentTap: () => _openComments(post),
-                    onShareTap: () async {
-                      try {
-                        await HomeFeedRepository().sharePost(
-                          p_id: DateTime.now().microsecondsSinceEpoch.toString(),
-                          p_original_post_id: post.sharedPostId ?? post.id,
-                          p_audience: 'public',
-                        );
-                        if (context.mounted) {
-                          Get.snackbar('Partage', 'Publication partagée.', snackPosition: SnackPosition.BOTTOM);
-                        }
-                      } catch (error) {
-                        if (context.mounted) {
-                          Get.snackbar('Partage impossible', 'Réessaie dans un instant.', snackPosition: SnackPosition.BOTTOM);
-                        }
-                      }
+                    onShareTap: () {
+                      Get.snackbar(
+                        'Partager',
+                        'Le partage sera disponible depuis cette page prochainement.',
+                        snackPosition: SnackPosition.BOTTOM,
+                      );
                     },
                     onMoreTap: () {},
                   ),
