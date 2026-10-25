@@ -241,7 +241,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                     ),
                     NavigationDestination(
                       icon: SvgPicture.asset(
-                        'assets/svg_icons/event-promotion-sale-svgrepo-com.svg',
+                        'assets/svg_icons/event-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -250,7 +250,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                         ),
                       ),
                       selectedIcon: SvgPicture.asset(
-                        'assets/svg_icons/event-promotion-sale-svgrepo-com.svg',
+                        'assets/svg_icons/event-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
