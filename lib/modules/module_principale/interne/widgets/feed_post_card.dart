@@ -606,13 +606,6 @@ class FeedPostCard extends StatelessWidget {
                 _showReportPostSheet(context, post);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.copy_rounded),
-              title: const Text('Copier le texte'),
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-            ),
             if (isAuthor)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
