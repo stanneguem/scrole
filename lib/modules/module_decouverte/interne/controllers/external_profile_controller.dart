@@ -276,7 +276,7 @@ class ExternalProfileController extends GetxController {
 
   Future<void> _performFollow(ExternalProfileModel current) async {
     isSendingRequest.value = true;
-    final optimisticState = current.followsMe ? 'friends' : (current.isPrivate ? 'requested' : 'following');
+    final optimisticState = current.followsMe ? 'friends' : 'following';
     profile.value = current.copyWith(
       isFollowing: optimisticState == 'friends' || optimisticState == 'following',
       isConnected: optimisticState == 'friends',
