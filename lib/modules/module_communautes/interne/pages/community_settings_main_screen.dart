@@ -267,7 +267,7 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
             _buildTile(
               icon: Icons.verified_rounded,
               iconColor: _communityCertified ? Colors.green : Colors.deepPurple,
-              title: 'Certifier la communauté',
+              title: 'entity_cert_community_title'.tr,
               subtitle: _communityCertified
                   ? 'Certification active'
                   : 'Utiliser un droit inclus dans votre abonnement',
@@ -1124,12 +1124,12 @@ class _CommunitySpamQueueScreenState extends State<CommunitySpamQueueScreen> {
                                           style: const TextStyle(fontWeight: FontWeight.bold),
                                         ),
                                       ),
-                                      Text('Score ${item['score'] ?? 0}', style: TextStyle(color: colors.error, fontWeight: FontWeight.w600)),
+                                      Text('${'community_moderation_score'.tr}: ${item['score'] ?? 0}', style: TextStyle(color: colors.error, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                   if (reasons.isNotEmpty) ...[
                                     const SizedBox(height: 6),
-                                    Text('Motifs : $reasons', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                                    Text('${'community_moderation_reasons'.tr}: $reasons', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
                                   ],
                                   if ((item['content']?.toString() ?? '').trim().isNotEmpty) ...[
                                     const SizedBox(height: 10),
