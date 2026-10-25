@@ -32,7 +32,9 @@ class AppDeepLinkService {
   DateTime? _lastHandledAt;
   bool _navigationScheduled = false;
   bool _isOpening = false;
-  bool _waitingForAuthentication = false;\n\n  bool _priorityScreenActive = false;
+  bool _waitingForAuthentication = false;
+
+  bool _priorityScreenActive = false;
 
   /// A share URL must never navigate over a mandatory app-level screen.
   /// This is checked before queuing links as well as immediately before
@@ -196,7 +198,8 @@ class AppDeepLinkService {
     );
   }
 
-  Future<void> _openPendingEvent() async {\n    if (await _isNavigationBlocked()) return;
+  Future<void> _openPendingEvent() async {
+    if (await _isNavigationBlocked()) return;
     final eventId = _pendingEventId;
     final link = _pendingEventLink;
     if (eventId == null || link == null || _isOpening) return;
@@ -241,7 +244,8 @@ class AppDeepLinkService {
     }
   }
 
-  Future<void> _openPendingPost() async {\n    if (await _isNavigationBlocked()) return;
+  Future<void> _openPendingPost() async {
+    if (await _isNavigationBlocked()) return;
     final postId = _pendingPostId;
     final commentId = _pendingCommentId;
     final link = _pendingLink;
