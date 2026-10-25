@@ -32,13 +32,21 @@ class NotificationDbService extends GetxService {
     // Récupérer l'existant pour préserver l'action_status local
     final existing = await db.query('notifications', columns: ['action_status', 'is_read'], where: 'id = ? AND user_id = ?', whereArgs: [id, userId], limit: 1);
     if (existing.isNotEmpty) {
-      // Une synchro serveur peut confirmer qu'une notification est lue.
-      // Ne jamais la repasser en non-lue si une réponse locale est en attente.
+      // Actualiser le texte depuis la langue actuelle du compte, y compris pour
+      // les notifications déjà mises en cache. Préserver l'état de lecture et
+      // l'état d'action gérés localement.
       final wasRead = (existing.first['is_read'] as num?)?.toInt() == 1;
-      if (isRead && !wasRead) {
-        await db.update('notifications', {'is_read': 1}, where: 'id = ? AND user_id = ?', whereArgs: [id, userId]);
-        _changes.add(userId);
-      }
+      final update = <String, Object?>{
+        'title': title,
+        'message': message,
+        'type': type,
+        'payload': payload,
+        'created_at': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
+      };
+      if (isRead && !wasRead) update['is_read'] = 1;
+      await db.update('notifications', update,
+          where: 'id = ? AND user_id = ?', whereArgs: [id, userId]);
+      _changes.add(userId);
       return false;
     }
 
