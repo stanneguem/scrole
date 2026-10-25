@@ -78,42 +78,121 @@ class _CommunityImageEditCard extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onChange;
 
-  const _CommunityImageEditCard({required this.title, required this.imageUrl, required this.isProfile, required this.isLoading, required this.onChange});
+  const _CommunityImageEditCard({
+    required this.title,
+    required this.imageUrl,
+    required this.isProfile,
+    required this.isLoading,
+    required this.onChange,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.35)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.onSurface)),
-        const SizedBox(height: 12),
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+    if (isProfile) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 92,
+              height: 92,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.primary.withValues(alpha: 0.35), width: 1.5),
+              ),
+              child: ClipOval(
+                child: hasImage
+                    ? Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(colors))
+                    : _placeholder(colors),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.onSurface)),
+                  const SizedBox(height: 5),
+                  Text('community_settings_profile_photo'.tr, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : onChange,
+                    icon: const Icon(Icons.photo_camera_back_outlined, size: 17),
+                    label: Text('community_settings_change_photo'.tr),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.onSurface)),
+        const SizedBox(height: 10),
         ClipRRect(
-          borderRadius: BorderRadius.circular(isProfile ? 100 : 14),
-          child: SizedBox(
-            width: isProfile ? 112 : double.infinity,
-            height: isProfile ? 112 : 150,
-            child: hasImage
-                ? Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(colors))
-                : _placeholder(colors),
+          borderRadius: BorderRadius.circular(24),
+          child: AspectRatio(
+            aspectRatio: 1.9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (hasImage)
+                  Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(colors))
+                else
+                  _placeholder(colors),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black.withValues(alpha: 0.02), Colors.black.withValues(alpha: 0.62)],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hasImage ? 'community_settings_cover_photo'.tr : 'community_banner_label'.tr,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: isLoading ? null : onChange,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black87,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 17),
+                        label: Text('community_settings_change_photo'.tr),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!hasImage)
+                  Center(child: Icon(Icons.add_photo_alternate_outlined, size: 42, color: colors.onSurfaceVariant)),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.tonalIcon(
-            onPressed: isLoading ? null : onChange,
-            icon: const Icon(Icons.photo_library_outlined, size: 18),
-            label: Text('community_settings_change_photo'.tr),
-          ),
-        ),
-      ]),
+      ],
     );
   }
 
@@ -2447,37 +2526,86 @@ class _CommunityImagesScreenState extends State<CommunityImagesScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text('community_info_sub_images'.tr)),
-      body: _isLoading
+      body: _isLoading && _currentAvatarUrl == null && _currentCoverUrl == null
           ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? Center(child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_loadError!, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.error)),
-                    const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _loadImages, child: Text('retry'.tr)),
-                  ]),
-                ))
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                _CommunityImageEditCard(
-                  title: 'community_settings_profile_photo'.tr,
-                  imageUrl: _currentAvatarUrl,
-                  isProfile: true,
-                  isLoading: _isLoading,
-                  onChange: () => _pickAndUploadImage(isProfile: true),
+          : _loadError != null && _currentAvatarUrl == null && _currentCoverUrl == null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_off_outlined, size: 38, color: colorScheme.error),
+                        const SizedBox(height: 12),
+                        Text(_loadError!, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.error)),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(onPressed: _loadImages, icon: const Icon(Icons.refresh), label: Text('retry'.tr)),
+                      ],
+                    ),
+                  ),
+                )
+              : Stack(
+                  children: [
+                    ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'community_info_sub_images'.tr,
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: colorScheme.onSurface),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'community_settings_images_description'.tr,
+                                style: TextStyle(fontSize: 13, height: 1.45, color: colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _CommunityImageEditCard(
+                          title: 'community_settings_cover_photo'.tr,
+                          imageUrl: _currentCoverUrl,
+                          isProfile: false,
+                          isLoading: _isLoading,
+                          onChange: () => _pickAndUploadImage(isProfile: false),
+                        ),
+                        const SizedBox(height: 24),
+                        _CommunityImageEditCard(
+                          title: 'community_settings_profile_photo'.tr,
+                          imageUrl: _currentAvatarUrl,
+                          isProfile: true,
+                          isLoading: _isLoading,
+                          onChange: () => _pickAndUploadImage(isProfile: true),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 17, color: colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'community_settings_images_tip'.tr,
+                                style: TextStyle(fontSize: 12, height: 1.4, color: colorScheme.onSurfaceVariant),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (_isLoading && (_currentAvatarUrl != null || _currentCoverUrl != null))
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearProgressIndicator(minHeight: 2, color: colorScheme.primary),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 18),
-                _CommunityImageEditCard(
-                  title: 'community_settings_cover_photo'.tr,
-                  imageUrl: _currentCoverUrl,
-                  isProfile: false,
-                  isLoading: _isLoading,
-                  onChange: () => _pickAndUploadImage(isProfile: false),
-                ),
-              ],
-            ),
     );
   }
 }
