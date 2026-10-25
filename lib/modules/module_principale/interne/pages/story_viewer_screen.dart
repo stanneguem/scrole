@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import '../../../../shared/widgets/user_certified_badge.dart';
 import '../../../../shared/widgets/user_identity_row.dart';
 import '../../../../shared/utils/number_formatter.dart';
@@ -529,13 +530,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                         children: [
                           if (_currentStory.content != null &&
                               _currentStory.content!.isNotEmpty) ...[
-                            Text(
-                              _currentStory.content!,
+                            LinkifiedText(
+                              text: _currentStory.content!,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
+                              linkColor: Colors.lightBlueAccent,
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
@@ -2094,8 +2096,8 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        content,
+                      LinkifiedText(
+                        text: content,
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurface,
