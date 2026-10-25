@@ -40,34 +40,82 @@ class AppDeepLinkService {
   /// This is checked before queuing links as well as immediately before
   /// navigation, including when the visitor is signed out.
   Future<bool> _isNavigationBlocked() async {
+    // main() subscribes to app_links before Supabase/config/controllers finish
+    // booting. Wait for the policy services instead of treating their absence
+    // as permission to navigate.
     try {
-      if (Get.isRegistered<AppConfigService>()) {
-        final config = Get.find<AppConfigService>();
-        await config.checkConfig();
-        if (config.isMaintenance.value || config.needsUpdate.value) {
-          _priorityScreenActive = true;
-          return true;
-        }
+      var attempts = 0;
+      while (!Get.isRegistered<AppConfigService>() && attempts < 80) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        attempts++;
       }
-      if (Get.isRegistered<AppController>()) {
-        final status = Get.find<AppController>().status.value;
-        if (status == AppStatus.banned ||
-            status == AppStatus.maintenance ||
-            status == AppStatus.updateRequired) {
-          _priorityScreenActive = true;
-          return true;
-        }
+      if (!Get.isRegistered<AppConfigService>()) {
+        debugPrint('[AppDeepLinkService] Config service not ready; blocking link.');
+        _priorityScreenActive = true;
+        return true;
+      }
+
+      final config = Get.find<AppConfigService>();
+      await config.checkConfig();
+      if (config.isMaintenance.value || config.needsUpdate.value) {
+        _priorityScreenActive = true;
+        _discardPendingLinks();
+        return true;
+      }
+
+      attempts = 0;
+      while (!Get.isRegistered<AppController>() && attempts < 80) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+      if (!Get.isRegistered<AppController>()) {
+        debugPrint('[AppDeepLinkService] App controller not ready; blocking link.');
+        _priorityScreenActive = true;
+        return true;
+      }
+
+      final controller = Get.find<AppController>();
+      // Do not decide while account status is still being resolved; otherwise
+      // a banned user can race the deep-link stream during startup.
+      attempts = 0;
+      while (controller.status.value == AppStatus.loading && attempts < 100) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+      if (controller.status.value == AppStatus.loading) {
+        debugPrint('[AppDeepLinkService] Account status unresolved; blocking link.');
+        _priorityScreenActive = true;
+        return true;
+      }
+
+      final status = controller.status.value;
+      if (status == AppStatus.banned ||
+          status == AppStatus.maintenance ||
+          status == AppStatus.updateRequired) {
+        _priorityScreenActive = true;
+        _discardPendingLinks();
+        return true;
       }
     } catch (error) {
       debugPrint('[AppDeepLinkService] Priority-screen guard check failed: $error');
-      // Keep deep links queued when policy cannot be checked yet; never route
-      // around a potentially active mandatory screen.
+      _priorityScreenActive = true;
       return true;
     }
+
     _priorityScreenActive = false;
     return false;
   }
 
+  void _discardPendingLinks() {
+    _pendingPostId = null;
+    _pendingCommentId = null;
+    _pendingLink = null;
+    _pendingEventId = null;
+    _pendingEventLink = null;
+    _waitingForAuthentication = false;
+    unawaited(_authSubscription?.cancel());
+    _authSubscription = null;
+  }
 
 
   Future<void> initialize() async {
