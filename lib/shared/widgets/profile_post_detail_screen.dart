@@ -30,6 +30,22 @@ class _ProfilePostDetailScreenState extends State<ProfilePostDetailScreen> {
   void initState() {
     super.initState();
     _post = widget.post;
+    // Profile grids can pass a lightweight post object without the complete
+    // author relation. Reload the canonical post so the card receives the
+    // author's real username, avatar and certification state.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCompletePost());
+  }
+
+  Future<void> _loadCompletePost() async {
+    try {
+      final freshPost = await HomeFeedRepository().getPost(_post.id);
+      if (!mounted) return;
+      setState(() => _post = freshPost);
+    } catch (error) {
+      // Keep the profile-provided post visible if the detail endpoint is
+      // unavailable (for example, when a private post is no longer accessible).
+      debugPrint('[PROFILE_POST_DETAIL] Unable to refresh post author data: $error');
+    }
   }
 
   Future<void> _confirmAndDeletePost() async {
