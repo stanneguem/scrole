@@ -1090,9 +1090,9 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                       children: [
                                         Text(
                                           switch (_pollData!['kind']) {
-                                            'quiz' => 'Quiz',
+                                            'quiz' => 'poll_kind_quiz'.tr,
                                             'multiple' => 'poll_kind_multiple'.tr,
-                                            'this_or_that' => 'Tu préfères…',
+                                            'this_or_that' => 'poll_kind_this_or_that'.tr,
                                             _ => 'poll_kind_single'.tr,
                                           },
                                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: colorScheme.onSurface),
