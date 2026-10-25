@@ -112,8 +112,31 @@ Deno.serve(async (req: Request) => {
       ru: { title: "Scrole", body: "У вас новое уведомление." },
     };
     const fallback = genericCopy[language] ?? genericCopy.fr;
-    const title = String(localized?.title || fallback.title);
-    const body = String(localized?.body || fallback.body);
+    let title = String(localized?.title || fallback.title);
+    let body = String(localized?.body || fallback.body);
+    if (type === "app_version_published") {
+      const version = String(recordData.version ?? "");
+      const message = String(recordData.message ?? "").trim();
+      const versionLine: Record<string, (v: string) => string> = {
+        fr: v => `Nouvelle version de Scrole : ${v}`,
+        en: v => `New Scrole version: ${v}`,
+        es: v => `Nueva versión de Scrole: ${v}`,
+        de: v => `Neue Scrole-Version: ${v}`,
+        it: v => `Nuova versione di Scrole: ${v}`,
+        pt: v => `Nova versão do Scrole: ${v}`,
+        zh: v => `Scrole 新版本：${v}`,
+        ja: v => `Scrole の新バージョン：${v}`,
+        ru: v => `Новая версия Scrole: ${v}`,
+      };
+      title = fallback.title === "Scrole" ? "Scrole" : fallback.title;
+      title = ({
+        fr: "Nouvelle version de Scrole", en: "New Scrole version",
+        es: "Nueva versión de Scrole", de: "Neue Scrole-Version",
+        it: "Nuova versione di Scrole", pt: "Nova versão do Scrole",
+        zh: "Scrole 新版本", ja: "Scrole の新バージョン", ru: "Новая версия Scrole",
+      } as Record<string, string>)[language] ?? "Nouvelle version de Scrole";
+      body = `${(versionLine[language] ?? versionLine.fr)(version)}${message ? `\\n${message}` : ""}`;
+    }
     const data = { ...dataBase, language, title, body };
     const results = [];
 
