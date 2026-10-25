@@ -133,7 +133,11 @@ class CommunityScreen extends StatelessWidget {
                             Get.to(() => CommunityFeedScreen(
                                   communityId: community.id,
                                   communityName: community.name,
-                                ));
+                                ))?.then((_) {
+                                  // Refresh membership and community details after returning
+                                  // from a community, without forcing a full-screen loader.
+                                  controller.loadCommunities();
+                                });
                           },
                   ),
                 ),
