@@ -148,7 +148,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final cursor = _textController.selection.baseOffset;
     if (cursor >= 0 && cursor <= value.length) {
       final prefix = value.substring(0, cursor);
-      final match = RegExp(r'(^|\s)([@*~])([^\s@*~]*).firstMatch(prefix);
+      final match = RegExp(r'(^|\s)([@*~])([^\s@*~]*)$').firstMatch(prefix);
       if (match != null) {
         _hideLiveSuggestions();
         final trigger = match.group(2)!;
@@ -316,7 +316,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         ? selection.baseOffset.clamp(0, text.length)
         : text.length;
     final before = cursor > 0 ? text[cursor - 1] : '';
-    final insertion = before.isEmpty || RegExp(r'\\s').hasMatch(before) ? '@' : ' @';
+    final insertion = before.isEmpty || RegExp(r'\s').hasMatch(before) ? '@' : ' @';
     final nextText = text.replaceRange(cursor, cursor, insertion);
     final nextCursor = cursor + insertion.length;
     _textController.value = TextEditingValue(
