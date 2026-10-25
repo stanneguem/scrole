@@ -7,7 +7,10 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/widgets/shared_post_link_screen.dart';
-import '../routes/app_pages.dart';\nimport '../../app_controller.dart';\nimport '../../modules/module_authentification/interne/enums/auth_statut.dart';\nimport 'app_config_service.dart';
+import '../routes/app_pages.dart';
+import '../../app_controller.dart';
+import '../../modules/module_authentification/interne/enums/auth_statut.dart';
+import 'app_config_service.dart';
 
 /// Handles incoming Scrole share links such as https://scrole.fun/post/<id>.
 /// If the visitor is signed out, the requested post stays queued until login.
@@ -82,7 +85,20 @@ class AppDeepLinkService {
     );
   }
 
-  void _handleUri(Uri uri) {\n    if (_priorityScreenActive) return;\n    unawaited(_acceptUriWhenAllowed(uri));\n  }\n\n  Future<void> _acceptUriWhenAllowed(Uri uri) async {\n    if (await _isNavigationBlocked()) {\n      debugPrint('[AppDeepLinkService] Deep link blocked by app priority screen: $uri');\n      return;\n    }\n    _handleUriUnchecked(uri);\n  }\n\n  void _handleUriUnchecked(Uri uri) {
+  void _handleUri(Uri uri) {
+    if (_priorityScreenActive) return;
+    unawaited(_acceptUriWhenAllowed(uri));
+  }
+
+  Future<void> _acceptUriWhenAllowed(Uri uri) async {
+    if (await _isNavigationBlocked()) {
+      debugPrint('[AppDeepLinkService] Deep link blocked by app priority screen: $uri');
+      return;
+    }
+    _handleUriUnchecked(uri);
+  }
+
+  void _handleUriUnchecked(Uri uri) {
     if (uri.scheme != 'https' ||
         (uri.host != 'scrole.fun' && uri.host != 'www.scrole.fun')) {
       return;
