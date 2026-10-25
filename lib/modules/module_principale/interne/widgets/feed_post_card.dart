@@ -825,6 +825,11 @@ class FeedPostCard extends StatelessWidget {
         },
       ),
     );
+    // showModalBottomSheet completes as soon as pop is requested, while its
+    // reverse transition may still rebuild the TextField for a few frames.
+    // Disposing the controller immediately causes "used after being disposed"
+    // during that closing animation. Dispose after the route transition settles.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     detailsController.dispose();
   }
 
