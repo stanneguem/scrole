@@ -600,14 +600,10 @@ class FeedPostCard extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.flag_outlined),
-              title: const Text('Signaler la publication'),
+              title: Text('home_feed_report_post'.tr),
               onTap: () {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Merci, votre signalement a été transmis.'),
-                  ),
-                );
+                _showReportPostSheet(context, post);
               },
             ),
             ListTile(
@@ -633,6 +629,210 @@ class FeedPostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _reportReasonLabel(Map<String, dynamic> reason) {
+    final code = (reason['code'] ?? '').toString().toLowerCase();
+    final key = switch (code) {
+      'arnaque_fraude' => 'report_post_reason_scam',
+      'dangereux_risqué' || 'dangereux_risque' => 'report_post_reason_dangerous',
+      'copie_contrefacon' => 'report_post_reason_copyright',
+      'harcelement' => 'report_post_reason_harassment',
+      'spam' || 'spam_publicite' => 'report_post_reason_spam',
+      'faux_profil' || 'usurpation' => 'report_post_reason_fake',
+      'contenu_inapproprie' => 'report_post_reason_inappropriate',
+      'autre' => 'report_post_reason_other',
+      _ => '',
+    };
+    return key.isEmpty ? (reason['nom'] ?? '').toString() : key.tr;
+  }
+
+  Future<void> _showReportPostSheet(BuildContext context, CommunityPost post) async {
+    final messenger = ScaffoldMessenger.of(context);
+    List<Map<String, dynamic>> reasons;
+    try {
+      final response = await Supabase.instance.client
+          .from('signalement_raison')
+          .select('id, nom, code, description')
+          .eq('est_actif', true)
+          .order('nom');
+      reasons = (response as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      if (reasons.isEmpty) throw Exception('no_report_reasons');
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('report_post_error'.tr)));
+      debugPrint('[REPORT_POST] Failed to load reasons: $e');
+      return;
+    }
+    if (!context.mounted) return;
+
+    String? selectedReasonId;
+    final detailsController = TextEditingController();
+    bool submitting = false;
+    String? inlineError;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> submit() async {
+            if (submitting) return;
+            if (selectedReasonId == null) {
+              setSheetState(() => inlineError = 'report_post_reason_required'.tr);
+              return;
+            }
+            setSheetState(() {
+              submitting = true;
+              inlineError = null;
+            });
+            try {
+              await Supabase.instance.client.rpc('report_content', params: {
+                'p_target_type': 'post',
+                'p_target_id': post.id,
+                'p_reason_id': selectedReasonId,
+                'p_description': detailsController.text.trim().isEmpty
+                    ? null
+                    : detailsController.text.trim(),
+              });
+              if (!sheetContext.mounted) return;
+              Navigator.of(sheetContext).pop();
+              messenger.showSnackBar(
+                SnackBar(content: Text('report_post_success'.tr)),
+              );
+            } catch (e) {
+              debugPrint('[REPORT_POST] Failed to submit post=${post.id}: $e');
+              if (sheetContext.mounted) {
+                setSheetState(() {
+                  submitting = false;
+                  inlineError = 'report_post_error'.tr;
+                });
+              }
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'report_post_title'.tr,
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: submitting ? null : submit,
+                        child: Text(
+                          'report_post_submit'.tr,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: submitting
+                                ? colorScheme.onSurfaceVariant
+                                : colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'report_post_hint'.tr,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...reasons.map((reason) {
+                    final id = reason['id']?.toString() ?? '';
+                    final selected = selectedReasonId == id;
+                    return RadioListTile<String>(
+                      value: id,
+                      groupValue: selectedReasonId,
+                      onChanged: submitting
+                          ? null
+                          : (value) => setSheetState(() {
+                                selectedReasonId = value;
+                                inlineError = null;
+                              }),
+                      title: Text(
+                        _reportReasonLabel(reason),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurface,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                      activeColor: colorScheme.primary,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: detailsController,
+                    maxLength: 1000,
+                    maxLines: 3,
+                    minLines: 2,
+                    enabled: !submitting,
+                    decoration: InputDecoration(
+                      hintText: 'report_post_description_hint'.tr,
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  if (inlineError != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      inlineError!,
+                      style: TextStyle(color: colorScheme.error, fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    detailsController.dispose();
   }
 
   void _confirmDeletePost(BuildContext context, CommunityPost post) {
