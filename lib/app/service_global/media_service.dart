@@ -60,7 +60,7 @@ class MediaService extends GetxService {
   }
 
   Future<File?> pickProfileImage({ImageSource source = ImageSource.gallery}) async {
-    final picked = await pickImage(source: ImageSource.gallery);
+    final picked = await pickImage(source: source);
     if (picked == null) return null;
     final cropped = await cropImage(picked, circle: true);
     if (cropped == null) return null;
