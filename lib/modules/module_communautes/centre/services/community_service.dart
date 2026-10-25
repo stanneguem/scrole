@@ -778,8 +778,10 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<void> deleteCommunity(String communityId) async {
-    await _dao.deleteCommunity(communityId);
+    // Delete on the server first; preserve local data if the RPC fails.
     await _repo.deleteCommunity(communityId);
+    await _dao.deleteCommunity(communityId);
+    await reconcileMyCommunities();
   }
 
   Future<void> leaveCommunityAndReport({
