@@ -297,27 +297,81 @@ class _NotificationTile extends StatelessWidget {
   final VoidCallback onDelete;
   final String? avatarUrl;
 
+  String? _genericNotificationFamily(String rawType) {
+    final type = rawType.toLowerCase();
+    const families = <String, String>{
+      'evenement_like': 'like',
+      'story_like': 'like',
+      'community_post_like': 'like',
+      'post_comment': 'comment',
+      'story_comment': 'comment',
+      'story_comment_reply': 'comment',
+      'community_comment_mention': 'mention',
+      'community_post_mention': 'mention',
+      'community_mentioned_in_post': 'mention',
+      'community_mentioned_in_comment': 'mention',
+      'event_mentioned_in_comment': 'mention',
+      'event_mentioned_in_post': 'mention',
+      'event_organizer_mentioned_in_post': 'mention',
+      'event_organizer_mentioned_in_comment': 'mention',
+      'invitation_staff': 'invitation',
+      'invitation_staff_evenement': 'invitation',
+      'invitation_staff_activite': 'invitation',
+      'invitation_guest_evenement': 'invitation',
+      'invitation_guest': 'invitation',
+      'guest_invitation': 'invitation',
+      'invitation_sponsor_evenement': 'invitation',
+      'invitation_sponsor': 'invitation',
+      'sponsor_invitation': 'invitation',
+      'connection_request': 'request',
+      'demande_ami': 'request',
+      'demande_connexion': 'request',
+      'community_join_request': 'request',
+      'connection_accepted': 'accepted',
+      'demande_ami_acceptee': 'accepted',
+      'reponse_demande_communaute': 'accepted',
+      'post_shared_story': 'share',
+      'bienvenue': 'welcome',
+      'evenement_valide': 'approved',
+      'invitation_guest_annulee': 'canceled',
+      'invitation_staff_activite_annulee': 'canceled',
+      'promotion_co_createur_evenement': 'promotion',
+      'reponse_invitation_staff': 'reply',
+      'evenement_modifie': 'event_update',
+    };
+    return families[type];
+  }
+
   String _localizedTitle(NotificationController controller) {
     final type = notification.type.toLowerCase();
     const supported = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
-    if (!supported.contains(type)) return notification.title;
-    final payload = controller.payloadOf(notification);
-    final rawData = payload['data'];
-    final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
-    final name = (data['display_name'] ?? data['name'] ?? data['username'] ?? data['pseudo'] ?? payload['actor_name'] ?? '').toString();
-    final key = switch (type) {
-      'new_follower' => 'follow_notification_new_follower',
-      'new_friend' => 'follow_notification_new_friend',
-      'follow_request' => 'follow_notification_request',
-      'follow_request_accepted' => 'follow_notification_accepted',
-      _ => 'follow_notification_friend_qr',
-    };
-    return key.trParams({'name': name});
+    if (supported.contains(type)) {
+      final payload = controller.payloadOf(notification);
+      final rawData = payload['data'];
+      final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
+      final name = (data['display_name'] ?? data['name'] ?? data['username'] ?? data['pseudo'] ?? payload['actor_name'] ?? '').toString();
+      final key = switch (type) {
+        'new_follower' => 'follow_notification_new_follower',
+        'new_friend' => 'follow_notification_new_friend',
+        'follow_request' => 'follow_notification_request',
+        'follow_request_accepted' => 'follow_notification_accepted',
+        _ => 'follow_notification_friend_qr',
+      };
+      return key.trParams({'name': name});
+    }
+    final family = _genericNotificationFamily(type);
+    if (family != null) return 'notification_generic_${family}_title'.tr;
+    // A direct message body is user-generated content and must never be translated.
+    return notification.title;
   }
 
   String _localizedMessage(NotificationController controller) {
-    const supported = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
-    if (supported.contains(notification.type.toLowerCase())) return '';
+    final type = notification.type.toLowerCase();
+    const followTypes = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
+    if (followTypes.contains(type)) return '';
+    final family = _genericNotificationFamily(type);
+    if (family != null) return 'notification_generic_${family}_body'.tr;
+    // For messages, keep the sender's original text exactly as written.
     return notification.message;
   }
 
