@@ -7,7 +7,7 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/widgets/shared_post_link_screen.dart';
-import '../routes/app_pages.dart';
+import '../routes/app_pages.dart';\nimport '../../app_controller.dart';\nimport '../../modules/module_authentification/interne/enums/auth_statut.dart';\nimport 'app_config_service.dart';
 
 /// Handles incoming Scrole share links such as https://scrole.fun/post/<id>.
 /// If the visitor is signed out, the requested post stays queued until login.
@@ -29,7 +29,41 @@ class AppDeepLinkService {
   DateTime? _lastHandledAt;
   bool _navigationScheduled = false;
   bool _isOpening = false;
-  bool _waitingForAuthentication = false;
+  bool _waitingForAuthentication = false;\n\n  bool _priorityScreenActive = false;
+
+  /// A share URL must never navigate over a mandatory app-level screen.
+  /// This is checked before queuing links as well as immediately before
+  /// navigation, including when the visitor is signed out.
+  Future<bool> _isNavigationBlocked() async {
+    try {
+      if (Get.isRegistered<AppConfigService>()) {
+        final config = Get.find<AppConfigService>();
+        await config.checkConfig();
+        if (config.isMaintenance.value || config.needsUpdate.value) {
+          _priorityScreenActive = true;
+          return true;
+        }
+      }
+      if (Get.isRegistered<AppController>()) {
+        final status = Get.find<AppController>().status.value;
+        if (status == AppStatus.banned ||
+            status == AppStatus.maintenance ||
+            status == AppStatus.updateRequired) {
+          _priorityScreenActive = true;
+          return true;
+        }
+      }
+    } catch (error) {
+      debugPrint('[AppDeepLinkService] Priority-screen guard check failed: $error');
+      // Keep deep links queued when policy cannot be checked yet; never route
+      // around a potentially active mandatory screen.
+      return true;
+    }
+    _priorityScreenActive = false;
+    return false;
+  }
+
+
 
   Future<void> initialize() async {
     if (kIsWeb || _subscription != null) return;
@@ -48,7 +82,7 @@ class AppDeepLinkService {
     );
   }
 
-  void _handleUri(Uri uri) {
+  void _handleUri(Uri uri) {\n    if (_priorityScreenActive) return;\n    unawaited(_acceptUriWhenAllowed(uri));\n  }\n\n  Future<void> _acceptUriWhenAllowed(Uri uri) async {\n    if (await _isNavigationBlocked()) {\n      debugPrint('[AppDeepLinkService] Deep link blocked by app priority screen: $uri');\n      return;\n    }\n    _handleUriUnchecked(uri);\n  }\n\n  void _handleUriUnchecked(Uri uri) {
     if (uri.scheme != 'https' ||
         (uri.host != 'scrole.fun' && uri.host != 'www.scrole.fun')) {
       return;
@@ -146,7 +180,7 @@ class AppDeepLinkService {
     );
   }
 
-  Future<void> _openPendingEvent() async {
+  Future<void> _openPendingEvent() async {\n    if (await _isNavigationBlocked()) return;
     final eventId = _pendingEventId;
     final link = _pendingEventLink;
     if (eventId == null || link == null || _isOpening) return;
@@ -191,7 +225,7 @@ class AppDeepLinkService {
     }
   }
 
-  Future<void> _openPendingPost() async {
+  Future<void> _openPendingPost() async {\n    if (await _isNavigationBlocked()) return;
     final postId = _pendingPostId;
     final commentId = _pendingCommentId;
     final link = _pendingLink;
