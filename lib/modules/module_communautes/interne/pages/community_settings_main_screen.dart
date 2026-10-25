@@ -326,68 +326,28 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
         title: Text('community_management_title'.tr),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          // La gestion de la certification appartient exclusivement au propriétaire.
-          // Les outils de modération restent réservés aux administrateurs/modérateurs.
-          if (_isAdmin || _role == 'moderator' || _isCommunityOwner)
-            _buildTile(
-              icon: Icons.admin_panel_settings_outlined,
-              iconColor: Colors.indigo,
-              title: 'community_mgmt_mod'.tr,
-              subtitle: 'community_mgmt_mod_sub'.tr,
-              badgeCount: ((_modCounts['reports'] as num?)?.toInt() ?? (_modCounts['pending_reports'] as num?)?.toInt() ?? 0) +
-                  ((_modCounts['pending_posts'] as num?)?.toInt() ?? 0) +
-                  ((_modCounts['join_requests'] as num?)?.toInt() ?? (_modCounts['pending_join_requests'] as num?)?.toInt() ?? 0) +
-                  ((_modCounts['spam'] as num?)?.toInt() ?? 0),
-              onTap: () => Get.to(() => CommunityModerationCenterScreen(communityId: widget.communityId, communityName: _communityName ?? widget.communityName, communityAvatar: _avatarUrl)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _communityName ?? widget.communityName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: colorScheme.onSurface),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'community_management_title'.tr,
+                  style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                ),
+              ],
             ),
-          if (_isCommunityOwner) ...[
-            _buildTile(
-              icon: Icons.verified_rounded,
-              iconColor: _communityCertified ? Colors.green : Colors.deepPurple,
-              title: 'entity_cert_community_title'.tr,
-              subtitle: _communityCertified
-                  ? 'Certification active'
-                  : 'Utiliser un droit inclus dans votre abonnement',
-              onTap: () async {
-                await Get.to(() => EntityCertificationManagementScreen(
-                  entityType: 'community',
-                  entityId: widget.communityId,
-                  entityName: _communityName ?? widget.communityName,
-                ));
-                if (mounted) await _loadRoleAndCounts();
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (_communityStatsAvailable) ...[
-            const SizedBox(height: 12),
-            _buildTile(
-              icon: Icons.query_stats_rounded,
-              iconColor: Colors.teal,
-              title: 'community_cert_stats_title'.tr,
-              subtitle: 'community_cert_stats_subtitle'.tr,
-              onTap: () => Get.to(() => CommunityCertificationStatsScreen(
-                communityId: widget.communityId,
-                communityName: _communityName ?? widget.communityName,
-              )),
-            ),
-          ],
-          const SizedBox(height: 12),
-
-          // 2. Accès et règles -> Écran E (Admin only)
-          if (_isAdmin || _isCommunityOwner)
-            _buildTile(
-              icon: Icons.security_outlined,
-              iconColor: Colors.green,
-              title: 'community_mgmt_access'.tr,
-              subtitle: 'community_mgmt_access_sub'.tr,
-              onTap: () => Get.to(() => CommunityAccessRulesHubScreen(communityId: widget.communityId, communityName: _communityName ?? widget.communityName, communityAvatar: _avatarUrl)),
-            ),
-          if (_isAdmin) const SizedBox(height: 12),
-
-          // 3. Informations de la communauté -> Écran H (Admin only)
+          ),
+          // 1. Identity and community information first.
           if (_isAdmin || _isCommunityOwner)
             _buildTile(
               icon: Icons.info_outline_rounded,
@@ -403,8 +363,77 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
                 if (mounted) await _loadRoleAndCounts();
               },
             ),
-          if (_isAdmin || _isCommunityOwner) ...[
-            const SizedBox(height: 18),
+          if (_isAdmin || _isCommunityOwner) const SizedBox(height: 12),
+
+          // 2. Membership access and community rules.
+          if (_isAdmin || _isCommunityOwner)
+            _buildTile(
+              icon: Icons.security_outlined,
+              iconColor: Colors.green,
+              title: 'community_mgmt_access'.tr,
+              subtitle: 'community_mgmt_access_sub'.tr,
+              onTap: () => Get.to(() => CommunityAccessRulesHubScreen(
+                communityId: widget.communityId,
+                communityName: _communityName ?? widget.communityName,
+                communityAvatar: _avatarUrl,
+              )),
+            ),
+          if (_isAdmin || _isCommunityOwner) const SizedBox(height: 12),
+
+          // 3. Certification and related statistics.
+          if (_isCommunityOwner)
+            _buildTile(
+              icon: Icons.verified_rounded,
+              iconColor: _communityCertified ? Colors.green : Colors.deepPurple,
+              title: 'entity_cert_community_title'.tr,
+              subtitle: _communityCertified
+                  ? 'entity_cert_status_active'.tr
+                  : 'entity_cert_use_included'.tr,
+              onTap: () async {
+                await Get.to(() => EntityCertificationManagementScreen(
+                  entityType: 'community',
+                  entityId: widget.communityId,
+                  entityName: _communityName ?? widget.communityName,
+                ));
+                if (mounted) await _loadRoleAndCounts();
+              },
+            ),
+          if (_communityStatsAvailable) ...[
+            const SizedBox(height: 12),
+            _buildTile(
+              icon: Icons.query_stats_rounded,
+              iconColor: Colors.teal,
+              title: 'community_cert_stats_title'.tr,
+              subtitle: 'community_cert_stats_subtitle'.tr,
+              onTap: () => Get.to(() => CommunityCertificationStatsScreen(
+                communityId: widget.communityId,
+                communityName: _communityName ?? widget.communityName,
+              )),
+            ),
+          ],
+          if (_isCommunityOwner || _communityStatsAvailable) const SizedBox(height: 12),
+
+          // 4. Moderation and pending actions.
+          if (_isAdmin || _role == 'moderator' || _isCommunityOwner)
+            _buildTile(
+              icon: Icons.admin_panel_settings_outlined,
+              iconColor: Colors.indigo,
+              title: 'community_mgmt_mod'.tr,
+              subtitle: 'community_mgmt_mod_sub'.tr,
+              badgeCount: ((_modCounts['reports'] as num?)?.toInt() ?? (_modCounts['pending_reports'] as num?)?.toInt() ?? 0) +
+                  ((_modCounts['pending_posts'] as num?)?.toInt() ?? 0) +
+                  ((_modCounts['join_requests'] as num?)?.toInt() ?? (_modCounts['pending_join_requests'] as num?)?.toInt() ?? 0) +
+                  ((_modCounts['spam'] as num?)?.toInt() ?? 0),
+              onTap: () => Get.to(() => CommunityModerationCenterScreen(
+                communityId: widget.communityId,
+                communityName: _communityName ?? widget.communityName,
+                communityAvatar: _avatarUrl,
+              )),
+            ),
+          if (_isAdmin || _isCommunityOwner) const SizedBox(height: 18),
+
+          // Destructive action is deliberately isolated at the end.
+          if (_isAdmin || _isCommunityOwner)
             _buildTile(
               icon: Icons.delete_forever_outlined,
               iconColor: Colors.red,
@@ -412,7 +441,6 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
               subtitle: 'community_delete_subtitle'.tr,
               onTap: _confirmDeleteCommunity,
             ),
-          ],
         ],
       ),
     );
