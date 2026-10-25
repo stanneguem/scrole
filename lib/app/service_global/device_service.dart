@@ -23,9 +23,14 @@ class DeviceService extends GetxService {
   }
 
   Future<void> removeDevice(String deviceId) async {
-    final token = await NotificationService.instance.getDeviceToken();
-    if (token.trim().isEmpty) throw StateError('current_device_unverified');
-    await _repository.deleteDevice(deviceId: deviceId, currentDeviceToken: token);
+    final token = (await NotificationService.instance.getDeviceToken())?.trim();
+    if (token == null || token.isEmpty) {
+      throw StateError('current_device_unverified');
+    }
+    await _repository.deleteDevice(
+      deviceId: deviceId,
+      currentDeviceToken: token,
+    );
     devices.removeWhere((d) => d.id == deviceId);
   }
 }
