@@ -8,10 +8,10 @@ import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/search_screen.dart';
 import 'package:scrole/shared/constantes/image_path.dart';
+import 'package:scrole/shared/widgets/external_web_view_screen.dart';
 import '../../../module_evenement/interne/pages/event_screen.dart';
 import '../../../module_communautes/interne/pages/community_screen.dart';
 import '../../../module_communautes/interne/controllers/community/community_controller.dart';
-import '../../../module_parametre/interne/pages/credits_screen.dart';
 import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
 import '../pages/home_feed_screen.dart';
 import '../../../../app_controller.dart';
@@ -380,7 +380,10 @@ class AppDrawer extends StatelessWidget {
               title: Text('drawer_about'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.of(context).pop();
-                Get.to(() => const CreditsScreen());
+                Get.to(() => const ExternalWebViewScreen(
+                  url: 'https://credit.scrole.fun',
+                  title: 'Crédits de Scrole',
+                ));
               },
             ),
             ListTile(
