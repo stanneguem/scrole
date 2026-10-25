@@ -103,10 +103,10 @@ class AppController extends GetxController {
         status.value = AppStatus.loading;
         break;
       case SessionEvent.authenticated:
-        // A session refresh can finish after profile creation; don't let it
-        // bypass the onboarding screen already shown for this new profile.
+        // Keep the current onboarding route and resume an unfinished flow
+        // after an app restart or a session refresh.
         if (status.value != AppStatus.onboarding) {
-          status.value = AppStatus.authenticated;
+          unawaited(_resolveAuthenticatedStatus());
         }
         break;
       case SessionEvent.unauthenticated:
@@ -124,6 +124,36 @@ class AppController extends GetxController {
       case SessionEvent.connectionError:
         status.value = AppStatus.connectionError;
         break;
+    }
+  }
+
+  Future<void> _resolveAuthenticatedStatus() async {
+    final userId = _authService.currentUser.value?.id;
+    if (userId == null) {
+      status.value = AppStatus.unauthenticated;
+      return;
+    }
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'get_social_discovery_onboarding_state',
+      );
+      if (_authService.currentUser.value?.id != userId) return;
+      if (status.value == AppStatus.onboarding) return;
+      if (result is Map &&
+          result['started'] == true &&
+          result['completed'] != true) {
+        status.value = AppStatus.onboarding;
+      } else {
+        status.value = AppStatus.authenticated;
+      }
+    } catch (e) {
+      // Don't block existing users if the optional onboarding state is
+      // unavailable; a new profile explicitly enters onboarding after setup.
+      debugPrint('[ONBOARDING] unable to restore onboarding state: $e');
+      if (_authService.currentUser.value?.id == userId &&
+          status.value != AppStatus.onboarding) {
+        status.value = AppStatus.authenticated;
+      }
     }
   }
 
