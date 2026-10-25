@@ -117,17 +117,17 @@ class CommunityRepository {
 
   Future<Map<String, dynamic>> leaveCommunityRpc(String communityId) async {
     try {
-      debugPrint('[COMMUNITY_SYNC] [Repository] Calling RPC leave_community with p_community_id=$communityId');
-      final response = await client.rpc('leave_community', params: {
+      debugPrint('[COMMUNITY_SYNC] [Repository] Calling RPC leave_or_delete_community with p_community_id=$communityId');
+      final response = await client.rpc('leave_or_delete_community', params: {
         'p_community_id': communityId,
       });
-      debugPrint('[COMMUNITY_SYNC] [Repository] RPC leave_community successful for p_community_id=$communityId');
+      debugPrint('[COMMUNITY_SYNC] [Repository] RPC leave_or_delete_community successful for p_community_id=$communityId');
       if (response is Map) {
         return Map<String, dynamic>.from(response);
       }
       return {'success': true};
     } on PostgrestException catch (e) {
-      debugPrint('[COMMUNITY_SYNC] [Repository] PostgrestException during leave_community: code=${e.code}, message=${e.message}');
+      debugPrint('[COMMUNITY_SYNC] [Repository] PostgrestException during leave_or_delete_community: code=${e.code}, message=${e.message}');
       final msg = e.message.toLowerCase();
       if (msg.contains('dernier administrateur') || msg.contains('last admin') || msg.contains('administrator') || msg.contains('transférez')) {
         throw Exception('community_last_admin_error');
