@@ -31,21 +31,18 @@ class AppDeepLinkService {
   Future<void> initialize() async {
     if (kIsWeb || _subscription != null) return;
 
-    // Start listening before resolving the initial link so a cold-start URL
-    // cannot be lost while the initial-link future is being resolved.
+    // Use the link stream as the single source of incoming URLs.
+    // app_links can expose the Android launch intent again through
+    // getInitialLink() when Dart is hot-restarted, which would reopen the same
+    // SharedPostLinkScreen even though the user did not tap the link again.
+    // The stream delivers cold-start links as well as links received while the
+    // app is running, so do not also read the cached initial intent.
     _subscription = _appLinks.uriLinkStream.listen(
       _handleUri,
       onError: (Object error, StackTrace stack) {
         debugPrint('[AppDeepLinkService] Link stream error: $error');
       },
     );
-
-    try {
-      final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) _handleUri(initialUri);
-    } catch (error, stack) {
-      debugPrint('[AppDeepLinkService] Initial link error: $error\n$stack');
-    }
   }
 
   void _handleUri(Uri uri) {
