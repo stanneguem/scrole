@@ -40,6 +40,20 @@ class AppDeepLinkService {
   /// This is checked before queuing links as well as immediately before
   /// navigation, including when the visitor is signed out.
   Future<bool> _isNavigationBlocked() async {
+    // Route-level check is important because the app may already be displaying
+    // a mandatory gate before its controller status has finished synchronizing.
+    final route = Get.currentRoute.toLowerCase();
+    if (route.contains('update') ||
+        route.contains('maintenance') ||
+        route.contains('banned') ||
+        route.contains('blocked') ||
+        route.contains('account-suspended')) {
+      _priorityScreenActive = true;
+      _discardPendingLinks();
+      debugPrint('[AppDeepLinkService] Link blocked while priority route is active: $route');
+      return true;
+    }
+
     // main() subscribes to app_links before Supabase/config/controllers finish
     // booting. Wait for the policy services instead of treating their absence
     // as permission to navigate.
