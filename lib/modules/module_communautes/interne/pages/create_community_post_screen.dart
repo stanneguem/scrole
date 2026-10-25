@@ -780,7 +780,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _pickVideo() async {
     if (_pollData != null) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de vidéo.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_video'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     if (_selectedMediaCount >= maxPostMedia) {
@@ -1091,15 +1091,15 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                         Text(
                                           switch (_pollData!['kind']) {
                                             'quiz' => 'Quiz',
-                                            'multiple' => 'Sondage à choix multiples',
+                                            'multiple' => 'poll_kind_multiple'.tr,
                                             'this_or_that' => 'Tu préfères…',
-                                            _ => 'Sondage classique',
+                                            _ => 'poll_kind_single'.tr,
                                           },
                                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: colorScheme.onSurface),
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          '${(_pollData!['options'] as List).length} options · prêt à publier',
+                                          'poll_preview_ready'.trParams({'count': '${(_pollData!['options'] as List).length}'}),
                                           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                                         ),
                                       ],
