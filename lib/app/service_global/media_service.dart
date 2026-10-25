@@ -68,7 +68,7 @@ class MediaService extends GetxService {
   }
 
   Future<File?> pickCoverImage({ImageSource source = ImageSource.gallery}) async {
-    final picked = await pickImage(source: ImageSource.gallery);
+    final picked = await pickImage(source: source);
     if (picked == null) return null;
     final cropped = await ImageCropper().cropImage(
       sourcePath: picked.path,
