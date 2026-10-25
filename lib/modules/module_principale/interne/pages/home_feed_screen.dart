@@ -164,8 +164,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     const _StoriesRow(),
-                    const _SuggestedProfilesCarousel(),
-                    const _SuggestedEventsCarousel(),
+                    _SuggestedProfilesCarousel(controller: feedController),
+                    _SuggestedEventsCarousel(controller: feedController),
                     SizedBox(
                       height: MediaQuery.of(context).size.height * 0.4,
                       child: Center(
@@ -216,10 +216,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   final insertIndex = feedController.posts.length >= 2 ? 3 : (feedController.posts.length == 1 ? 2 : 1);
 
                   if (index == insertIndex) {
-                    return const _SuggestedProfilesCarousel();
+                    return _SuggestedProfilesCarousel(controller: feedController);
                   }
                   if (index == insertIndex + 1) {
-                    return const _SuggestedEventsCarousel();
+                    return _SuggestedEventsCarousel(controller: feedController);
                   }
 
                   int postIndex;
@@ -576,8 +576,10 @@ class _StoriesRow extends GetView<StoriesController> {
   }
 }
 
-class _SuggestedProfilesCarousel extends GetView<HomeFeedController> {
-  const _SuggestedProfilesCarousel();
+class _SuggestedProfilesCarousel extends StatelessWidget {
+  const _SuggestedProfilesCarousel({required this.controller});
+
+  final HomeFeedController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -684,8 +686,10 @@ class _SuggestedProfilesCarousel extends GetView<HomeFeedController> {
   }
 }
 
-class _SuggestedEventsCarousel extends GetView<HomeFeedController> {
-  const _SuggestedEventsCarousel();
+class _SuggestedEventsCarousel extends StatelessWidget {
+  const _SuggestedEventsCarousel({required this.controller});
+
+  final HomeFeedController controller;
 
   @override
   Widget build(BuildContext context) {
