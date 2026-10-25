@@ -1257,7 +1257,7 @@ class _PrivateProfile extends StatelessWidget {
                 ),
                 const SizedBox(height: 22),
                 Text(
-                  'Profil indisponible',
+                  'profile_unavailable_title'.tr,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colors.onSurface,
