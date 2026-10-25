@@ -3,6 +3,7 @@ enum AppStatus {
   connectionError,
   unauthenticated,
   needsProfile,
+  onboarding,
   banned,
   authenticated,
   updateRequired,
