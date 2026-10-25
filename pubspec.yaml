@@ -30,6 +30,7 @@ dependencies:
   package_rename: ^1.10.1
   mocktail: ^1.0.5
   url_launcher: ^6.3.2
+  webview_flutter: ^4.13.0
   flutter_localization: ^0.4.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0
