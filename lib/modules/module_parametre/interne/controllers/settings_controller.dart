@@ -66,10 +66,19 @@ class SettingsController extends GetxController {
   void openChats() {}
   void openNotifications() {}
   void openAppIcon() {}
-  void openHelpCenter() => Get.to(() => ExternalWebViewScreen(\n    url: 'https://help.scrole.fun',\n    title: 'settings_help_center'.tr,\n  ));
+  void openHelpCenter() => Get.to(() => ExternalWebViewScreen(
+    url: 'https://help.scrole.fun',
+    title: 'settings_help_center'.tr,
+  ));
   void openReportBug() => Get.to(() => const BugReportScreen());
-  void openCredits() => Get.to(() => ExternalWebViewScreen(\n    url: 'https://credit.scrole.fun',\n    title: 'settings_credits'.tr,\n  ));
-  void openWhatsNew() => Get.to(() => ExternalWebViewScreen(\n    url: 'https://new.scrole.fun',\n    title: 'settings_whats_new_scrole'.tr,\n  ));
+  void openCredits() => Get.to(() => ExternalWebViewScreen(
+    url: 'https://credit.scrole.fun',
+    title: 'settings_credits'.tr,
+  ));
+  void openWhatsNew() => Get.to(() => ExternalWebViewScreen(
+    url: 'https://new.scrole.fun',
+    title: 'settings_whats_new_scrole'.tr,
+  ));
 
   /// Demande confirmation avant de déconnecter l'utilisateur.
   ///
