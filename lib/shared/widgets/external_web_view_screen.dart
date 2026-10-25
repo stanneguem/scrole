@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,9 +21,11 @@ class ExternalWebViewScreen extends StatefulWidget {
 }
 
 class _ExternalWebViewScreenState extends State<ExternalWebViewScreen> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
   int _progress = 0;
   bool _hasError = false;
+  bool _disposed = false;
+  bool _controllerReady = false;
   String? _pageTitle;
 
   Uri? get _initialUri => Uri.tryParse(widget.url);
@@ -37,16 +41,27 @@ class _ExternalWebViewScreenState extends State<ExternalWebViewScreen> {
       return;
     }
 
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFFFFFFF))
-      ..setNavigationDelegate(
+    final controller = WebViewController();
+    _controller = controller;
+    _initializeController(controller, uri);
+  }
+
+  Future<void> _initializeController(
+    WebViewController controller,
+    Uri uri,
+  ) async {
+    try {
+      await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+      await controller.setBackgroundColor(const Color(0xFFFFFFFF));
+      await controller.setNavigationDelegate(
         NavigationDelegate(
           onProgress: (progress) {
-            if (mounted) setState(() => _progress = progress);
+            if (!_disposed && mounted) {
+              setState(() => _progress = progress);
+            }
           },
           onPageStarted: (_) {
-            if (mounted) {
+            if (!_disposed && mounted) {
               setState(() {
                 _hasError = false;
                 _progress = 0;
@@ -54,45 +69,85 @@ class _ExternalWebViewScreenState extends State<ExternalWebViewScreen> {
             }
           },
           onPageFinished: (_) async {
-            final title = await _controller.getTitle();
-            if (mounted) {
-              setState(() {
-                _pageTitle = title;
-                _progress = 100;
-              });
+            if (_disposed || !mounted) return;
+            try {
+              final title = await controller.getTitle();
+              if (!_disposed && mounted) {
+                setState(() {
+                  _pageTitle = title;
+                  _progress = 100;
+                });
+              }
+            } catch (_) {
+              // The native WebView can be detached while a page callback is running.
             }
           },
           onWebResourceError: (error) {
-            if (error.isForMainFrame == true && mounted) {
+            if (error.isForMainFrame == true && !_disposed && mounted) {
               setState(() => _hasError = true);
             }
           },
           onNavigationRequest: (request) async {
+            if (_disposed) return NavigationDecision.prevent;
             final target = Uri.tryParse(request.url);
             if (target == null) return NavigationDecision.prevent;
             if (target.scheme == 'http' || target.scheme == 'https') {
               return NavigationDecision.navigate;
             }
-            if (await canLaunchUrl(target)) {
-              await launchUrl(target, mode: LaunchMode.externalApplication);
+            try {
+              if (await canLaunchUrl(target) && !_disposed) {
+                await launchUrl(
+                  target,
+                  mode: LaunchMode.externalApplication,
+                );
+              }
+            } catch (_) {
+              // Ignore unsupported external schemes and plugin teardown races.
             }
             return NavigationDecision.prevent;
           },
         ),
-      )
-      ..loadRequest(uri);
+      );
+
+      if (_disposed || !mounted) return;
+      setState(() => _controllerReady = true);
+      await controller.loadRequest(uri);
+    } catch (_) {
+      if (!_disposed && mounted) {
+        setState(() {
+          _hasError = true;
+          _controllerReady = false;
+        });
+      }
+    }
   }
 
   Future<void> _reload() async {
-    if (_initialUri == null ||
-        (_initialUri!.scheme != 'https' && _initialUri!.scheme != 'http')) {
+    final controller = _controller;
+    final uri = _initialUri;
+    if (_disposed || controller == null || uri == null ||
+        (uri.scheme != 'https' && uri.scheme != 'http') ||
+        !_controllerReady) {
       return;
     }
+
     setState(() {
       _hasError = false;
       _progress = 0;
     });
-    await _controller.reload();
+    try {
+      await controller.reload();
+    } catch (_) {
+      if (!_disposed && mounted) {
+        setState(() => _hasError = true);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   @override
@@ -100,8 +155,9 @@ class _ExternalWebViewScreenState extends State<ExternalWebViewScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final uri = _initialUri;
-    final host = uri?.host.replaceFirst(RegExp(r'^www\\.'), '') ?? '';
+    final host = uri?.host.replaceFirst(RegExp(r'^www\.'), '') ?? '';
     final title = widget.title ?? _pageTitle ?? 'Page web';
+    final controller = _controller;
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -188,17 +244,29 @@ class _ExternalWebViewScreenState extends State<ExternalWebViewScreen> {
                   )
                 else
                   const SizedBox(height: 2),
-                Divider(height: 1, thickness: 1, color: colors.outlineVariant.withValues(alpha: 0.45)),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: colors.outlineVariant.withValues(alpha: 0.45),
+                ),
               ],
             ),
           ),
         ),
       ),
-      body: _hasError
-          ? _WebViewErrorState(onRetry: _reload)
-          : ClipRect(
-              child: WebViewWidget(controller: _controller),
-            ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (controller != null && _controllerReady)
+            WebViewWidget(controller: controller)
+          else
+            const SizedBox.shrink(),
+          if (_hasError)
+            _WebViewErrorState(onRetry: _reload)
+          else if (!_controllerReady)
+            const _WebViewLoadingState(),
+        ],
+      ),
     );
   }
 }
@@ -236,6 +304,21 @@ class _ToolbarButton extends StatelessWidget {
   }
 }
 
+class _WebViewLoadingState extends StatelessWidget {
+  const _WebViewLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: colors.surface,
+      child: Center(
+        child: CircularProgressIndicator(color: colors.primary),
+      ),
+    );
+  }
+}
+
 class _WebViewErrorState extends StatelessWidget {
   const _WebViewErrorState({required this.onRetry});
 
@@ -246,62 +329,65 @@ class _WebViewErrorState extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(28),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: colors.errorContainer,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Icon(
-                  Icons.wifi_off_rounded,
-                  size: 38,
-                  color: colors.onErrorContainer,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Impossible de charger cette page',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.4,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Vérifiez votre connexion Internet puis réessayez. '
-                'La page restera ouverte dans Scrole.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 19),
-                label: const Text('Réessayer'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 14,
+    return ColoredBox(
+      color: colors.surface,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 84,
+                  height: 84,
+                  decoration: BoxDecoration(
+                    color: colors.errorContainer,
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  child: Icon(
+                    Icons.wifi_off_rounded,
+                    size: 38,
+                    color: colors.onErrorContainer,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Text(
+                  'Impossible de charger cette page',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Vérifiez votre connexion Internet puis réessayez. '
+                  'La page restera ouverte dans Scrole.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
+                  label: const Text('Réessayer'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
