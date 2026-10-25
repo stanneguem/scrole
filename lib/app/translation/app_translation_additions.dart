@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'update_required_version': "Version disponible",
+      'update_store_unavailable': "Le lien vers la boutique n’est pas configuré. Réessaie plus tard.",
       'devices_title': "Appareils connectés",
       'devices_intro': "Ces appareils sont associés à ton compte Scrole. Tu peux retirer un autre appareil si tu ne le reconnais plus.",
       'devices_current': "Cet appareil",
@@ -985,6 +987,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Vous avez une nouvelle notification.",
 },
     'en': {
+      'update_required_version': "Available version",
+      'update_store_unavailable': "The app store link is not configured yet. Please try again later.",
       'devices_title': "Connected devices",
       'devices_intro': "These devices are associated with your Scrole account. Remove any device you no longer recognize.",
       'devices_current': "This device",
@@ -1961,6 +1965,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "You have a new notification.",
 },
     'es': {
+      'update_required_version': "Versión disponible",
+      'update_store_unavailable': "El enlace a la tienda aún no está configurado. Inténtalo más tarde.",
       'devices_title': "Dispositivos conectados",
       'devices_intro': "Estos dispositivos están asociados a tu cuenta de Scrole. Quita los que ya no reconozcas.",
       'devices_current': "Este dispositivo",
@@ -2854,6 +2860,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Tienes una nueva notificación.",
 },
     'de': {
+      'update_required_version': "Verfügbare Version",
+      'update_store_unavailable': "Der Store-Link ist noch nicht konfiguriert. Bitte versuche es später erneut.",
       'devices_title': "Verbundene Geräte",
       'devices_intro': "Diese Geräte sind mit deinem Scrole-Konto verknüpft. Entferne Geräte, die du nicht mehr erkennst.",
       'devices_current': "Dieses Gerät",
@@ -3730,6 +3738,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Du hast eine neue Benachrichtigung.",
 },
     'it': {
+      'update_required_version': "Versione disponibile",
+      'update_store_unavailable': "Il link allo store non è ancora configurato. Riprova più tardi.",
       'devices_title': "Dispositivi connessi",
       'devices_intro': "Questi dispositivi sono associati al tuo account Scrole. Rimuovi quelli che non riconosci più.",
       'devices_current': "Questo dispositivo",
@@ -4606,6 +4616,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Hai una nuova notifica.",
 },
     'pt': {
+      'update_required_version': "Versão disponível",
+      'update_store_unavailable': "O link da loja ainda não está configurado. Tente novamente mais tarde.",
       'devices_title': "Dispositivos conectados",
       'devices_intro': "Estes dispositivos estão associados à sua conta Scrole. Remova os que já não reconhecer.",
       'devices_current': "Este dispositivo",
@@ -5482,6 +5494,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Você tem uma nova notificação.",
 },
     'zh': {
+      'update_required_version': "可用版本",
+      'update_store_unavailable': "尚未配置应用商店链接，请稍后重试。",
       'devices_title': "已连接的设备",
       'devices_intro': "这些设备已关联到你的 Scrole 账户。可以移除不再认识的设备。",
       'devices_current': "当前设备",
@@ -6358,6 +6372,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "你收到了一条新通知。",
 },
     'ja': {
+      'update_required_version': "利用可能なバージョン",
+      'update_store_unavailable': "ストアへのリンクがまだ設定されていません。後でもう一度お試しください。",
       'devices_title': "接続中のデバイス",
       'devices_intro': "これらのデバイスは Scrole アカウントに関連付けられています。認識できないデバイスは削除できます。",
       'devices_current': "このデバイス",
@@ -7233,6 +7249,8 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "新しい通知があります。",
 },
     'ru': {
+      'update_required_version': "Доступная версия",
+      'update_store_unavailable': "Ссылка на магазин ещё не настроена. Повторите попытку позже.",
       'devices_title': "Подключённые устройства",
       'devices_intro': "Эти устройства связаны с вашей учётной записью Scrole. Удалите устройства, которые больше не узнаёте.",
       'devices_current': "Это устройство",
