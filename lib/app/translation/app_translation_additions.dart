@@ -6386,7 +6386,7 @@ class AppTranslationAdditions {
       'notification_generic_nearby_event_title': "附近的活动",
       'notification_generic_nearby_event_body': "你附近有一场新活动。",
       'notification_generic_price_reduced_title': "价格已降低",
-      'notification_generic_price_reduced_body': "某项活动的价格已降低。"
+      'notification_generic_price_reduced_body': "某项活动的价格已降低。",
       'notification_generic_checkin_title': "签到问题",
       'notification_generic_checkin_body': "无法验证你的签到。",
       'notification_generic_other_title': "新通知",
@@ -7266,7 +7266,7 @@ class AppTranslationAdditions {
       'notification_generic_nearby_event_title': "近くのイベント",
       'notification_generic_nearby_event_body': "近くで新しいイベントが開催されます。",
       'notification_generic_price_reduced_title': "値下げ",
-      'notification_generic_price_reduced_body': "アクティビティの料金が下がりました。"
+      'notification_generic_price_reduced_body': "アクティビティの料金が下がりました。",
       'notification_generic_checkin_title': "チェックインの問題",
       'notification_generic_checkin_body': "チェックインを確認できませんでした。",
       'notification_generic_other_title': "新しい通知",
