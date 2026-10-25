@@ -132,6 +132,79 @@ Deno.serve(async (req: Request) => {
     return reply(failed.length ? 502 : 200, { success: failed.length === 0, deleted_count: deleted.length, retained_referenced_count: retained.length, failed });
   }
 
+  if (body.action === "resolve-delete-bug-report") {
+    const reportId = typeof body.report_id === "string" ? body.report_id.trim() : "";
+    if (!reportId || reportId.length > 80) return reply(400, { error: "invalid_report_id" });
+
+    const { data: permissions, error: permissionError } =
+      await userClient.rpc("admin_permissions_for_current_user");
+    if (permissionError) return reply(500, { error: "admin_permission_check_failed" });
+    const permissionList = Array.isArray(permissions) ? permissions : [];
+    const canResolve = permissionList.some((row: { permission?: string }) =>
+      ["reports.resolve", "bug_reports.manage"].includes(String(row?.permission ?? ""))
+    );
+    if (!canResolve) return reply(403, { error: "bug_report_resolution_denied" });
+
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: report, error: reportError } = await admin
+      .from("bug_reports")
+      .select("id,user_id,screenshot_object_key")
+      .eq("id", reportId)
+      .maybeSingle();
+    if (reportError) return reply(500, { error: "bug_report_lookup_failed" });
+    if (!report) return reply(404, { error: "bug_report_not_found" });
+
+    const objectKey = typeof report.screenshot_object_key === "string"
+      ? report.screenshot_object_key.trim()
+      : "";
+    if (objectKey) {
+      const parts = objectKey.split("/");
+      const validKey = !!report.user_id &&
+        parts.length === 3 &&
+        parts[0] === "bug-reports" &&
+        parts[1] === report.user_id &&
+        /^[a-f0-9-]+\.(jpg|jpeg|png|webp|avif|gif)$/i.test(parts[2]);
+      if (!validKey) return reply(409, { error: "bug_report_media_key_invalid" });
+      if (!privateBucket || !privateAccessKeyId || !privateSecretAccessKey || !privateEndpoint) {
+        return reply(503, { error: "private_media_bucket_not_configured" });
+      }
+      try {
+        const privateS3 = new S3Client({
+          region: "auto",
+          endpoint: privateEndpoint,
+          credentials: { accessKeyId: privateAccessKeyId, secretAccessKey: privateSecretAccessKey },
+        });
+        await privateS3.send(new DeleteObjectCommand({ Bucket: privateBucket, Key: objectKey }));
+      } catch (error) {
+        console.error("[r2-media-upload] bug report screenshot deletion failed", {
+          reportId, error: error instanceof Error ? error.message : String(error),
+        });
+        return reply(502, { error: "bug_report_media_delete_failed" });
+      }
+    }
+
+    const { data: deletedRows, error: deleteError } = await admin
+      .from("bug_reports")
+      .delete()
+      .eq("id", reportId)
+      .select("id");
+    if (deleteError) return reply(500, {
+      error: "bug_report_delete_failed",
+      media_deleted: !!objectKey,
+    });
+    if (!deletedRows || deletedRows.length === 0) return reply(404, {
+      error: "bug_report_not_found",
+      media_deleted: !!objectKey,
+    });
+    return reply(200, {
+      success: true,
+      deleted_report_id: reportId,
+      screenshot_deleted: !!objectKey,
+    });
+  }
+
   if (body.action === "create-download-url") {
     const key = typeof body.object_key === "string" ? body.object_key.trim() : "";
     if (!key || key.includes("..") || key.startsWith("/") || key.includes("\\\\")) return reply(400, { error: "invalid_object_key" });
