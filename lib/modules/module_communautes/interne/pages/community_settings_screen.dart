@@ -342,9 +342,9 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
           icon: const Icon(Icons.close_rounded, size: 24),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Paramètres',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        title: Text(
+          'community_settings_title'.tr,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
       body: _isLoadingRole
@@ -380,12 +380,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              _slogan ?? 'Vivre la technologie ensemble',
-                              style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+
                           ],
                         ),
                       ),
