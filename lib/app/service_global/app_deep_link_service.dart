@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/widgets/shared_post_link_screen.dart';
+import '../routes/app_pages.dart';
 
 /// Handles incoming Scrole share links such as https://scrole.fun/post/<id>.
 /// If the visitor is signed out, the requested post stays queued until login.
@@ -20,6 +21,8 @@ class AppDeepLinkService {
   StreamSubscription<AuthState>? _authSubscription;
 
   String? _pendingPostId;
+  String? _pendingEventId;
+  String? _pendingEventLink;
   String? _pendingCommentId;
   String? _pendingLink;
   String? _lastHandledLink;
@@ -52,7 +55,27 @@ class AppDeepLinkService {
     }
 
     final segments = uri.pathSegments;
-    if (segments.length != 2 || segments.first != 'post') return;
+    if (segments.length != 2) return;
+
+    if (segments.first == 'event' || segments.first == 'events') {
+      final eventId = segments[1].trim();
+      if (eventId.isEmpty || eventId.length > 128) return;
+      final canonicalLink = 'https://scrole.fun/event/$eventId';
+      if (_pendingEventLink == canonicalLink || _pendingLink == canonicalLink) return;
+      final lastHandledAt = _lastHandledAt;
+      if (_lastHandledLink == canonicalLink &&
+          lastHandledAt != null &&
+          DateTime.now().difference(lastHandledAt) < const Duration(seconds: 2)) {
+        return;
+      }
+      debugPrint('[AppDeepLinkService] Event link received: $canonicalLink');
+      _pendingEventId = eventId;
+      _pendingEventLink = canonicalLink;
+      _scheduleNavigation();
+      return;
+    }
+
+    if (segments.first != 'post') return;
 
     final postId = segments[1].trim();
     if (postId.isEmpty || postId.length > 128) return;
@@ -83,14 +106,18 @@ class AppDeepLinkService {
     if (_navigationScheduled ||
         _isOpening ||
         _waitingForAuthentication ||
-        _pendingPostId == null) {
+        (_pendingPostId == null && _pendingEventId == null)) {
       return;
     }
 
     _navigationScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _navigationScheduled = false;
-      unawaited(_openPendingPost());
+      if (_pendingEventId != null) {
+        unawaited(_openPendingEvent());
+      } else {
+        unawaited(_openPendingPost());
+      }
     });
     WidgetsBinding.instance.ensureVisualUpdate();
   }
@@ -117,6 +144,51 @@ class AppDeepLinkService {
         debugPrint('[AppDeepLinkService] Auth stream error: $error');
       },
     );
+  }
+
+  Future<void> _openPendingEvent() async {
+    final eventId = _pendingEventId;
+    final link = _pendingEventLink;
+    if (eventId == null || link == null || _isOpening) return;
+
+    final navigator = Get.key.currentState;
+    if (navigator == null || !navigator.mounted || Get.context == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      _scheduleNavigation();
+      return;
+    }
+
+    try {
+      if (Supabase.instance.client.auth.currentSession == null) {
+        _waitForAuthentication();
+        return;
+      }
+    } catch (error) {
+      debugPrint('[AppDeepLinkService] Could not inspect auth session for event: $error');
+      _waitForAuthentication();
+      return;
+    }
+
+    _isOpening = true;
+    _pendingEventId = null;
+    _pendingEventLink = null;
+    try {
+      debugPrint('[AppDeepLinkService] Opening shared event: $eventId');
+      await Get.toNamed<void>(
+        AppPages.eventPreviewPath(eventId),
+        arguments: {'id': eventId, 'context': 'shared_link'},
+        preventDuplicates: true,
+      );
+      _lastHandledLink = link;
+      _lastHandledAt = DateTime.now();
+    } catch (error, stack) {
+      _pendingEventId = eventId;
+      _pendingEventLink = link;
+      debugPrint('[AppDeepLinkService] Could not open event $eventId: $error\\n$stack');
+    } finally {
+      _isOpening = false;
+      if (_pendingPostId != null || _pendingEventId != null) _scheduleNavigation();
+    }
   }
 
   Future<void> _openPendingPost() async {
@@ -168,7 +240,7 @@ class AppDeepLinkService {
       debugPrint('[AppDeepLinkService] Could not open post $postId: $error\n$stack');
     } finally {
       _isOpening = false;
-      if (_pendingPostId != null) _scheduleNavigation();
+      if (_pendingPostId != null || _pendingEventId != null) _scheduleNavigation();
     }
   }
 
