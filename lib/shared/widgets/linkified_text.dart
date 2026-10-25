@@ -30,7 +30,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
 
   // Handles explicit URLs, www links and common bare domains.
   static final RegExp _tokenPattern = RegExp(
-    r'https?://[^\\s<>{}]+|www\\.[^\\s<>{}]+|(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,}(?:/[^\\s<>{}]*)?|@[A-Za-z0-9_.]+|[*~]\\{[^}]+\\}',
+    r'https?://[^\s<>{}]+|www\.[^\s<>{}]+|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:/[^\s<>{}]*)?|@[A-Za-z0-9_.]+|[*~]\{[^}]+\}',
     caseSensitive: false,
   );
 
