@@ -169,8 +169,17 @@ Deno.serve(async (req: Request) => {
           allowed = !!mutual || !!follow;
         }
       }
-    } else if (parts[0] === "bug-reports" && parts.length >= 3) {
+    } else if (parts[0] === "bug-reports" && parts.length === 3) {
+      // Screenshots are private. The reporter may access their own object;
+      // authorized Scrole admins may access them from the bug-report queue.
       allowed = parts[1] === user.id;
+      if (!allowed) {
+        const { data: permissions, error: permissionError } = await userClient.rpc("admin_permissions_for_current_user");
+        if (permissionError) return reply(500, { error: "admin_permission_check_failed" });
+        allowed = Array.isArray(permissions) && permissions.some((row: { permission?: string }) =>
+          ["reports.view", "bug_reports.view"].includes(String(row?.permission ?? ""))
+        );
+      }
     }
     if (!allowed) return reply(403, { error: "media_access_denied" });
     const privateS3 = new S3Client({ region: "auto", endpoint: privateEndpoint, credentials: { accessKeyId: privateAccessKeyId, secretAccessKey: privateSecretAccessKey } });
