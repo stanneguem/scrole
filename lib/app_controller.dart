@@ -204,6 +204,13 @@ class AppController extends GetxController {
     status.value = AppStatus.authenticated;
   }
 
+  /// Called only after initialize_account succeeds for a newly created profile.
+  void startOnboarding() => status.value = AppStatus.onboarding;
+
+  /// The onboarding is intentionally session-scoped: existing accounts are never
+  /// sent back here on a later login.
+  void finishOnboarding() => status.value = AppStatus.authenticated;
+
   Future<Map<String, dynamic>?> updateProfile(Map<String, dynamic> data) async {
     final user = _authService.currentUser.value;
     if (user == null) return null;
