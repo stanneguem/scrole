@@ -130,16 +130,22 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
 
   Future<void> _executeLeave() async {
     try {
-      await _service.leaveCommunity(widget.communityId);
+      final result = await _service.leaveCommunity(widget.communityId);
       try {
         if (Get.isRegistered<AppSearchController>()) {
           Get.find<AppSearchController>().invalidateSearchCache();
         }
       } catch (_) {}
       Get.until((route) => route.isFirst);
+      final action = result['action']?.toString();
+      final successMessage = action == 'deleted'
+          ? 'community_deleted_success'.tr
+          : action == 'transferred'
+              ? 'community_ownership_transferred_success'.tr
+              : 'community_leave_success_msg'.tr;
       Get.snackbar(
         'community_leave_success_title'.tr,
-        'community_leave_success_msg'.tr,
+        successMessage,
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
