@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/routes/app_pages.dart';
 import '../../../module_communautes/interne/pages/community_feed_screen.dart';
+import '../../../module_principale/interne/pages/home_feed_screen.dart';
 
 /// Shared deep-link handler for taps from the notification center, FCM and
 /// local notifications. Payloads are untrusted and identifiers are validated
@@ -58,27 +59,17 @@ class NotificationDeepLinkRouter {
       }
 
       if (postId != null) {
-        // Resolve the community from the post when the push payload omitted it.
-        final row = await Supabase.instance.client
-            .from('posts')
-            .select('id,community_id')
-            .eq('id', postId)
-            .maybeSingle();
-        final resolvedCommunity = row?['community_id']?.toString();
-        if (resolvedCommunity != null && resolvedCommunity.isNotEmpty) {
-          Get.to(
-            () => CommunityFeedScreen(
-              communityId: resolvedCommunity,
-              communityName: value(['community_name', 'community_nom']) ?? 'Communauté',
-            ),
-            arguments: {
-              'postId': postId,
-              'commentId': commentId ?? value(['parent_comment_id']),
-              'openComment': commentId != null,
-            },
-          );
-          return;
-        }
+        // A personal-feed mention has no source community. Open the home feed
+        // with the exact post/comment target instead of falling through to the
+        // mentioned event's page.
+        Get.to(
+          () => const HomeFeedScreen(),
+          arguments: {
+            'targetPostId': postId,
+            'targetCommentId': commentId ?? value(['parent_comment_id']),
+          },
+        );
+        return;
       }
 
       if (eventId != null) {
