@@ -103,7 +103,11 @@ class AppController extends GetxController {
         status.value = AppStatus.loading;
         break;
       case SessionEvent.authenticated:
-        status.value = AppStatus.authenticated;
+        // A session refresh can finish after profile creation; don't let it
+        // bypass the onboarding screen already shown for this new profile.
+        if (status.value != AppStatus.onboarding) {
+          status.value = AppStatus.authenticated;
+        }
         break;
       case SessionEvent.unauthenticated:
         status.value = AppStatus.unauthenticated;
