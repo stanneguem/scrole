@@ -299,52 +299,36 @@ class _NotificationTile extends StatelessWidget {
 
   String? _genericNotificationFamily(String rawType) {
     final type = rawType.toLowerCase();
-    const families = <String, String>{
-      'evenement_like': 'like',
-      'story_like': 'like',
-      'community_post_like': 'like',
-      'post_comment': 'comment',
-      'story_comment': 'comment',
-      'story_comment_reply': 'comment',
-      'community_comment_mention': 'mention',
-      'community_post_mention': 'mention',
-      'community_mentioned_in_post': 'mention',
-      'community_mentioned_in_comment': 'mention',
-      'event_mentioned_in_comment': 'mention',
-      'event_mentioned_in_post': 'mention',
-      'event_organizer_mentioned_in_post': 'mention',
-      'event_organizer_mentioned_in_comment': 'mention',
-      'invitation_staff': 'invitation',
-      'invitation_staff_evenement': 'invitation',
-      'invitation_staff_activite': 'invitation',
-      'invitation_guest_evenement': 'invitation',
-      'invitation_guest': 'invitation',
-      'guest_invitation': 'invitation',
-      'invitation_sponsor_evenement': 'invitation',
-      'invitation_sponsor': 'invitation',
-      'sponsor_invitation': 'invitation',
-      'connection_request': 'request',
-      'demande_ami': 'request',
-      'demande_connexion': 'request',
-      'community_join_request': 'request',
-      'connection_accepted': 'accepted',
-      'demande_ami_acceptee': 'accepted',
-      'reponse_demande_communaute': 'accepted',
-      'post_shared_story': 'share',
-      'bienvenue': 'welcome',
-      'evenement_valide': 'approved',
-      'invitation_guest_annulee': 'canceled',
-      'invitation_staff_activite_annulee': 'canceled',
-      'promotion_co_createur_evenement': 'promotion',
-      'reponse_invitation_staff': 'reply',
-      'evenement_modifie': 'event_update',
-    };
-    return families[type];
+    // Direct messages contain user-written text: never replace or translate it.
+    if (type == 'message_received') return null;
+    if (type.contains('mention')) return 'mention';
+    if (type.contains('like')) return 'like';
+    if (type.contains('comment')) return 'comment';
+    if (type.contains('annul') || type.contains('cancel')) return 'canceled';
+    if (type.contains('accep') || type.contains('accepted') || type == 'ami_confirme') return 'accepted';
+    if (type.contains('rejet') || type.contains('reject')) return 'rejected';
+    if (type.contains('valide') || type.contains('approved')) return 'approved';
+    if (type.contains('demande') || type.contains('request') || type.contains('join_request')) return 'request';
+    if (type.contains('reponse_invitation')) return 'reply';
+    if (type.contains('invitation') || type.contains('invite') || type.contains('sponsor')) return 'invitation';
+    if (type.contains('shared_story') || type.contains('share')) return 'share';
+    if (type.contains('bienvenue') || type == 'welcome') return 'welcome';
+    if (type.contains('transfert') || type.contains('transfer')) return 'transfer';
+    if (type.contains('prix_activite_reduit') || type.contains('price_reduced')) return 'price_reduced';
+    if (type.contains('checkin')) return 'checkin';
+    if (type.contains('suppression') || type.contains('supprime') || type.contains('deletion')) return 'deletion';
+    if (type.contains('pres_de_vous') || type.contains('nearby_event')) return 'nearby_event';
+    if (type.contains('promotion') || type.contains('co_createur') ||
+        type.contains('quitte') || type.contains('retire') ||
+        type.contains('assignation') || type.contains('staff') ||
+        type.contains('role_update')) return 'role_update';
+    if (type.contains('modifie') || type.contains('event_update')) return 'event_update';
+    return 'other';
   }
 
   String _localizedTitle(NotificationController controller) {
     final type = notification.type.toLowerCase();
-    const supported = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
+    const supported = {'new_follower', 'new_friend', 'ami_confirme', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
     if (supported.contains(type)) {
       final payload = controller.payloadOf(notification);
       final rawData = payload['data'];
@@ -352,7 +336,7 @@ class _NotificationTile extends StatelessWidget {
       final name = (data['display_name'] ?? data['name'] ?? data['username'] ?? data['pseudo'] ?? payload['actor_name'] ?? '').toString();
       final key = switch (type) {
         'new_follower' => 'follow_notification_new_follower',
-        'new_friend' => 'follow_notification_new_friend',
+        'new_friend' || 'ami_confirme' => 'follow_notification_new_friend',
         'follow_request' => 'follow_notification_request',
         'follow_request_accepted' => 'follow_notification_accepted',
         _ => 'follow_notification_friend_qr',
