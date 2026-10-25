@@ -461,7 +461,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             ? const Padding(padding: EdgeInsets.all(16), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))))
             : _liveSuggestions.isEmpty
                 ? Padding(padding: const EdgeInsets.all(14), child: Text(
-                    trigger == '#' ? 'Aucun hashtag trouvé pour le moment.' : 'Aucun compte correspondant dans ${scope}.',
+                    trigger == '#' ? 'post_hashtags_autocomplete_empty'.tr : 'Aucun compte correspondant dans ${scope}.',
                     style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant)))
                 : ListView.separated(
                     shrinkWrap: true, padding: const EdgeInsets.symmetric(vertical: 5),
@@ -472,7 +472,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       final isTag = trigger == '#';
                       final displayName = isTag ? (item['name'] ?? '').toString()
                           : '${item['first_name'] ?? ''} ${item['last_name'] ?? ''}'.trim();
-                      final handle = isTag ? '${item['post_count'] ?? 0} publication(s)' : '${item['username'] ?? ''}';
+                      final handle = isTag ? 'post_hashtags_publications_count'.trParams({'count': '${item['post_count'] ?? 0}'}) : '${item['username'] ?? ''}';
                       final photo = (item['photo_url'] ?? '').toString();
                       return ListTile(
                         dense: true,
