@@ -61,7 +61,7 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
         final isOverflowing = tp.didExceedMaxLines;
 
         if (!isOverflowing) {
-          return Text(widget.text, style: defaultStyle);
+          return LinkifiedText(text: widget.text, style: defaultStyle);
         }
 
         return Column(
@@ -69,12 +69,10 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
           children: [
             GestureDetector(
               onTap: () => setState(() => _isExpanded = !_isExpanded),
-              child: Text(
-                widget.text,
+              child: LinkifiedText(
+                text: widget.text,
                 maxLines: _isExpanded ? null : widget.maxLines,
-                overflow: _isExpanded
-                    ? TextOverflow.visible
-                    : TextOverflow.ellipsis,
+                overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
                 style: defaultStyle,
               ),
             ),
