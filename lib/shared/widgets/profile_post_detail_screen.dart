@@ -149,7 +149,7 @@ class _ProfilePostDetailScreenState extends State<ProfilePostDetailScreen> {
             onReactionTap: _handleReaction,
             onCommentTap: _openComments,
           ),
-          if (!_post.reactionsEnabled || !_post.commentsEnabled || !_post.canRepost)
+          if (!_post.reactionsEnabled || !_post.commentsEnabled)
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
               child: Text(
