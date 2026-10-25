@@ -12,6 +12,7 @@ import '../../../module_authentification/centre/services/auth_service.dart';
 import '../../../../shared/widgets/user_certified_badge.dart';
 import '../../../../shared/widgets/user_identity_row.dart';
 import '../../../../shared/widgets/comment_share_poster.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import '../pages/create_story_screen.dart';
 
 class _MentionHighlightingController extends TextEditingController {
@@ -603,39 +604,11 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
   }
 
   Widget _buildHighlightedContent(String content, ColorScheme colorScheme) {
-    final mentionPattern = RegExp(r'@[A-Za-z0-9_.]+|[*~]\{[^}]+\}');
-    final spans = <InlineSpan>[];
-    var lastEnd = 0;
-    for (final match in mentionPattern.allMatches(content)) {
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(
-          text: content.substring(lastEnd, match.start),
-          style: TextStyle(fontSize: 13.5, color: colorScheme.onSurface, height: 1.35),
-        ));
-      }
-      final rawMention = match.group(0)!;
-      // Entity markers are an internal storage format, not part of the text
-      // users should see. Keep the raw token in the stored comment so entity
-      // references can still be resolved, but render only the entity name.
-      final displayMention = (rawMention.startsWith('*{') || rawMention.startsWith('~{'))
-          ? rawMention.substring(2, rawMention.length - 1)
-          : rawMention;
-      spans.add(TextSpan(
-        text: displayMention,
-        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: colorScheme.primary, height: 1.35),
-      ));
-      lastEnd = match.end;
-    }
-    if (lastEnd < content.length) {
-      spans.add(TextSpan(
-        text: content.substring(lastEnd),
-        style: TextStyle(fontSize: 13.5, color: colorScheme.onSurface, height: 1.35),
-      ));
-    }
-    if (spans.isEmpty) {
-      spans.add(TextSpan(text: content, style: const TextStyle(fontSize: 13.5, color: Colors.black, height: 1.35)));
-    }
-    return RichText(text: TextSpan(children: spans));
+    return LinkifiedText(
+      text: content,
+      style: TextStyle(fontSize: 13.5, color: colorScheme.onSurface, height: 1.35),
+      linkColor: colorScheme.primary,
+    );
   }
 
   @override
