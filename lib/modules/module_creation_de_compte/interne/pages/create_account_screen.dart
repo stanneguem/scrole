@@ -13,8 +13,17 @@ import '../../../../shared/widgets/text_input_field.dart';
 import '../controllers/create_account_controller.dart';
 import '../enums/username_status.dart';
 
-class CreateAccountScreen extends GetView<CreateAccountController> {
+class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
+
+  @override
+  State<CreateAccountScreen> createState() => _CreateAccountScreenState();
+}
+
+class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  CreateAccountController get controller => Get.find<CreateAccountController>();
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +45,7 @@ class CreateAccountScreen extends GetView<CreateAccountController> {
               child: TextButton(
                 onPressed: controller.isSubmitting.value
                     ? null
-                    : controller.submit,
+                    : () => controller.submit(formKey: _formKey),
                 style: TextButton.styleFrom(
                   foregroundColor: color.primary,
                   disabledForegroundColor:
@@ -72,7 +81,7 @@ class CreateAccountScreen extends GetView<CreateAccountController> {
       ),
       body: SafeArea(
         child: Form(
-          key: controller.formKey,
+          key: _formKey,
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
@@ -182,7 +191,7 @@ class CreateAccountScreen extends GetView<CreateAccountController> {
                           selectedDate: controller.selectedBirthDate.value,
                           onChanged: (DateTime value) {
                             controller.selectedBirthDate.value = value;
-                            controller.formKey.currentState?.validate();
+                            _formKey.currentState?.validate();
                           },
                         )),
                     const SizedBox(height: 20),
