@@ -83,7 +83,7 @@ begin
 end;
 $$;
 
-revoke all on function public.start_social_discovery_onboarding() from public;
+revoke all on function public.start_social_discovery_onboarding() from public, anon;
 revoke all on function public.get_social_discovery_onboarding_state() from public;
 revoke all on function public.complete_social_discovery_onboarding() from public;
 grant execute on function public.start_social_discovery_onboarding() to authenticated;
