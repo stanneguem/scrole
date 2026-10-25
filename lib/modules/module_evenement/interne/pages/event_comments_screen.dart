@@ -6,6 +6,7 @@ import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
+import 'package:scrole/shared/widgets/linkified_text.dart';
 import '../../centre/models/event_comment.dart';
 import '../controllers/event_comments_controller.dart';
 
@@ -731,8 +732,8 @@ class _CommentBodyCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      comment.content,
+                    LinkifiedText(
+                      text: comment.content,
                       style: AppTextStyles.body.copyWith(
                         color: colorScheme.onSurface,
                         fontSize: isMain ? 14 : 13,
