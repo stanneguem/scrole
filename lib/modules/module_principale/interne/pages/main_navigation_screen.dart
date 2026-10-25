@@ -10,6 +10,7 @@ import 'package:scrole/shared/widgets/search_screen.dart';
 import 'package:scrole/shared/constantes/image_path.dart';
 import '../../../module_evenement/interne/pages/event_screen.dart';
 import '../../../module_communautes/interne/pages/community_screen.dart';
+import '../../../module_communautes/interne/controllers/community/community_controller.dart';
 import '../../../module_parametre/interne/pages/credits_screen.dart';
 import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
 import '../pages/home_feed_screen.dart';
@@ -85,6 +86,12 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
 
     if (Get.isRegistered<MainLayoutController>()) {
       Get.find<MainLayoutController>().currentTab.value = index;
+    }
+
+    // The community tab is kept alive in the page stack, so onInit alone
+    // does not run again when the user returns to it.
+    if (stackIndex == 1 && Get.isRegistered<CommunityController>()) {
+      Get.find<CommunityController>().loadCommunities();
     }
   }
 
