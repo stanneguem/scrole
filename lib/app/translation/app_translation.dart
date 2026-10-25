@@ -4,6 +4,14 @@ class AppTranslations extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
     'fr': {
+      'settings_logout_error_message': "Impossible de se déconnecter. Réessayez.",
+      'settings_logout_error_title': "Erreur",
+      'settings_logout_confirm_yes': "Se déconnecter",
+      'settings_logout_confirm_cancel': "Annuler",
+      'settings_logout_confirm_message': "Voulez-vous vraiment vous déconnecter de votre compte ?",
+      'settings_logout_confirm_title': "Se déconnecter ?",
+      'settings_logout': "Se déconnecter",
+      'webview_about_title': "À propos de Scrole",
       'welcome_back': 'Bon retour',
       'description':
       "Découvrez des communautés qui correspondent à vos centres d'intérêt, participez à des événements passionnants, discutez avec des personnes passionnées et gardez tout organisé au même endroit avec Scrole.",
@@ -400,6 +408,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Fait avec ❤️ par Scrole App',
     },
     'en': {
+      'settings_logout_error_message': "Unable to log out. Please try again.",
+      'settings_logout_error_title': "Error",
+      'settings_logout_confirm_yes': "Log out",
+      'settings_logout_confirm_cancel': "Cancel",
+      'settings_logout_confirm_message': "Are you sure you want to log out of your account?",
+      'settings_logout_confirm_title': "Log out?",
+      'settings_logout': "Log out",
+      'webview_about_title': "About Scrole",
       'welcome_back': 'Welcome Back',
       'description':
       "Discover communities that match your interests, join exciting events, chat with passionate people, and keep everything organized in one place with Scrole.",
@@ -742,6 +758,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Made with ❤️ by Scrole App',
     },
     'es': {
+      'settings_logout_error_message': "No se pudo cerrar sesión. Inténtalo de nuevo.",
+      'settings_logout_error_title': "Error",
+      'settings_logout_confirm_yes': "Cerrar sesión",
+      'settings_logout_confirm_cancel': "Cancelar",
+      'settings_logout_confirm_message': "¿Seguro que quieres cerrar sesión en tu cuenta?",
+      'settings_logout_confirm_title': "¿Cerrar sesión?",
+      'settings_logout': "Cerrar sesión",
+      'webview_about_title': "Acerca de Scrole",
       'welcome_back': 'Bienvenido de nuevo',
       'description':
       "Descubre comunidades que se adapten a tus intereses, únete a eventos emocionantes, chatea con personas apasionadas y mantén todo organizado en un solo lugar con Scrole.",
@@ -1051,6 +1075,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Hecho con ❤️ por Scrole App',
     },
     'de': {
+      'settings_logout_error_message': "Abmeldung fehlgeschlagen. Bitte versuche es erneut.",
+      'settings_logout_error_title': "Fehler",
+      'settings_logout_confirm_yes': "Abmelden",
+      'settings_logout_confirm_cancel': "Abbrechen",
+      'settings_logout_confirm_message': "Möchtest du dich wirklich von deinem Konto abmelden?",
+      'settings_logout_confirm_title': "Abmelden?",
+      'settings_logout': "Abmelden",
+      'webview_about_title': "Über Scrole",
       'welcome_back': 'Willkommen zurück',
       'description':
       "Entdecke Communities, die zu deinen Interessen passen, nimm an spannenden Veranstaltungen teil, chatte mit begeisterten Menschen und behalte mit Scrole alles an einem Ort organisiert.",
@@ -1370,6 +1402,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Mit ❤️ gemacht von Scrole App',
     },
     'it': {
+      'settings_logout_error_message': "Impossibile uscire. Riprova.",
+      'settings_logout_error_title': "Errore",
+      'settings_logout_confirm_yes': "Esci",
+      'settings_logout_confirm_cancel': "Annulla",
+      'settings_logout_confirm_message': "Vuoi davvero uscire dal tuo account?",
+      'settings_logout_confirm_title': "Uscire?",
+      'settings_logout': "Esci",
+      'webview_about_title': "Informazioni su Scrole",
       'welcome_back': 'Bentornato',
       'description':
       "Scopri community che rispecchiano i tuoi interessi, partecipa a eventi coinvolgenti, chatta con persone appassionate e tieni tutto organizzato in un unico posto con Scrole.",
@@ -1662,6 +1702,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Fatto con ❤️ da Scrole App',
     },
     'pt': {
+      'settings_logout_error_message': "Não foi possível terminar sessão. Tente novamente.",
+      'settings_logout_error_title': "Erro",
+      'settings_logout_confirm_yes': "Terminar sessão",
+      'settings_logout_confirm_cancel': "Cancelar",
+      'settings_logout_confirm_message': "Tem certeza de que deseja terminar sessão na sua conta?",
+      'settings_logout_confirm_title': "Terminar sessão?",
+      'settings_logout': "Terminar sessão",
+      'webview_about_title': "Sobre o Scrole",
       'welcome_back': 'Bem-vindo de volta',
       'description':
       "Descubra comunidades que combinam com seus interesses, participe de eventos empolgantes, converse com pessoas apaixonadas e mantenha tudo organizado em um só lugar com o Scrole.",
@@ -2006,6 +2054,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Feito com ❤️ pelo Scrole App',
     },
     'ar': {
+      'settings_logout_error_message': "تعذر تسجيل الخروج. حاول مرة أخرى.",
+      'settings_logout_error_title': "خطأ",
+      'settings_logout_confirm_yes': "تسجيل الخروج",
+      'settings_logout_confirm_cancel': "إلغاء",
+      'settings_logout_confirm_message': "هل أنت متأكد أنك تريد تسجيل الخروج من حسابك؟",
+      'settings_logout_confirm_title': "هل تريد تسجيل الخروج؟",
+      'settings_logout': "تسجيل الخروج",
+      'webview_about_title': "حول Scrole",
       'welcome_back': 'مرحبًا بعودتك',
       'description':
       "اكتشف مجتمعات تناسب اهتماماتك، وانضم إلى فعاليات مثيرة، وتحدث مع أشخاص شغوفين، وحافظ على تنظيم كل شيء في مكان واحد مع Scrole.",
@@ -2353,6 +2409,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'صنع بـ ❤️ بواسطة تطبيق Scrole',
     },
     'zh': {
+      'settings_logout_error_message': "无法退出登录，请重试。",
+      'settings_logout_error_title': "错误",
+      'settings_logout_confirm_yes': "退出登录",
+      'settings_logout_confirm_cancel': "取消",
+      'settings_logout_confirm_message': "确定要退出当前账户吗？",
+      'settings_logout_confirm_title': "退出登录？",
+      'settings_logout': "退出登录",
+      'webview_about_title': "关于 Scrole",
       'welcome_back': '欢迎回来',
       'description':
       "发现符合你兴趣的社群，参加精彩的活动，与志同道合的人聊天，并通过 Scrole 将一切整理在一个地方。",
@@ -2649,6 +2713,14 @@ class AppTranslations extends Translations {
       'credits_footer': '由 Scrole App 用 ❤️ 制作',
     },
     'ja': {
+      'settings_logout_error_message': "ログアウトできませんでした。もう一度お試しください。",
+      'settings_logout_error_title': "エラー",
+      'settings_logout_confirm_yes': "ログアウト",
+      'settings_logout_confirm_cancel': "キャンセル",
+      'settings_logout_confirm_message': "本当にアカウントからログアウトしますか？",
+      'settings_logout_confirm_title': "ログアウトしますか？",
+      'settings_logout': "ログアウト",
+      'webview_about_title': "Scrole について",
       'welcome_back': 'おかえりなさい',
       'description':
       "あなたの興味に合ったコミュニティを見つけ、楽しいイベントに参加し、情熱的な人々と交流しましょう。Scroleですべてを一か所にまとめて管理できます。",
@@ -2948,6 +3020,14 @@ class AppTranslations extends Translations {
       'credits_footer': 'Scrole Appが ❤️ を込めて制作',
     },
     'ru': {
+      'settings_logout_error_message': "Не удалось выйти из аккаунта. Попробуйте ещё раз.",
+      'settings_logout_error_title': "Ошибка",
+      'settings_logout_confirm_yes': "Выйти",
+      'settings_logout_confirm_cancel': "Отмена",
+      'settings_logout_confirm_message': "Вы действительно хотите выйти из своего аккаунта?",
+      'settings_logout_confirm_title': "Выйти из аккаунта?",
+      'settings_logout': "Выйти",
+      'webview_about_title': "О Scrole",
       'welcome_back': 'С возвращением',
       'description':
       "Находите сообщества, которые соответствуют вашим интересам, участвуйте в увлекательных событиях, общайтесь с увлечёнными людьми и держите всё организованным в одном месте вместе со Scrole.",
