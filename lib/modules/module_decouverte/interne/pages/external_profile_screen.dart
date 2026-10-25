@@ -628,11 +628,11 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PrivateProfile(message: 'profile_private_msg'.tr),
-          const SizedBox(height: 14),
-          // Keep relationship/message actions available according to the
-          // recipient's server-calculated privacy settings.
+          // Keep relationship/message actions first; explain profile privacy
+          // directly underneath the follow/message controls.
           _ProfileActions(controller: controller),
+          const SizedBox(height: 10),
+          _PrivateProfile(message: 'profile_private_msg'.tr),
         ],
       );
     }
