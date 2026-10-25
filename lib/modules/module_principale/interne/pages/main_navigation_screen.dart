@@ -380,7 +380,7 @@ class AppDrawer extends StatelessWidget {
               title: Text('drawer_about'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.of(context).pop();
-                Get.to(() => const ExternalWebViewScreen(
+                Get.to(() => ExternalWebViewScreen(
                   url: 'https://credit.scrole.fun',
                   title: 'webview_scrole_credits_title'.tr,
                 ));
