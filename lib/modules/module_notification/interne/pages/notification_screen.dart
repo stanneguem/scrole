@@ -8,6 +8,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../centre/services/notification_db_service.dart';
 import '../../../module_communautes/interne/pages/community_feed_screen.dart';
+import '../../../../shared/widgets/shared_post_link_screen.dart';
 import '../controllers/notification_controller.dart';
 
 class NotificationScreen extends GetView<NotificationController> {
@@ -199,24 +200,39 @@ class NotificationScreen extends GetView<NotificationController> {
       }
     }
 
-    // Commentaires et réponses sur une publication communautaire : ouvrir
-    // la publication puis le panneau de commentaires correspondant.
+    // Lorsqu'une publication reçoit un commentaire ou une réponse, ouvrir
+    // directement sa page dédiée « Publication » (qu'elle soit personnelle ou
+    // communautaire), puis cibler le commentaire si son identifiant est fourni.
     final contentPostId = idOf(['post_id', 'publication_id', 'source_post_id', 'target_post_id']);
+    final contentCommentId = idOf(['comment_id', 'commentaire_id', 'target_comment_id']);
+    final isCommentNotification = type.contains('comment') ||
+        type.contains('reply') ||
+        type.contains('commentaire');
+    if (contentPostId != null &&
+        contentPostId.isNotEmpty &&
+        isCommentNotification) {
+      Get.to(
+        () => SharedPostLinkScreen(
+          postId: contentPostId,
+          commentId: contentCommentId,
+        ),
+        preventDuplicates: false,
+      );
+      return;
+    }
+
+    // Les autres notifications liées à une communauté peuvent toujours ouvrir
+    // le fil de la communauté sans passer par la page dédiée à une publication.
     final contentCommunityId = idOf(['community_id', 'communaute_id', 'target_community_id']);
-    final contentCommentId = idOf(['comment_id', 'commentaire_id', 'target_comment_id', 'parent_comment_id']);
     if (contentPostId != null &&
         contentCommunityId != null &&
-        (type.contains('comment') || type.contains('reply') || type.contains('community_post_like'))) {
+        type == 'community_post_like') {
       Get.to(
         () => CommunityFeedScreen(
           communityId: contentCommunityId,
           communityName: (data['community_name'] ?? data['community_nom'] ?? 'Communauté').toString(),
         ),
-        arguments: {
-          'postId': contentPostId,
-          'commentId': contentCommentId,
-          'openComment': contentCommentId != null,
-        },
+        arguments: {'postId': contentPostId},
       );
       return;
     }
