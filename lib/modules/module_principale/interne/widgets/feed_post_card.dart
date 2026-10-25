@@ -586,7 +586,7 @@ class FeedPostCard extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.visibility_off_rounded),
-              title: Text('home_feed_hide_post'.tr),
+              title: Text('wall_hide_post'.tr),
               onTap: () {
                 Navigator.of(context).pop();
                 if (onHidePost != null) {
