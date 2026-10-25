@@ -438,9 +438,8 @@ class _ProfileActions extends GetView<ExternalProfileController> {
       final p = controller.profile.value!;
       final relationState = p.relationshipState;
       final pending = relationState == 'requested';
-      final connected = relationState == 'friends';
+      final connected = p.isConnected || relationState == 'friends';
       final busy = controller.isSendingRequest.value;
-      if (relationState == 'blocked') return const SizedBox.shrink();
       if (relationState == 'self') {
         return OutlinedButton(
           onPressed: () => Get.toNamed(AppPages.editmyprofil),
@@ -459,7 +458,7 @@ class _ProfileActions extends GetView<ExternalProfileController> {
                   pending: pending,
                   busy: busy,
                   colors: colors,
-                  onTap: busy || (p.retryAt != null && p.retryAt!.isAfter(DateTime.now())) ? null : controller.handleConnectionTap,
+                  onTap: relationState == 'blocked' || busy || (p.retryAt != null && p.retryAt!.isAfter(DateTime.now())) ? null : controller.handleConnectionTap,
                 ),
               ),
               if (p.canMessage) ...[
@@ -526,7 +525,7 @@ class _ConnectionButton extends StatelessWidget {
       'follow_back' => 'follow_state_follow_back'.tr,
       'requested' => 'follow_state_requested'.tr,
       'request_received' => 'follow_state_request_received'.tr,
-      'blocked' => 'follow_state_blocked'.tr,
+      'blocked' => connected ? 'follow_state_friends'.tr : 'follow_state_blocked'.tr,
       'self' => 'follow_state_self'.tr,
       _ => 'follow_state_follow'.tr,
     };
@@ -536,13 +535,13 @@ class _ConnectionButton extends StatelessWidget {
             ? Icons.check_rounded
             : (pending || isIncoming)
                 ? Icons.hourglass_top_rounded
-                : isBlocked
+                : isBlocked && !connected
                     ? Icons.block_rounded
                     : Icons.person_add_alt_1_rounded;
     return Material(
       color: (connected || isFollowed)
           ? colors.primary.withValues(alpha: .15)
-          : (pending || isIncoming || isBlocked)
+          : (pending || isIncoming || (isBlocked && !connected))
               ? colors.surfaceContainerHigh
               : colors.primary,
       borderRadius: BorderRadius.circular(10),
@@ -563,7 +562,7 @@ class _ConnectionButton extends StatelessWidget {
                 icon,
                 color: (connected || isFollowed)
                     ? colors.primary
-                    : (pending || isIncoming || isBlocked)
+                    : (pending || isIncoming || (isBlocked && !connected))
                         ? colors.onSurfaceVariant
                         : colors.onPrimary,
                 size: 16,
@@ -573,7 +572,7 @@ class _ConnectionButton extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: (connected || isFollowed) ? colors.primary : ((pending || isIncoming || isBlocked) ? colors.onSurfaceVariant : colors.onPrimary),
+                    color: (connected || isFollowed) ? colors.primary : ((pending || isIncoming || (isBlocked && !connected)) ? colors.onSurfaceVariant : colors.onPrimary),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   ),
