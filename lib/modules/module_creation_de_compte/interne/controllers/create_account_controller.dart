@@ -187,9 +187,10 @@ class CreateAccountController extends GetxController {
     return null;
   }
 
-  Future<bool> submit() async {
+  Future<bool> submit({GlobalKey<FormState>? formKey}) async {
     submitError.value = null;
-    if (!formKey.currentState!.validate()) return false;
+    final activeFormKey = formKey ?? this.formKey;
+    if (activeFormKey.currentState == null || !activeFormKey.currentState!.validate()) return false;
     if (usernameStatus.value != UsernameStatus.available) {
       submitError.value = 'Choisis un pseudo disponible.';
       return false;
