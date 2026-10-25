@@ -87,15 +87,33 @@ Deno.serve(async (req: Request) => {
     for (const [key, value] of Object.entries(recordData)) if (value != null)
       dataBase[key] = typeof value === "string" ? value : JSON.stringify(value);
 
-    const language = SUPPORTED_LANGUAGES.includes(preferences?.language) ? preferences.language : "fr";
+    const requestedLanguage = String(pref.language ?? "").toLowerCase().split(/[-_]/)[0];
+    const language = SUPPORTED_LANGUAGES.includes(requestedLanguage) ? requestedLanguage : "fr";
+
+    // The database row's title/body are often authored in French. Never use
+    // them as the primary copy when a localized template exists for the user.
     const { data: localized, error: locError } = await supabaseAdmin.rpc("render_notification_for_push", {
       p_type: type, p_data: recordData, p_language: language,
-      p_fallback_title: String(record.title ?? "Scrole"), p_fallback_body: String(record.body ?? ""),
+      p_fallback_title: "Scrole", p_fallback_body: "",
     });
-    if (locError) console.error("notification localization failed", locError);
+    if (locError) console.error("notification localization failed", { type, language, error: locError });
 
-    const title = String(localized?.title ?? record.title ?? "Scrole");
-    const body = String(localized?.body ?? record.body ?? "");
+    // Some legacy notification types have no template yet. Keep a localized,
+    // non-French fallback rather than leaking the French DB title/body.
+    const genericCopy: Record<string, { title: string; body: string }> = {
+      fr: { title: "Scrole", body: "Vous avez une nouvelle notification." },
+      en: { title: "Scrole", body: "You have a new notification." },
+      es: { title: "Scrole", body: "Tienes una nueva notificación." },
+      de: { title: "Scrole", body: "Du hast eine neue Benachrichtigung." },
+      it: { title: "Scrole", body: "Hai una nuova notifica." },
+      pt: { title: "Scrole", body: "Você tem uma nova notificação." },
+      zh: { title: "Scrole", body: "你有一条新通知。" },
+      ja: { title: "Scrole", body: "新しい通知があります。" },
+      ru: { title: "Scrole", body: "У вас новое уведомление." },
+    };
+    const fallback = genericCopy[language] ?? genericCopy.fr;
+    const title = String(localized?.title || fallback.title);
+    const body = String(localized?.body || fallback.body);
     const data = { ...dataBase, language, title, body };
     const results = [];
 
