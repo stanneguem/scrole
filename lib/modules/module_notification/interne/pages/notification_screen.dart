@@ -351,7 +351,7 @@ class _NotificationTile extends StatelessWidget {
 
   String _localizedMessage(NotificationController controller) {
     final type = notification.type.toLowerCase();
-    const followTypes = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
+    const followTypes = {'new_follower', 'new_friend', 'ami_confirme', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
     if (followTypes.contains(type)) return '';
     final family = _genericNotificationFamily(type);
     if (family != null) return 'notification_generic_${family}_body'.tr;
