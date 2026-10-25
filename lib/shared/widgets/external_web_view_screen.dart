@@ -370,17 +370,17 @@ class _WebViewErrorState extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                FilledButton.icon(
+                TextButton.icon(
                   onPressed: onRetry,
-                  icon: const Icon(Icons.refresh_rounded, size: 19),
-                  label: const Text('Réessayer'),
-                  style: FilledButton.styleFrom(
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text('webview_retry'.tr),
+                  style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
+                      horizontal: 18,
+                      vertical: 12,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                 ),
