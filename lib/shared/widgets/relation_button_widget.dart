@@ -199,7 +199,7 @@ class _RelationButtonWidgetState extends State<RelationButtonWidget> {
     return ElevatedButton.icon(
       onPressed: _isSaving ? null : requested
           ? () => _run(() => _socialRepo.cancelFollowRequest(widget.targetUserId), optimisticState: 'none')
-          : () => _run(() => _socialRepo.followUser(widget.targetUserId), optimisticState: _relationship['follows_me'] == true ? 'friends' : (_relationship['is_private'] == true ? 'requested' : 'following')),
+          : () => _run(() => _socialRepo.followUser(widget.targetUserId), optimisticState: _relationship['follows_me'] == true ? 'friends' : 'following'),
       icon: Icon(requested ? Icons.hourglass_top_rounded : Icons.person_add_alt_1_rounded, size: widget.compact ? 14 : 16),
       label: Text(
         requested
