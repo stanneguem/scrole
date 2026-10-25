@@ -42,6 +42,52 @@ class BugReportScreen extends StatelessWidget {
             color: colors.onSurface,
           ),
         ),
+        actions: [
+          Obx(() {
+            final busy = controller.isSending.value;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
+                onPressed: busy ? null : controller.submitReport,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  disabledForegroundColor: colors.onSurfaceVariant.withOpacity(0.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(64, 40),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  child: busy
+                      ? Row(
+                          key: const ValueKey('sending'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Text(
+                              'bug_report_sending'.tr,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'bug_report_send'.tr,
+                          key: const ValueKey('send'),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ),
+            );
+          }),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -89,7 +135,7 @@ class BugReportScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'OPTIONNEL',
+                          'bug_report_optional'.tr,
                           style: AppTextStyles.bodySmall.copyWith(
                             color: colors.onSurfaceVariant,
                             fontSize: 10,
@@ -112,7 +158,6 @@ class BugReportScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _buildBottomAction(context, controller, isDark),
           ],
         ),
       ),
@@ -345,7 +390,7 @@ class BugReportScreen extends StatelessWidget {
                         size: 15, color: Colors.white),
                     SizedBox(width: 7),
                     Text(
-                      'Capture ajoutée',
+                      'bug_report_capture_added'.tr,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -420,7 +465,7 @@ class BugReportScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Ajouter une image pour aider à comprendre le problème',
+                            'bug_report_screenshot_help'.tr,
                             style: AppTextStyles.bodySmall.copyWith(
                               color: colors.onSurfaceVariant,
                               fontSize: 12,
@@ -455,7 +500,7 @@ class BugReportScreen extends StatelessWidget {
         const SizedBox(width: 9),
         Expanded(
           child: Text(
-            'Votre signalement et sa capture sont transmis de manière sécurisée à l’équipe Scrole.',
+            'bug_report_privacy_hint'.tr,
             style: AppTextStyles.bodySmall.copyWith(
               color: colors.onSurfaceVariant,
               fontSize: 11,
@@ -467,82 +512,4 @@ class BugReportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomAction(
-    BuildContext context,
-    BugReportController controller,
-    bool isDark,
-  ) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        12 + MediaQuery.of(context).viewPadding.bottom * 0,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.backgroundDark : AppColors.background,
-        border: Border(
-          top: BorderSide(
-            color: colors.outlineVariant.withOpacity(isDark ? 0.22 : 0.38),
-            width: 0.6,
-          ),
-        ),
-      ),
-      child: Obx(() {
-        final busy = controller.isSending.value;
-        return SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: FilledButton(
-            onPressed: busy ? null : controller.submitReport,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: AppColors.primary.withOpacity(0.45),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(17),
-              ),
-            ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: busy
-                  ? const Row(
-                      key: ValueKey('sending'),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 11),
-                        Text('Envoi en cours…'),
-                      ],
-                    )
-                  : Row(
-                      key: const ValueKey('send'),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(CupertinoIcons.paperplane_fill, size: 17),
-                        const SizedBox(width: 9),
-                        Text(
-                          'bug_report_send'.tr,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
 }
