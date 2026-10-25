@@ -263,7 +263,22 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       backgroundImage: image.startsWith('http') ? NetworkImage(image) : null,
                       child: image.startsWith('http') ? null : Icon(isUser ? Icons.person_outline : type == 'event' ? Icons.event_outlined : Icons.groups_outlined, size: 19),
                     ),
-                    title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        ),
+                        if (isUser && (item['user_id'] ?? item['id']) != null) ...[
+                          const SizedBox(width: 4),
+                          UserCertifiedBadge(
+                            userId: (item['user_id'] ?? item['id']).toString(),
+                            size: 15,
+                            showTooltip: true,
+                          ),
+                        ],
+                      ],
+                    ),
                     subtitle: subtitle.isEmpty ? null : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
                     onTap: () => _insertPostMention(type!, item),
                   );
