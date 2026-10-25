@@ -197,18 +197,25 @@ class UpdateRequiredScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                  TextButton(
+                    onPressed: () => _openStore(config, copy),
+                    style: TextButton.styleFrom(
+                      foregroundColor: colors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
                       ),
-                      onPressed: () => _openStore(config, copy),
-                      icon: const Icon(Icons.download_rounded),
-                      label: Text(copy['button']!),
+                      textStyle: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(copy['button']!),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_rounded, size: 20),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
