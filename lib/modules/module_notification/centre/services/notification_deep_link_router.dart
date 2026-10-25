@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../app/routes/app_pages.dart';
 import '../../../module_communautes/interne/pages/community_feed_screen.dart';
 import '../../../module_principale/interne/pages/home_feed_screen.dart';
+import '../../../../shared/widgets/shared_post_link_screen.dart';
 
 /// Shared deep-link handler for taps from the notification center, FCM and
 /// local notifications. Payloads are untrusted and identifiers are validated
@@ -37,37 +38,15 @@ class NotificationDeepLinkRouter {
     final actorId = value(['actor_id', 'sender_id', 'user_id', 'target_user_id']);
 
     try {
-      // Comment/reply/mention payloads usually carry community_id and post_id.
-      if (communityId != null &&
-          (postId != null ||
-              type.contains('mention') ||
-              type.contains('comment') ||
-              type.contains('publication') ||
-              type.contains('community'))) {
-        Get.to(
-          () => CommunityFeedScreen(
-            communityId: communityId,
-            communityName: (value(['community_name', 'community_nom']) ?? 'Communauté'),
-          ),
-          arguments: {
-            'postId': postId,
-            'commentId': commentId ?? value(['parent_comment_id']),
-            'openComment': commentId != null,
-          },
-        );
-        return;
-      }
-
+      // All post/comment mentions use one canonical detail screen. This works
+      // for personal posts and community posts and can focus the exact comment.
       if (postId != null) {
-        // A personal-feed mention has no source community. Open the home feed
-        // with the exact post/comment target instead of falling through to the
-        // mentioned event's page.
         Get.to(
-          () => const HomeFeedScreen(),
-          arguments: {
-            'targetPostId': postId,
-            'targetCommentId': commentId ?? value(['parent_comment_id']),
-          },
+          () => SharedPostLinkScreen(
+            postId: postId,
+            commentId: commentId ?? value(['parent_comment_id']),
+          ),
+          preventDuplicates: false,
         );
         return;
       }
