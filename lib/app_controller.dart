@@ -53,7 +53,7 @@ class AppController extends GetxController {
   void onInit() {
     super.onInit();
     _listenToServices();
-    _bootstrap();
+    unawaited(_initializeAppStatus());
   }
 
   void _listenToServices() {
@@ -73,6 +73,12 @@ class AppController extends GetxController {
     _sessionEventSub = _sessionService.event.listen(
       _mapSessionEventToAppStatus,
     );
+  }
+
+  Future<void> _initializeAppStatus() async {
+    // Apply remote maintenance/update policy before selecting the first screen.
+    await _configService.checkConfig();
+    _bootstrap();
   }
 
   void _bootstrap() {
