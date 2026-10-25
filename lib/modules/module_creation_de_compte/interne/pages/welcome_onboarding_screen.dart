@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,9 +29,9 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
     try {
       final uid = _db.auth.currentUser?.id;
       if (uid == null) throw StateError('Session utilisateur absente');
-      final profiles = await _db.from('profiles')
-          .select('id, username, first_name, last_name, avatar_url')
-          .neq('id', uid).limit(20);
+      final profiles = await _db.from('user_profiles')
+          .select('user_id, username, first_name, last_name, avatar_url')
+          .neq('user_id', uid).limit(20);
       final communities = await _db.from('communities')
           .select('id, name, slug, description, photo_profile, visibility, member_count')
           .eq('visibility', 'public').limit(20);
@@ -44,7 +45,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
   }
 
   Future<void> _follow(Map<String, dynamic> user) async {
-    final id = user['id']?.toString();
+    final id = user['user_id']?.toString();
     if (id == null || id.isEmpty || _busy.contains(id)) return;
     setState(() => _busy.add(id));
     try {
@@ -62,7 +63,8 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
     setState(() => _busy.add(id));
     try {
       final response = await _db.rpc('join_community', params: {'p_community_id': id});
-      final result = response is Map ? Map<String, dynamic>.from(response) : <String, dynamic>{};
+      final decoded = response is String ? jsonDecode(response) : response;
+      final result = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
       final pending = result['status']?.toString() == 'pending' ||
           result['membership_status']?.toString() == 'pending' ||
           result['request_status']?.toString() == 'en_attente';
@@ -144,7 +146,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: _users.length,
       separatorBuilder: (_, __) => Divider(height: 1, color: colors.outlineVariant.withValues(alpha: .5)),
       itemBuilder: (context, index) {
-        final user = _users[index]; final id = user['id']?.toString() ?? '';
+        final user = _users[index]; final id = user['user_id']?.toString() ?? '';
         final followed = _followed.contains(id); final avatar = user['avatar_url']?.toString() ?? '';
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
