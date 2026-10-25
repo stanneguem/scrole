@@ -41,7 +41,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
     } catch (e) {
       debugPrint('[ONBOARDING] persistent start failed: $e');
       if (mounted) {
-        setState(() => _loadError = 'La configuration de cette étape doit être finalisée. Réessaie plus tard.');
+        setState(() => _loadError = 'onboarding_setup_error'.tr);
       }
     }
     if (mounted) await _loadSuggestions();
@@ -65,7 +65,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       _users = (profiles as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
       _communities = (communities as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
     } catch (e) {
-      _loadError = 'Impossible de charger les suggestions pour le moment.';
+      _loadError = 'onboarding_load_error'.tr;
       debugPrint('[ONBOARDING] suggestions loading failed: $e');
     } finally { if (mounted) setState(() => _loading = false); }
   }
@@ -78,7 +78,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       await _db.rpc('follow_user', params: {'p_user_id': id});
       if (mounted) setState(() => _followed.add(id));
     } catch (e) {
-      if (mounted) _message('Impossible de suivre ce profil. Réessaie.');
+      if (mounted) _message('onboarding_follow_error'.tr);
       debugPrint('[ONBOARDING] follow failed for $id: $e');
     } finally { if (mounted) setState(() => _busy.remove(id)); }
   }
@@ -97,10 +97,10 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
           result['request_status']?.toString() == 'en_attente';
       if (mounted) {
         setState(() => _joined.add(id));
-        _message(pending ? 'Demande envoyée.' : 'Communauté rejointe.');
+        _message(pending ? 'onboarding_join_pending'.tr : 'onboarding_join_success'.tr);
       }
     } catch (e) {
-      if (mounted) _message('Impossible de rejoindre cette communauté. Réessaie.');
+      if (mounted) _message('onboarding_join_error'.tr);
       debugPrint('[ONBOARDING] join community failed for $id: $e');
     } finally { if (mounted) setState(() => _busy.remove(id)); }
   }
@@ -119,7 +119,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
     } catch (e) {
       debugPrint('[ONBOARDING] persistent completion failed: $e');
       if (mounted) {
-        _message('Impossible d’enregistrer la fin de cette étape. Réessaie.');
+        _message('onboarding_complete_error'.tr);
       }
       return;
     }
@@ -127,7 +127,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
       Get.find<AppController>().finishOnboarding();
     }
   }
-  void _message(String message) => Get.snackbar('Information', message, snackPosition: SnackPosition.BOTTOM);
+  void _message(String message) => Get.snackbar('onboarding_info'.tr, message, snackPosition: SnackPosition.BOTTOM);
 
   String _userName(Map<String, dynamic> user) {
     final name = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
@@ -152,11 +152,11 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
             const Spacer(),
             TextButton(
               onPressed: _finish,
-              child: Text('Passer', style: TextStyle(color: colors.onSurfaceVariant)),
+              child: Text('onboarding_skip'.tr, style: TextStyle(color: colors.onSurfaceVariant)),
             ),
             TextButton(
               onPressed: _loading ? null : _next,
-              child: Text(_step == 0 ? 'Continuer' : 'Terminer'),
+              child: Text(_step == 0 ? 'onboarding_continue'.tr : 'onboarding_finish'.tr),
             ),
           ]),
         ),
@@ -165,12 +165,12 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(_step == 0 ? Icons.people_alt_outlined : Icons.groups_2_outlined, size: 34, color: colors.primary),
             const SizedBox(height: 12),
-            Text(_step == 0 ? 'Trouve des personnes à suivre' : 'Rejoins tes communautés',
+            Text(_step == 0 ? 'onboarding_people_title'.tr : 'onboarding_communities_title'.tr,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(_step == 0
-              ? 'Découvre des profils et commence à créer ton fil. Tu peux aussi le faire plus tard.'
-              : 'Choisis les communautés qui correspondent à tes centres d’intérêt.',
+              ? 'onboarding_people_subtitle'.tr
+              : 'onboarding_communities_subtitle'.tr,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
           ]),
         ),
@@ -180,7 +180,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
             ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.cloud_off_outlined, size: 38), const SizedBox(height: 12),
                 Text(_loadError!, textAlign: TextAlign.center), const SizedBox(height: 12),
-                OutlinedButton(onPressed: _loadSuggestions, child: const Text('Réessayer')),
+                OutlinedButton(onPressed: _loadSuggestions, child: Text('onboarding_retry'.tr)),
               ])))
             : _step == 0 ? _buildUsers(colors) : _buildCommunities(colors)),
       ])),
@@ -222,7 +222,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
           trailing: FilledButton.tonal(
             onPressed: followed || _busy.contains(id) ? null : () => _follow(user),
             child: _busy.contains(id) ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(followed ? 'Suivi' : 'Suivre')),
+              : Text(followed ? 'onboarding_following'.tr : 'onboarding_follow'.tr)),
         );
       },
     );
@@ -260,12 +260,12 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
               ),
             ],
           ),
-          subtitle: Text(description.trim().isNotEmpty ? description : (community['require_manual_approval'] == true ? 'Communauté avec validation des demandes' : 'Communauté publique'),
+          subtitle: Text(description.trim().isNotEmpty ? description : (community['require_manual_approval'] == true ? 'onboarding_private_community'.tr : 'onboarding_public_community'.tr),
             maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: FilledButton.tonal(
             onPressed: joined || _busy.contains(id) ? null : () => _join(community),
             child: _busy.contains(id) ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(joined ? 'Ajoutée' : 'Rejoindre')),
+              : Text(joined ? 'onboarding_joined'.tr : 'onboarding_join'.tr)),
         );
       },
     );
