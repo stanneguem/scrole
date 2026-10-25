@@ -1911,6 +1911,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "You have a new notification.",
 },
     'es': {
+      'profile_private_msg': "Este perfil es privado.\\nSolo las conexiones de este usuario pueden verlo.",
       'community_settings_title': "Configuración de la comunidad",
       'community_delete_action': "Eliminar comunidad",
       'community_delete_subtitle': "Eliminar permanentemente la comunidad e informar a sus miembros.",
@@ -2778,6 +2779,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Tienes una nueva notificación.",
 },
     'de': {
+      'profile_private_msg': "Dieses Profil ist privat.\\nNur die Kontakte dieses Nutzers können es sehen.",
       'community_settings_title': "Community-Einstellungen",
       'community_delete_action': "Community löschen",
       'community_delete_subtitle': "Die Community endgültig löschen und Mitglieder benachrichtigen.",
@@ -3628,6 +3630,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Du hast eine neue Benachrichtigung.",
 },
     'it': {
+      'profile_private_msg': "Questo profilo è privato.\\nSolo i contatti di questo utente possono vederlo.",
       'community_settings_title': "Impostazioni della community",
       'community_delete_action': "Elimina community",
       'community_delete_subtitle': "Elimina definitivamente la community e avvisa i membri.",
@@ -4478,6 +4481,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Hai una nuova notifica.",
 },
     'pt': {
+      'profile_private_msg': "Este perfil é privado.\\nApenas as conexões deste usuário podem vê-lo.",
       'community_settings_title': "Configurações da comunidade",
       'community_delete_action': "Excluir comunidade",
       'community_delete_subtitle': "Excluir permanentemente a comunidade e avisar os membros.",
@@ -5328,6 +5332,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "Você tem uma nova notificação.",
 },
     'zh': {
+      'profile_private_msg': "此个人资料为私密资料。\\n只有该用户的联系人可以查看。",
       'community_settings_title': "社群设置",
       'community_delete_action': "删除社群",
       'community_delete_subtitle': "永久删除社群并通知成员。",
@@ -6178,6 +6183,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "你收到了一条新通知。",
 },
     'ja': {
+      'profile_private_msg': "このプロフィールは非公開です。\\nこのユーザーのつながりのみが閲覧できます。",
       'community_settings_title': "コミュニティ設定",
       'community_delete_action': "コミュニティを削除",
       'community_delete_subtitle': "コミュニティを完全に削除し、メンバーに通知します。",
@@ -7027,6 +7033,7 @@ class AppTranslationAdditions {
       'notification_generic_other_body': "新しい通知があります。",
 },
     'ru': {
+      'profile_private_msg': "Этот профиль закрыт.\\nЕго могут просматривать только пользователи, связанные с этим человеком.",
       'community_settings_title': "Настройки сообщества",
       'community_delete_action': "Удалить сообщество",
       'community_delete_subtitle': "Удалить сообщество навсегда и уведомить участников.",
