@@ -188,7 +188,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
   }
 
   Widget _buildUsers(ColorScheme colors) {
-    if (_users.isEmpty) return const Center(child: Text('Aucun profil à suggérer pour le moment.'));
+    if (_users.isEmpty) return Center(child: Text('onboarding_no_profiles'.tr));
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: _users.length,
       separatorBuilder: (_, __) => Divider(height: 1, color: colors.outlineVariant.withValues(alpha: .5)),
@@ -229,7 +229,7 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
   }
 
   Widget _buildCommunities(ColorScheme colors) {
-    if (_communities.isEmpty) return const Center(child: Text('Aucune communauté publique à suggérer pour le moment.'));
+    if (_communities.isEmpty) return Center(child: Text('onboarding_no_communities'.tr));
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: _communities.length,
       separatorBuilder: (_, __) => Divider(height: 1, color: colors.outlineVariant.withValues(alpha: .5)),
