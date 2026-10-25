@@ -197,45 +197,15 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                       label: 'Communautés',
                     ),
                     NavigationDestination(
-                      icon: Container(
+                      icon: SvgPicture.asset(
+                        'assets/svg_icons/add-square-svgrepo-com.svg',
                         width: 38,
                         height: 38,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), AppColors.primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                       ),
-                      selectedIcon: Container(
+                      selectedIcon: SvgPicture.asset(
+                        'assets/svg_icons/add-square-svgrepo-com.svg',
                         width: 38,
                         height: 38,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), AppColors.primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                       ),
                       label: 'nav_create'.tr,
                     ),
