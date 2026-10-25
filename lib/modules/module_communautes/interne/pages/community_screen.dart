@@ -253,25 +253,27 @@ class _MyCommunityTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 7),
                     Expanded(
-                      child: Column(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            community.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              height: 1.12,
-                              fontWeight: FontWeight.w800,
-                              shadows: [
-                                Shadow(color: Colors.black54, blurRadius: 7),
-                              ],
+                          Flexible(
+                            child: Text(
+                              community.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                height: 1.12,
+                                fontWeight: FontWeight.w800,
+                                shadows: [
+                                  Shadow(color: Colors.black54, blurRadius: 7),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(width: 3),
                           EntityCertifiedBadge(
                             entityType: 'community',
                             entityId: community.id,
