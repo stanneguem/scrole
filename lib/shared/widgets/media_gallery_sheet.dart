@@ -259,8 +259,9 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       if (xFiles.length != expectedCount) {
         throw StateError('Sélection incomplète : $expectedCount médias choisis, ${xFiles.length} accessibles.');
       }
+      // Le callback propriétaire ferme la feuille en renvoyant les fichiers.
+      // Un second pop fermerait aussi l'écran de création/édition de profil.
       widget.onSelected(xFiles);
-      if (mounted) Navigator.of(context).pop();
     } catch (error, stack) {
       debugPrint('[MEDIA_GALLERY] Selection failed: $error\n$stack');
       if (mounted) {
