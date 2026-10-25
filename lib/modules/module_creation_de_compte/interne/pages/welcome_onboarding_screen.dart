@@ -22,7 +22,28 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
   List<Map<String, dynamic>> _communities = [];
 
   @override
-  void initState() { super.initState(); _loadSuggestions(); }
+  void initState() {
+    super.initState();
+    _startPersistentOnboarding();
+  }
+
+  Future<void> _startPersistentOnboarding() async {
+    try {
+      final state = await _db.rpc('start_social_discovery_onboarding');
+      if (state is Map && state['completed'] == true) {
+        if (mounted && Get.isRegistered<AppController>()) {
+          Get.find<AppController>().finishOnboarding();
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('[ONBOARDING] persistent start failed: $e');
+      if (mounted) {
+        setState(() => _loadError = 'La configuration de cette étape doit être finalisée. Réessaie plus tard.');
+      }
+    }
+    if (mounted) await _loadSuggestions();
+  }
 
   Future<void> _loadSuggestions() async {
     setState(() { _loading = true; _loadError = null; });
@@ -82,8 +103,28 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
     } finally { if (mounted) setState(() => _busy.remove(id)); }
   }
 
-  void _next() { if (_step == 0) { setState(() => _step = 1); } else { _finish(); } }
-  void _finish() { if (Get.isRegistered<AppController>()) Get.find<AppController>().finishOnboarding(); }
+  void _next() {
+    if (_step == 0) {
+      setState(() => _step = 1);
+    } else {
+      _finish();
+    }
+  }
+
+  Future<void> _finish() async {
+    try {
+      await _db.rpc('complete_social_discovery_onboarding');
+    } catch (e) {
+      debugPrint('[ONBOARDING] persistent completion failed: $e');
+      if (mounted) {
+        _message('Impossible d’enregistrer la fin de cette étape. Réessaie.');
+      }
+      return;
+    }
+    if (Get.isRegistered<AppController>()) {
+      Get.find<AppController>().finishOnboarding();
+    }
+  }
   void _message(String message) => Get.snackbar('Information', message, snackPosition: SnackPosition.BOTTOM);
 
   String _userName(Map<String, dynamic> user) {
