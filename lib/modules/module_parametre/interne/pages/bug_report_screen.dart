@@ -383,15 +383,15 @@ class BugReportScreen extends StatelessWidget {
                   color: Colors.black.withOpacity(0.55),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(CupertinoIcons.checkmark_circle_fill,
+                    const Icon(CupertinoIcons.checkmark_circle_fill,
                         size: 15, color: Colors.white),
-                    SizedBox(width: 7),
+                    const SizedBox(width: 7),
                     Text(
                       'bug_report_capture_added'.tr,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
