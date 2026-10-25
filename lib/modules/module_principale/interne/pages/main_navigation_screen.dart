@@ -385,15 +385,6 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             const Spacer(),
-            Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.5), height: 1),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              title: Text('drawer_logout'.tr, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await Get.find<AuthService>().signOut();
-              },
-            ),
             const SizedBox(height: 12),
           ],
         ),
