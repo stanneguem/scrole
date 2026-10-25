@@ -324,9 +324,45 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
                 if (mounted) await _loadRoleAndCounts();
               },
             ),
+          if (_isAdmin || _isCommunityOwner) ...[
+            const SizedBox(height: 18),
+            _buildTile(
+              icon: Icons.delete_forever_outlined,
+              iconColor: Colors.red,
+              title: 'community_delete_action'.tr,
+              subtitle: 'community_delete_subtitle'.tr,
+              onTap: _confirmDeleteCommunity,
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteCommunity() async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('community_delete_confirm_title'.tr),
+        content: Text('community_delete_confirm_message'.tr),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: Text('cancel'.tr)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Get.back(result: true),
+            child: Text('community_delete_action'.tr),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    if (confirmed != true) return;
+    try {
+      await _service.deleteCommunity(widget.communityId);
+      Get.until((route) => route.isFirst);
+      Get.snackbar('community_delete_action'.tr, 'community_deleted_success'.tr);
+    } catch (error) {
+      Get.snackbar('error'.tr, _service.localizedCommunityError(error), snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
   Widget _buildTile({required IconData icon, Color? iconColor, required String title, required String subtitle, int badgeCount = 0, required VoidCallback onTap}) {
