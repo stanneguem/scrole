@@ -382,7 +382,7 @@ class AppDrawer extends StatelessWidget {
                 Navigator.of(context).pop();
                 Get.to(() => const ExternalWebViewScreen(
                   url: 'https://credit.scrole.fun',
-                  title: 'Crédits de Scrole',
+                  title: 'webview_scrole_credits_title'.tr,
                 ));
               },
             ),
