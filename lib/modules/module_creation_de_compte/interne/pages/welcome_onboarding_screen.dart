@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../app_controller.dart';
+import '../../../../shared/widgets/user_certified_badge.dart';
+import '../../../../shared/widgets/entity_certified_badge.dart';
 
 class WelcomeOnboardingScreen extends StatefulWidget {
   const WelcomeOnboardingScreen({super.key});
@@ -148,7 +150,14 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
               if (i == 0) const SizedBox(width: 6),
             ],
             const Spacer(),
-            TextButton(onPressed: _finish, child: Text('Passer', style: TextStyle(color: colors.onSurfaceVariant))),
+            TextButton(
+              onPressed: _finish,
+              child: Text('Passer', style: TextStyle(color: colors.onSurfaceVariant)),
+            ),
+            TextButton(
+              onPressed: _loading ? null : _next,
+              child: Text(_step == 0 ? 'Continuer' : 'Terminer'),
+            ),
           ]),
         ),
         Padding(
@@ -174,13 +183,6 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
                 OutlinedButton(onPressed: _loadSuggestions, child: const Text('Réessayer')),
               ])))
             : _step == 0 ? _buildUsers(colors) : _buildCommunities(colors)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 22),
-          child: SizedBox(width: double.infinity, child: FilledButton(
-            onPressed: _next,
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-            child: Text(_step == 0 ? 'Continuer' : 'Terminer et découvrir Scrole'))),
-        ),
       ])),
     );
   }
@@ -198,7 +200,24 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
           leading: CircleAvatar(radius: 25, backgroundColor: colors.surfaceContainerHighest,
             backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
             child: avatar.isEmpty ? const Icon(Icons.person_outline) : null),
-          title: Text(_userName(user), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  _userName(user),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 4),
+              UserCertifiedBadge(
+                userId: id,
+                size: 16,
+                showTooltip: true,
+              ),
+            ],
+          ),
           subtitle: Text('@${user['username'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: FilledButton.tonal(
             onPressed: followed || _busy.contains(id) ? null : () => _follow(user),
@@ -223,8 +242,24 @@ class _WelcomeOnboardingScreenState extends State<WelcomeOnboardingScreen> {
           leading: CircleAvatar(radius: 25, backgroundColor: colors.surfaceContainerHighest,
             backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
             child: avatar.isEmpty ? const Icon(Icons.groups_outlined) : null),
-          title: Text(community['name']?.toString() ?? 'Communauté', maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  community['name']?.toString() ?? 'Communauté',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 4),
+              EntityCertifiedBadge(
+                entityType: 'community',
+                entityId: id,
+                size: 16,
+              ),
+            ],
+          ),
           subtitle: Text(description.trim().isNotEmpty ? description : (community['require_manual_approval'] == true ? 'Communauté avec validation des demandes' : 'Communauté publique'),
             maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: FilledButton.tonal(
