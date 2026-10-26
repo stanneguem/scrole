@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../centre/models/event_model.dart';
+import '../../../../shared/widgets/entity_certified_badge.dart';
 
 class UserPassScreen extends StatelessWidget {
   final EventModel event;
@@ -39,9 +40,25 @@ class UserPassScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            event.name,
-            style: const TextStyle(color: Colors.white70),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  event.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              EntityCertifiedBadge(
+                entityType: 'event',
+                entityId: event.id,
+                size: 18,
+              ),
+            ],
           ),
           const Spacer(),
           Container(
