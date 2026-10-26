@@ -757,7 +757,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
@@ -766,7 +766,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           padding: const EdgeInsets.all(32),
           child: Center(
             child: Text(
-              tabIndex == 0 ? 'Aucune publication pour le moment' : 'Aucun J’aime récent',
+              tabIndex == 0 ? 'profile_tab_posts_empty'.tr : 'profile_tab_liked_empty'.tr,
               textAlign: TextAlign.center,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
@@ -892,14 +892,14 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
       if (events.isEmpty) {
         return Padding(
           padding: const EdgeInsets.all(32),
-          child: Center(child: Text('Aucun événement à afficher', textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant))),
+          child: Center(child: Text('profile_tab_events_empty'.tr, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant))),
         );
       }
 
@@ -934,20 +934,26 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Expanded(
-                      child: Text((event['name'] ?? 'Événement').toString(),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        (event['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    ),
-                    EntityCertifiedBadge(entityType: 'event', entityId: (event['id'] ?? '').toString(), size: 16),
-                    if (role.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(20)),
-                        child: Text(role, style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                  ]),
+                      EntityCertifiedBadge(entityType: 'event', entityId: (event['id'] ?? '').toString(), size: 16),
+                      if (role.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(20)),
+                          child: Text(role, style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer)),
+                        ),
+                    ],
+                  ),
                   if (date.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Row(children: [
