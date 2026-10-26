@@ -26,6 +26,8 @@ class AppDeepLinkService {
   String? _pendingPostId;
   String? _pendingEventId;
   String? _pendingEventLink;
+  String? _pendingProfileId;
+  String? _pendingProfileLink;
   String? _pendingCommentId;
   String? _pendingLink;
   String? _lastHandledLink;
@@ -126,6 +128,8 @@ class AppDeepLinkService {
     _pendingLink = null;
     _pendingEventId = null;
     _pendingEventLink = null;
+    _pendingProfileId = null;
+    _pendingProfileLink = null;
     _waitingForAuthentication = false;
     unawaited(_authSubscription?.cancel());
     _authSubscription = null;
@@ -163,6 +167,14 @@ class AppDeepLinkService {
   }
 
   void _handleUriUnchecked(Uri uri) {
+    // Keep supporting old custom-scheme profile links while sharing canonical
+    // HTTPS links so they also have a web fallback and can be verified as App Links.
+    if (uri.scheme == 'scrole' && uri.host == 'user-profile') {
+      final segments = uri.pathSegments;
+      if (segments.length == 1) _queueProfileLink(segments.first);
+      return;
+    }
+
     if (uri.scheme != 'https' ||
         (uri.host != 'scrole.fun' && uri.host != 'www.scrole.fun')) {
       return;
@@ -171,11 +183,17 @@ class AppDeepLinkService {
     final segments = uri.pathSegments;
     if (segments.length != 2) return;
 
+    if (segments.first == 'user-profile') {
+      _queueProfileLink(segments[1]);
+      return;
+    }
+
     if (segments.first == 'event' || segments.first == 'events') {
       final eventId = segments[1].trim();
       if (eventId.isEmpty || eventId.length > 128) return;
       final canonicalLink = 'https://scrole.fun/event/$eventId';
-      if (_pendingEventLink == canonicalLink || _pendingLink == canonicalLink) return;
+      if (_pendingEventLink == canonicalLink || _pendingLink == canonicalLink ||
+          _pendingProfileLink == canonicalLink) return;
       final lastHandledAt = _lastHandledAt;
       if (_lastHandledLink == canonicalLink &&
           lastHandledAt != null &&
@@ -200,8 +218,6 @@ class AppDeepLinkService {
         : 'https://scrole.fun/post/$postId?comment=${Uri.encodeComponent(commentId.trim())}';
     if (_pendingLink == canonicalLink) return;
 
-    // app_links can emit the same cold-start URL through both the stream and
-    // getInitialLink(). Ignore only this short duplicate window.
     final lastHandledAt = _lastHandledAt;
     if (_lastHandledLink == canonicalLink &&
         lastHandledAt != null &&
@@ -216,11 +232,30 @@ class AppDeepLinkService {
     _scheduleNavigation();
   }
 
+  void _queueProfileLink(String rawProfileId) {
+    final profileId = rawProfileId.trim();
+    if (profileId.isEmpty || profileId.length > 128) return;
+    final canonicalLink = 'https://scrole.fun/user-profile/$profileId';
+    if (_pendingProfileLink == canonicalLink) return;
+
+    final lastHandledAt = _lastHandledAt;
+    if (_lastHandledLink == canonicalLink &&
+        lastHandledAt != null &&
+        DateTime.now().difference(lastHandledAt) < const Duration(seconds: 2)) {
+      return;
+    }
+
+    debugPrint('[AppDeepLinkService] Profile link received: $canonicalLink');
+    _pendingProfileId = profileId;
+    _pendingProfileLink = canonicalLink;
+    _scheduleNavigation();
+  }
+
   void _scheduleNavigation() {
     if (_navigationScheduled ||
         _isOpening ||
         _waitingForAuthentication ||
-        (_pendingPostId == null && _pendingEventId == null)) {
+        (_pendingPostId == null && _pendingEventId == null && _pendingProfileId == null)) {
       return;
     }
 
@@ -229,8 +264,10 @@ class AppDeepLinkService {
       _navigationScheduled = false;
       if (_pendingEventId != null) {
         unawaited(_openPendingEvent());
-      } else {
+      } else if (_pendingPostId != null) {
         unawaited(_openPendingPost());
+      } else {
+        unawaited(_openPendingProfile());
       }
     });
     WidgetsBinding.instance.ensureVisualUpdate();
@@ -240,7 +277,7 @@ class AppDeepLinkService {
     if (_waitingForAuthentication) return;
     _waitingForAuthentication = true;
     debugPrint(
-      '[AppDeepLinkService] User is signed out; waiting to open the shared post after login.',
+      '[AppDeepLinkService] User is signed out; waiting to open the shared link after login.',
     );
 
     // The auth stream is attached only after Supabase and the app navigator
@@ -302,7 +339,56 @@ class AppDeepLinkService {
       debugPrint('[AppDeepLinkService] Could not open event $eventId: $error\\n$stack');
     } finally {
       _isOpening = false;
-      if (_pendingPostId != null || _pendingEventId != null) _scheduleNavigation();
+      if (_pendingPostId != null || _pendingEventId != null || _pendingProfileId != null) _scheduleNavigation();
+    }
+  }
+
+  Future<void> _openPendingProfile() async {
+    if (await _isNavigationBlocked()) return;
+    final profileId = _pendingProfileId;
+    final link = _pendingProfileLink;
+    if (profileId == null || link == null || _isOpening) return;
+
+    final navigator = Get.key.currentState;
+    if (navigator == null || !navigator.mounted || Get.context == null) {
+      debugPrint('[AppDeepLinkService] Navigator not ready; retrying profile navigation.');
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      _scheduleNavigation();
+      return;
+    }
+
+    try {
+      if (Supabase.instance.client.auth.currentSession == null) {
+        _waitForAuthentication();
+        return;
+      }
+    } catch (error) {
+      debugPrint('[AppDeepLinkService] Could not inspect auth session for profile: $error');
+      _waitForAuthentication();
+      return;
+    }
+
+    _isOpening = true;
+    _pendingProfileId = null;
+    _pendingProfileLink = null;
+    try {
+      debugPrint('[AppDeepLinkService] Opening shared profile: $profileId');
+      await Get.toNamed<void>(
+        AppPages.externalProfilePath(profileId),
+        arguments: {'userId': profileId, 'context': 'shared_link'},
+        preventDuplicates: true,
+      );
+      _lastHandledLink = link;
+      _lastHandledAt = DateTime.now();
+    } catch (error, stack) {
+      _pendingProfileId = profileId;
+      _pendingProfileLink = link;
+      debugPrint('[AppDeepLinkService] Could not open profile $profileId: $error\\n$stack');
+    } finally {
+      _isOpening = false;
+      if (_pendingPostId != null || _pendingEventId != null || _pendingProfileId != null) {
+        _scheduleNavigation();
+      }
     }
   }
 
