@@ -201,7 +201,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
       if (index < 0) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ce commentaire n’est plus disponible.')),
+            SnackBar(content: Text('comments_unavailable'.tr)),
           );
         }
         return;
@@ -594,10 +594,10 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
     if (dt != null) {
       final now = DateTime.now();
       final diff = now.difference(dt);
-      if (diff.isNegative || diff.inSeconds < 60) return 'à l\'instant';
-      if (diff.inMinutes < 60) return '${diff.inMinutes}min';
-      if (diff.inHours < 24) return '${diff.inHours}h';
-      if (diff.inDays < 7) return '${diff.inDays}j';
+      if (diff.isNegative || diff.inSeconds < 60) return 'relative_just_now'.tr;
+      if (diff.inMinutes < 60) return 'relative_minutes_short'.trParams({'count': '${diff.inMinutes}'});
+      if (diff.inHours < 24) return 'relative_hours_short'.trParams({'count': '${diff.inHours}'});
+      if (diff.inDays < 7) return 'relative_days_short'.trParams({'count': '${diff.inDays}'});
       return '${dt.day}/${dt.month}/${dt.year}';
     }
     return '';
@@ -625,11 +625,11 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Commentaires désactivés', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('comments_disabled_title'.tr, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            const Text('Les commentaires sont désactivés sur cette publication.', textAlign: TextAlign.center),
+            Text('comments_disabled_message'.tr, textAlign: TextAlign.center),
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fermer')),
+            ElevatedButton(onPressed: () => Navigator.of(context).pop(), child: Text('common_close'.tr)),
           ],
         ),
       );
@@ -670,7 +670,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Commentaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('comments_title'.tr, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).pop(),
@@ -687,7 +687,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                     ? const Center(child: CircularProgressIndicator())
                     : _comments.isEmpty
                         ? Center(
-                            child: Text('Aucun commentaire pour le moment', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                            child: Text('comments_empty'.tr, style: TextStyle(color: colorScheme.onSurfaceVariant)),
                           )
                         : RefreshIndicator(
                             onRefresh: () => _loadComments(),
@@ -701,7 +701,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                                     child: Center(
                                       child: TextButton(
                                         onPressed: () => _loadComments(loadMore: true),
-                                        child: const Text('Voir plus de commentaires'),
+                                        child: Text('comments_load_more'.tr),
                                       ),
                                     ),
                                   );
@@ -732,7 +732,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Réponse à @${(_replyingTo!['author'] is Map ? _replyingTo!['author']['username'] : 'utilisateur')}',
+                          'comments_replying_to'.trParams({'name': '@${(_replyingTo!['author'] is Map ? _replyingTo!['author']['username'] : 'utilisateur')}'}),
                           style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colorScheme.primary),
                         ),
                       ),
@@ -819,7 +819,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                           textCapitalization: TextCapitalization.sentences,
                           textInputAction: TextInputAction.newline,
                           decoration: InputDecoration(
-                            hintText: _replyingTo != null ? 'Écrire une réponse...' : 'Ajouter un commentaire...',
+                            hintText: _replyingTo != null ? 'comments_reply_hint'.tr : 'comments_input_hint'.tr,
                             hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8), fontSize: 13.5),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
@@ -921,7 +921,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          'Auteur(ice)',
+                          'comments_author_badge'.tr,
                           style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: colorScheme.primary),
                         ),
                       )
@@ -960,7 +960,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                             }
                           },
                           child: Text(
-                            'Répondre',
+                            'comments_reply_action'.tr,
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colorScheme.onSurfaceVariant),
                           ),
                         ),
@@ -974,15 +974,15 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                               }
                             },
                             child: Text(
-                              _expandedReplies[commentId] == true ? 'Masquer' : '$repliesCount réponse(s)',
+                              _expandedReplies[commentId] == true ? 'comments_hide_replies'.tr : 'comments_replies_count'.trParams({'count': '$repliesCount'}),
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colorScheme.primary),
                             ),
                           ),
                         if (isAuthor)
                           GestureDetector(
                             onTap: () => _deleteComment(commentId, isReply, parentId),
-                            child: const Text(
-                              'Supprimer',
+                            child: Text(
+                              'comments_delete_action'.tr,
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent),
                             ),
                           ),
@@ -1065,7 +1065,7 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
                                     padding: const EdgeInsets.only(left: 16, top: 4),
                                     child: TextButton(
                                       onPressed: () => _loadReplies(commentId, loadMore: true),
-                                      child: const Text('Voir plus de réponses', style: TextStyle(fontSize: 12)),
+                                      child: Text('comments_load_more_replies'.tr, style: const TextStyle(fontSize: 12)),
                                     ),
                                   ),
                               ],
