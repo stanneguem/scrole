@@ -369,12 +369,14 @@ class _SearchResultTile extends StatelessWidget {
     if (item.category == 'event') fallbackIcon = Icons.event_rounded;
     if (item.category == 'activity') fallbackIcon = Icons.local_activity_rounded;
     if (item.category == 'community') fallbackIcon = Icons.groups_rounded;
+    if (item.category == 'tag' || item.category == 'hashtag') fallbackIcon = Icons.tag_rounded;
 
     String localizedCategory = item.category;
     if (item.category == 'user') localizedCategory = 'filter_users'.tr;
     if (item.category == 'event') localizedCategory = 'filter_events'.tr;
     if (item.category == 'activity') localizedCategory = 'filter_activities'.tr;
     if (item.category == 'community') localizedCategory = 'filter_communities'.tr;
+    if (item.category == 'tag' || item.category == 'hashtag') localizedCategory = 'filter_tags'.tr;
 
     return ListTile(
       onTap: onTap,
