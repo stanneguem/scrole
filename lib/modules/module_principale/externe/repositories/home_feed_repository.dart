@@ -292,6 +292,7 @@ class HomeFeedRepository {
       'has_more': hasMore,
       'total_posts': response is Map ? (response['total_posts'] as num?)?.toInt() ?? items.length : items.length,
       'total_views': response is Map ? (response['total_views'] as num?)?.toInt() ?? 0 : 0,
+      'total_likes': response is Map ? (response['total_likes'] as num?)?.toInt() ?? 0 : 0,
     };
   }
 
