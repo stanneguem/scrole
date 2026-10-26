@@ -62,6 +62,7 @@ import '../../modules/module_evenement/centre/bindings/edit_event_binding.dart';
 import '../../modules/module_evenement/centre/bindings/transfer_ownership_binding.dart';
 import '../../shared/widgets/creation_selection_screen.dart';
 import '../../shared/widgets/my_content_screen.dart';
+import '../../modules/module_principale/interne/pages/hashtag_feed_screen.dart';
 import '../../root_page.dart';
 import 'app_pages.dart';
 
@@ -131,5 +132,6 @@ class AppRoutes {
     GetPage(name: AppPages.interestSelection, page: () => const InterestSelectionScreen()),
     GetPage(name: AppPages.creationSelection, page: () => const CreationSelectionScreen()),
     GetPage(name: AppPages.myContent, page: () => const MyContentScreen()),
+    GetPage(name: AppPages.hashtagFeed, page: () => const HashtagFeedScreen()),
   ];
 }
