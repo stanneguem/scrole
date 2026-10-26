@@ -704,12 +704,28 @@ class _CommentBodyCard extends StatelessWidget {
                           child: Row(
                             children: [
                               Flexible(
-                                child: Text(
-                                  comment.author.displayName,
-                                  style: GoogleFonts.spaceGrotesk(
-                                    color: colorScheme.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: isMain ? 14 : 13,
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: comment.author.displayName,
+                                        style: GoogleFonts.spaceGrotesk(
+                                          color: colorScheme.onSurface,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: isMain ? 14 : 13,
+                                        ),
+                                      ),
+                                      if (comment.author.username.isNotEmpty &&
+                                          comment.author.username != comment.author.displayName)
+                                        TextSpan(
+                                          text: ' @${comment.author.username}',
+                                          style: GoogleFonts.spaceGrotesk(
+                                            color: colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: isMain ? 12 : 11,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
