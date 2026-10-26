@@ -52,6 +52,7 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxBool isLoadingSuggestions = false.obs;
   final RxBool isLoadingCalendar = false.obs;
   final RxBool isLoadingMyEvents = false.obs;
+  bool _myEventsRefreshRequested = false;
 
   // Checkpoint pour le préchargement du calendrier
   DateTime? _lastMonthLoaded;
@@ -379,7 +380,10 @@ class EventController extends GetxController with WidgetsBindingObserver {
       event.status != EventStatus.pendingDeletion;
 
   Future<void> fetchMyEvents() async {
-    if (isLoadingMyEvents.value) return;
+    if (isLoadingMyEvents.value) {
+      _myEventsRefreshRequested = true;
+      return;
+    }
     isLoadingMyEvents.value = true;
     try {
       // Afficher le cache immédiatement, mais sans événements supprimés.
@@ -398,6 +402,10 @@ class EventController extends GetxController with WidgetsBindingObserver {
       debugPrint('[Error] EventController.fetchMyEvents: $e');
     } finally {
       isLoadingMyEvents.value = false;
+      if (_myEventsRefreshRequested) {
+        _myEventsRefreshRequested = false;
+        unawaited(fetchMyEvents());
+      }
     }
   }
 
