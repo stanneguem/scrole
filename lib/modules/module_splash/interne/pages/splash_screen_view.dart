@@ -12,8 +12,11 @@ class SplashScreenView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      body: ResponsiveCheck(
-        child: Center(
+      body: SafeArea(
+        top: true,
+        bottom: true,
+        child: ResponsiveCheck(
+          child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -66,7 +69,7 @@ class SplashScreenView extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "M-APS",
+                    "Scrole inc.",
                     style: TextStyle(
                       color: colors.onSurface,
                     ),
@@ -76,6 +79,7 @@ class SplashScreenView extends StatelessWidget {
 
               const SizedBox(),
             ],
+          ),
           ),
         ),
       ),
