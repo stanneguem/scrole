@@ -912,9 +912,14 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           final event = events[index];
           final photo = (event['photo'] ?? '').toString();
           final start = DateTime.tryParse((event['starts_at'] ?? '').toString());
-          final date = start == null ? '' : '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+          final date = start == null ? '' : DateFormat('EEE d MMM yyyy', Get.locale?.languageCode ?? 'fr').format(start);
           final location = [event['city'], event['country']].where((value) => value != null && value.toString().trim().isNotEmpty).join(', ');
-          final role = (event['role'] ?? '').toString().replaceAll('_', ' ');
+          final rawRole = (event['role'] ?? '').toString().toLowerCase();
+          final role = ['organizer', 'event_organizer', 'creator', 'host'].contains(rawRole)
+              ? 'external_profile_event_role_organizer'.tr
+              : ['participant', 'attendee', 'registered'].contains(rawRole)
+                  ? 'external_profile_event_role_participant'.tr
+                  : rawRole.replaceAll('_', ' ');
           return GestureDetector(
             onTap: () {
               final eventId = (event['id'] ?? '').toString();
@@ -980,7 +985,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
                         Get.to(() => ExternalEventItineraryScreen(
                           userId: controller.userId,
                           eventId: eventId,
-                          eventName: (event['name'] ?? 'Événement').toString(),
+                          eventName: (event['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
                         ));
                       },
                       icon: const Icon(Icons.route_rounded, size: 17),
