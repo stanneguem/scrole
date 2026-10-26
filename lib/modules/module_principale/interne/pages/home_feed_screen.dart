@@ -165,6 +165,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     const _StoriesRow(),
+                    const _TrendingHashtagsStrip(),
                     _SuggestedProfilesCarousel(controller: feedController),
                     _SuggestedEventsCarousel(controller: feedController),
                     SizedBox(
@@ -203,6 +204,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const _StoriesRow(),
+                        const _TrendingHashtagsStrip(),
                         // Preserve the layout boundary while making the separator
                         // visually imperceptible, as requested.
                         Container(
@@ -797,5 +799,96 @@ class _SuggestedEventsCarousel extends StatelessWidget {
         ],
       );
     });
+  }
+}
+
+
+/// Compact live trends row shown directly below Stories in the home feed.
+class _TrendingHashtagsStrip extends StatefulWidget {
+  const _TrendingHashtagsStrip();
+
+  @override
+  State<_TrendingHashtagsStrip> createState() => _TrendingHashtagsStripState();
+}
+
+class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
+  late Future<List<Map<String, dynamic>>> _trendsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _trendsFuture = HomeFeedRepository().getTrendingHashtags(limit: 10);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _trendsFuture,
+      builder: (context, snapshot) {
+        final trends = snapshot.data;
+        if (trends == null || trends.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 0, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 14, bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.trending_up_rounded, size: 18, color: colors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'hashtag_trending_title'.tr,
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 36,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: trends.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final trend = trends[index];
+                    final name = (trend['name'] ?? trend['normalized_name'] ?? '')
+                        .toString()
+                        .replaceFirst(RegExp(r'^#+'), '');
+                    if (name.isEmpty) return const SizedBox.shrink();
+                    final recent = (trend['posts_30m'] as num?)?.toInt() ?? 0;
+                    return ActionChip(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      avatar: recent > 0
+                          ? Icon(Icons.local_fire_department_rounded, size: 16, color: colors.primary)
+                          : null,
+                      label: Text('#$name', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      labelStyle: TextStyle(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      backgroundColor: colors.surfaceContainerHighest,
+                      side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.55)),
+                      onPressed: () => Get.toNamed(AppPages.hashtagFeedPath(name)),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
