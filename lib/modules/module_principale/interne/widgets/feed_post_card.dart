@@ -1375,68 +1375,31 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
 
 String _formatShortTime(String raw) {
   if (raw.isEmpty) return '';
-
+  String trCount(String key, int count) => key.trParams({'count': '$count'});
   final dt = DateTime.tryParse(raw);
   if (dt != null) {
-    final now = DateTime.now();
-    final difference = now.difference(dt);
-
-    if (difference.isNegative || difference.inSeconds < 60) {
-      return 'à l\'instant';
-    } else if (difference.inMinutes < 60) {
-      return 'il y a ${difference.inMinutes}min';
-    } else if (difference.inHours < 24) {
-      return 'il y a ${difference.inHours}h';
-    } else if (difference.inDays < 7) {
-      return difference.inDays == 1
-          ? 'il y a 1 jour'
-          : 'il y a ${difference.inDays} jours';
-    } else if (difference.inDays < 30) {
-      final weeks = (difference.inDays / 7).floor();
-      return weeks == 1 ? 'il y a 1 sem' : 'il y a $weeks sem';
-    } else {
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-    }
+    final difference = DateTime.now().difference(dt);
+    if (difference.isNegative || difference.inSeconds < 60) return 'relative_just_now'.tr;
+    if (difference.inMinutes < 60) return trCount('relative_minutes_ago', difference.inMinutes);
+    if (difference.inHours < 24) return trCount('relative_hours_ago', difference.inHours);
+    if (difference.inDays < 7) return difference.inDays == 1 ? 'relative_one_day_ago'.tr : trCount('relative_days_ago', difference.inDays);
+    if (difference.inDays < 30) { final weeks = (difference.inDays / 7).floor(); return weeks == 1 ? 'relative_one_week_ago'.tr : trCount('relative_weeks_ago', weeks); }
+    if (difference.inDays < 365) { final months = (difference.inDays / 30).floor(); return months == 1 ? 'relative_one_month_ago'.tr : trCount('relative_months_ago', months); }
+    final years = (difference.inDays / 365).floor();
+    return years == 1 ? 'relative_one_year_ago'.tr : trCount('relative_years_ago', years);
   }
-
   final lower = raw.toLowerCase().trim();
-  if (lower.contains('instant') ||
-      lower.contains('maintenant') ||
-      lower.contains('now') ||
-      lower.contains('just')) {
-    return 'à l\'instant';
-  }
-
+  if (lower.contains('instant') || lower.contains('maintenant') || lower.contains('now') || lower.contains('just')) return 'relative_just_now'.tr;
   final digits = lower.replaceAll(RegExp(r'[^0-9]'), '');
   if (digits.isNotEmpty) {
     final val = int.tryParse(digits) ?? 1;
-    if (lower.contains('min') ||
-        (lower.contains('m') &&
-            !lower.contains('mo') &&
-            !lower.contains('mai'))) {
-      return 'il y a ${val}min';
-    }
-    if (lower.contains('heure') || lower.contains('h')) {
-      return val == 1 ? 'il y a 1h' : 'il y a ${val}h';
-    }
-    if (lower.contains('jour') ||
-        lower.contains('j') ||
-        lower.contains('day')) {
-      return val == 1 ? 'il y a 1 jour' : 'il y a $val jours';
-    }
-    if (lower.contains('semaine') || lower.contains('week')) {
-      return val == 1 ? 'il y a 1 sem' : 'il y a $val sem';
-    }
-    if (lower.contains('mois') || lower.contains('month')) {
-      return val == 1 ? 'il y a 1 mois' : 'il y a $val mois';
-    }
-    if (lower.contains('an') ||
-        lower.contains('year') ||
-        lower.contains('ans')) {
-      return val == 1 ? 'il y a 1 an' : 'il y a $val ans';
-    }
+    if (lower.contains('min') || (lower.contains('m') && !lower.contains('mo') && !lower.contains('mai'))) return trCount('relative_minutes_ago', val);
+    if (lower.contains('heure') || lower.contains('hour') || lower.contains(' h')) return trCount('relative_hours_ago', val);
+    if (lower.contains('jour') || lower.contains('day') || lower.endsWith('j')) return val == 1 ? 'relative_one_day_ago'.tr : trCount('relative_days_ago', val);
+    if (lower.contains('semaine') || lower.contains('week') || lower.contains('sem')) return val == 1 ? 'relative_one_week_ago'.tr : trCount('relative_weeks_ago', val);
+    if (lower.contains('mois') || lower.contains('month')) return val == 1 ? 'relative_one_month_ago'.tr : trCount('relative_months_ago', val);
+    if (lower.contains('an') || lower.contains('year')) return val == 1 ? 'relative_one_year_ago'.tr : trCount('relative_years_ago', val);
   }
-
   return raw;
 }
 
