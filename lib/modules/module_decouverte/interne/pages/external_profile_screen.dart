@@ -1392,7 +1392,7 @@ class _ProfileMenuSheet extends StatelessWidget {
               onTap: () async {
                 Navigator.pop(context);
                 if (profile == null) return;
-                final link = 'scrole://user-profile/${profile.userId}';
+                final link = 'https://scrole.fun/user-profile/${profile.userId}';
                 await SharePlus.instance.share(ShareParams(
                   text: 'profile_share_message'.trParams({'name': profile.displayName, 'link': link}),
                   subject: 'profile_share_subject'.trParams({'name': profile.displayName}),
