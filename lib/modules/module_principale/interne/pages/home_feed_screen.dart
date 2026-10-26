@@ -931,7 +931,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '$postCount undefined',
+                                '$postCount ${'hashtag_posts_count'.tr}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
