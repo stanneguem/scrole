@@ -108,7 +108,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text('#$_hashtag'),
+        title: Text('hashtag_feed_title'.trParams({'tag': _hashtag})),
         centerTitle: false,
       ),
       body: _loading && _posts.isEmpty
