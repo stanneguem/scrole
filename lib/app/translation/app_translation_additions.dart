@@ -983,6 +983,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "Impossible de charger ce profil. Vérifiez votre connexion Internet.",
       'profile_action_back': "Retour",
       'profile_action_retry': "Réessayer",
+      'profile_action_message': 'Message',
       'profile_suspended_message': "Ce compte est actuellement suspendu. Son profil et ses fonctionnalités ne sont pas accessibles pour le moment.",
       'profile_banned_message': "Ce compte a été banni de Scrole. Son profil et ses fonctionnalités ne sont plus accessibles.",
       
@@ -2077,6 +2078,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "Unable to load this profile. Check your internet connection.",
       'profile_action_back': "Back",
       'profile_action_retry': "Retry",
+      'profile_action_message': 'Message',
       'profile_suspended_message': "This account is currently suspended. Its profile and features are temporarily unavailable.",
       'profile_banned_message': "This account has been banned from Scrole. Its profile and features are no longer available.",
       
@@ -3095,6 +3097,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "No se pudo cargar este perfil. Comprueba tu conexión a Internet.",
       'profile_action_back': "Volver",
       'profile_action_retry': "Reintentar",
+      'profile_action_message': 'Mensaje',
       'profile_suspended_message': "Esta cuenta está suspendida. Su perfil y sus funciones no están disponibles temporalmente.",
       'profile_banned_message': "Esta cuenta ha sido expulsada de Scrole. Su perfil y sus funciones ya no están disponibles.",
       
@@ -4096,6 +4099,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "Dieses Profil konnte nicht geladen werden. Prüfe deine Internetverbindung.",
       'profile_action_back': "Zurück",
       'profile_action_retry': "Erneut versuchen",
+      'profile_action_message': 'Nachricht',
       'profile_suspended_message': "Dieses Konto ist derzeit gesperrt. Profil und Funktionen sind vorübergehend nicht verfügbar.",
       'profile_banned_message': "Dieses Konto wurde von Scrole gesperrt. Profil und Funktionen sind nicht mehr verfügbar.",
       
@@ -5097,6 +5101,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "Impossibile caricare il profilo. Controlla la connessione Internet.",
       'profile_action_back': "Indietro",
       'profile_action_retry': "Riprova",
+      'profile_action_message': 'Messaggio',
       'profile_suspended_message': "Questo account è attualmente sospeso. Il profilo e le sue funzioni non sono temporaneamente disponibili.",
       'profile_banned_message': "Questo account è stato bannato da Scrole. Il profilo e le sue funzioni non sono più disponibili.",
       
@@ -6098,6 +6103,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "Não foi possível carregar o perfil. Verifica a tua ligação à Internet.",
       'profile_action_back': "Voltar",
       'profile_action_retry': "Tentar novamente",
+      'profile_action_message': 'Mensagem',
       'profile_suspended_message': "Esta conta está suspensa. O perfil e as funcionalidades estão temporariamente indisponíveis.",
       'profile_banned_message': "Esta conta foi banida do Scrole. O perfil e as funcionalidades já não estão disponíveis.",
       
@@ -7099,6 +7105,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "无法加载此个人资料。请检查网络连接。",
       'profile_action_back': "返回",
       'profile_action_retry': "重试",
+      'profile_action_message': '发消息',
       'profile_suspended_message': "此账号目前已被暂停使用，其个人资料和功能暂时不可用。",
       'profile_banned_message': "此账号已被 Scrole 封禁，其个人资料和功能不再可用。",
       
@@ -8099,6 +8106,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "プロフィールを読み込めません。インターネット接続を確認してください。",
       'profile_action_back': "戻る",
       'profile_action_retry': "再試行",
+      'profile_action_message': 'メッセージ',
       'profile_suspended_message': "このアカウントは現在停止中です。プロフィールと機能は一時的に利用できません。",
       'profile_banned_message': "このアカウントは Scrole から禁止されました。プロフィールと機能は利用できません。",
       
@@ -9094,6 +9102,7 @@ class AppTranslationAdditions {
       'profile_load_error_message': "Не удалось загрузить профиль. Проверьте подключение к интернету.",
       'profile_action_back': "Назад",
       'profile_action_retry': "Повторить",
+      'profile_action_message': 'Сообщение',
       'profile_suspended_message': "Этот аккаунт временно приостановлен. Профиль и функции временно недоступны.",
       'profile_banned_message': "Этот аккаунт заблокирован в Scrole. Профиль и функции больше недоступны.",
       
