@@ -450,12 +450,17 @@ class _StoriesRow extends GetView<StoriesController> {
                       Stack(
                         children: [
                           Container(
-                            padding: EdgeInsets.all(hasOwnStory ? 2.5 : 0),
+                            // Keep the same outer diameter whether or not the
+                            // current user has an active story.
+                            padding: const EdgeInsets.all(2.5),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: hasOwnStory
-                                  ? Border.all(color: own.hasUnseen ? Colors.blue : Colors.grey.shade500, width: 2.5)
-                                  : null,
+                              border: Border.all(
+                                color: hasOwnStory
+                                    ? (own.hasUnseen ? Colors.blue : Colors.grey.shade500)
+                                    : Colors.transparent,
+                                width: 2.5,
+                              ),
                             ),
                             child: CircleAvatar(
                               radius: 28,
