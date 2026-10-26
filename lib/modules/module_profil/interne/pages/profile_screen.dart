@@ -426,9 +426,9 @@ class ProfileScreen extends GetView<ProfileController> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildTabButton(0, Icons.grid_on_rounded, 'Publications', tab == 0, colorScheme),
-              _buildTabButton(1, Icons.event_rounded, 'Événements', tab == 1, colorScheme),
-              _buildTabButton(2, Icons.favorite_border_rounded, 'J’aime récents', tab == 2, colorScheme),
+              _buildTabButton(0, Icons.grid_on_rounded, 'profile_tab_posts'.tr, tab == 0, colorScheme),
+              _buildTabButton(1, Icons.event_rounded, 'profile_tab_events'.tr, tab == 1, colorScheme),
+              _buildTabButton(2, Icons.favorite_border_rounded, 'profile_tab_liked_posts'.tr, tab == 2, colorScheme),
             ],
           );
         }),
