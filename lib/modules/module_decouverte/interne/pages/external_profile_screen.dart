@@ -986,6 +986,10 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
                           userId: controller.userId,
                           eventId: eventId,
                           eventName: (event['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
+                          eventPhoto: (event['photo'] ?? '').toString(),
+                          eventLocation: [event['city'], event['country']]
+                              .where((value) => value != null && value.toString().trim().isNotEmpty)
+                              .join(', '),
                         ));
                       },
                       icon: const Icon(Icons.route_rounded, size: 17),
