@@ -22,6 +22,8 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
+  int _totalPosts = 0;
+  int _totalViews = 0;
 
   @override
   void initState() {
@@ -54,6 +56,8 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
         _cursor = null;
         _hasMore = true;
         _posts.clear();
+        _totalPosts = 0;
+        _totalViews = 0;
       });
     }
 
@@ -66,6 +70,8 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
       if (!mounted) return;
       setState(() {
         _posts.addAll(result['items'] as List<CommunityPost>);
+        _totalPosts = (result['total_posts'] as num?)?.toInt() ?? _totalPosts;
+        _totalViews = (result['total_views'] as num?)?.toInt() ?? _totalViews;
         _cursor = result['next_cursor'] as String?;
         _hasMore = result['has_more'] == true;
         _loading = false;
@@ -111,7 +117,48 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
         title: Text('hashtag_feed_title'.trParams({'tag': _hashtag})),
         centerTitle: false,
       ),
-      body: _loading && _posts.isEmpty
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              border: Border(
+                bottom: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.tag_rounded, size: 18, color: colorScheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '#$_hashtag',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w700, color: colorScheme.onSurface),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.article_outlined, size: 17, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Text(
+                  'hashtag_posts_count'.trParams({'count': _totalPosts.toString()}),
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.visibility_outlined, size: 17, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Text(
+                  'hashtag_views_count'.trParams({'count': _totalViews.toString()}),
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loading && _posts.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _error != null && _posts.isEmpty
               ? Center(
@@ -174,6 +221,9 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
                         },
                       ),
                     ),
+          ),
+        ],
+      ),
     );
   }
 }
