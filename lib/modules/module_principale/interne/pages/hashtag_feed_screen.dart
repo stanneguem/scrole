@@ -151,7 +151,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
                       ),
                     )
                   : RefreshIndicator(
-                      onRefresh: _loadPosts,
+                      onRefresh: () => _loadPosts(),
                       child: ListView.separated(
                         controller: _scrollController,
                         physics: const AlwaysScrollableScrollPhysics(),
