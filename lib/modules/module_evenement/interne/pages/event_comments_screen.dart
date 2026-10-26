@@ -6,6 +6,7 @@ import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
+import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/linkified_text.dart';
 import '../../centre/models/event_comment.dart';
 import '../controllers/event_comments_controller.dart';
@@ -714,6 +715,13 @@ class _CommentBodyCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (comment.author.userId.isNotEmpty) ...[
+                                const SizedBox(width: 4),
+                                UserCertifiedBadge(
+                                  userId: comment.author.userId,
+                                  size: isMain ? 15 : 14,
+                                ),
+                              ],
                               if (comment.eventRole != null) ...[
                                 const SizedBox(width: 6),
                                 _RoleBadge(role: comment.eventRole!),
