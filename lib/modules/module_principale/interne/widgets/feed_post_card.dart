@@ -27,12 +27,14 @@ class ExpandableTextWidget extends StatefulWidget {
   final String text;
   final int maxLines;
   final TextStyle? style;
+  final ValueChanged<String>? onHashtagTap;
 
   const ExpandableTextWidget({
     super.key,
     required this.text,
     this.maxLines = 2,
     this.style,
+    this.onHashtagTap,
   });
 
   @override
@@ -62,7 +64,7 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
         final isOverflowing = tp.didExceedMaxLines;
 
         if (!isOverflowing) {
-          return LinkifiedText(text: widget.text, style: defaultStyle);
+          return LinkifiedText(text: widget.text, style: defaultStyle, onHashtagTap: widget.onHashtagTap);
         }
 
         return Column(
@@ -75,6 +77,7 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
                 maxLines: _isExpanded ? null : widget.maxLines,
                 overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
                 style: defaultStyle,
+                onHashtagTap: widget.onHashtagTap,
               ),
             ),
             const SizedBox(height: 4),
@@ -410,6 +413,7 @@ class FeedPostCard extends StatelessWidget {
                               ExpandableTextWidget(
                                 text: post.content,
                                 maxLines: 2,
+                                onHashtagTap: (tag) => Get.toNamed(AppPages.hashtagFeedPath(tag)),
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontSize: 14.5,
                                   height: 1.45,
@@ -426,12 +430,19 @@ class FeedPostCard extends StatelessWidget {
                                 runSpacing: 4,
                                 children: post.hashtags
                                     .map(
-                                      (h) => Text(
-                                        '#${h.name}',
-                                        style: TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: colorScheme.primary,
+                                      (h) => InkWell(
+                                        onTap: () => Get.toNamed(AppPages.hashtagFeedPath(h.name)),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 2),
+                                          child: Text(
+                                            '#${h.name}',
+                                            style: TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: colorScheme.primary,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     )
