@@ -4,6 +4,7 @@ import 'package:scrole/modules/module_principale/centre/models/community_post.da
 import 'package:scrole/modules/module_principale/externe/repositories/home_feed_repository.dart';
 import 'package:scrole/modules/module_principale/interne/widgets/feed_post_card.dart';
 import 'package:scrole/modules/module_principale/interne/widgets/community_comments_sheet.dart';
+import 'package:scrole/shared/utils/number_formatter.dart';
 
 class HashtagFeedScreen extends StatefulWidget {
   const HashtagFeedScreen({super.key});
@@ -147,14 +148,14 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
                 Icon(Icons.article_outlined, size: 17, color: colorScheme.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Text(
-                  'hashtag_posts_count'.trParams({'count': _totalPosts.toString()}),
+                  'hashtag_posts_count'.trParams({'count': NumberFormatter.formatCount(_totalPosts)}),
                   style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 12),
                 Icon(Icons.visibility_outlined, size: 17, color: colorScheme.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Text(
-                  'hashtag_views_count'.trParams({'count': _totalViews.toString()}),
+                  'hashtag_views_count'.trParams({'count': NumberFormatter.formatCount(_totalViews)}),
                   style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                 ),
               ],
