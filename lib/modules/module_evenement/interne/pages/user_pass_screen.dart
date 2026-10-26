@@ -79,9 +79,9 @@ class UserPassScreen extends StatelessWidget {
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Identité vérifiée par Scrole',
-                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                Text(
+                  'user_pass_verified_identity'.tr,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
                 ),
               ],
             ),
