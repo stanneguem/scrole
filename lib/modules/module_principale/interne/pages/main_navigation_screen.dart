@@ -351,7 +351,7 @@ class AppDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 Get.to(() => ExternalWebViewScreen(
-                  url: 'https://www.facebook.com/',
+                  url: 'https://about.scrole.fun',
                   title: 'webview_about_title'.tr,
                 ));
               },
