@@ -286,7 +286,13 @@ class HomeFeedRepository {
       if (id.isEmpty || !seen.add(id)) continue;
       items.add(_parsePost(map));
     }
-    return {'items': items, 'next_cursor': nextCursor, 'has_more': hasMore};
+    return {
+      'items': items,
+      'next_cursor': nextCursor,
+      'has_more': hasMore,
+      'total_posts': response is Map ? (response['total_posts'] as num?)?.toInt() ?? items.length : items.length,
+      'total_views': response is Map ? (response['total_views'] as num?)?.toInt() ?? 0 : 0,
+    };
   }
 
   CommunityPost _parsePost(Map<String, dynamic> map) {
