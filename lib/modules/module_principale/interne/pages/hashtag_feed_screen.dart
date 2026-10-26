@@ -93,24 +93,87 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
   }
 
   Future<void> _onReaction(CommunityPost post, PostReaction reaction) async {
-    final next = post.userReaction == reaction ? null : reaction.name;
+    final previousReaction = post.userReaction;
+    final nextReaction = previousReaction == reaction
+        ? PostReaction.none
+        : reaction;
+    final next = nextReaction == PostReaction.none ? null : nextReaction.name;
+    final likeDelta = (nextReaction == PostReaction.like ? 1 : 0) -
+        (previousReaction == PostReaction.like ? 1 : 0);
+    final dislikeDelta = (nextReaction == PostReaction.dislike ? 1 : 0) -
+        (previousReaction == PostReaction.dislike ? 1 : 0);
+    final index = _posts.indexWhere((item) => item.id == post.id);
+    if (index < 0) return;
+    final previousPost = _posts[index];
+
+    // Mise à jour optimiste : la carte et le compteur global réagissent tout de suite.
+    setState(() {
+      _posts[index] = previousPost.copyWith(
+        userReaction: nextReaction,
+        likeCount: (previousPost.likeCount + likeDelta).clamp(0, 1 << 31),
+        dislikeCount: (previousPost.dislikeCount + dislikeDelta).clamp(0, 1 << 31),
+      );
+      _totalLikes = (_totalLikes + likeDelta).clamp(0, 1 << 31);
+    });
+
     try {
       await _repository.setCommunityPostReaction(post.id, next);
-      if (mounted) await _loadPosts();
+      if (mounted) await _refreshCountersSilently();
     } catch (_) {
       if (!mounted) return;
+      final currentIndex = _posts.indexWhere((item) => item.id == post.id);
+      setState(() {
+        if (currentIndex >= 0) _posts[currentIndex] = previousPost;
+        _totalLikes = (_totalLikes - likeDelta).clamp(0, 1 << 31);
+      });
       Get.snackbar('hashtag_feed_error_title'.tr, 'hashtag_feed_error'.tr);
     }
   }
 
-  void _openComments(CommunityPost post) {
-    showModalBottomSheet<void>(
+  /// Recharge les statistiques sans vider la liste ni déplacer le scroll.
+  Future<void> _refreshCountersSilently() async {
+    try {
+      final result = await _repository.getPostsByHashtag(
+        _hashtag,
+        limit: 20,
+        cursor: null,
+      );
+      if (!mounted) return;
+      final refreshedPosts = result['items'] as List<CommunityPost>;
+      final byId = {for (final post in refreshedPosts) post.id: post};
+      setState(() {
+        for (var i = 0; i < _posts.length; i++) {
+          final refreshed = byId[_posts[i].id];
+          if (refreshed != null) {
+            _posts[i] = _posts[i].copyWith(
+              likeCount: refreshed.likeCount,
+              dislikeCount: refreshed.dislikeCount,
+              commentCount: refreshed.commentCount,
+              shareCount: refreshed.shareCount,
+              viewCount: refreshed.viewCount,
+              userReaction: refreshed.userReaction,
+              viewerHasShared: refreshed.viewerHasShared,
+            );
+          }
+        }
+        _totalPosts = (result['total_posts'] as num?)?.toInt() ?? _totalPosts;
+        _totalViews = (result['total_views'] as num?)?.toInt() ?? _totalViews;
+        _totalLikes = (result['total_likes'] as num?)?.toInt() ?? _totalLikes;
+      });
+    } catch (e) {
+      debugPrint('[HashtagFeed] silent counters refresh failed: $e');
+    }
+  }
+
+  Future<void> _openComments(CommunityPost post) async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => CommunityCommentsSheet(post: post, controller: null),
     );
+    if (mounted) await _refreshCountersSilently();
   }
 
   @override
