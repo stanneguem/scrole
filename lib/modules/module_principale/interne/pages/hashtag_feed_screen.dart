@@ -133,7 +133,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
                 )
               : _posts.isEmpty
                   ? RefreshIndicator(
-                      onRefresh: _loadPosts,
+                      onRefresh: () => _loadPosts(),
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: [
