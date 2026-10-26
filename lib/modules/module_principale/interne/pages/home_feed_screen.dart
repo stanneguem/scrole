@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -872,7 +873,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                 ),
               ),
               SizedBox(
-                height: 36,
+                height: 58,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: trends.length,
@@ -908,10 +909,14 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (recent > 0) ...[
-                                    Icon(
-                                      Icons.local_fire_department_rounded,
-                                      size: 16,
-                                      color: colors.primary,
+                                    SvgPicture.asset(
+                                      'assets/svg_icons/fire-svgrepo-com.svg',
+                                      width: 16,
+                                      height: 16,
+                                      colorFilter: ColorFilter.mode(
+                                        colors.primary,
+                                        BlendMode.srcIn,
+                                      ),
                                     ),
                                     const SizedBox(width: 3),
                                   ],
