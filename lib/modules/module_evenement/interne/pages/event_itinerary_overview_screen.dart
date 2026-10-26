@@ -75,16 +75,24 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
       appBar: AppBar(
         title: Text('event_itinerary_title'.tr, style: AppTextStyles.h4.copyWith(fontSize: 18)),
         actions: [
-          IconButton(
-            tooltip: 'event_itinerary_edit'.tr,
-            onPressed: () async {
-              await Get.to(() => EventItineraryScreen(event: widget.event));
-              if (mounted) {
-                setState(() { _loading = true; _error = null; });
-                await _load();
-              }
-            },
-            icon: const Icon(Icons.edit_calendar_rounded),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton.filled(
+              tooltip: 'event_itinerary_edit'.tr,
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                await Get.to(() => EventItineraryScreen(event: widget.event));
+                if (mounted) {
+                  setState(() { _loading = true; _error = null; });
+                  await _load();
+                }
+              },
+              icon: const Icon(Icons.edit_calendar_rounded),
+            ),
           ),
           IconButton(
             tooltip: 'event_itinerary_refresh'.tr,
