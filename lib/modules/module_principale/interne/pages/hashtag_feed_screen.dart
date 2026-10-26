@@ -117,7 +117,10 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
         title: Text('hashtag_feed_title'.trParams({'tag': _hashtag})),
         centerTitle: false,
       ),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
         children: [
           Container(
             width: double.infinity,
@@ -223,6 +226,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
                     ),
           ),
         ],
+        ),
       ),
     );
   }
