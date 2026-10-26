@@ -222,11 +222,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   String _formatStoryAge(DateTime createdAt) {
     final elapsed = DateTime.now().difference(createdAt);
-    if (elapsed.isNegative || elapsed.inSeconds < 60) return 'À l’instant';
-    if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
-    if (elapsed.inHours < 24) return 'Il y a ${elapsed.inHours} h';
-    if (elapsed.inDays == 1) return 'Il y a 1 jour';
-    if (elapsed.inDays < 7) return 'Il y a ${elapsed.inDays} jours';
+    if (elapsed.isNegative || elapsed.inSeconds < 60) return 'relative_just_now'.tr;
+    if (elapsed.inMinutes < 60) return 'relative_minutes_ago'.trParams({'count': '${elapsed.inMinutes}'});
+    if (elapsed.inHours < 24) return 'relative_hours_ago'.trParams({'count': '${elapsed.inHours}'});
+    if (elapsed.inDays == 1) return 'relative_one_day_ago'.tr;
+    if (elapsed.inDays < 7) return 'relative_days_ago'.trParams({'count': '${elapsed.inDays}'});
     return '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
   }
 
@@ -1004,7 +1004,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       final originalPost = await repo.getPost(postId);
       Get.to(
         () => Scaffold(
-          appBar: AppBar(title: const Text('Publication originale')),
+          appBar: AppBar(title: Text('comments_original_post'.tr)),
           body: SingleChildScrollView(
             child: FeedPostCard(
               post: originalPost,
@@ -1992,11 +1992,11 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
     String commentAge() {
       if (createdAt == null) return '';
       final elapsed = DateTime.now().difference(createdAt);
-      if (elapsed.inSeconds < 60) return 'À l’instant';
-      if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
-      if (elapsed.inHours < 24) return 'Il y a ${elapsed.inHours} h';
-      if (elapsed.inDays == 1) return 'Il y a 1 jour';
-      if (elapsed.inDays < 7) return 'Il y a ${elapsed.inDays} jours';
+      if (elapsed.inSeconds < 60) return 'relative_just_now'.tr;
+      if (elapsed.inMinutes < 60) return 'relative_minutes_ago'.trParams({'count': '${elapsed.inMinutes}'});
+      if (elapsed.inHours < 24) return 'relative_hours_ago'.trParams({'count': '${elapsed.inHours}'});
+      if (elapsed.inDays == 1) return 'relative_one_day_ago'.tr;
+      if (elapsed.inDays < 7) return 'relative_days_ago'.trParams({'count': '${elapsed.inDays}'});
       return '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
     }
 
@@ -2224,10 +2224,10 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                           const SizedBox(width: 4),
                           Text(
                             repliesLoading
-                                ? 'Chargement des réponses…'
+                                ? 'comments_loading_replies'.tr
                                 : repliesExpanded
-                                    ? 'Masquer les réponses'
-                                    : 'Afficher les réponses ($repliesCount)',
+                                    ? 'comments_hide_replies'.tr
+                                    : 'comments_show_replies'.trParams({'count': '$repliesCount'}),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -2243,7 +2243,7 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                   Padding(
                     padding: const EdgeInsets.only(left: 8, top: 4),
                     child: Text(
-                      'Aucune réponse pour le moment.',
+                      'comments_no_replies'.tr,
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme.onSurfaceVariant,
