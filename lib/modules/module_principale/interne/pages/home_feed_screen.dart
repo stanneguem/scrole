@@ -19,6 +19,7 @@ import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
+import 'package:scrole/shared/utils/number_formatter.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -934,7 +935,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                'hashtag_posts_count'.trParams({'count': postCount.toString()}),
+                                'hashtag_posts_count'.trParams({'count': NumberFormatter.formatCount(postCount)}),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
