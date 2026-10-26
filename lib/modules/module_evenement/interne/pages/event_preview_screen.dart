@@ -869,13 +869,19 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
+                      Flexible(
+                        fit: FlexFit.loose,
                         child: Text(
                           event.name,
                           style: GoogleFonts.spaceGrotesk(fontSize: 26, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 22),
+                      const SizedBox(width: 5),
+                      EntityCertifiedBadge(
+                        entityType: 'event',
+                        entityId: event.id,
+                        size: 22,
+                      ),
                     ],
                   ),
                   Text(
@@ -1481,7 +1487,25 @@ class _RestrictedPreviewView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [Expanded(child: Text(event.name.isNotEmpty ? event.name : 'Aperçu restreint', maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18)]),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                event.name.isNotEmpty ? event.name : 'Aperçu restreint',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            EntityCertifiedBadge(
+              entityType: 'event',
+              entityId: event.id,
+              size: 18,
+            ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Get.back(),
