@@ -10,6 +10,7 @@ class LinkifiedText extends StatefulWidget {
   final TextOverflow overflow;
   final TextAlign textAlign;
   final Color? linkColor;
+  final ValueChanged<String>? onHashtagTap;
 
   const LinkifiedText({
     super.key,
@@ -19,6 +20,7 @@ class LinkifiedText extends StatefulWidget {
     this.overflow = TextOverflow.clip,
     this.textAlign = TextAlign.start,
     this.linkColor,
+    this.onHashtagTap,
   });
 
   @override
@@ -30,7 +32,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
 
   // Handles explicit URLs, www links and common bare domains.
   static final RegExp _tokenPattern = RegExp(
-    r'https?://[^\s<>{}]+|www\.[^\s<>{}]+|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:/[^\s<>{}]*)?|@[A-Za-z0-9_.]+|[*~]\{[^}]+\}',
+    r'#[\p{L}\p{N}_]+|https?://[^\s<>{}]+|www\.[^\s<>{}]+|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:/[^\s<>{}]*)?|@[A-Za-z0-9_.]+|[*~]\{[^}]+\}',
     caseSensitive: false,
   );
 
@@ -71,8 +73,18 @@ class _LinkifiedTextState extends State<LinkifiedText> {
     for (final match in _tokenPattern.allMatches(widget.text)) {
       var token = match.group(0)!;
       final isMention = token.startsWith('@') || token.startsWith('*{') || token.startsWith('~{');
+      final isHashtag = token.startsWith('#');
       if (match.start > cursor) {
         spans.add(TextSpan(text: widget.text.substring(cursor, match.start), style: baseStyle));
+      }
+
+      if (isHashtag) {
+        final tagStyle = baseStyle.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600);
+        final recognizer = widget.onHashtagTap == null ? null : (TapGestureRecognizer()..onTap = () => widget.onHashtagTap!(token.substring(1)));
+        if (recognizer != null) _recognizers.add(recognizer);
+        spans.add(TextSpan(text: token, style: tagStyle, recognizer: recognizer));
+        cursor = match.end;
+        continue;
       }
 
       if (isMention) {
