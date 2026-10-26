@@ -475,7 +475,7 @@ class _ProfileActions extends GetView<ExternalProfileController> {
                           colorFilter: ColorFilter.mode(colors.onSurface, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 6),
-                        Text('Message', style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                        Text('profile_action_message'.tr, style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w600, fontSize: 13.5)),
                       ],
                     ),
                     foreground: colors.onSurface,
