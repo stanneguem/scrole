@@ -275,7 +275,7 @@ class _EventCommentsScreenState extends State<EventCommentsScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'En réponse à ${replyingTo.author.displayName}',
+                              'comments_replying_to'.trParams({'name': replyingTo.author.displayName}),
                               style: GoogleFonts.spaceGrotesk(
                                 color: AppColors.primary,
                                 fontSize: 12,
@@ -313,8 +313,8 @@ class _EventCommentsScreenState extends State<EventCommentsScreen> {
                           ),
                           decoration: InputDecoration(
                             hintText: replyingTo != null
-                                ? 'Votre réponse...'
-                                : _commentTranslation('comments_add_hint', 'Écrire un commentaire…'),
+                                ? 'comments_reply_hint'.tr
+                                : 'comments_input_hint'.tr,
                             hintStyle: GoogleFonts.spaceGrotesk(
                               color: colorScheme.onSurfaceVariant,
                               fontSize: 13,
@@ -370,7 +370,7 @@ class _EventCommentsScreenState extends State<EventCommentsScreen> {
                               child: IconButton(
                                 onPressed: () => _controller.sendComment(widget.eventId),
                                 icon: const Icon(Icons.send_rounded, size: 20, color: Colors.white),
-                                tooltip: 'Envoyer',
+                                tooltip: 'comments_send'.tr,
                               ),
                             ),
                     ],
@@ -422,7 +422,7 @@ class _EmptyCommentsState extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Inaugurez la discussion !',
+              'event_comments_empty_title'.tr,
               style: GoogleFonts.spaceGrotesk(
                 color: colorScheme.onSurface,
                 fontSize: 20,
@@ -432,7 +432,7 @@ class _EmptyCommentsState extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              _commentTranslation('comments_empty', 'Soyez la première personne à lancer la discussion autour de cet événement.'),
+              'event_comments_empty_message'.tr,
               style: AppTextStyles.body.copyWith(
                 color: colorScheme.onSurfaceVariant,
                 height: 1.45,
@@ -468,7 +468,7 @@ class _CommentsErrorState extends StatelessWidget {
             Icon(Icons.wifi_off_rounded, size: 52, color: colorScheme.error),
             const SizedBox(height: 18),
             Text(
-              errorMessage.isNotEmpty ? errorMessage : 'Une erreur de connexion est survenue',
+              errorMessage.isNotEmpty ? errorMessage : 'comments_connection_error'.tr,
               style: GoogleFonts.spaceGrotesk(
                 color: colorScheme.onSurface,
                 fontSize: 16,
@@ -480,7 +480,7 @@ class _CommentsErrorState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              label: Text('retry'.tr),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -564,7 +564,7 @@ class _CommentThreadTile extends StatelessWidget {
                             const Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.primary),
                             const SizedBox(width: 6),
                             Text(
-                              'Afficher plus de réponses',
+                              'comments_load_more_replies'.tr,
                               style: GoogleFonts.spaceGrotesk(
                                 color: AppColors.primary,
                                 fontSize: 12,
@@ -603,7 +603,7 @@ class _CommentThreadTile extends StatelessWidget {
                             const Icon(Icons.subdirectory_arrow_right_rounded, size: 16, color: AppColors.primary),
                             const SizedBox(width: 6),
                             Text(
-                              'Afficher les ${comment.repliesCount} réponse${comment.repliesCount > 1 ? 's' : ''}',
+                              'comments_show_replies'.trParams({'count': '${comment.repliesCount}'}),
                               style: GoogleFonts.spaceGrotesk(
                                 color: AppColors.primary,
                                 fontSize: 12,
@@ -788,7 +788,7 @@ class _CommentBodyCard extends StatelessWidget {
                           const Icon(Icons.reply_rounded, size: 14, color: AppColors.primary),
                           const SizedBox(width: 4),
                           Text(
-                            _commentTranslation('comments_reply_button', 'Répondre'),
+                            'comments_reply_action'.tr,
                             style: GoogleFonts.spaceGrotesk(
                               color: AppColors.primary,
                               fontWeight: FontWeight.bold,
@@ -810,10 +810,10 @@ class _CommentBodyCard extends StatelessWidget {
 
   String _formatTimeAgo(DateTime date) {
     final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}j';
+    if (diff.inMinutes < 1) return 'relative_just_now'.tr;
+    if (diff.inMinutes < 60) return 'relative_minutes_short'.trParams({'count': '${diff.inMinutes}'});
+    if (diff.inHours < 24) return 'relative_hours_short'.trParams({'count': '${diff.inHours}'});
+    if (diff.inDays < 7) return 'relative_days_short'.trParams({'count': '${diff.inDays}'});
     return DateFormat('dd/MM/yyyy').format(date);
   }
 }
