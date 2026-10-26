@@ -110,10 +110,10 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
     setState(() {
       _posts[index] = previousPost.copyWith(
         userReaction: nextReaction,
-        likeCount: (previousPost.likeCount + likeDelta).clamp(0, 1 << 31),
-        dislikeCount: (previousPost.dislikeCount + dislikeDelta).clamp(0, 1 << 31),
+        likeCount: (previousPost.likeCount + likeDelta).clamp(0, 1 << 31).toInt(),
+        dislikeCount: (previousPost.dislikeCount + dislikeDelta).clamp(0, 1 << 31).toInt(),
       );
-      _totalLikes = (_totalLikes + likeDelta).clamp(0, 1 << 31);
+      _totalLikes = (_totalLikes + likeDelta).clamp(0, 1 << 31).toInt();
     });
 
     try {
@@ -124,7 +124,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
       final currentIndex = _posts.indexWhere((item) => item.id == post.id);
       setState(() {
         if (currentIndex >= 0) _posts[currentIndex] = previousPost;
-        _totalLikes = (_totalLikes - likeDelta).clamp(0, 1 << 31);
+        _totalLikes = (_totalLikes - likeDelta).clamp(0, 1 << 31).toInt();
       });
       Get.snackbar('hashtag_feed_error_title'.tr, 'hashtag_feed_error'.tr);
     }
