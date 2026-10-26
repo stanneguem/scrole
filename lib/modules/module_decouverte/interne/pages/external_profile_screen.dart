@@ -1406,17 +1406,20 @@ class _ProfileMenuSheet extends StatelessWidget {
               subtitle: 'profile_report_description'.tr,
               color: colors.error,
               onTap: () {
-                Navigator.pop(context);
-                if (profile != null) {
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    backgroundColor: Colors.transparent,
-                    barrierColor: Colors.black.withValues(alpha: .48),
-                    builder: (_) => _ProfileReportSheet(profile: profile),
-                  );
-                }
+                // Use the root navigator's stable context because this menu
+                // route is dismissed before the report sheet is presented.
+                final navigator = Navigator.of(context, rootNavigator: true);
+                navigator.pop();
+                if (profile == null) return;
+                showModalBottomSheet<void>(
+                  context: navigator.context,
+                  useRootNavigator: true,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: Colors.transparent,
+                  barrierColor: Colors.black.withValues(alpha: .48),
+                  builder: (_) => _ProfileReportSheet(profile: profile),
+                );
               },
             ),
           ],
