@@ -261,7 +261,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(_formatDate(dateKey, 'EEEE d MMMM'), style: AppTextStyles.h4),
                 const SizedBox(height: 4),
-                Text('undefined $dayStart  ·  undefined $dayEnd', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
+                Text('${'event_itinerary_arrival'.tr} $dayStart  ·  ${'event_itinerary_departure'.tr} $dayEnd', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
               ])),
             ]),
             const SizedBox(height: 16),
@@ -275,7 +275,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
                 final end = (activity['end_time'] ?? '—').toString();
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     SizedBox(width: 44, child: Column(children: [
                       Container(width: 30, height: 30, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle, border: Border.all(color: AppColors.primary.withValues(alpha: 0.45))), child: const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary)),
                       Container(width: 2, height: 66, color: AppColors.primary.withValues(alpha: 0.35)),
