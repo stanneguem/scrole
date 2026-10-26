@@ -4,6 +4,8 @@ Le code Flutter reconnaît les liens canoniques :
 
 - `https://scrole.fun/post/<postId>`
 - `https://www.scrole.fun/post/<postId>`
+- `https://scrole.fun/user-profile/<userId>`
+- `https://www.scrole.fun/user-profile/<userId>`
 
 Il faut encore configurer l'hébergement du domaine et les fichiers d'association. Les commits du dépôt ne publient pas automatiquement de fichiers sur le domaine.
 
@@ -11,7 +13,7 @@ Il faut encore configurer l'hébergement du domaine et les fichiers d'associatio
 
 1. Configure le DNS de `scrole.fun` vers un hébergement HTTPS que tu contrôles.
 2. Configure aussi `www.scrole.fun` (ou redirige-le vers le domaine principal en conservant la prise en charge du lien).
-3. La page `/post/<postId>` doit retourner une page web utile si l'application n'est pas installée. À terme, cette page peut afficher le contenu public accessible et proposer le téléchargement de Scrole.
+3. Les pages `/post/<postId>` et `/user-profile/<userId>` doivent retourner une page web utile si l'application n'est pas installée. La page profil doit présenter uniquement les informations publiques et proposer le téléchargement de Scrole.
 4. Le certificat TLS doit être valide.
 
 ## 2. Android App Links
@@ -56,7 +58,8 @@ Exemple de structure à compléter avec le vrai Team ID Apple et le Bundle ID de
       {
         "appIDs": ["TEAM_ID_APPLE.BUNDLE_ID_IOS"],
         "components": [
-          { "/": "/post/*", "comment": "Ouvrir les liens de publications Scrole" }
+          { "/": "/post/*", "comment": "Ouvrir les liens de publications Scrole" },
+          { "/": "/user-profile/*", "comment": "Ouvrir les liens de profils Scrole" }
         ]
       }
     ]
@@ -70,8 +73,8 @@ Le Bundle ID actuel dans le projet iOS est `com.example.scrole`, qui semble êtr
 
 1. Vérifie que les deux fichiers d'association sont servis en HTTPS avec le contenu JSON attendu et sans redirection.
 2. Installe une build Android/iOS signée avec les identifiants correspondants.
-3. Envoie un lien réel `https://scrole.fun/post/<id>` dans Messages/WhatsApp et clique dessus.
-4. Vérifie que la publication s'ouvre dans Scrole, et que les contenus privés/inaccessibles restent protégés par les contrôles backend.
+3. Envoie un lien réel `https://scrole.fun/post/<id>` puis un lien `https://scrole.fun/user-profile/<userId>` dans Messages/WhatsApp et clique dessus.
+4. Vérifie que la publication et le profil s'ouvrent dans Scrole, y compris après connexion si le destinataire était déconnecté, et que les contenus privés/inaccessibles restent protégés par les contrôles backend.
 5. Teste aussi le lien sans application installée : le site web doit alors fournir une page de repli.
 
 **Important :** ne publie pas les exemples de ce document tels quels. Il manque encore les identifiants réels de signature et la configuration de l'hébergement.
