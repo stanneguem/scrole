@@ -908,18 +908,16 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (recent > 0) ...[
-                                    SvgPicture.asset(
-                                      'assets/svg_icons/fire-svgrepo-com.svg',
-                                      width: 16,
-                                      height: 16,
-                                      colorFilter: ColorFilter.mode(
-                                        colors.primary,
-                                        BlendMode.srcIn,
-                                      ),
+                                  SvgPicture.asset(
+                                    'assets/svg_icons/fire-svgrepo-com.svg',
+                                    width: 16,
+                                    height: 16,
+                                    colorFilter: ColorFilter.mode(
+                                      colors.primary,
+                                      BlendMode.srcIn,
                                     ),
-                                    const SizedBox(width: 3),
-                                  ],
+                                  ),
+                                  const SizedBox(width: 3),
                                   Flexible(
                                     child: Text(
                                       '#$name',
@@ -936,7 +934,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                '$postCount ${'hashtag_posts_count'.tr}',
+                                'hashtag_posts_count'.trParams({'count': postCount.toString()}),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
