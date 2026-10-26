@@ -30,12 +30,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    controller.fetchMyEvents();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
@@ -140,14 +134,17 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               ],
             ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Get.toNamed(
-              AppPages.eventPreview.replaceFirst(':id', event.id),
-              arguments: {
-                'id': event.id,
-                'event': event,
-                'context': contextRole,
-              },
-            ),
+            onTap: () async {
+              await Get.toNamed(
+                AppPages.eventPreview.replaceFirst(':id', event.id),
+                arguments: {
+                  'id': event.id,
+                  'event': event,
+                  'context': contextRole,
+                },
+              );
+              if (mounted) await controller.fetchMyEvents();
+            },
           ),
         );
       },
