@@ -5,6 +5,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../centre/models/event_model.dart';
 import '../../centre/repositories/event_repository.dart';
+import '../../../../shared/widgets/entity_certified_badge.dart';
 import 'event_itinerary_screen.dart';
 
 /// Read-only view of the user's itinerary. Editing belongs to EventItineraryScreen.
@@ -162,7 +163,26 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                               ),
                             ),
                           const SizedBox(height: 12),
-                          Text(widget.event.name, style: AppTextStyles.h3),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.event.name,
+                                  style: AppTextStyles.h3,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              EntityCertifiedBadge(
+                                entityType: 'event',
+                                entityId: widget.event.id,
+                                size: 19,
+                              ),
+                            ],
+                          ),
                           if (widget.event.address?.isNotEmpty == true) ...[
                             const SizedBox(height: 4),
                             Row(
