@@ -900,7 +900,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                         onTap: () => Get.toNamed(AppPages.hashtagFeedPath(name)),
                         child: Container(
                           constraints: const BoxConstraints(minWidth: 112, maxWidth: 156),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
@@ -938,7 +938,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               Text(
                                 'hashtag_posts_count'.trParams({'count': NumberFormatter.formatCount(postCount)}),
                                 maxLines: 1,
