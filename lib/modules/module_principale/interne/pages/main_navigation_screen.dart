@@ -177,7 +177,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                     ),
                     NavigationDestination(
                       icon: SvgPicture.asset(
-                        'assets/svg_icons/discussion.svg',
+                        'assets/svg_icons/group-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -186,7 +186,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                         ),
                       ),
                       selectedIcon: SvgPicture.asset(
-                        'assets/svg_icons/discussion.svg',
+                        'assets/svg_icons/group-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -198,12 +198,12 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                     ),
                     NavigationDestination(
                       icon: SvgPicture.asset(
-                        'assets/svg_icons/add-square-svgrepo-com.svg',
+                        'assets/svg_icons/add-circle-1-svgrepo-com.svg',
                         width: 38,
                         height: 38,
                       ),
                       selectedIcon: SvgPicture.asset(
-                        'assets/svg_icons/add-square-svgrepo-com.svg',
+                        'assets/svg_icons/add-circle-1-svgrepo-com.svg',
                         width: 38,
                         height: 38,
                       ),
