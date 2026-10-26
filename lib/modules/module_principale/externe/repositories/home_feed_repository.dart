@@ -238,6 +238,18 @@ class HomeFeedRepository {
     }
   }
 
+  /// Returns live hashtag trends calculated from visible posts in the last 30 minutes and 24 hours.
+  Future<List<Map<String, dynamic>>> getTrendingHashtags({int limit = 20}) async {
+    final response = await client.rpc('get_trending_hashtags', params: {
+      'p_limit': limit,
+    });
+    if (response is! List) return <Map<String, dynamic>>[];
+    return response
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>> getPostsByHashtag(
     String hashtag, {
     int limit = 20,
