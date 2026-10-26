@@ -714,9 +714,21 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         const SizedBox(height: 16),
 
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(child: Text(event.name, style: AppTextStyles.h2.copyWith(color: colorScheme.onSurface))),
-                            EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 22),
+                            Flexible(
+                              fit: FlexFit.loose,
+                              child: Text(
+                                event.name,
+                                style: AppTextStyles.h2.copyWith(color: colorScheme.onSurface),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            EntityCertifiedBadge(
+                              entityType: 'event',
+                              entityId: event.id,
+                              size: 22,
+                            ),
                           ],
                         ),
                         Text(
@@ -1255,7 +1267,25 @@ class _RestrictedPreviewView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [Expanded(child: Text(event.name.isNotEmpty ? event.name : 'Aperçu restreint', maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18)]),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                event.name.isNotEmpty ? event.name : 'Aperçu restreint',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            EntityCertifiedBadge(
+              entityType: 'event',
+              entityId: event.id,
+              size: 18,
+            ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Get.back(),
