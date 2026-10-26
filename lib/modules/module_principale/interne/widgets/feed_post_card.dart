@@ -84,7 +84,7 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
             GestureDetector(
               onTap: () => setState(() => _isExpanded = !_isExpanded),
               child: Text(
-                _isExpanded ? 'Voir moins' : 'Voir plus',
+                _isExpanded ? 'post_see_less'.tr : 'post_see_more'.tr,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -1495,7 +1495,7 @@ class _ShareSheetWidget extends StatelessWidget {
                       Text(
                         post.content.isNotEmpty
                             ? post.content
-                            : 'Publication multimédia',
+                            : 'post_media_placeholder'.tr,
                         style: TextStyle(
                           fontSize: 12.5,
                           color: colorScheme.onSurfaceVariant,
