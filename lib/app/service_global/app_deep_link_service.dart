@@ -442,7 +442,7 @@ class AppDeepLinkService {
       debugPrint('[AppDeepLinkService] Could not open post $postId: $error\n$stack');
     } finally {
       _isOpening = false;
-      if (_pendingPostId != null || _pendingEventId != null) _scheduleNavigation();
+      if (_pendingPostId != null || _pendingEventId != null || _pendingProfileId != null) _scheduleNavigation();
     }
   }
 
