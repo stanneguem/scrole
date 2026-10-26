@@ -54,10 +54,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           onRefresh: controller.fetchMyEvents,
           color: AppColors.primary,
           child: Obx(() {
-            if (controller.isLoadingMyEvents.value) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
+            // Le cache local reste visible pendant la synchronisation distante.
+            // On évite un écran de chargement qui masquerait les événements déjà disponibles.
             return TabBarView(
               children: [
                 _buildEventList(context, controller.managedEvents, 'my_events_empty_creations'.tr, contextRole: 'owner'),
@@ -120,7 +118,26 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                     )
                   : Icon(Icons.event_outlined, color: colors.outline, size: 30),
             ),
-            title: Row(children: [Expanded(child: Text(event.name, style: AppTextStyles.h4, maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 17)]),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Text(
+                    event.name,
+                    style: AppTextStyles.h4,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                EntityCertifiedBadge(
+                  entityType: 'event',
+                  entityId: event.id,
+                  size: 17,
+                ),
+              ],
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
