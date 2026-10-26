@@ -602,7 +602,7 @@ class ProfileScreen extends GetView<ProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
