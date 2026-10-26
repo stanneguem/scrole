@@ -489,6 +489,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   }
 
   void _onCardVisibilityChanged() {
+    if (!mounted) return;
     final postId = widget.autoplayPostId;
     if (postId == null) return;
     final eligible = FeedVideoAutoplayGate.isEligible(postId);
@@ -505,6 +506,9 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
+    // VisibilityDetector may deliver a queued callback after this widget starts
+    // disposing. Never touch a controller once the State is no longer mounted.
+    if (!mounted) return;
     final visible = info.visibleFraction >= 0.50;
     if (_visible == visible) return;
     _visible = visible;
@@ -522,8 +526,12 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     _preferencesWorker?.dispose();
     final postId = widget.autoplayPostId;
     if (postId != null) FeedVideoAutoplayGate.unregister(postId, _onCardVisibilityChanged);
-    _controller?.removeListener(_updatePlaybackOverlayOpacity);
-    _controller?.dispose();
+    // Clear the field before disposing so any queued visibility callback sees
+    // no controller to pause or play.
+    final controller = _controller;
+    _controller = null;
+    controller?.removeListener(_updatePlaybackOverlayOpacity);
+    if (controller != null) unawaited(controller.dispose());
     super.dispose();
   }
 
