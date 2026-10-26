@@ -644,15 +644,22 @@ class _SuggestionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Expanded(child: Text(
-                      event.name,
-                      style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )),
-                    EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
-                  ]),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Text(
+                          event.name,
+                          style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('EEE d MMM · HH:mm').format(event.startsAt),
@@ -745,15 +752,22 @@ class _SuggestionListTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Expanded(child: Text(
-                      event.name,
-                      style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )),
-                    EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
-                  ]),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Text(
+                          event.name,
+                          style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('EEEE d MMMM · HH:mm').format(event.startsAt),
