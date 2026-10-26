@@ -884,21 +884,65 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                         .replaceFirst(RegExp(r'^#+'), '');
                     if (name.isEmpty) return const SizedBox.shrink();
                     final recent = (trend['posts_30m'] as num?)?.toInt() ?? 0;
-                    return ActionChip(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      avatar: recent > 0
-                          ? Icon(Icons.local_fire_department_rounded, size: 16, color: colors.primary)
-                          : null,
-                      label: Text('#$name', maxLines: 1, overflow: TextOverflow.ellipsis),
-                      labelStyle: TextStyle(
-                        color: colors.onSurface,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                    final postCount = (trend['posts_24h'] as num?)?.toInt() ?? 0;
+                    return Material(
+                      color: colors.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Get.toNamed(AppPages.hashtagFeedPath(name)),
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 112, maxWidth: 156),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: colors.outlineVariant.withValues(alpha: 0.55),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (recent > 0) ...[
+                                    Icon(
+                                      Icons.local_fire_department_rounded,
+                                      size: 16,
+                                      color: colors.primary,
+                                    ),
+                                    const SizedBox(width: 3),
+                                  ],
+                                  Flexible(
+                                    child: Text(
+                                      '#$name',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: colors.onSurface,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '$postCount undefined',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      backgroundColor: colors.surfaceContainerHighest,
-                      side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.55)),
-                      onPressed: () => Get.toNamed(AppPages.hashtagFeedPath(name)),
                     );
                   },
                 ),
