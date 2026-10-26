@@ -34,6 +34,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
   static final RegExp _tokenPattern = RegExp(
     r'#[\p{L}\p{N}_]+|https?://[^\s<>{}]+|www\.[^\s<>{}]+|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:/[^\s<>{}]*)?|@[A-Za-z0-9_.]+|[*~]\{[^}]+\}',
     caseSensitive: false,
+    unicode: true,
   );
 
   @override
