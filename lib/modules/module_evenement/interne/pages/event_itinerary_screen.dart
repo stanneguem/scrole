@@ -62,7 +62,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     } catch (error) {
       debugPrint('[EventItineraryScreen] load failed: $error');
       if (mounted) setState(() => _loading = false);
-      Get.snackbar('Planning', 'Impossible de charger votre planning. Vérifiez votre connexion puis réessayez.');
+      Get.snackbar('event_itinerary_title'.tr, 'event_itinerary_load_error'.tr);
     }
   }
 
@@ -90,12 +90,12 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
         );
       }
       if (mounted) {
-        Get.snackbar('Planning enregistré', 'Votre parcours personnel a été sauvegardé.', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('event_itinerary_saved_title'.tr, 'event_itinerary_saved_message'.tr, snackPosition: SnackPosition.BOTTOM);
       }
     } catch (error) {
       debugPrint('[EventItineraryScreen] save failed: $error');
       if (mounted) {
-        Get.snackbar('Erreur', 'Impossible d’enregistrer le planning. Veuillez réessayer.', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('error'.tr, 'event_itinerary_save_error'.tr, snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -107,20 +107,20 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Organiser mon planning', style: AppTextStyles.h4.copyWith(fontSize: 18)),
+        title: Text('event_itinerary_edit'.tr, style: AppTextStyles.h4.copyWith(fontSize: 18)),
         actions: [
           TextButton(
             onPressed: _loading || _saving || _days.isEmpty ? null : _save,
             child: _saving
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.bold)),
+                : Text('event_itinerary_save'.tr, style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _days.isEmpty
-              ? const Center(child: Text('Aucun jour sélectionné dans votre agenda.'))
+              ? Center(child: Text('event_itinerary_no_day'.tr))
               : _activities.isEmpty
                   ? Center(
                       child: Padding(
@@ -130,9 +130,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                           children: [
                             const Icon(Icons.event_busy_rounded, size: 52, color: AppColors.primary),
                             const SizedBox(height: 16),
-                            Text('Aucune activité proposée', style: AppTextStyles.h4, textAlign: TextAlign.center),
+                            Text('event_itinerary_no_activities_title'.tr, style: AppTextStyles.h4, textAlign: TextAlign.center),
                             const SizedBox(height: 8),
-                            Text('L’organisateur n’a pas encore publié d’activités pour cet événement.', style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+                            Text('event_itinerary_no_activities_hint'.tr, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
                           ],
                         ),
                       ),
@@ -148,7 +148,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                             children: [
                               Text(widget.event.name, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 4),
-                              Text('Choisissez les activités de chaque journée et définissez vos horaires.', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
+                              Text('event_itinerary_choose_hint'.tr, style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
                               const SizedBox(height: 14),
                               SizedBox(
                                 height: 42,
@@ -176,7 +176,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                           child: ListView(
                             padding: const EdgeInsets.all(16),
                             children: [
-                              Text('Mes horaires', style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
+                              Text('event_itinerary_my_times'.tr, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
@@ -188,8 +188,8 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                               const SizedBox(height: 22),
                               Row(
                                 children: [
-                                  Expanded(child: Text('Activités proposées', style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold))),
-                                  Text('${_currentPlan().activities.length} choisie(s)', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                  Expanded(child: Text('event_itinerary_proposed_activities'.tr, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold))),
+                                  Text('event_itinerary_selected_count'.trParams({'count': _currentPlan().activities.length.toString()}), style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -276,7 +276,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
 
   Widget _smallTimeButton(String label, String value, ValueChanged<String> onChanged) {
     return OutlinedButton(
-      onPressed: () => _pickTime(title: '$label de l’activité', initial: value, onPicked: onChanged),
+      onPressed: () => _pickTime(title: 'event_itinerary_activity_time'.trParams({'label': label}), initial: value, onPicked: onChanged),
       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), visualDensity: VisualDensity.compact),
       child: Text('$label · $value', style: AppTextStyles.caption),
     );
