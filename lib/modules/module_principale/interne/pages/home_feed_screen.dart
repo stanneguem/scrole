@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
@@ -813,11 +814,28 @@ class _TrendingHashtagsStrip extends StatefulWidget {
 
 class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
   late Future<List<Map<String, dynamic>>> _trendsFuture;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _trendsFuture = HomeFeedRepository().getTrendingHashtags(limit: 10);
+    _loadTrends();
+    // Trends update periodically without forcing a full feed refresh.
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) _loadTrends();
+    });
+  }
+
+  void _loadTrends() {
+    setState(() {
+      _trendsFuture = HomeFeedRepository().getTrendingHashtags(limit: 10);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   @override
