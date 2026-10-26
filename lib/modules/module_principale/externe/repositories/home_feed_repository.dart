@@ -238,6 +238,45 @@ class HomeFeedRepository {
     }
   }
 
+  Future<Map<String, dynamic>> getPostsByHashtag(
+    String hashtag, {
+    int limit = 20,
+    String? cursor,
+  }) async {
+    final normalized = hashtag.trim().replaceFirst(RegExp(r'^#+'), '').toLowerCase();
+    if (normalized.isEmpty) {
+      return {'items': <CommunityPost>[], 'next_cursor': null, 'has_more': false};
+    }
+
+    final params = <String, dynamic>{
+      'p_hashtag': normalized,
+      'p_limit': limit,
+      if (cursor != null && cursor.isNotEmpty) 'p_cursor': cursor,
+    };
+    final response = await client.rpc('get_posts_by_hashtag', params: params);
+    List rawItems = [];
+    String? nextCursor;
+    bool hasMore = false;
+    if (response is Map) {
+      rawItems = response['items'] as List? ?? [];
+      nextCursor = response['next_cursor']?.toString();
+      hasMore = response['has_more'] == true || nextCursor != null;
+    } else if (response is List) {
+      rawItems = response;
+    }
+
+    final items = <CommunityPost>[];
+    final seen = <String>{};
+    for (final row in rawItems) {
+      if (row is! Map) continue;
+      final map = Map<String, dynamic>.from(row);
+      final id = (map['id'] ?? map['post_id'] ?? '').toString();
+      if (id.isEmpty || !seen.add(id)) continue;
+      items.add(_parsePost(map));
+    }
+    return {'items': items, 'next_cursor': nextCursor, 'has_more': hasMore};
+  }
+
   CommunityPost _parsePost(Map<String, dynamic> map) {
     return CommunityPost.fromMap(map);
   }
