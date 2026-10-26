@@ -1694,19 +1694,19 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
     final username = author['username']?.toString();
     final authorName = username != null && username.isNotEmpty
         ? '@$username'
-        : (author['first_name']?.toString() ?? 'Utilisateur');
+        : (author['first_name']?.toString() ?? 'story_default_user'.tr);
     final content = comment['content']?.toString() ?? '';
     try {
       await SharePlus.instance.share(
         ShareParams(
-          text: 'Commentaire de $authorName sur une story Scrole :\n\n$content',
+          text: 'story_share_comment_text'.trParams({'author': authorName, 'content': content}),
         ),
       );
     } catch (e) {
       if (mounted) {
         Get.snackbar(
-          'Erreur',
-          'Impossible de partager ce commentaire.',
+          'story_share_comment_error_title'.tr,
+          'story_share_comment_error'.tr,
           snackPosition: SnackPosition.BOTTOM,
         );
       }
@@ -1860,7 +1860,7 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                         'author':
                             _replyingTo!['author']?['username'] ??
                             _replyingTo!['author']?['first_name'] ??
-                            'Utilisateur',
+                            'story_default_user'.tr,
                       }),
                       style: TextStyle(
                         fontSize: 13,
@@ -1944,6 +1944,7 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
+                        tooltip: 'story_send'.tr,
                         onPressed: _isSending ? null : _sendComment,
                         icon: _isSending
                             ? const SizedBox(
