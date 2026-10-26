@@ -25,6 +25,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
   String? _error;
   int _totalPosts = 0;
   int _totalViews = 0;
+  int _totalLikes = 0;
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
         _posts.clear();
         _totalPosts = 0;
         _totalViews = 0;
+        _totalLikes = 0;
       });
     }
 
@@ -73,6 +75,7 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
         _posts.addAll(result['items'] as List<CommunityPost>);
         _totalPosts = (result['total_posts'] as num?)?.toInt() ?? _totalPosts;
         _totalViews = (result['total_views'] as num?)?.toInt() ?? _totalViews;
+        _totalLikes = (result['total_likes'] as num?)?.toInt() ?? _totalLikes;
         _cursor = result['next_cursor'] as String?;
         _hasMore = result['has_more'] == true;
         _loading = false;
@@ -156,6 +159,13 @@ class _HashtagFeedScreenState extends State<HashtagFeedScreen> {
                 const SizedBox(width: 4),
                 Text(
                   'hashtag_views_count'.trParams({'count': NumberFormatter.formatCount(_totalViews)}),
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.favorite_border_rounded, size: 17, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Text(
+                  NumberFormatter.formatCount(_totalLikes),
                   style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                 ),
               ],
