@@ -885,7 +885,7 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                         .replaceFirst(RegExp(r'^#+'), '');
                     if (name.isEmpty) return const SizedBox.shrink();
                     final recent = (trend['posts_30m'] as num?)?.toInt() ?? 0;
-                    final postCount = (trend['posts_24h'] as num?)?.toInt() ?? 0;
+                    final postCount = (trend['posts_total'] as num?)?.toInt() ?? (trend['posts_24h'] as num?)?.toInt() ?? 0;
                     return Material(
                       color: colors.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
