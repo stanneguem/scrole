@@ -102,11 +102,17 @@ class _ExternalEventItineraryScreenState extends State<ExternalEventItineraryScr
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                       children: [
-                        Row(children: [
-                          Expanded(child: Text(widget.eventName, style: AppTextStyles.h3, maxLines: 2, overflow: TextOverflow.ellipsis)),
-                          const SizedBox(width: 5),
-                          EntityCertifiedBadge(entityType: 'event', entityId: widget.eventId, size: 19),
-                        ]),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              fit: FlexFit.loose,
+                              child: Text(widget.eventName, style: AppTextStyles.h3, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 5),
+                            EntityCertifiedBadge(entityType: 'event', entityId: widget.eventId, size: 19),
+                          ],
+                        ),
                         if (widget.eventLocation.trim().isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Row(children: [
@@ -233,11 +239,18 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Expanded(child: Text(eventName, style: AppTextStyles.h3, maxLines: 2, overflow: TextOverflow.ellipsis)),
-              const SizedBox(width: 5),
-              EntityCertifiedBadge(entityType: 'event', entityId: eventId, size: 19),
-            ]),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Text(eventName, style: AppTextStyles.h3, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 5),
+                EntityCertifiedBadge(entityType: 'event', entityId: eventId, size: 19),
+              ],
+            ),
             if (eventLocation.trim().isNotEmpty) ...[
               const SizedBox(height: 6),
               Row(children: [
