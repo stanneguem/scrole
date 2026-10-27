@@ -30,9 +30,14 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   final List<AssetEntity> _selectedAssets = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
+  bool _isRequestingAssets = false;
   bool _hasMore = true;
   int _currentPage = 0;
-  static const int _pageSize = 60;
+  // Charger moins d'éléments au premier affichage limite le coût de MediaStore
+  // et de génération des miniatures sur les appareils contenant beaucoup de photos.
+  static const int _pageSize = 30;
+  static const int _maxInitialPages = 3;
+  static const Duration _galleryOperationTimeout = Duration(seconds: 20);
   
   bool _isOpeningMedia = false;
   static const Set<String> _videoExtensions = {'mp4', 'mov', 'm4v'};
@@ -52,60 +57,127 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   }
 
   Future<void> _requestAssets() async {
-    try {
-      final PermissionState ps = await PhotoManager.requestPermissionExtend();
-      if (ps.isAuth || ps == PermissionState.limited) {
-        final paths = await PhotoManager.getAssetPathList(
-          type: widget.allowMixedMedia ? RequestType.common : RequestType.image,
-          onlyAll: true,
-          filterOption: FilterOptionGroup(
-            containsLivePhotos: false,
-            orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
-          ),
-        );
+    if (_isRequestingAssets) return;
+    _isRequestingAssets = true;
+    final totalWatch = Stopwatch()..start();
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _isLoadingMore = false;
+        _hasMore = true;
+        _currentPage = 0;
+        _allAssets.clear();
+      });
+    }
 
-        if (paths.isNotEmpty) {
-          _currentPath = paths.first;
-          _currentPage = 0;
-          final entities = await _currentPath!.getAssetListPaged(page: _currentPage, size: _pageSize);
-          
-          if (mounted) {
-            setState(() {
-              _allAssets.clear();
-              _allAssets.addAll(entities.where(_isSupportedAsset));
-              _hasMore = entities.length == _pageSize;
-              _isLoading = false;
-            });
-          }
-        } else if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      } else if (mounted) {
-        setState(() => _isLoading = false);
+    try {
+      final permissionWatch = Stopwatch()..start();
+      final PermissionState ps = await PhotoManager.requestPermissionExtend()
+          .timeout(_galleryOperationTimeout);
+      debugPrint('[MEDIA_GALLERY] permission: ${permissionWatch.elapsedMilliseconds}ms state=$ps');
+
+      if (!(ps.isAuth || ps == PermissionState.limited)) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
       }
-    } catch (e) {
-      debugPrint('Erreur Galerie: $e');
+
+      final albumsWatch = Stopwatch()..start();
+      final paths = await PhotoManager.getAssetPathList(
+        type: widget.allowMixedMedia ? RequestType.common : RequestType.image,
+        onlyAll: true,
+        filterOption: FilterOptionGroup(
+          containsLivePhotos: false,
+          orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
+        ),
+      ).timeout(_galleryOperationTimeout);
+      debugPrint('[MEDIA_GALLERY] albums: ${albumsWatch.elapsedMilliseconds}ms count=${paths.length}');
+
+      if (paths.isEmpty) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      _currentPath = paths.first;
+      // Il peut y avoir une page composée uniquement de formats vidéo non pris
+      // en charge. Avancer quelques pages évite d'afficher une galerie vide bloquée.
+      var pageCount = 0;
+      var exhausted = false;
+      while (pageCount < _maxInitialPages && _allAssets.isEmpty && !exhausted) {
+        final pageWatch = Stopwatch()..start();
+        final entities = await _currentPath!
+            .getAssetListPaged(page: _currentPage, size: _pageSize)
+            .timeout(_galleryOperationTimeout);
+        pageCount++;
+        _allAssets.addAll(entities.where(_isSupportedAsset));
+        exhausted = entities.length < _pageSize;
+        _hasMore = !exhausted;
+        debugPrint(
+          '[MEDIA_GALLERY] page=$_currentPage fetched=${entities.length} '
+          'supported=${entities.where(_isSupportedAsset).length} '
+          'duration=${pageWatch.elapsedMilliseconds}ms',
+        );
+        if (!exhausted && _allAssets.isEmpty && pageCount < _maxInitialPages) {
+          _currentPage++;
+        } else {
+          break;
+        }
+      }
+
       if (mounted) setState(() => _isLoading = false);
+      debugPrint(
+        '[MEDIA_GALLERY] initial load: ${totalWatch.elapsedMilliseconds}ms '
+        'assets=${_allAssets.length} hasMore=$_hasMore',
+      );
+    } on Exception catch (e, stack) {
+      debugPrint('[MEDIA_GALLERY] Initial load failed after ${totalWatch.elapsedMilliseconds}ms: $e\n$stack');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasMore = false;
+        });
+        Get.snackbar(
+          'Galerie indisponible',
+          'Le chargement des médias a pris trop de temps ou a échoué. Réessaie.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } finally {
+      _isRequestingAssets = false;
     }
   }
 
   Future<void> _loadMoreAssets() async {
-    if (_isLoadingMore || !_hasMore || _currentPath == null) return;
+    if (_isLoading || _isLoadingMore || !_hasMore || _currentPath == null) return;
 
     setState(() => _isLoadingMore = true);
+    final watch = Stopwatch()..start();
     try {
-      _currentPage++;
-      final entities = await _currentPath!.getAssetListPaged(page: _currentPage, size: _pageSize);
-      
+      final nextPage = _currentPage + 1;
+      final entities = await _currentPath!
+          .getAssetListPaged(page: nextPage, size: _pageSize)
+          .timeout(_galleryOperationTimeout);
+      final supported = entities.where(_isSupportedAsset).toList();
+
       if (mounted) {
         setState(() {
-          _allAssets.addAll(entities.where(_isSupportedAsset));
+          _currentPage = nextPage;
+          _allAssets.addAll(supported);
           _hasMore = entities.length == _pageSize;
           _isLoadingMore = false;
         });
       }
-    } catch (e) {
-      debugPrint('Erreur chargement suite galerie: $e');
+      debugPrint(
+        '[MEDIA_GALLERY] next page=$nextPage fetched=${entities.length} '
+        'supported=${supported.length} duration=${watch.elapsedMilliseconds}ms',
+      );
+
+      // Si cette page ne contient aucun média affichable, continuer la pagination
+      // pour éviter que l'indicateur reste visible sans nouvelles vignettes.
+      if (supported.isEmpty && entities.length == _pageSize && mounted) {
+        await _loadMoreAssets();
+      }
+    } on Exception catch (e, stack) {
+      debugPrint('[MEDIA_GALLERY] Loading more failed after ${watch.elapsedMilliseconds}ms: $e\n$stack');
       if (mounted) setState(() => _isLoadingMore = false);
     }
   }
