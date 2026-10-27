@@ -34,6 +34,10 @@ class HomeFeedController extends GetxController {
   final RxBool isLoadingMore = false.obs;
   final RxString nextCursor = ''.obs;
 
+  final Map<String, DateTime> _activeDwellStartedAt = {};
+  final List<Map<String, dynamic>> _pendingDwellItems = [];
+  Timer? _dwellBatchTimer;
+
   final Set<String> _sentViewIds = {};
   final List<String> _pendingViewIds = [];
   Timer? _viewBatchTimer;
@@ -60,6 +64,42 @@ class HomeFeedController extends GetxController {
       return await _feedRepo.getPostCounters(ids);
     } finally {
       _postCountersRequestInFlight = false;
+    }
+  }
+
+  void startPostDwell(CommunityPost post) {
+    if (post.isPublishing || post.id.isEmpty) return;
+    final myId = _authService.userId;
+    if (myId != null && post.authorId == myId) return;
+    _activeDwellStartedAt.putIfAbsent(post.id, DateTime.now);
+  }
+
+  void stopPostDwell(String postId) {
+    final startedAt = _activeDwellStartedAt.remove(postId);
+    if (startedAt == null) return;
+    final dwellMs = DateTime.now().difference(startedAt).inMilliseconds;
+    if (dwellMs <= 0) return;
+    _pendingDwellItems.add({'post_id': postId, 'dwell_ms': dwellMs});
+    if (_pendingDwellItems.length >= 100) {
+      unawaited(_flushPostDwell());
+    } else {
+      _dwellBatchTimer ??= Timer(const Duration(seconds: 5), _flushPostDwell);
+    }
+  }
+
+  Future<void> _flushPostDwell() async {
+    _dwellBatchTimer?.cancel();
+    _dwellBatchTimer = null;
+    while (_pendingDwellItems.isNotEmpty) {
+      final count = _pendingDwellItems.length > 100 ? 100 : _pendingDwellItems.length;
+      final batch = _pendingDwellItems.take(count).toList();
+      _pendingDwellItems.removeRange(0, count);
+      try {
+        final recorded = await _feedRepo.recordPostDwell(batch);
+        debugPrint('[POST_DWELL] Recorded dwell for $recorded/${batch.length} posts');
+      } catch (e) {
+        debugPrint('[POST_DWELL] Batch failed and was dropped: $e');
+      }
     }
   }
 
@@ -163,6 +203,11 @@ class HomeFeedController extends GetxController {
 
   @override
   void onClose() {
+    _dwellBatchTimer?.cancel();
+    for (final postId in _activeDwellStartedAt.keys.toList()) {
+      stopPostDwell(postId);
+    }
+    unawaited(_flushPostDwell());
     _viewBatchTimer?.cancel();
     _counterRefreshTimer?.cancel();
     _flushViewBatch();
