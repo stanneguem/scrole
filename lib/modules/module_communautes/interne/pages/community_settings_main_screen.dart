@@ -3353,7 +3353,27 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
 
   bool get _isEvent => widget.entityType == 'event';
   bool get _isCertified => _status['entity_certified'] == true;
-  int _int(String key) => (_entitlements[key] as num?)?.toInt() ?? 0;
+
+  // Normalize JSON values returned by Postgres RPCs. Older deployments may
+  // return numeric counters as strings, and may expose legacy key aliases.
+  int _intFor(List<String> keys) {
+    for (final key in keys) {
+      final value = _entitlements[key];
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value.trim());
+        if (parsed != null) return parsed;
+      }
+    }
+    return 0;
+  }
+
+  String _formatDate(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) return '';
+    final parsed = DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return DateFormat('dd/MM/yyyy HH:mm').format(parsed.toLocal());
+  }
 
   @override
   void initState() {
@@ -3419,12 +3439,25 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final remainingKey = _isEvent ? 'event_remaining' : 'community_remaining';
-    final quotaKey = _isEvent ? 'event_quota' : 'community_quota';
-    final usedKey = _isEvent ? 'event_used' : 'community_used';
-    final remaining = _int(remainingKey);
-    final quota = _int(quotaKey);
-    final used = _int(usedKey);
+    final remaining = _intFor(_isEvent
+        ? const ['event_remaining', 'events_remaining', 'remaining_events']
+        : const ['community_remaining', 'communities_remaining', 'remaining_communities']);
+    final quota = _intFor(_isEvent
+        ? const ['event_quota', 'events_quota', 'quota_events']
+        : const ['community_quota', 'communities_quota', 'quota_communities']);
+    final used = _intFor(_isEvent
+        ? const ['event_used', 'events_used', 'used_events']
+        : const ['community_used', 'communities_used', 'used_communities']);
+    final planCode = (_entitlements['plan_code'] ??
+        _entitlements['plan'] ??
+        _entitlements['subscription_plan'] ??
+        '').toString().trim();
+    final basis = (_entitlements['entitlement_basis'] ??
+        _entitlements['basis'] ??
+        '').toString().trim();
+    final endsAt = _formatDate(_entitlements['ends_at'] ??
+        _entitlements['valid_until'] ??
+        _entitlements['expires_at']);
     return Scaffold(
       appBar: AppBar(title: Text((_isEvent ? 'entity_cert_event_label' : 'entity_cert_community_title').tr)),
       body: _loading
@@ -3472,13 +3505,18 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
                     padding: const EdgeInsets.all(16),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text((_entitlements['active'] == true)
-                        ? 'entity_cert_plan_active'.trParams({'plan': (_entitlements['plan_code'] ?? '').toString().toUpperCase(), 'basis': (_entitlements['entitlement_basis'] == 'profile_certification' ? 'entity_cert_basis_profile'.tr : 'entity_cert_basis_subscription'.tr)})
+                        ? 'entity_cert_plan_active'.trParams({
+                            'plan': planCode.isEmpty ? '—' : planCode.toUpperCase(),
+                            'basis': basis == 'profile_certification'
+                                ? 'entity_cert_basis_profile'.tr
+                                : 'entity_cert_basis_subscription'.tr,
+                          })
                         : 'entity_cert_no_active_entitlement'.tr),
                       const SizedBox(height: 10),
                       Text('entity_cert_quota_summary'.trParams({'used': '$used', 'quota': '$quota', 'remaining': '$remaining'})),
-                      if (_entitlements['ends_at'] != null) ...[
+                      if (endsAt.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        Text('${'entity_cert_subscription_ends'.tr}: ${_entitlements['ends_at']}', style: Theme.of(context).textTheme.bodySmall),
+                        Text('${'entity_cert_subscription_ends'.tr}: $endsAt', style: Theme.of(context).textTheme.bodySmall),
                       ],
                       const SizedBox(height: 14),
                       SizedBox(width: double.infinity, child: FilledButton.icon(
