@@ -402,8 +402,9 @@ class HomeFeedRepository {
         return response.map((e) => Map<String, dynamic>.from(e)).toList();
       }
       return [];
-    } catch (e, st) {
-      debugPrint('[POST_ACTIONS] Error in get_post_counters (ignored): $e\n$st');
+    } catch (e) {
+      // Counter refresh is best-effort; keep transient network failures concise.
+      debugPrint('[POST_ACTIONS] get_post_counters failed (will retry later): $e');
       return [];
     }
   }
