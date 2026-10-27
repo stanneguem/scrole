@@ -248,6 +248,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       FeedVideoAutoplayGate.updatePostVisibility(post.id, eligible);
                       if (eligible) {
                         feedController.queuePostView(post);
+                        feedController.startPostDwell(post);
+                      } else {
+                        feedController.stopPostDwell(post.id);
                       }
                     },
                     child: Center(
