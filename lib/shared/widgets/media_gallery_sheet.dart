@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -26,17 +27,21 @@ class MediaGallerySheet extends StatefulWidget {
 }
 
 class _MediaGallerySheetState extends State<MediaGallerySheet> {
-  final List<AssetEntity> _allAssets = [];
+  final List<AssetEntity> _imageAssets = [];
+  final List<AssetEntity> _videoAssets = [];
   final List<AssetEntity> _selectedAssets = [];
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
+  bool _isLoadingImages = true;
+  bool _isLoadingVideos = false;
+  bool _isLoadingMoreImages = false;
+  bool _isLoadingMoreVideos = false;
   bool _isRequestingAssets = false;
-  bool _hasMore = true;
-  int _currentPage = 0;
-  // Charger moins d'éléments au premier affichage limite le coût de MediaStore
-  // et de génération des miniatures sur les appareils contenant beaucoup de photos.
+  bool _hasMoreImages = true;
+  bool _hasMoreVideos = true;
+  bool _videosLoaded = false;
+  int _imagePage = 0;
+  int _videoPage = 0;
+  int _activeTab = 0;
   static const int _pageSize = 30;
-  static const int _maxInitialPages = 3;
   static const Duration _galleryOperationTimeout = Duration(seconds: 20);
   
   bool _isOpeningMedia = false;
@@ -48,7 +53,8 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     final extension = p.extension(title).replaceFirst('.', '').toLowerCase();
     return _videoExtensions.contains(extension);
   }
-  AssetPathEntity? _currentPath;
+  AssetPathEntity? _imagePath;
+  AssetPathEntity? _videoPath;
 
   @override
   void initState() {
@@ -62,11 +68,17 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     final totalWatch = Stopwatch()..start();
     if (mounted) {
       setState(() {
-        _isLoading = true;
-        _isLoadingMore = false;
-        _hasMore = true;
-        _currentPage = 0;
-        _allAssets.clear();
+        _isLoadingImages = true;
+        _isLoadingVideos = false;
+        _isLoadingMoreImages = false;
+        _isLoadingMoreVideos = false;
+        _hasMoreImages = true;
+        _hasMoreVideos = true;
+        _videosLoaded = false;
+        _imagePage = 0;
+        _videoPage = 0;
+        _imageAssets.clear();
+        _videoAssets.clear();
       });
     }
 
@@ -75,121 +87,162 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       final PermissionState ps = await PhotoManager.requestPermissionExtend()
           .timeout(_galleryOperationTimeout);
       debugPrint('[MEDIA_GALLERY] permission: ${permissionWatch.elapsedMilliseconds}ms state=$ps');
-
       if (!(ps.isAuth || ps == PermissionState.limited)) {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoadingImages = false);
         return;
       }
 
-      final albumsWatch = Stopwatch()..start();
-      final paths = await PhotoManager.getAssetPathList(
-        type: widget.allowMixedMedia ? RequestType.common : RequestType.image,
+      final imageAlbumsWatch = Stopwatch()..start();
+      final imagePaths = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
         onlyAll: true,
         filterOption: FilterOptionGroup(
           containsLivePhotos: false,
           orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
         ),
       ).timeout(_galleryOperationTimeout);
-      debugPrint('[MEDIA_GALLERY] albums: ${albumsWatch.elapsedMilliseconds}ms count=${paths.length}');
+      debugPrint('[MEDIA_GALLERY] image albums: ${imageAlbumsWatch.elapsedMilliseconds}ms count=${imagePaths.length}');
 
-      if (paths.isEmpty) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-
-      _currentPath = paths.first;
-      // Il peut y avoir une page composée uniquement de formats vidéo non pris
-      // en charge. Avancer quelques pages évite d'afficher une galerie vide bloquée.
-      var pageCount = 0;
-      var exhausted = false;
-      while (pageCount < _maxInitialPages && _allAssets.isEmpty && !exhausted) {
-        final pageWatch = Stopwatch()..start();
-        final entities = await _currentPath!
-            .getAssetListPaged(page: _currentPage, size: _pageSize)
+      if (imagePaths.isNotEmpty) {
+        _imagePath = imagePaths.first;
+        final imageWatch = Stopwatch()..start();
+        final images = await _imagePath!
+            .getAssetListPaged(page: 0, size: _pageSize)
             .timeout(_galleryOperationTimeout);
-        pageCount++;
-        _allAssets.addAll(entities.where(_isSupportedAsset));
-        exhausted = entities.length < _pageSize;
-        _hasMore = !exhausted;
-        debugPrint(
-          '[MEDIA_GALLERY] page=$_currentPage fetched=${entities.length} '
-          'supported=${entities.where(_isSupportedAsset).length} '
-          'duration=${pageWatch.elapsedMilliseconds}ms',
-        );
-        if (!exhausted && _allAssets.isEmpty && pageCount < _maxInitialPages) {
-          _currentPage++;
-        } else {
-          break;
+        if (mounted) {
+          setState(() {
+            _imageAssets.addAll(images.where((asset) => asset.type == AssetType.image));
+            _hasMoreImages = images.length == _pageSize;
+            _isLoadingImages = false;
+          });
         }
+        debugPrint('[MEDIA_GALLERY] first images: count=${images.length} duration=${imageWatch.elapsedMilliseconds}ms');
+      } else if (mounted) {
+        setState(() => _isLoadingImages = false);
       }
 
-      if (mounted) setState(() => _isLoading = false);
-      debugPrint(
-        '[MEDIA_GALLERY] initial load: ${totalWatch.elapsedMilliseconds}ms '
-        'assets=${_allAssets.length} hasMore=$_hasMore',
-      );
+      // Les images sont déjà affichées : la récupération des vidéos se fait en arrière-plan.
+      if (widget.allowMixedMedia && mounted) unawaited(_loadInitialVideos());
+      debugPrint('[MEDIA_GALLERY] images ready after ${totalWatch.elapsedMilliseconds}ms');
     } on Exception catch (e, stack) {
-      debugPrint('[MEDIA_GALLERY] Initial load failed after ${totalWatch.elapsedMilliseconds}ms: $e\n$stack');
+      debugPrint('[MEDIA_GALLERY] Initial image load failed after ${totalWatch.elapsedMilliseconds}ms: $e\n$stack');
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasMore = false;
-        });
-        Get.snackbar(
-          'Galerie indisponible',
-          'Le chargement des médias a pris trop de temps ou a échoué. Réessaie.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        setState(() => _isLoadingImages = false);
+        Get.snackbar('Galerie indisponible', 'Le chargement des images a échoué. Réessaie.', snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       _isRequestingAssets = false;
     }
   }
 
-  Future<void> _loadMoreAssets() async {
-    if (_isLoading || _isLoadingMore || !_hasMore || _currentPath == null) return;
-
-    setState(() => _isLoadingMore = true);
+  Future<void> _loadInitialVideos() async {
+    if (_videosLoaded || _isLoadingVideos || !widget.allowMixedMedia) return;
+    if (mounted) setState(() => _isLoadingVideos = true);
     final watch = Stopwatch()..start();
     try {
-      final nextPage = _currentPage + 1;
-      final entities = await _currentPath!
-          .getAssetListPaged(page: nextPage, size: _pageSize)
+      final paths = await PhotoManager.getAssetPathList(
+        type: RequestType.video,
+        onlyAll: true,
+        filterOption: FilterOptionGroup(
+          orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
+        ),
+      ).timeout(_galleryOperationTimeout);
+      if (paths.isNotEmpty) {
+        _videoPath = paths.first;
+        final videos = await _videoPath!
+            .getAssetListPaged(page: 0, size: _pageSize)
+            .timeout(_galleryOperationTimeout);
+        if (mounted) {
+          setState(() {
+            _videoAssets.addAll(videos.where(_isSupportedAsset));
+            _hasMoreVideos = videos.length == _pageSize;
+            _videosLoaded = true;
+            _isLoadingVideos = false;
+          });
+        }
+        debugPrint('[MEDIA_GALLERY] first videos: count=${videos.length} duration=${watch.elapsedMilliseconds}ms');
+      } else if (mounted) {
+        setState(() {
+          _videosLoaded = true;
+          _isLoadingVideos = false;
+          _hasMoreVideos = false;
+        });
+      }
+    } on Exception catch (e, stack) {
+      debugPrint('[MEDIA_GALLERY] Initial video load failed after ${watch.elapsedMilliseconds}ms: $e\n$stack');
+      if (mounted) setState(() {
+        _videosLoaded = true;
+        _isLoadingVideos = false;
+        _hasMoreVideos = false;
+      });
+    }
+  }
+
+  Future<void> _loadMoreAssets() async {
+    final isImages = _activeTab == 0;
+    final path = isImages ? _imagePath : _videoPath;
+    final isLoadingMore = isImages ? _isLoadingMoreImages : _isLoadingMoreVideos;
+    final hasMore = isImages ? _hasMoreImages : _hasMoreVideos;
+    if (isLoadingMore || !hasMore || path == null) return;
+    if (!isImages && !_videosLoaded) return;
+
+    setState(() {
+      if (isImages) {
+        _isLoadingMoreImages = true;
+      } else {
+        _isLoadingMoreVideos = true;
+      }
+    });
+    final watch = Stopwatch()..start();
+    try {
+      final nextPage = (isImages ? _imagePage : _videoPage) + 1;
+      final entities = await path.getAssetListPaged(page: nextPage, size: _pageSize)
           .timeout(_galleryOperationTimeout);
-      final supported = entities.where(_isSupportedAsset).toList();
+      final supported = isImages
+          ? entities.where((asset) => asset.type == AssetType.image).toList()
+          : entities.where(_isSupportedAsset).toList();
 
       if (mounted) {
         setState(() {
-          _currentPage = nextPage;
-          _allAssets.addAll(supported);
-          _hasMore = entities.length == _pageSize;
-          _isLoadingMore = false;
+          if (isImages) {
+            _imagePage = nextPage;
+            _imageAssets.addAll(supported);
+            _hasMoreImages = entities.length == _pageSize;
+            _isLoadingMoreImages = false;
+          } else {
+            _videoPage = nextPage;
+            _videoAssets.addAll(supported);
+            _hasMoreVideos = entities.length == _pageSize;
+            _isLoadingMoreVideos = false;
+          }
         });
       }
-      debugPrint(
-        '[MEDIA_GALLERY] next page=$nextPage fetched=${entities.length} '
-        'supported=${supported.length} duration=${watch.elapsedMilliseconds}ms',
-      );
-
-      // Si cette page ne contient aucun média affichable, continuer la pagination
-      // pour éviter que l'indicateur reste visible sans nouvelles vignettes.
+      debugPrint('[MEDIA_GALLERY] ${isImages ? "images" : "videos"} page=$nextPage fetched=${entities.length} supported=${supported.length} duration=${watch.elapsedMilliseconds}ms');
       if (supported.isEmpty && entities.length == _pageSize && mounted) {
         await _loadMoreAssets();
       }
     } on Exception catch (e, stack) {
-      debugPrint('[MEDIA_GALLERY] Loading more failed after ${watch.elapsedMilliseconds}ms: $e\n$stack');
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-          _hasMore = false;
-        });
-      }
+      debugPrint('[MEDIA_GALLERY] Pagination failed: $e\n$stack');
+      if (mounted) setState(() {
+        if (isImages) {
+          _isLoadingMoreImages = false;
+          _hasMoreImages = false;
+        } else {
+          _isLoadingMoreVideos = false;
+          _hasMoreVideos = false;
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final assets = _activeTab == 0 ? _imageAssets : _videoAssets;
+    final isLoading = _activeTab == 0 ? _isLoadingImages : _isLoadingVideos;
+    final isLoadingMore = _activeTab == 0 ? _isLoadingMoreImages : _isLoadingMoreVideos;
+    final hasMore = _activeTab == 0 ? _hasMoreImages : _hasMoreVideos;
+    final videosPending = _activeTab == 1 && !_videosLoaded && !_isLoadingVideos;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
@@ -197,69 +250,71 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       maxChildSize: 1.0,
       expand: false,
       builder: (context, scrollController) {
-        return NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification scrollInfo) {
-            if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
-              _loadMoreAssets();
-            }
-            return false;
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Galerie (${_selectedAssets.length}/${widget.maxSelection})', style: AppTextStyles.h5),
-                      if (_selectedAssets.isNotEmpty)
-                        TextButton(
-                          onPressed: _isOpeningMedia ? null : _confirmSelection,
-                          child: Text(
-                            'Confirmer (${_selectedAssets.length})',
-                            style: TextStyle(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        )
-                      else
-                        IconButton(
-                          onPressed: _isOpeningMedia ? null : () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close_rounded),
+        return Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Galerie (${_selectedAssets.length}/${widget.maxSelection})', style: AppTextStyles.h5),
+                    if (_selectedAssets.isNotEmpty)
+                      TextButton(
+                        onPressed: _isOpeningMedia ? null : _confirmSelection,
+                        child: Text(
+                          'Confirmer (${_selectedAssets.length})',
+                          style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
+                      )
+                    else
+                      IconButton(
+                        onPressed: _isOpeningMedia ? null : () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                  ],
+                ),
+              ),
+              if (widget.allowMixedMedia)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: Row(
+                    children: [
+                      Expanded(child: _galleryTab('Images', 0, _imageAssets.length, colorScheme)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _galleryTab('Vidéos', 1, _videoAssets.length, colorScheme)),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _allAssets.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('gallery_empty'.tr),
-                                  const SizedBox(height: 16),
-                                  OutlinedButton(
-                                    onPressed: _requestAssets,
-                                    child: Text('gallery_refresh'.tr),
-                                  ),
-                                  TextButton(
-                                    onPressed: PhotoManager.openSetting,
-                                    child: Text('gallery_permissions'.tr),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : GridView.builder(
+              const Divider(height: 1),
+              Expanded(
+                child: isLoading || videosPending
+                    ? const Center(child: CircularProgressIndicator())
+                    : assets.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('gallery_empty'.tr),
+                                const SizedBox(height: 16),
+                                OutlinedButton(onPressed: _requestAssets, child: Text('gallery_refresh'.tr)),
+                                TextButton(onPressed: PhotoManager.openSetting, child: Text('gallery_permissions'.tr)),
+                              ],
+                            ),
+                          )
+                        : NotificationListener<ScrollNotification>(
+                            onNotification: (notification) {
+                              if (notification.metrics.pixels >= notification.metrics.maxScrollExtent - 200) {
+                                _loadMoreAssets();
+                              }
+                              return false;
+                            },
+                            child: GridView.builder(
+                              key: PageStorageKey<String>('media-gallery-$_activeTab'),
                               controller: scrollController,
                               padding: const EdgeInsets.all(1),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -267,35 +322,60 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                                 crossAxisSpacing: 2,
                                 mainAxisSpacing: 2,
                               ),
-                              itemCount: _allAssets.length + (_hasMore ? 1 : 0),
+                              itemCount: assets.length + (hasMore || isLoadingMore ? 1 : 0),
                               itemBuilder: (context, index) {
-                                if (index >= _allAssets.length) {
+                                if (index >= assets.length) {
                                   return const Center(
                                     child: Padding(
-                                      padding: EdgeInsets.all(8.0),
+                                      padding: EdgeInsets.all(8),
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     ),
                                   );
                                 }
-
-                                final asset = _allAssets[index];
-                                final isSelected = _selectedAssets.contains(asset);
-                                final selectionIndex = _selectedAssets.indexOf(asset);
-
+                                final asset = assets[index];
                                 return _AssetItem(
                                   asset: asset,
-                                  isSelected: isSelected,
-                                  selectionIndex: selectionIndex,
+                                  isSelected: _selectedAssets.contains(asset),
+                                  selectionIndex: _selectedAssets.indexOf(asset),
                                   onTap: () => _toggleSelection(asset),
                                 );
                               },
                             ),
-                ),
-              ],
-            ),
+                          ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _galleryTab(String label, int index, int count, ColorScheme colorScheme) {
+    final selected = _activeTab == index;
+    return Material(
+      color: selected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          setState(() => _activeTab = index);
+          if (index == 1 && !_videosLoaded && !_isLoadingVideos) {
+            unawaited(_loadInitialVideos());
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+          child: Center(
+            child: Text(
+              '$label ($count)',
+              style: TextStyle(
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
