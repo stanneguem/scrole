@@ -129,7 +129,7 @@ Future<void> _bootstrap() async {
     _startJankMonitor();
 
     bootLog('runApp appelé');
-    runApp(DevicePreview(enabled: false, builder: (context) => const MyApp()));
+    runApp(DevicePreview(enabled: kDebugMode, builder: (context) => const MyApp()));
 
     WidgetsBinding.instance.waitUntilFirstFrameRasterized.then((_) {
       debugPrint('[Boot] premier frame : ${sw.elapsedMilliseconds} ms');
