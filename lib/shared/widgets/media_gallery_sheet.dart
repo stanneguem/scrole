@@ -178,7 +178,12 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       }
     } on Exception catch (e, stack) {
       debugPrint('[MEDIA_GALLERY] Loading more failed after ${watch.elapsedMilliseconds}ms: $e\n$stack');
-      if (mounted) setState(() => _isLoadingMore = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+          _hasMore = false;
+        });
+      }
     }
   }
 
