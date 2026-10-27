@@ -38,6 +38,30 @@ class HomeFeedController extends GetxController {
   final List<String> _pendingViewIds = [];
   Timer? _viewBatchTimer;
   Timer? _counterRefreshTimer;
+  bool _refreshingVisibleCounters = false;
+
+  // Protect against duplicate HomeFeedController instances issuing the same
+  // periodic counters RPC at the same time.
+  static bool _postCountersRequestInFlight = false;
+  static DateTime? _lastPostCountersRequestAt;
+
+  Future<List<Map<String, dynamic>>> _requestPostCounters(List<String> ids) async {
+    if (ids.isEmpty || _postCountersRequestInFlight) return const [];
+    final now = DateTime.now();
+    final lastRequest = _lastPostCountersRequestAt;
+    // Multiple feed controllers can exist briefly during route transitions.
+    // Coalesce their identical refreshes instead of flooding Supabase.
+    if (lastRequest != null && now.difference(lastRequest) < const Duration(seconds: 8)) {
+      return const [];
+    }
+    _postCountersRequestInFlight = true;
+    _lastPostCountersRequestAt = now;
+    try {
+      return await _feedRepo.getPostCounters(ids);
+    } finally {
+      _postCountersRequestInFlight = false;
+    }
+  }
 
   void queuePostView(CommunityPost post) {
     if (post.isPublishing) return;
@@ -68,7 +92,7 @@ class HomeFeedController extends GetxController {
       debugPrint('[POST_ACTIONS] Sending view batch of ${batch.length} posts');
       await _feedRepo.recordPostViews(batch);
 
-      final counters = await _feedRepo.getPostCounters(batch);
+      final counters = await _requestPostCounters(batch);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -93,10 +117,12 @@ class HomeFeedController extends GetxController {
   }
 
   Future<void> _refreshVisibleCounters() async {
-    if (posts.isEmpty) return;
-    final ids = posts.take(50).map((p) => p.id).toList();
+    if (_refreshingVisibleCounters || posts.isEmpty || state.value != HomeFeedState.loaded) return;
+    final ids = posts.take(50).map((p) => p.id).toSet().toList();
+    if (ids.isEmpty) return;
+    _refreshingVisibleCounters = true;
     try {
-      final counters = await _feedRepo.getPostCounters(ids);
+      final counters = await _requestPostCounters(ids);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -115,7 +141,11 @@ class HomeFeedController extends GetxController {
         }
         posts.refresh();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[POST_ACTIONS] Counter refresh failed; will retry on next interval: $e');
+    } finally {
+      _refreshingVisibleCounters = false;
+    }
   }
 
   @override
