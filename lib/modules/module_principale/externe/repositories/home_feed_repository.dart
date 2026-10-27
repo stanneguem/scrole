@@ -121,6 +121,23 @@ class HomeFeedRepository {
     }
   }
 
+  Future<int> recordPostDwell(List<Map<String, dynamic>> items) async {
+    if (items.isEmpty) return 0;
+    if (items.length > 100) {
+      throw ArgumentError('record_post_dwell accepts at most 100 items');
+    }
+    try {
+      final response = await client.rpc(
+        'record_post_dwell',
+        params: {'p_items': items},
+      );
+      return response is num ? response.toInt() : 0;
+    } catch (e, st) {
+      debugPrint('[POST_DWELL] Error recording dwell batch: $e\\n$st');
+      rethrow;
+    }
+  }
+
   Future<void> recordPostViews(List<String> postIds) async {
     if (postIds.isEmpty) return;
     try {
