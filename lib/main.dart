@@ -129,7 +129,7 @@ Future<void> _bootstrap() async {
     _startJankMonitor();
 
     bootLog('runApp appelé');
-    runApp(DevicePreview(enabled: kDebugMode, builder: (context) => const MyApp()));
+    runApp(const MyApp());
 
     WidgetsBinding.instance.waitUntilFirstFrameRasterized.then((_) {
       debugPrint('[Boot] premier frame : ${sw.elapsedMilliseconds} ms');
@@ -336,9 +336,7 @@ class MyApp extends StatelessWidget {
         getPages: AppRoutes.routes,
         builder: (context, child) {
           bootLog('GetMaterialApp.builder start');
-          final result = DevicePreview.appBuilder(
-            context,
-            bootMeasure('ResponsiveBreakpoints.builder', () => ResponsiveBreakpoints.builder(
+          final result = bootMeasure('ResponsiveBreakpoints.builder', () => ResponsiveBreakpoints.builder(
               breakpoints: [
                 const Breakpoint(start: 0, end: 559, name: MOBILE),
                 const Breakpoint(start: 560, end: 1050, name: TABLET),
@@ -349,8 +347,7 @@ class MyApp extends StatelessWidget {
                 ),
               ],
               child: child!,
-            )),
-          );
+            ));
           bootLog('GetMaterialApp.builder end');
           return result;
         },
