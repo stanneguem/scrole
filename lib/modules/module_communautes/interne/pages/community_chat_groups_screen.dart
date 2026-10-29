@@ -301,9 +301,9 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final choice = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(child: Wrap(children: [
-        ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Choisir une image'), onTap: () => Navigator.pop(ctx, 'image')),
-        ListTile(leading: const Icon(Icons.videocam_outlined), title: const Text('Choisir une vidéo'), onTap: () => Navigator.pop(ctx, 'video')),
-        ListTile(leading: const Icon(Icons.camera_alt_outlined), title: const Text('Prendre une photo'), onTap: () => Navigator.pop(ctx, 'camera')),
+        ListTile(leading: const Icon(Icons.photo_library_outlined), title: Text('chat_groups_pick_image'.tr), onTap: () => Navigator.pop(ctx, 'image')),
+        ListTile(leading: const Icon(Icons.videocam_outlined), title: Text('chat_groups_pick_video'.tr), onTap: () => Navigator.pop(ctx, 'video')),
+        ListTile(leading: const Icon(Icons.camera_alt_outlined), title: Text('chat_groups_take_photo'.tr), onTap: () => Navigator.pop(ctx, 'camera')),
       ])),
     );
     if (choice == null) return;
@@ -324,7 +324,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       });
       await _loadMessages();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Envoi du média impossible : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : $e')));
     } finally { if (mounted) setState(() => _uploadingMedia = false); }
   }
 
@@ -345,13 +345,13 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         });
         await _loadMessages();
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Envoi du vocal impossible : $e')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_audio_send_error'.tr} : $e')));
       } finally { if (mounted) setState(() { _recording = false; _uploadingMedia = false; }); }
       return;
     }
     final permission = await Permission.microphone.request();
     if (!permission.isGranted) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Autorise le microphone pour enregistrer un vocal.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_microphone_permission'.tr)));
       return;
     }
     try {
@@ -360,7 +360,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       await _recorder.start(const RecordConfig(), path: path);
       if (mounted) setState(() { _recording = true; _recordingStartedAt = DateTime.now(); });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible de démarrer l’enregistrement : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_audio_start_error'.tr} : $e')));
     }
   }
 
@@ -440,10 +440,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             ));
           })),
         SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(10, 6, 10, 8), child: Row(children: [
-          IconButton(onPressed: _sending || _uploadingMedia ? null : _pickMedia, tooltip: 'Média', icon: _uploadingMedia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.attach_file_rounded)),
+          IconButton(onPressed: _sending || _uploadingMedia ? null : _pickMedia, tooltip: 'chat_groups_media_tooltip'.tr, icon: _uploadingMedia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.attach_file_rounded)),
           Expanded(child: TextField(controller: _input, minLines: 1, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(hintText: 'chat_groups_message_hint'.tr, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11)), onSubmitted: (_) => _send())),
           const SizedBox(width: 8),
-          IconButton(onPressed: _uploadingMedia ? null : _toggleRecording, tooltip: _recording ? 'Arrêter le vocal' : 'Enregistrer un vocal', icon: Icon(_recording ? Icons.stop_circle_rounded : Icons.mic_none_rounded, color: _recording ? colors.error : colors.primary)),
+          IconButton(onPressed: _uploadingMedia ? null : _toggleRecording, tooltip: _recording ? 'chat_groups_stop_audio'.tr : 'chat_groups_record_audio'.tr, icon: Icon(_recording ? Icons.stop_circle_rounded : Icons.mic_none_rounded, color: _recording ? colors.error : colors.primary)),
           IconButton.filled(onPressed: _sending || _recording ? null : _send, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)),
         ]))),
       ]),
