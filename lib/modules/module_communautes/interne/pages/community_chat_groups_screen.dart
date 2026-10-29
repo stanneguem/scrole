@@ -49,8 +49,8 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
       builder: (dialogContext) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
         title: const Text('chat_groups_create_title'.tr),
         content: Form(key: formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextFormField(controller: name, maxLength: 80, decoration: const InputDecoration(labelText: 'chat_groups_name'.tr), validator: (v) => (v == null || v.trim().length < 2) ? 'chat_groups_name_invalid'.tr : null),
-          TextFormField(controller: description, maxLength: 300, decoration: const InputDecoration(labelText: 'chat_groups_description'.tr)),
+          TextFormField(controller: name, maxLength: 80, decoration: InputDecoration(labelText: 'chat_groups_name'.tr), validator: (v) => (v == null || v.trim().length < 2) ? 'chat_groups_name_invalid'.tr : null),
+          TextFormField(controller: description, maxLength: 300, decoration: InputDecoration(labelText: 'chat_groups_description'.tr)),
           const SizedBox(height: 12),
           RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'public', groupValue: visibility, title: const Text('chat_groups_public'.tr), subtitle: const Text('chat_groups_public_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
           RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'private', groupValue: visibility, title: const Text('chat_groups_private'.tr), subtitle: const Text('chat_groups_private_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
@@ -72,7 +72,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
         'p_visibility': visibility,
       });
       await _load();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('chat_groups_created'.tr)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_created'.tr)));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_create_error'.tr} : $e')));
     } finally {
@@ -102,7 +102,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
         )));
         await _load();
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('chat_groups_request_sent'.tr)));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_request_sent'.tr)));
         await _load();
       }
     } catch (e) {
@@ -117,8 +117,8 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
       final requests = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
       await showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (sheetContext) => SafeArea(
         child: SizedBox(height: MediaQuery.of(context).size.height * .65, child: Column(children: [
-          const Padding(padding: EdgeInsets.all(16), child: Text('chat_groups_requests_title'.tr, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-          Expanded(child: requests.isEmpty ? const Center(child: Text('chat_groups_no_requests'.tr)) : ListView.builder(
+          Padding(padding: EdgeInsets.all(16), child: Text('chat_groups_requests_title'.tr, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          Expanded(child: requests.isEmpty ? Center(child: Text('chat_groups_no_requests'.tr)) : ListView.builder(
             itemCount: requests.length,
             itemBuilder: (_, i) {
               final request = requests[i];
@@ -159,7 +159,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
         const Text('chat_groups_title'.tr),
         Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
       ]), actions: [IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
-      body: _loading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(
+      body: _loading ? Center(child: CircularProgressIndicator()) : RefreshIndicator(
         onRefresh: _load,
         child: _groups.isEmpty ? ListView(children: const [
           SizedBox(height: 130), Icon(Icons.forum_outlined, size: 58), SizedBox(height: 16),
@@ -277,7 +277,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
       ])),
       body: Column(children: [
-        Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) : _messages.isEmpty
+        Expanded(child: _loading ? Center(child: CircularProgressIndicator()) : _messages.isEmpty
           ? const Center(child: Text('chat_groups_first_message'.tr))
           : ListView.builder(controller: _scroll, padding: const EdgeInsets.all(12), itemCount: _messages.length, itemBuilder: (_, i) {
             final message = _messages[i];
