@@ -1204,6 +1204,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Ta réponse a été enregistrée",
       'poll_preview_ready': "@count options · prêt à publier",
 
+      'poll_image_question': "Image du sondage (facultatif)",
+      'poll_image_add': "Ajouter une image",
+      'poll_image_remove': "Retirer l’image",
+      'poll_image_option_add': "Ajouter une image à la réponse",
+      'poll_image_option_added': "Image de la réponse ajoutée",
 },
     'en': {
       'webview_help_center_title': "Help center",
@@ -2401,6 +2406,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "Poll image (optional)",
+      'poll_image_add': "Add image",
+      'poll_image_remove': "Remove image",
+      'poll_image_option_add': "Add an image to this answer",
+      'poll_image_option_added': "Answer image added",
 },
     'es': {
       'webview_help_center_title': "Centro de ayuda",
@@ -3499,6 +3509,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "Imagen de la encuesta (opcional)",
+      'poll_image_add': "Añadir imagen",
+      'poll_image_remove': "Quitar imagen",
+      'poll_image_option_add': "Añadir imagen a esta respuesta",
+      'poll_image_option_added': "Imagen de respuesta añadida",
 },
     'de': {
       'webview_help_center_title': "Hilfezentrum",
@@ -4580,6 +4595,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "Umfragebild (optional)",
+      'poll_image_add': "Bild hinzufügen",
+      'poll_image_remove': "Bild entfernen",
+      'poll_image_option_add': "Bild zu dieser Antwort hinzufügen",
+      'poll_image_option_added': "Antwortbild hinzugefügt",
 },
     'it': {
       'webview_help_center_title': "Centro assistenza",
@@ -5659,6 +5679,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "Immagine del sondaggio (facoltativa)",
+      'poll_image_add': "Aggiungi immagine",
+      'poll_image_remove': "Rimuovi immagine",
+      'poll_image_option_add': "Aggiungi un'immagine a questa risposta",
+      'poll_image_option_added': "Immagine della risposta aggiunta",
 },
     'pt': {
       'webview_help_center_title': "Central de ajuda",
@@ -6738,6 +6763,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "Imagem da sondagem (opcional)",
+      'poll_image_add': "Adicionar imagem",
+      'poll_image_remove': "Remover imagem",
+      'poll_image_option_add': "Adicionar imagem a esta resposta",
+      'poll_image_option_added': "Imagem da resposta adicionada",
 },
     'zh': {
       'webview_help_center_title': "帮助中心",
@@ -7819,6 +7849,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "投票图片（可选）",
+      'poll_image_add': "添加图片",
+      'poll_image_remove': "移除图片",
+      'poll_image_option_add': "为此选项添加图片",
+      'poll_image_option_added': "已添加选项图片",
 },
     'ja': {
       'webview_help_center_title': "ヘルプセンター",
@@ -8899,6 +8934,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "アンケート画像（任意）",
+      'poll_image_add': "画像を追加",
+      'poll_image_remove': "画像を削除",
+      'poll_image_option_add': "この回答に画像を追加",
+      'poll_image_option_added': "回答画像を追加しました",
 },
     'ru': {
       'webview_help_center_title': "Центр помощи",
@@ -9974,6 +10014,11 @@ class AppTranslationAdditions {
       'poll_vote_recorded': "Your answer has been recorded",
       'poll_preview_ready': "@count options · ready to publish",
 
+      'poll_image_question': "Изображение опроса (необязательно)",
+      'poll_image_add': "Добавить изображение",
+      'poll_image_remove': "Удалить изображение",
+      'poll_image_option_add': "Добавить изображение к этому ответу",
+      'poll_image_option_added': "Изображение ответа добавлено",
 },
   };
 
