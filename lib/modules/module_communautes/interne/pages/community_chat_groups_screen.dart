@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:video_player/video_player.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:flutter/material.dart';
@@ -425,9 +426,11 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 else if ((message['type'] == 'image' || message['type'] == 'video') && (message['media_signed_url'] ?? '').toString().isNotEmpty)
                   Padding(padding: const EdgeInsets.only(top: 4, bottom: 4), child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(message['media_signed_url'].toString(), width: 230, height: 170, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox(width: 230, height: 80, child: Center(child: Icon(Icons.broken_image_outlined))),
-                    ),
+                    child: message['type'] == 'video'
+                        ? _SalonVideoPlayer(url: message['media_signed_url'].toString())
+                        : Image.network(message['media_signed_url'].toString(), width: 230, height: 170, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const SizedBox(width: 230, height: 80, child: Center(child: Icon(Icons.broken_image_outlined))),
+                          ),
                   ))
                 else if ((message['content'] ?? '').toString().isNotEmpty)
                   Text((message['content'] ?? '').toString(), style: TextStyle(color: colors.onSurface)),
@@ -444,6 +447,62 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           IconButton.filled(onPressed: _sending || _recording ? null : _send, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)),
         ]))),
       ]),
+    );
+  }
+}
+
+
+class _SalonVideoPlayer extends StatefulWidget {
+  const _SalonVideoPlayer({required this.url});
+  final String url;
+
+  @override
+  State<_SalonVideoPlayer> createState() => _SalonVideoPlayerState();
+}
+
+class _SalonVideoPlayerState extends State<_SalonVideoPlayer> {
+  late final VideoPlayerController _controller;
+  bool _ready = false;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) setState(() => _ready = true);
+      }).catchError((_) {
+        if (mounted) setState(() => _failed = true);
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) return const SizedBox(width: 230, height: 130, child: Center(child: Icon(Icons.videocam_off_outlined)));
+    if (!_ready) return const SizedBox(width: 230, height: 130, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+    return SizedBox(
+      width: 230,
+      child: AspectRatio(
+        aspectRatio: _controller.value.aspectRatio,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            VideoPlayer(_controller),
+            IconButton.filledTonal(
+              onPressed: () => setState(() {
+                _controller.value.isPlaying ? _controller.pause() : _controller.play();
+              }),
+              icon: Icon(_controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
