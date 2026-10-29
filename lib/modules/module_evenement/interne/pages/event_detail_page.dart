@@ -142,6 +142,105 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
     }
   }
 
+  bool _hasAccessConditions(EventRestrictionsInfo restrictions) {
+    return restrictions.minAge != null ||
+        restrictions.maxAge != null ||
+        restrictions.allowedGenders.isNotEmpty ||
+        restrictions.idRequired ||
+        restrictions.servesAlcohol ||
+        restrictions.overnightEvent ||
+        restrictions.smokingAllowed ||
+        (restrictions.otherRestrictions?.trim().isNotEmpty ?? false);
+  }
+
+  Widget _buildAccessConditions(EventRestrictionsInfo restrictions, ColorScheme colorScheme) {
+    final conditions = <({IconData icon, String label})>[];
+
+    if (restrictions.minAge != null && restrictions.maxAge != null) {
+      conditions.add((icon: Icons.cake_outlined, label: 'Âge autorisé : ${restrictions.minAge}–${restrictions.maxAge} ans'));
+    } else if (restrictions.minAge != null) {
+      conditions.add((icon: Icons.cake_outlined, label: 'Âge minimum : ${restrictions.minAge} ans'));
+    } else if (restrictions.maxAge != null) {
+      conditions.add((icon: Icons.cake_outlined, label: 'Âge maximum : ${restrictions.maxAge} ans'));
+    }
+
+    final genders = restrictions.allowedGenders.map((g) => g.toLowerCase()).toSet();
+    if (genders.isNotEmpty && !(genders.contains('homme') && genders.contains('femme') && genders.length == 2)) {
+      final labels = <String>[];
+      if (genders.contains('homme')) labels.add('Hommes');
+      if (genders.contains('femme')) labels.add('Femmes');
+      if (labels.isNotEmpty) {
+        conditions.add((icon: Icons.people_outline, label: 'Accès réservé : ${labels.join(' et ')}'));
+      }
+    }
+
+    if (restrictions.idRequired) {
+      conditions.add((icon: Icons.badge_outlined, label: 'Pièce d’identité obligatoire'));
+    }
+    if (restrictions.servesAlcohol) {
+      conditions.add((icon: Icons.local_bar_outlined, label: 'Boissons alcoolisées servies'));
+    }
+    if (restrictions.overnightEvent) {
+      conditions.add((icon: Icons.nightlight_outlined, label: 'Événement de nuit'));
+    }
+    if (restrictions.smokingAllowed) {
+      conditions.add((icon: Icons.smoking_rooms_outlined, label: 'Tabac autorisé'));
+    }
+
+    final other = restrictions.otherRestrictions?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Conditions d’accès',
+          style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...conditions.map((condition) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(condition.icon, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        condition.label,
+                        style: AppTextStyles.body.copyWith(color: colorScheme.onSurface),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+              if (other != null && other.isNotEmpty)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(other, style: AppTextStyles.body.copyWith(color: colorScheme.onSurface)),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showTicketsSheet() {
     final tickets = _preview?.tickets ?? [];
     if (tickets.isEmpty) return;
@@ -778,6 +877,12 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         ] else if (event.address != null) ...[
                           _InfoRow(icon: Icons.location_on_outlined, label: 'Adresse', value: event.address!),
                         ],
+                        // Conditions d'accès configurées côté backend (event_restrictions).
+                        if (preview != null && _hasAccessConditions(preview.restrictions)) ...[
+                          _buildAccessConditions(preview.restrictions, colorScheme),
+                          const SizedBox(height: 24),
+                        ],
+
                         const SizedBox(height: 24),
 
                         // Bloc Tarification Réel: Prix billet minimum & Budget total estimé
