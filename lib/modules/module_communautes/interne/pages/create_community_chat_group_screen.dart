@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,10 +34,8 @@ class _CreateCommunityChatGroupScreenState
   }
 
   String _newUuid() {
-    final bytes = List<int>.generate(
-      16,
-      (_) => DateTime.now().microsecondsSinceEpoch.hashCode & 0xff,
-    );
+    final random = math.Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
@@ -47,7 +46,7 @@ class _CreateCommunityChatGroupScreenState
     if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
     if (_client.auth.currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('chat_groups_auth_required'.tr)),
+        SnackBar(content: Text('chat_groups_access_error'.tr)),
       );
       return;
     }
@@ -65,7 +64,7 @@ class _CreateCommunityChatGroupScreenState
     } on PostgrestException catch (error) {
       if (!mounted) return;
       final message = error.message.toLowerCase().contains('action non autorisée')
-          ? 'chat_groups_create_not_allowed'.tr
+          ? 'chat_groups_create_error'.tr
           : '${'chat_groups_create_error'.tr} : ${error.message}';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -97,7 +96,7 @@ class _CreateCommunityChatGroupScreenState
               Icon(Icons.forum_rounded, size: 54, color: colors.primary),
               const SizedBox(height: 14),
               Text(
-                'chat_groups_create_intro'.tr,
+                'chat_groups_empty_help'.tr,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
@@ -108,7 +107,7 @@ class _CreateCommunityChatGroupScreenState
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   labelText: 'chat_groups_name'.tr,
-                  hintText: 'chat_groups_name_hint'.tr,
+                  hintText: 'chat_groups_name'.tr,
                   prefixIcon: const Icon(Icons.forum_outlined),
                   border: const OutlineInputBorder(),
                 ),
@@ -125,7 +124,7 @@ class _CreateCommunityChatGroupScreenState
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   labelText: 'chat_groups_description'.tr,
-                  hintText: 'chat_groups_description_hint'.tr,
+                  hintText: 'chat_groups_description'.tr,
                   prefixIcon: const Icon(Icons.notes_rounded),
                   border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
@@ -133,7 +132,7 @@ class _CreateCommunityChatGroupScreenState
               ),
               const SizedBox(height: 24),
               Text(
-                'chat_groups_visibility_title'.tr,
+                'chat_groups_title'.tr,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
@@ -175,7 +174,7 @@ class _CreateCommunityChatGroupScreenState
                     : const Icon(Icons.add_comment_outlined),
                 label: Text(
                   _saving
-                      ? 'chat_groups_creating'.tr
+                      ? 'chat_groups_request_pending'.tr
                       : 'chat_groups_create_action'.tr,
                 ),
                 style: FilledButton.styleFrom(
