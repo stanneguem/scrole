@@ -34,16 +34,19 @@ class _EventDaysSelectorSheetState extends State<EventDaysSelectorSheet> {
   final Set<String> _selectedDateStrings = {};
   bool _isLoading = false;
 
+  DateTime get _today => DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  bool _isPast(DateTime date) => DateTime(date.year, date.month, date.day).isBefore(_today);
+
   @override
   void initState() {
     super.initState();
     if (widget.preselectedDays != null && widget.preselectedDays!.isNotEmpty) {
       for (final day in widget.preselectedDays!) {
-        _selectedDateStrings.add(day.dateString);
+        if (!_isPast(day.date)) _selectedDateStrings.add(day.dateString);
       }
     } else {
       for (final day in widget.openDays) {
-        if (day.isOpen) {
+        if (day.isOpen && !_isPast(day.date)) {
           _selectedDateStrings.add(day.dateString);
         }
       }
@@ -58,7 +61,7 @@ class _EventDaysSelectorSheetState extends State<EventDaysSelectorSheet> {
     try {
       final repository = Get.find<EventRepository>();
       final selectedDates = widget.openDays
-          .where((day) => _selectedDateStrings.contains(day.dateString))
+          .where((day) => _selectedDateStrings.contains(day.dateString) && !_isPast(day.date))
           .map((day) => day.date)
           .toList();
 
@@ -158,6 +161,7 @@ class _EventDaysSelectorSheetState extends State<EventDaysSelectorSheet> {
               itemBuilder: (context, index) {
                 final openDay = widget.openDays[index];
                 final dateStr = openDay.dateString;
+                final isPast = _isPast(openDay.date);
                 final isSelected = _selectedDateStrings.contains(dateStr);
                 final formattedDate = DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(openDay.date);
 
@@ -172,7 +176,7 @@ class _EventDaysSelectorSheetState extends State<EventDaysSelectorSheet> {
                   ),
                   activeColor: AppColors.primary,
                   checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  onChanged: openDay.isOpen
+                  onChanged: openDay.isOpen && !isPast
                       ? (checked) {
                           setState(() {
                             if (checked == true) {
