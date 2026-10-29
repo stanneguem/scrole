@@ -470,6 +470,20 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         }
       } catch (e) {
         debugPrint('[EventDetailPage] _handleCalendarAction error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
+                style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+              ),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
       }
     } else {
       // Événement d'un seul jour -> Ajout/Retrait direct SANS aucun modal
