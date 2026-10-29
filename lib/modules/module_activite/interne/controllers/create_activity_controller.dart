@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import '../../../../app/service_global/currency_service.dart';
 import '../../../../app/repository_global/currency_repository.dart';
-import '../../../module_authentification/centre/services/auth_service.dart';
-import '../../../module_evenement/centre/repositories/event_repository.dart';
 import '../../centre/models/activity_creation_data.dart';
 import '../../centre/services/activity_service.dart';
 
@@ -71,25 +69,8 @@ class CreateActivityController extends GetxController {
       final activity = await _activityService.createActivity(
         data,
         eventOnly: isEventOnly.value,
+        eventId: eventId,
       );
-
-      // 2. Association explicite si créée dans le contexte d'un événement
-      if (eventId != null && eventId!.isNotEmpty) {
-        try {
-          final userId = Get.find<AuthService>().userId ?? '';
-          final repo = Get.find<EventRepository>();
-          await repo.addActivityOptimistic(
-            eventId: eventId!,
-            activityId: activity.id,
-            price: data.priceGeneral,
-            currency: data.currencyCode,
-            userId: userId,
-            activityInfo: activity.toJson(),
-          );
-        } catch (e) {
-          debugPrint('[CreateActivityController] association to event error: $e');
-        }
-      }
 
       Get.back();
       Get.snackbar(
