@@ -39,6 +39,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
   final TextEditingController _textController = TextEditingController();
   final List<File> _selectedFiles = [];
   bool _isPublishing = false;
+  static const Duration _maxVideoDuration = Duration(seconds: 30);
 
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
@@ -87,14 +88,49 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => MediaGallerySheet(
         maxSelection: maxAllowed,
-        onSelected: (files) {
-          if (files.isNotEmpty) {
-            setState(() {
-              _selectedFiles
-                ..clear()
-                ..addAll(files.take(1).map((f) => File(f.path)));
-            });
+        onSelected: (files) async {
+          if (files.isEmpty) return;
+
+          final file = File(files.first.path);
+          if (_isVideoFile(file)) {
+            VideoPlayerController? controller;
+            try {
+              controller = VideoPlayerController.file(file);
+              await controller.initialize().timeout(const Duration(seconds: 30));
+              final duration = controller.value.duration;
+              if (duration <= Duration.zero) {
+                throw StateError('Impossible de déterminer la durée de cette vidéo.');
+              }
+              if (duration > _maxVideoDuration) {
+                Get.snackbar(
+                  'Vidéo trop longue',
+                  'La durée maximale d’une story vidéo est de 30 secondes.',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                );
+                return;
+              }
+            } catch (e) {
+              Get.snackbar(
+                'Vidéo invalide',
+                'Impossible de vérifier la durée de cette vidéo.',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.red,
+                colorText: Colors.white,
+              );
+              return;
+            } finally {
+              await controller?.dispose();
+            }
           }
+
+          if (!mounted) return;
+          setState(() {
+            _selectedFiles
+              ..clear()
+              ..add(file);
+          });
         },
       ),
     );
