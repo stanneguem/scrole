@@ -207,7 +207,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.forum_outlined, color: colorScheme.primary),
-            tooltip: 'Discussions de groupe',
+            tooltip: 'community_group_discussions'.tr,
             onPressed: () {
               Get.to(() => CommunityChatGroupsScreen(
                     communityId: communityId,
