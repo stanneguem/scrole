@@ -218,8 +218,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   void initState() {
     super.initState();
     _loadMessages();
-    _channel = _client.channel('community-chat-${widget.salonId}')
-      .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'community_salon_messages', filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'salon_id', value: widget.salonId), callback: (_) => _loadMessages())
+    _channel = _client.channel('salon:${widget.salonId}')
+      .onBroadcast(event: 'salon_message_sent', callback: (_) { _loadMessages(); })
+      .onBroadcast(event: 'salon_message_edited', callback: (_) { _loadMessages(); })
+      .onBroadcast(event: 'salon_message_deleted', callback: (_) { _loadMessages(); })
       .subscribe();
   }
 
