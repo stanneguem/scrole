@@ -162,10 +162,10 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
       ]), actions: [IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
       body: _loading ? Center(child: CircularProgressIndicator()) : RefreshIndicator(
         onRefresh: _load,
-        child: _groups.isEmpty ? ListView(children: const [
-          SizedBox(height: 130), Icon(Icons.forum_outlined, size: 58), SizedBox(height: 16),
+        child: _groups.isEmpty ? ListView(children: [
+          const SizedBox(height: 130), const Icon(Icons.forum_outlined, size: 58), const SizedBox(height: 16),
           Center(child: Text('chat_groups_empty'.tr)),
-          Center(child: Padding(padding: EdgeInsets.all(12), child: Text('chat_groups_empty_help'.tr, textAlign: TextAlign.center))),
+          Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('chat_groups_empty_help'.tr, textAlign: TextAlign.center))),
         ]) : ListView.separated(
           padding: const EdgeInsets.all(12), itemCount: _groups.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
