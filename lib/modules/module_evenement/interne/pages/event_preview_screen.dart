@@ -767,11 +767,15 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   child: Center(
                     child: _HeaderActionButton(
                       icon: Icons.settings_outlined,
-                      tooltip: 'Paramètres',
-                      onPressed: () => Get.toNamed(
-                        AppPages.eventSettings.replaceFirst(':id', event.id),
-                        arguments: event,
-                      ),
+                      tooltip: event.status == EventStatus.draft
+                          ? 'Paramètres indisponibles pendant la validation'
+                          : 'Paramètres',
+                      onPressed: event.status == EventStatus.draft
+                          ? null
+                          : () => Get.toNamed(
+                              AppPages.eventSettings.replaceFirst(':id', event.id),
+                              arguments: event,
+                            ),
                     ),
                   ),
                 ),
