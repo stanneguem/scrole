@@ -308,10 +308,16 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         isRecurring: widget.event.isRecurring,
         onConfirm: ({required notifyConnections, required silentAdd, required recurrence}) async {
           Navigator.pop(context);
-          setState(() => _isEventAdded = true);
+          final wasAdded = _isEventAdded;
+          setState(() {
+            _isCalendarLoading = true;
+          });
 
-          final controller = Get.find<EventController>();
-          final suggestedCommunityId = await controller.addToCalendar(widget.event.id);
+          try {
+            final controller = Get.find<EventController>();
+            final suggestedCommunityId = await controller.addToCalendar(widget.event.id);
+            if (!mounted) return;
+            setState(() => _isEventAdded = true);
 
           if (suggestedCommunityId != null && suggestedCommunityId.isNotEmpty) {
             Get.snackbar(
@@ -332,6 +338,21 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
               backgroundColor: Colors.black87,
               colorText: Colors.white,
             );
+          }
+          } catch (e) {
+            debugPrint('[EventDetailPage] add to calendar rejected: $e');
+            if (mounted) {
+              setState(() => _isEventAdded = wasAdded);
+              Get.snackbar(
+                'Calendrier',
+                Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
+                backgroundColor: AppColors.error,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 6),
+              );
+            }
+          } finally {
+            if (mounted) setState(() => _isCalendarLoading = false);
           }
         },
         onCancel: () => Navigator.pop(context),
