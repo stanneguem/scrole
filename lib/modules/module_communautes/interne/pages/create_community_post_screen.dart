@@ -1112,6 +1112,18 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                   ),
                                 ],
                               ),
+                              if ((_pollData!['image_file_path'] ?? '').toString().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.file(
+                                    File(_pollData!['image_file_path'].toString()),
+                                    width: double.infinity,
+                                    height: 170,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               ...((_pollData!['options'] as List).asMap().entries.map((entry) {
                                 final rawOption = entry.value;
@@ -1139,7 +1151,24 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                           color: isCorrect ? Colors.green : colorScheme.outline,
                                         ),
                                         const SizedBox(width: 9),
-                                        Expanded(child: Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface))),
+                                        Expanded(child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface)),
+                                            if (rawOption is Map && (rawOption['image_file_path'] ?? '').toString().isNotEmpty) ...[
+                                              const SizedBox(height: 7),
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(9),
+                                                child: Image.file(
+                                                  File(rawOption['image_file_path'].toString()),
+                                                  width: double.infinity,
+                                                  height: 76,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        )),
                                         if (isCorrect)
                                           Text('post_composer_correct_answer'.tr, style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
                                       ],
