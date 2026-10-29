@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'create_community_chat_group_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Discussions textuelles d'une communauté : groupes publics/privés et demandes d'accès.
@@ -41,43 +42,18 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   }
 
   Future<void> _createGroup() async {
-    final name = TextEditingController();
-    final description = TextEditingController();
-    var visibility = 'public';
-    final formKey = GlobalKey<FormState>();
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
-        title: Text('chat_groups_create_title'.tr),
-        content: Form(key: formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextFormField(controller: name, maxLength: 80, decoration: InputDecoration(labelText: 'chat_groups_name'.tr), validator: (v) => (v == null || v.trim().length < 2) ? 'chat_groups_name_invalid'.tr : null),
-          TextFormField(controller: description, maxLength: 300, decoration: InputDecoration(labelText: 'chat_groups_description'.tr)),
-          const SizedBox(height: 12),
-          RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'public', groupValue: visibility, title: Text('chat_groups_public'.tr), subtitle: Text('chat_groups_public_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
-          RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'private', groupValue: visibility, title: Text('chat_groups_private'.tr), subtitle: Text('chat_groups_private_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
-        ]))),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text('chat_groups_cancel'.tr)),
-          FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true); }, child: Text('chat_groups_create_action'.tr)),
-        ],
-      )),
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CreateCommunityChatGroupScreen(
+          communityId: widget.communityId,
+        ),
+      ),
     );
-    if (accepted != true) return;
-    setState(() => _creating = true);
-    try {
-      await _client.rpc('create_community_chat_group', params: {
-        'p_id': _client.auth.currentUser == null ? null : _newUuid(),
-        'p_community_id': widget.communityId,
-        'p_name': name.text.trim(),
-        'p_description': description.text.trim(),
-        'p_visibility': visibility,
-      });
+    if (created == true && mounted) {
       await _load();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_created'.tr)));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_create_error'.tr} : $e')));
-    } finally {
-      if (mounted) setState(() => _creating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('chat_groups_created'.tr)),
+      );
     }
   }
 
@@ -159,7 +135,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
       appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('chat_groups_title'.tr),
         Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
-      ]), actions: [IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
+      ]), actions: [if (_groups.any((group) => group['can_manage'] == true)) IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
       body: _loading ? Center(child: CircularProgressIndicator()) : RefreshIndicator(
         onRefresh: _load,
         child: _groups.isEmpty ? ListView(children: [
