@@ -94,7 +94,7 @@ class _EventDaysSelectorSheetState extends State<EventDaysSelectorSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Erreur lors de la sauvegarde. Veuillez réessayer.',
+              Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
               style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
             ),
             backgroundColor: AppColors.error,
