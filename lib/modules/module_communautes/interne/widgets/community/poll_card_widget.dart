@@ -144,6 +144,13 @@ class _PollCardWidgetState extends State<PollCardWidget> {
               ),
             ),
         ]),
+        if ((_poll['question'] ?? '').toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            _poll['question'].toString(),
+            style: TextStyle(fontSize: 17, height: 1.35, fontWeight: FontWeight.w800, letterSpacing: -.25, color: colors.onSurface),
+          ),
+        ],
         if ((_poll['image_url'] ?? '').toString().trim().isNotEmpty) ...[
           const SizedBox(height: 14),
           ClipRRect(
