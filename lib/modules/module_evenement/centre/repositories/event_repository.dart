@@ -1993,10 +1993,182 @@ class EventRepository {
     debugPrint('[EventState] selectedEventId cleared eventId=$eventId');
   }
 
-  Future<EventPreviewModel> getEventPreviewOwner(String eventId) async {
+  Future<EventPreviewModel> _ensurePreviewActivities(
+    String eventId,
+    EventPreviewModel preview,
+  ) async {
+    if (preview.activitiesLiees.isNotEmpty) return preview;
+    try {
+      final linked = await getEventActivities(eventId);
+      if (linked.isEmpty) return preview;
+      String symbolFor(String currency) {
+        switch (currency.toUpperCase()) {
+          case 'XAF':
+          case 'XOF':
+            return 'FCFA';
+          case 'EUR':
+            return '€';
+          case 'USD':
+            return r'
     try {
       final data = await _remote.getEventPreviewOwner(eventId);
       final model = EventPreviewModel.fromJson(data);
+      if (data['event'] is Map) {
+        await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
+      }
+      return model;
+    } catch (e) {
+      if (_isNotFoundException(e)) {
+        await purgeEventLocally(eventId);
+        throw EventNotFoundException(eventId);
+      }
+      if (_isNetworkError(e)) {
+        debugPrint('[Error] getEventPreviewOwner network error: $e. Using local cache...');
+        final local = await _dao.getEventStructuredById(eventId);
+        if (local != null) {
+          return EventPreviewModel(event: EventModel.fromJson(local));
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<EventPreviewModel> getEventPreviewPublic(String eventId) async {
+    try {
+      final data = await _remote.getEventPreviewPublic(eventId);
+      final model = await _ensurePreviewActivities(eventId, EventPreviewModel.fromJson(data));
+      if (data['event'] is Map) {
+        await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
+      }
+      return model;
+    } catch (e) {
+      if (_isNotFoundException(e)) {
+        await purgeEventLocally(eventId);
+        throw EventNotFoundException(eventId);
+      }
+      if (_isNetworkError(e)) {
+        debugPrint('[Error] getEventPreviewPublic network error: $e. Using local cache...');
+        final local = await _dao.getEventStructuredById(eventId);
+        if (local != null) {
+          return EventPreviewModel(event: EventModel.fromJson(local));
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<EventPreviewModel> getEventPreviewStaff(String eventId) async {
+    try {
+      final data = await _remote.getEventPreviewStaff(eventId);
+      final model = await _ensurePreviewActivities(eventId, EventPreviewModel.fromJson(data));
+      if (data['event'] is Map) {
+        await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
+      }
+      return model;
+    } catch (e) {
+      if (_isNotFoundException(e)) {
+        await purgeEventLocally(eventId);
+        throw EventNotFoundException(eventId);
+      }
+      if (_isNetworkError(e)) {
+        debugPrint('[Error] getEventPreviewStaff network error: $e. Using local cache...');
+        final local = await _dao.getEventStructuredById(eventId);
+        if (local != null) {
+          return EventPreviewModel(event: EventModel.fromJson(local));
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<EventPreviewModel> getEventPreview(String eventId) async {
+    final userId = _remote.client.auth.currentUser?.id;
+    try {
+      final local = await _dao.getEventStructuredById(eventId);
+      final isOwner = local != null && local['creator_id'] == userId;
+
+      if (isOwner) {
+        return await getEventPreviewOwner(eventId);
+      }
+      try {
+        return await getEventPreviewPublic(eventId);
+      } catch (e) {
+        if (_isNotFoundException(e)) {
+          await purgeEventLocally(eventId);
+          throw EventNotFoundException(eventId);
+        }
+        return await getEventPreviewOwner(eventId);
+      }
+    } catch (e) {
+      if (_isNotFoundException(e)) {
+        await purgeEventLocally(eventId);
+        throw EventNotFoundException(eventId);
+      }
+      debugPrint('[Error] getEventPreview cascade failed: $e. Trying base...');
+      try {
+        final data = await _remote.getEventPreviewBase(eventId);
+        return EventPreviewModel.fromJson(data);
+      } catch (err) {
+        if (_isNotFoundException(err)) {
+          await purgeEventLocally(eventId);
+          throw EventNotFoundException(eventId);
+        }
+        if (_isNetworkError(err)) {
+          final local = await _dao.getEventStructuredById(eventId);
+          if (local != null) {
+            return EventPreviewModel(event: EventModel.fromJson(local));
+          }
+        }
+        rethrow;
+      }
+    }
+  }
+
+  String generateLocalId() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant IETF
+    String hex(int b) => b.toRadixString(16).padLeft(2, '0');
+    final chars = bytes.map(hex).join();
+    return '${chars.substring(0, 8)}-${chars.substring(8, 12)}-${chars.substring(12, 16)}-${chars.substring(16, 20)}-${chars.substring(20, 32)}';
+  }
+}
+;
+          case 'GBP':
+            return '£';
+          default:
+            return currency;
+        }
+      }
+
+      final activities = linked
+          .where((activity) => activity.activityId.isNotEmpty && activity.name.trim().isNotEmpty)
+          .map((activity) => EventPreviewActivity(
+                activityId: activity.activityId,
+                name: activity.name,
+                price: activity.price,
+                currencyCode: activity.currency,
+                converted: ConvertedPrice(
+                  amount: activity.price,
+                  currencyCode: activity.currency,
+                  symbol: symbolFor(activity.currency),
+                ),
+              ))
+          .toList();
+      if (activities.isEmpty) return preview;
+      debugPrint('[EventRepository] Preview RPC returned no linked activities; recovered ${activities.length} from event_activities for $eventId');
+      return preview.copyWith(activitiesLiees: activities);
+    } catch (e) {
+      debugPrint('[EventRepository] Could not recover linked activities for preview $eventId: $e');
+      return preview;
+    }
+  }
+
+  Future<EventPreviewModel> getEventPreviewOwner(String eventId) async {
+    try {
+      final data = await _remote.getEventPreviewOwner(eventId);
+      final model = await _ensurePreviewActivities(eventId, EventPreviewModel.fromJson(data));
       if (data['event'] is Map) {
         await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
       }
