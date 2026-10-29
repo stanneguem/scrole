@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -81,8 +81,9 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   }
 
   String _newUuid() {
-    // UUID v4 generated client-side without adding a package dependency.
-    final random = List<int>.generate(16, (_) => DateTime.now().microsecondsSinceEpoch.hashCode & 0xff);
+    // UUID v4 generated with a cryptographically secure random source.
+    final secureRandom = math.Random.secure();
+    final random = List<int>.generate(16, (_) => secureRandom.nextInt(256));
     random[6] = (random[6] & 0x0f) | 0x40;
     random[8] = (random[8] & 0x3f) | 0x80;
     final hex = random.map((n) => n.toRadixString(16).padLeft(2, '0')).join();
@@ -250,7 +251,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 
   String _newUuid() {
-    final bytes = List<int>.generate(16, (i) => (DateTime.now().microsecondsSinceEpoch >> (i % 8)) & 0xff);
+    final secureRandom = math.Random.secure();
+    final bytes = List<int>.generate(16, (_) => secureRandom.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80;
     final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     return '${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20,32)}';
