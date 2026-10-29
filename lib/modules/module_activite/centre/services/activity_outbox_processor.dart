@@ -106,13 +106,25 @@ class ActivityOutboxProcessor extends GetxService {
   }) async {
     switch (operationType) {
       case 'create_activity':
-        await _repository.createActivityRpc(
-          id: activityId,
-          name: payload['name'].toString(),
-          basePrice: (payload['base_price'] as num?)?.toDouble() ?? 0.0,
-          currencyCode: payload['currency_code']?.toString() ?? 'XAF',
-          eventOnly: payload['event_only'] == true,
-        );
+        final eventId = payload['event_id']?.toString();
+        if (eventId != null && eventId.isNotEmpty) {
+          await _repository.createEventActivityRpc(
+            id: activityId,
+            eventId: eventId,
+            name: payload['name'].toString(),
+            description: payload['description']?.toString(),
+            basePrice: (payload['base_price'] as num?)?.toDouble() ?? 0.0,
+            currencyCode: payload['currency_code']?.toString() ?? 'XAF',
+          );
+        } else {
+          await _repository.createActivityRpc(
+            id: activityId,
+            name: payload['name'].toString(),
+            basePrice: (payload['base_price'] as num?)?.toDouble() ?? 0.0,
+            currencyCode: payload['currency_code']?.toString() ?? 'XAF',
+            eventOnly: payload['event_only'] == true,
+          );
+        }
         break;
 
       case 'update_activity':
