@@ -2653,6 +2653,7 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
   String? _loadError;
   String _visibility = 'public';
   bool _requireManualApproval = false;
+  bool _canManageSalonCreation = false;
   String _salonAllowedCreators = 'admins_moderators';
   bool _certificationRequired = false;
   bool _membersListVisible = true;
@@ -2789,6 +2790,11 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
       _visibility = community['visibility']?.toString() ?? 'public';
       _requireManualApproval = community['require_manual_approval'] == true;
       try {
+        _canManageSalonCreation = (await _service.getCurrentUserRole(widget.communityId)) == 'admin';
+      } catch (_) {
+        _canManageSalonCreation = false;
+      }
+      try {
         _salonAllowedCreators = (await Supabase.instance.client.rpc('get_community_salon_creation_setting', params: {'p_community_id': widget.communityId})).toString();
       } catch (_) {
         _salonAllowedCreators = 'admins_moderators';
@@ -2873,10 +2879,12 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
         clearAgeMax: _ageMaxController.text.trim().isEmpty,
         clearGender: _genderRestriction == null,
       );
-      await Supabase.instance.client.rpc('set_community_salon_creation_setting', params: {
-        'p_community_id': widget.communityId,
-        'p_allowed_creators': _salonAllowedCreators,
-      });
+      if (_canManageSalonCreation) {
+        await Supabase.instance.client.rpc('set_community_salon_creation_setting', params: {
+          'p_community_id': widget.communityId,
+          'p_allowed_creators': _salonAllowedCreators,
+        });
+      }
       Get.snackbar('community_save_success'.tr, '', snackPosition: SnackPosition.BOTTOM);
       Get.back();
     } catch (e) {
@@ -2909,7 +2917,7 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      _SettingsSectionCard(
+                      if (_canManageSalonCreation) _SettingsSectionCard(
                         title: 'community_chat_group_creation_permissions'.tr,
                         children: [
                           Padding(
