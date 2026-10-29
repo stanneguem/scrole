@@ -482,8 +482,15 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                     onPressed: _saving ? null : _next,
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder()),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Text(_step == 2 ? 'poll_add_to_post'.tr : 'poll_continue'.tr),
-                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          _step == 2 ? 'poll_add_to_post'.tr : 'poll_continue'.tr,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Icon(_step == 2 ? Icons.check_rounded : Icons.arrow_forward_rounded, size: 19),
                     ]),
                   ),
