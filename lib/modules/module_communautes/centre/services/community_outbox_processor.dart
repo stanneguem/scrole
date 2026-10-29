@@ -661,7 +661,7 @@ class CommunityOutboxProcessor extends GetxService {
               if (await imageFile.exists()) {
                 final ext = p.extension(pollImagePath).toLowerCase();
                 final storagePath = 'users/${_authService.userId}/posts/${pId}/poll/question${ext.isEmpty ? '.jpg' : ext}';
-                final uploaded = await supabaseClient.storage.from('community-media').upload(
+                await supabaseClient.storage.from('community-media').upload(
                   storagePath,
                   imageFile,
                   fileOptions: FileOptions(
