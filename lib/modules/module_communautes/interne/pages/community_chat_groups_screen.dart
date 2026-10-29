@@ -135,7 +135,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
       appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('chat_groups_title'.tr),
         Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
-      ]), actions: [if (_groups.any((group) => group['can_manage'] == true)) IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
+      ]), actions: [IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
       body: _loading ? Center(child: CircularProgressIndicator()) : RefreshIndicator(
         onRefresh: _load,
         child: _groups.isEmpty ? ListView(children: [
