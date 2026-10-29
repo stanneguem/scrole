@@ -327,6 +327,16 @@ class StoriesController extends GetxController {
             if (duration <= Duration.zero) {
               throw StateError('Impossible de déterminer la durée de la vidéo.');
             }
+            if (duration > const Duration(seconds: 30)) {
+              Get.snackbar(
+                'Vidéo trop longue',
+                'La durée maximale d’une story vidéo est de 30 secondes.',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.red,
+                colorText: Colors.white,
+              );
+              return;
+            }
             debugPrint('[STORY] [Controller] Uploading story video to private Cloudflare R2 duration=${duration.inMilliseconds}ms');
             final uploaded = await _r2MediaRepo.uploadFile(
               file: fileToUpload,
