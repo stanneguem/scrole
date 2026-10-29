@@ -43,6 +43,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
       if (_isThisOrThat) {
         while (_optionControllers.length > 2) {
           _optionControllers.removeLast().dispose();
+          _optionImages.removeLast();
         }
       }
       if (!_isQuiz) _correctIndex = null;
