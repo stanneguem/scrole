@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CommunityPollComposerScreen extends StatefulWidget {
   const CommunityPollComposerScreen({super.key});
@@ -14,6 +16,9 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
     TextEditingController(),
   ];
   final _explanationController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _questionImage;
+  final List<File?> _optionImages = [null, null];
   String _kind = 'single';
   int _durationHours = 24;
   int? _correctIndex;
@@ -44,14 +49,30 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
     });
   }
 
+  Future<File?> _pickImage() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1800, maxHeight: 1800);
+    return picked == null ? null : File(picked.path);
+  }
+
+  Future<void> _pickQuestionImage() async {
+    final image = await _pickImage();
+    if (image != null && mounted) setState(() => _questionImage = image);
+  }
+
+  Future<void> _pickOptionImage(int index) async {
+    final image = await _pickImage();
+    if (image != null && mounted) setState(() => _optionImages[index] = image);
+  }
+
   void _addOption() {
     if (_optionControllers.length >= 6 || _isThisOrThat) return;
-    setState(() => _optionControllers.add(TextEditingController()));
+    setState(() { _optionControllers.add(TextEditingController()); _optionImages.add(null); });
   }
 
   void _removeOption(int index) {
     if (_optionControllers.length <= 2) return;
     final controller = _optionControllers.removeAt(index);
+    _optionImages.removeAt(index);
     controller.dispose();
     if (_correctIndex == index) {
       _correctIndex = null;
@@ -105,9 +126,12 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
     final labels = _optionControllers.map((c) => c.text.trim()).toList();
     final poll = <String, dynamic>{
       'kind': _kind,
+      if (_questionImage != null) 'image_file_path': _questionImage!.path,
       'options': [
-        for (var i = 0; i < labels.length; i++)
-          {'label': labels[i], 'is_correct': _isQuiz && i == _correctIndex},
+        for (var i = 0; i < labels.length; i++) {
+          'label': labels[i], 'is_correct': _isQuiz && i == _correctIndex,
+          if (_optionImages[i] != null) 'image_file_path': _optionImages[i]!.path,
+        },
       ],
       if (!_isQuiz) 'duration_hours': _durationHours,
       if (_isQuiz && _explanationController.text.trim().isNotEmpty)
@@ -244,6 +268,23 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         ]),
                       ),
                       const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(15), border: Border.all(color: colors.outlineVariant)),
+                        child: Row(children: [
+                          ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(
+                            width: 66, height: 58,
+                            child: _questionImage == null
+                              ? Icon(Icons.image_outlined, color: colors.onSurfaceVariant, size: 28)
+                              : Image.file(_questionImage!, fit: BoxFit.cover),
+                          )),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text('Image du sondage (facultatif)', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+                          if (_questionImage != null) IconButton(tooltip: 'Retirer l’image', onPressed: () => setState(() => _questionImage = null), icon: const Icon(Icons.close_rounded)),
+                          IconButton(tooltip: 'Ajouter une image', onPressed: _pickQuestionImage, icon: const Icon(Icons.add_photo_alternate_outlined)),
+                        ]),
+                      ),
+                      const SizedBox(height: 12),
                       Row(children: [
                         Expanded(child: Text('poll_options_title'.tr, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
                         Text('${_optionControllers.length}/${_isThisOrThat ? 2 : 6}',
@@ -255,7 +296,8 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         final correct = _isQuiz && _correctIndex == index;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 11),
-                          child: Row(children: [
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                            Row(children: [
                             if (_isQuiz)
                               Material(
                                 color: correct ? Colors.green.withValues(alpha: .12) : colors.surfaceContainerHighest,
@@ -299,6 +341,18 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                                 icon: Icon(Icons.remove_circle_outline_rounded, color: colors.error),
                               ),
                             ],
+                            ]),
+                            const SizedBox(height: 4),
+                            Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                              onPressed: () => _pickOptionImage(index),
+                              icon: Icon(_optionImages[index] == null ? Icons.add_photo_alternate_outlined : Icons.image_rounded, size: 18),
+                              label: Text(_optionImages[index] == null ? 'Ajouter une image à la réponse' : 'Image de la réponse ajoutée'),
+                            )),
+                            if (_optionImages[index] != null)
+                              Padding(padding: const EdgeInsets.only(left: 55), child: Row(children: [
+                                ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.file(_optionImages[index]!, width: 84, height: 64, fit: BoxFit.cover)),
+                                IconButton(tooltip: 'Retirer l’image', onPressed: () => setState(() => _optionImages[index] = null), icon: const Icon(Icons.close_rounded)),
+                              ])),
                           ]),
                         );
                       }),
