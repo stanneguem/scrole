@@ -16,6 +16,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
     TextEditingController(),
   ];
   final _explanationController = TextEditingController();
+  final _questionController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   File? _questionImage;
   final List<File?> _optionImages = [null, null];
@@ -34,6 +35,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
       controller.dispose();
     }
     _explanationController.dispose();
+    _questionController.dispose();
     super.dispose();
   }
 
@@ -51,7 +53,37 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
   }
 
   Future<File?> _pickImage() async {
-    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1800, maxHeight: 1800);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text('poll_image_gallery'.tr),
+              subtitle: Text('poll_image_gallery_hint'.tr),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text('poll_image_camera'.tr),
+              subtitle: Text('poll_image_camera_hint'.tr),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return null;
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 88,
+      maxWidth: 1800,
+      maxHeight: 1800,
+    );
     return picked == null ? null : File(picked.path);
   }
 
@@ -83,6 +115,14 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
     setState(() {});
   }
 
+  bool _validateQuestion() {
+    if (_questionController.text.trim().isEmpty) {
+      Get.snackbar('poll_question_required'.tr, 'poll_question_required_hint'.tr);
+      return false;
+    }
+    return true;
+  }
+
   bool _validateOptions() {
     final labels = _optionControllers.map((c) => c.text.trim()).toList();
     if (labels.any((label) => label.isEmpty)) {
@@ -102,6 +142,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
 
   void _next() {
     if (_saving) return;
+    if (_step == 1 && !_validateQuestion()) return;
     if (_step == 1 && !_validateOptions()) return;
     if (_step < 2) {
       FocusScope.of(context).unfocus();
@@ -122,11 +163,12 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
   }
 
   void _submit() {
-    if (_saving || !_validateOptions()) return;
+    if (_saving || !_validateQuestion() || !_validateOptions()) return;
     setState(() => _saving = true);
     final labels = _optionControllers.map((c) => c.text.trim()).toList();
     final poll = <String, dynamic>{
       'kind': _kind,
+      'question': _questionController.text.trim(),
       if (_questionImage != null) 'image_file_path': _questionImage!.path,
       'options': [
         for (var i = 0; i < labels.length; i++) {
@@ -269,21 +311,85 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                         ]),
                       ),
                       const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(15), border: Border.all(color: colors.outlineVariant)),
-                        child: Row(children: [
-                          ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(
-                            width: 66, height: 58,
-                            child: _questionImage == null
-                              ? Icon(Icons.image_outlined, color: colors.onSurfaceVariant, size: 28)
-                              : Image.file(_questionImage!, fit: BoxFit.cover),
-                          )),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text('poll_image_question'.tr, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
-                          if (_questionImage != null) IconButton(tooltip: 'poll_image_remove'.tr, onPressed: () => setState(() => _questionImage = null), icon: const Icon(Icons.close_rounded)),
-                          IconButton(tooltip: 'poll_image_add'.tr, onPressed: _pickQuestionImage, icon: const Icon(Icons.add_photo_alternate_outlined)),
-                        ]),
+                      Text('poll_question_label'.tr, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _questionController,
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLength: 180,
+                        minLines: 2,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: 'poll_question_hint'.tr,
+                          prefixIcon: const Icon(Icons.help_outline_rounded),
+                          alignLabelWithHint: true,
+                          filled: true,
+                          fillColor: colors.surfaceContainerLow,
+                          counterText: '',
+                          contentPadding: const EdgeInsets.all(15),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colors.outlineVariant)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colors.outlineVariant)),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text('poll_question_image_label'.tr, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: _pickQuestionImage,
+                        borderRadius: BorderRadius.circular(18),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: double.infinity,
+                          padding: EdgeInsets.all(_questionImage == null ? 20 : 8),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: _questionImage == null ? colors.outlineVariant : colors.primary.withValues(alpha: .6), width: _questionImage == null ? 1 : 1.5),
+                          ),
+                          child: _questionImage == null
+                            ? Column(children: [
+                                Container(
+                                  width: 54, height: 54,
+                                  decoration: BoxDecoration(color: colors.primary.withValues(alpha: .10), borderRadius: BorderRadius.circular(16)),
+                                  child: Icon(Icons.add_photo_alternate_rounded, size: 27, color: colors.primary),
+                                ),
+                                const SizedBox(height: 10),
+                                Text('poll_image_add'.tr, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                                const SizedBox(height: 4),
+                                Text('poll_image_picker_hint'.tr, textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+                              ])
+                            : Stack(children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(_questionImage!, width: double.infinity, height: 190, fit: BoxFit.cover),
+                                ),
+                                Positioned(
+                                  top: 8, right: 8,
+                                  child: Material(
+                                    color: Colors.black.withValues(alpha: .68),
+                                    shape: const CircleBorder(),
+                                    child: IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      tooltip: 'poll_image_remove'.tr,
+                                      onPressed: () => setState(() => _questionImage = null),
+                                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 8, bottom: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: .68), borderRadius: BorderRadius.circular(20)),
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                                      const SizedBox(width: 5),
+                                      Text('poll_image_change'.tr, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    ]),
+                                  ),
+                                ),
+                              ]),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(children: [
