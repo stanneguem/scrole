@@ -231,6 +231,47 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       final data = await _client.rpc('get_salon_messages', params: {'p_salon_id': widget.salonId, 'p_limit': 100});
       if (!mounted) return;
       final messages = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList().reversed.toList();
+      final senderIds = messages
+          .map((message) => message['sender_id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+      if (senderIds.isNotEmpty) {
+        try {
+          final profiles = await _client
+              .from('user_profiles')
+              .select('user_id, username, first_name, last_name')
+              .inFilter('user_id', senderIds);
+          final namesById = <String, String>{};
+          for (final rawProfile in profiles) {
+            final profile = Map<String, dynamic>.from(rawProfile as Map);
+            final fullName = [profile['first_name'], profile['last_name']]
+                .where((part) => part != null && part.toString().trim().isNotEmpty)
+                .map((part) => part.toString().trim())
+                .join(' ');
+            final displayName = fullName.isNotEmpty
+                ? fullName
+                : (profile['username'] ?? 'Membre').toString();
+            namesById[profile['user_id'].toString()] = displayName;
+          }
+          for (final message in messages) {
+            final senderId = message['sender_id']?.toString();
+            if (senderId != null) {
+              message['sender_name'] = namesById[senderId] ??
+                  (senderId.length > 8 ? senderId.substring(0, 8) : senderId);
+            }
+          }
+        } catch (_) {
+          for (final message in messages) {
+            final senderId = message['sender_id']?.toString();
+            if (senderId != null) {
+              message['sender_name'] =
+                  senderId.length > 8 ? senderId.substring(0, 8) : senderId;
+            }
+          }
+        }
+      }
       setState(() { _messages = messages; _loading = false; });
       WidgetsBinding.instance.addPostFrameCallback((_) { if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent); });
     } catch (e) {
@@ -290,7 +331,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
               decoration: BoxDecoration(color: mine ? colors.primaryContainer : colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (!mine) Text((message['sender_id'] ?? 'Membre').toString().substring(0, (message['sender_id'] ?? 'Membre').toString().length.clamp(0, 8)), style: TextStyle(fontSize: 10, color: colors.primary, fontWeight: FontWeight.bold)),
+                if (!mine) Text((message['sender_name'] ?? 'Membre').toString(), style: TextStyle(fontSize: 10, color: colors.primary, fontWeight: FontWeight.bold)),
                 Text(deleted ? 'chat_groups_deleted_message'.tr : (message['content'] ?? '').toString(), style: TextStyle(color: colors.onSurface)),
                 const SizedBox(height: 3),
                 Text((message['sent_at'] ?? '').toString().replaceFirst('T', ' ').split('.').first, style: TextStyle(fontSize: 9, color: colors.onSurfaceVariant)),
