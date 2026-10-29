@@ -1278,7 +1278,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           ),
         ],
       ),
-      bottomNavigationBar: !preview.canAddToCalendar
+      bottomNavigationBar: (!preview.canAddToCalendar || isOwnerOrCoFounder)
           ? null
           : Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
