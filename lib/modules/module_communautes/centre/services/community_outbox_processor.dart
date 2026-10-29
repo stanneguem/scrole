@@ -654,6 +654,52 @@ class CommunityOutboxProcessor extends GetxService {
           final sharingEnabled = payload['p_sharing_enabled'] == true;
           final reactionsEnabled = payload['p_reactions_enabled'] == true;
           final poll = payload['p_poll'] is Map ? Map<String, dynamic>.from(payload['p_poll']) : null;
+          if (poll != null) {
+            final pollImagePath = poll.remove('image_file_path')?.toString();
+            if (pollImagePath != null && pollImagePath.isNotEmpty) {
+              final imageFile = File(pollImagePath);
+              if (await imageFile.exists()) {
+                final ext = p.extension(pollImagePath).toLowerCase();
+                final storagePath = 'users/${_authService.userId}/posts/${pId}/poll/question${ext.isEmpty ? '.jpg' : ext}';
+                final uploaded = await supabaseClient.storage.from('community-media').upload(
+                  storagePath,
+                  imageFile,
+                  fileOptions: FileOptions(
+                    upsert: true,
+                    contentType: ext == '.png' ? 'image/png' : ext == '.webp' ? 'image/webp' : 'image/jpeg',
+                  ),
+                );
+                poll['image_url'] = supabaseClient.storage.from('community-media').getPublicUrl(storagePath);
+              }
+            }
+            final rawOptions = poll['options'];
+            if (rawOptions is List) {
+              final updatedOptions = <Map<String, dynamic>>[];
+              for (var optionIndex = 0; optionIndex < rawOptions.length; optionIndex++) {
+                if (rawOptions[optionIndex] is! Map) continue;
+                final option = Map<String, dynamic>.from(rawOptions[optionIndex] as Map);
+                final localOptionPath = option.remove('image_file_path')?.toString();
+                if (localOptionPath != null && localOptionPath.isNotEmpty) {
+                  final imageFile = File(localOptionPath);
+                  if (await imageFile.exists()) {
+                    final ext = p.extension(localOptionPath).toLowerCase();
+                    final storagePath = 'users/${_authService.userId}/posts/${pId}/poll/option_${optionIndex + 1}${ext.isEmpty ? '.jpg' : ext}';
+                    await supabaseClient.storage.from('community-media').upload(
+                      storagePath,
+                      imageFile,
+                      fileOptions: FileOptions(
+                        upsert: true,
+                        contentType: ext == '.png' ? 'image/png' : ext == '.webp' ? 'image/webp' : 'image/jpeg',
+                      ),
+                    );
+                    option['image_url'] = supabaseClient.storage.from('community-media').getPublicUrl(storagePath);
+                  }
+                }
+                updatedOptions.add(option);
+              }
+              poll['options'] = updatedOptions;
+            }
+          }
           final allowPromotion = payload['p_allow_promotion'] ?? true;
 
           debugPrint('[POST_CREATE][$postKind] RPC_START operationId=$operationId postId=$pId communityId=$communityId audience=$audience contentLength=${content.length} mediaCount=${uploadedMedia.length} hashtagCount=${hashtags.length} mentionCount=${mentions.length} pollPresent=${poll != null}');
