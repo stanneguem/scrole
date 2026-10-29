@@ -130,6 +130,19 @@ class _PollCardWidgetState extends State<PollCardWidget> {
               decoration: BoxDecoration(color: colors.surfaceContainerHighest.withValues(alpha: .75), borderRadius: BorderRadius.circular(30)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.people_alt_outlined, size: 13, color: colors.onSurfaceVariant), const SizedBox(width: 5), Text('poll_votes_count'.trParams({'count': '$voters'}), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.onSurfaceVariant))])),
         ]),
+        if ((_poll['image_url'] ?? '').toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              _poll['image_url'].toString(),
+              width: double.infinity,
+              height: 210,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ],
         const SizedBox(height: 15),
         ...options.map((option) {
           final id = option['id']?.toString() ?? '';
@@ -171,7 +184,25 @@ class _PollCardWidgetState extends State<PollCardWidget> {
                         : (_multiple ? Icons.check_box_outline_blank_rounded : Icons.radio_button_off_rounded),
                         size: 21, color: correct ? Colors.green : selected ? colors.primary : colors.outline),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(label, style: TextStyle(fontSize: 14, height: 1.35, letterSpacing: -.1, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: colors.onSurface))),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(label, style: TextStyle(fontSize: 14, height: 1.35, letterSpacing: -.1, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: colors.onSurface)),
+                          if ((option['image_url'] ?? '').toString().trim().isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                option['image_url'].toString(),
+                                width: double.infinity,
+                                height: 130,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )),
                       if (showResult) ...[
                         const SizedBox(width: 8),
                         Text('${percent.round()}%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: colors.onSurface)),
