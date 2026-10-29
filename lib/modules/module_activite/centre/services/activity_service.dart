@@ -75,7 +75,9 @@ class ActivityService extends GetxService {
 
   // --- 1. Création d'une activité ---
 
-  Future<Activity> createActivity(ActivityCreationData data, {bool eventOnly = false}) async {
+  Future<Activity> createActivity(ActivityCreationData data, {bool eventOnly = false, String? eventId}) async {
+    final linkedEventId = eventId?.trim();
+    final isCreatedForEvent = linkedEventId != null && linkedEventId.isNotEmpty;
     final userId = _authService.userId ?? '';
     final activityId = _repository.generateLocalId();
     final operationId = _repository.generateLocalId();
@@ -89,8 +91,8 @@ class ActivityService extends GetxService {
       description: data.description,
       displayPrice: data.priceGeneral,
       displayCurrency: data.currencyCode,
-      status: 'en_attente',
-      eventOnly: eventOnly,
+      status: isCreatedForEvent ? 'active' : 'en_attente',
+      eventOnly: eventOnly || isCreatedForEvent,
       createdAt: now,
       updatedAt: now,
       cachedAt: now.millisecondsSinceEpoch,
@@ -113,7 +115,8 @@ class ActivityService extends GetxService {
         'description': data.description,
         'base_price': data.priceGeneral,
         'currency_code': data.currencyCode,
-        'event_only': eventOnly,
+        'event_only': eventOnly || isCreatedForEvent,
+        if (isCreatedForEvent) 'event_id': linkedEventId,
       },
     );
 
