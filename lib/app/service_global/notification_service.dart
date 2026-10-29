@@ -468,27 +468,35 @@ class NotificationService {
             );
             final lastSeen = await db.getLatestNotificationTimestamp(userId);
 
-            // On récupère tout ce qui est arrivé depuis le dernier checkpoint local
-            final query = client
-                .from('notifications')
-                .select()
-                .eq('user_id', userId);
-            if (lastSeen != null) {
-              // Inclure l'égalité : plusieurs notifications peuvent partager
-              // le même timestamp. L'insert local est idempotent par ID.
-              query.gte('created_at', lastSeen.toUtc().toIso8601String());
-            }
-
-            try {
-              final missed = await query.order('created_at');
-              for (final n in missed) {
-                await _processIncomingNotification(n);
-              }
+            // Sans checkpoint local, ne jamais relire tout l'historique :
+            // cela ferait réapparaître d'anciennes notifications après une
+            // première installation ou un cache vidé. Le rattrapage des
+            // notifications réellement manquées est géré par
+            // register_user_device_token à partir du checkpoint serveur.
+            if (lastSeen == null) {
               debugPrint(
-                '[Sync] Notification catch-up completed: ${missed.length} missed notifications processed.',
+                '[Sync] No local notification checkpoint; skipping historical catch-up.',
               );
-            } catch (e) {
-              debugPrint('[Error] Notification catch-up failed: $e');
+            } else {
+              final query = client
+                  .from('notifications')
+                  .select()
+                  .eq('user_id', userId)
+                  // Inclure l'égalité : plusieurs notifications peuvent partager
+                  // le même timestamp. L'insert local est idempotent par ID.
+                  .gte('created_at', lastSeen.toUtc().toIso8601String());
+
+              try {
+                final missed = await query.order('created_at');
+                for (final n in missed) {
+                  await _processIncomingNotification(n);
+                }
+                debugPrint(
+                  '[Sync] Notification catch-up completed: ${missed.length} missed notifications processed.',
+                );
+              } catch (e) {
+                debugPrint('[Error] Notification catch-up failed: $e');
+              }
             }
           }
           _subscribedOnce = true;
