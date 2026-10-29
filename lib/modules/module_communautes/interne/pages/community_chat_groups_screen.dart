@@ -47,17 +47,17 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
-        title: const Text('chat_groups_create_title'.tr),
+        title: Text('chat_groups_create_title'.tr),
         content: Form(key: formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextFormField(controller: name, maxLength: 80, decoration: InputDecoration(labelText: 'chat_groups_name'.tr), validator: (v) => (v == null || v.trim().length < 2) ? 'chat_groups_name_invalid'.tr : null),
           TextFormField(controller: description, maxLength: 300, decoration: InputDecoration(labelText: 'chat_groups_description'.tr)),
           const SizedBox(height: 12),
-          RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'public', groupValue: visibility, title: const Text('chat_groups_public'.tr), subtitle: const Text('chat_groups_public_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
-          RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'private', groupValue: visibility, title: const Text('chat_groups_private'.tr), subtitle: const Text('chat_groups_private_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
+          RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'public', groupValue: visibility, title: Text('chat_groups_public'.tr), subtitle: Text('chat_groups_public_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
+          RadioListTile<String>(contentPadding: EdgeInsets.zero, value: 'private', groupValue: visibility, title: Text('chat_groups_private'.tr), subtitle: Text('chat_groups_private_help'.tr), onChanged: (v) => setDialogState(() => visibility = v!)),
         ]))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('chat_groups_cancel'.tr)),
-          FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true); }, child: const Text('chat_groups_create_action'.tr)),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text('chat_groups_cancel'.tr)),
+          FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true); }, child: Text('chat_groups_create_action'.tr)),
         ],
       )),
     );
@@ -156,7 +156,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('chat_groups_title'.tr),
+        Text('chat_groups_title'.tr),
         Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
       ]), actions: [IconButton(onPressed: _creating ? null : _createGroup, tooltip: 'chat_groups_create_title'.tr, icon: const Icon(Icons.add_comment_outlined))]),
       body: _loading ? Center(child: CircularProgressIndicator()) : RefreshIndicator(
@@ -183,7 +183,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
                 const SizedBox(height: 4),
                 Text(isPrivate ? 'chat_groups_private_label'.tr : 'chat_groups_public_label'.tr),
                 if (group['member_count'] != null) Text('chat_groups_count'.trParams({'count': '${group['member_count']}'})),
-                if (pending) const Text('chat_groups_request_pending'.tr),
+                if (pending) Text('chat_groups_request_pending'.tr),
               ]),
               isThreeLine: (group['description'] ?? '').toString().isNotEmpty,
               onTap: pending ? null : () => _openOrRequest(group),
@@ -278,7 +278,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       ])),
       body: Column(children: [
         Expanded(child: _loading ? Center(child: CircularProgressIndicator()) : _messages.isEmpty
-          ? const Center(child: Text('chat_groups_first_message'.tr))
+          ? Center(child: Text('chat_groups_first_message'.tr))
           : ListView.builder(controller: _scroll, padding: const EdgeInsets.all(12), itemCount: _messages.length, itemBuilder: (_, i) {
             final message = _messages[i];
             final mine = message['sender_id']?.toString() == uid;
