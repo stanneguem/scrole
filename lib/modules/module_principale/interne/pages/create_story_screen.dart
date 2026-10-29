@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:scrole/shared/widgets/video_trim_screen.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/app/theme/app_colors.dart';
@@ -92,36 +93,62 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
           if (files.isEmpty) return;
 
           final file = File(files.first.path);
-          if (_isVideoFile(file)) {
-            VideoPlayerController? controller;
+          var selectedFile = file;
+          if (_isVideoFile(selectedFile)) {
             try {
-              controller = VideoPlayerController.file(file);
-              await controller.initialize().timeout(const Duration(seconds: 30));
-              final duration = controller.value.duration;
-              if (duration <= Duration.zero) {
-                throw StateError('Impossible de déterminer la durée de cette vidéo.');
+              final controller = VideoPlayerController.file(selectedFile);
+              Duration duration;
+              try {
+                await controller.initialize();
+                duration = controller.value.duration;
+                if (duration <= Duration.zero) {
+                  throw StateError('Impossible de déterminer la durée de cette vidéo.');
+                }
+              } finally {
+                await controller.dispose();
               }
-              if (duration > _maxVideoDuration) {
-                Get.snackbar(
-                  'Vidéo trop longue',
-                  'La durée maximale d’une story vidéo est de 30 secondes.',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
+
+              // Same trimming flow as post creation: long videos are not
+              // rejected outright; the user chooses a segment of <= 29 sec.
+              const maxStoryVideoDuration = Duration(seconds: 29);
+              if (duration > maxStoryVideoDuration) {
+                final trimmed = await Get.to<File>(
+                  () => VideoTrimScreen(
+                    videoFile: selectedFile,
+                    maxDuration: maxStoryVideoDuration,
+                  ),
                 );
-                return;
+                if (trimmed == null || !mounted) return;
+                selectedFile = trimmed;
+
+                final verify = VideoPlayerController.file(selectedFile);
+                try {
+                  await verify.initialize();
+                  if (verify.value.duration <= Duration.zero ||
+                      verify.value.duration > maxStoryVideoDuration) {
+                    Get.snackbar(
+                      'post_composer_attention'.tr,
+                      'post_composer_trim_invalid'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.black87,
+                      colorText: Colors.white,
+                    );
+                    return;
+                  }
+                } finally {
+                  await verify.dispose();
+                }
               }
             } catch (e) {
               Get.snackbar(
-                'Vidéo invalide',
-                'Impossible de vérifier la durée de cette vidéo.',
+                'post_composer_video_invalid_title'.tr,
+                'post_composer_video_invalid_message'.tr,
                 snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.red,
+                backgroundColor: Colors.black87,
                 colorText: Colors.white,
               );
+              debugPrint('[STORY] Invalid selected video: $e');
               return;
-            } finally {
-              await controller?.dispose();
             }
           }
 
@@ -129,7 +156,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
           setState(() {
             _selectedFiles
               ..clear()
-              ..add(file);
+              ..add(selectedFile);
           });
         },
       ),
