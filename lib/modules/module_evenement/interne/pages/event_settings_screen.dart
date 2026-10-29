@@ -28,6 +28,48 @@ class EventSettingsScreen extends StatelessWidget {
     // La propriété repose sur l'identifiant du créateur, pas sur le rôle d'affichage.
     // L'accès à la certification est en plus confirmé par le RPC serveur.
     final isCreator = event.creatorId == currentUserId;
+    final isPendingValidation = event.status == EventStatus.draft;
+
+    // Un événement en attente de validation reste consultable en aperçu,
+    // mais ses paramètres ne doivent pas être accessibles avant publication.
+    if (isPendingValidation) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'event_settings'.tr,
+            style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.hourglass_top_rounded, size: 48, color: Colors.orange.shade700),
+                const SizedBox(height: 16),
+                Text(
+                  'Paramètres indisponibles',
+                  style: AppTextStyles.h4,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Cet événement est encore en attente de validation administrative. Tu pourras accéder à ses paramètres dès qu’il sera validé.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: Get.back,
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Retour à l’aperçu'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
