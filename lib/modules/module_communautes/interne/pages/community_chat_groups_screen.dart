@@ -1,4 +1,11 @@
 import 'dart:math' as math;
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
+import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'create_community_chat_group_screen.dart';
@@ -189,6 +196,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
   bool _sending = false;
+  bool _recording = false;
+  bool _uploadingMedia = false;
+  final AudioRecorder _recorder = AudioRecorder();
+  DateTime? _recordingStartedAt;
   RealtimeChannel? _channel;
 
   @override
@@ -207,6 +218,21 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       final data = await _client.rpc('get_salon_messages', params: {'p_salon_id': widget.salonId, 'p_limit': 100});
       if (!mounted) return;
       final messages = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList().reversed.toList();
+      for (final message in messages) {
+        final type = message['type']?.toString();
+        final field = type == 'audio' ? 'audio_url' : 'content';
+        if (type == 'audio' || type == 'image' || type == 'video') {
+          final key = message[field]?.toString() ?? '';
+          if (key.isNotEmpty && !key.startsWith('http')) {
+            try {
+              message[type == 'audio' ? 'audio_signed_url' : 'media_signed_url'] =
+                  await _client.storage.from('community-salon-media').createSignedUrl(key, 3600);
+            } catch (_) {}
+          } else {
+            message[type == 'audio' ? 'audio_signed_url' : 'media_signed_url'] = key;
+          }
+        }
+      }
       final senderIds = messages
           .map((message) => message['sender_id']?.toString())
           .whereType<String>()
@@ -257,6 +283,86 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
   }
 
+  Future<String> _uploadFile(String path, String extension, String contentType) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw StateError('Utilisateur non authentifié');
+    final objectPath = '${widget.salonId}/$uid/${_newUuid()}.$extension';
+    await _client.storage.from('community-salon-media').upload(
+      objectPath, File(path),
+      fileOptions: FileOptions(contentType: contentType, upsert: false),
+    );
+    return objectPath;
+  }
+
+  Future<void> _pickMedia() async {
+    if (_sending || _uploadingMedia) return;
+    final picker = ImagePicker();
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(child: Wrap(children: [
+        ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Choisir une image'), onTap: () => Navigator.pop(ctx, 'image')),
+        ListTile(leading: const Icon(Icons.videocam_outlined), title: const Text('Choisir une vidéo'), onTap: () => Navigator.pop(ctx, 'video')),
+        ListTile(leading: const Icon(Icons.camera_alt_outlined), title: const Text('Prendre une photo'), onTap: () => Navigator.pop(ctx, 'camera')),
+      ])),
+    );
+    if (choice == null) return;
+    try {
+      XFile? file;
+      if (choice == 'image') file = await picker.pickImage(source: ImageSource.gallery);
+      if (choice == 'video') file = await picker.pickVideo(source: ImageSource.gallery);
+      if (choice == 'camera') file = await picker.pickImage(source: ImageSource.camera);
+      if (file == null) return;
+      setState(() => _uploadingMedia = true);
+      final isVideo = choice == 'video' || file.mimeType?.startsWith('video/') == true;
+      final ext = file.path.split('.').last.toLowerCase();
+      final safeExt = ext.length <= 5 ? ext : (isVideo ? 'mp4' : 'jpg');
+      final key = await _uploadFile(file.path, safeExt, file.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'));
+      await _client.rpc('send_salon_message', params: {
+        'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': key,
+        'p_type': isVideo ? 'video' : 'image', 'p_audio_url': null, 'p_replied_to_id': null,
+      });
+      await _loadMessages();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Envoi du média impossible : $e')));
+    } finally { if (mounted) setState(() => _uploadingMedia = false); }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      try {
+        final path = await _recorder.stop();
+        final duration = _recordingStartedAt == null ? 0 : DateTime.now().difference(_recordingStartedAt!).inSeconds;
+        if (path == null || duration < 1) {
+          if (mounted) setState(() => _recording = false);
+          return;
+        }
+        setState(() { _recording = false; _uploadingMedia = true; });
+        final key = await _uploadFile(path, 'm4a', 'audio/mp4');
+        await _client.rpc('send_salon_message', params: {
+          'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': '', 'p_type': 'audio',
+          'p_audio_url': key, 'p_replied_to_id': null,
+        });
+        await _loadMessages();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Envoi du vocal impossible : $e')));
+      } finally { if (mounted) setState(() { _recording = false; _uploadingMedia = false; }); }
+      return;
+    }
+    final permission = await Permission.microphone.request();
+    if (!permission.isGranted) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Autorise le microphone pour enregistrer un vocal.')));
+      return;
+    }
+    try {
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/salon_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
+      await _recorder.start(const RecordConfig(), path: path);
+      if (mounted) setState(() { _recording = true; _recordingStartedAt = DateTime.now(); });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible de démarrer l’enregistrement : $e')));
+    }
+  }
+
   Future<void> _send() async {
     final content = _input.text.trim();
     if (content.isEmpty || _sending) return;
@@ -281,6 +387,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   @override
   void dispose() {
     _input.dispose(); _scroll.dispose();
+    _recorder.dispose();
     if (_channel != null) _client.removeChannel(_channel!);
     super.dispose();
   }
@@ -308,16 +415,33 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               decoration: BoxDecoration(color: mine ? colors.primaryContainer : colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 if (!mine) Text((message['sender_name'] ?? 'Membre').toString(), style: TextStyle(fontSize: 10, color: colors.primary, fontWeight: FontWeight.bold)),
-                Text(deleted ? 'chat_groups_deleted_message'.tr : (message['content'] ?? '').toString(), style: TextStyle(color: colors.onSurface)),
+                if (deleted)
+                  Text('chat_groups_deleted_message'.tr, style: TextStyle(color: colors.onSurface))
+                else if (message['type'] == 'audio' && (message['audio_signed_url'] ?? '').toString().isNotEmpty)
+                  SizedBox(width: 235, child: DirectVoiceMessagePlayer(
+                    voiceMessage: legacy.VoiceMessage(fileName: 'audio.m4a', sizeLabel: '', durationLabel: '', url: message['audio_signed_url'].toString()),
+                    audioPath: message['audio_signed_url'].toString(), messageId: message['id'].toString(), isMine: mine,
+                  ))
+                else if ((message['type'] == 'image' || message['type'] == 'video') && (message['media_signed_url'] ?? '').toString().isNotEmpty)
+                  Padding(padding: const EdgeInsets.only(top: 4, bottom: 4), child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(message['media_signed_url'].toString(), width: 230, height: 170, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox(width: 230, height: 80, child: Center(child: Icon(Icons.broken_image_outlined))),
+                    ),
+                  ))
+                else if ((message['content'] ?? '').toString().isNotEmpty)
+                  Text((message['content'] ?? '').toString(), style: TextStyle(color: colors.onSurface)),
                 const SizedBox(height: 3),
                 Text((message['sent_at'] ?? '').toString().replaceFirst('T', ' ').split('.').first, style: TextStyle(fontSize: 9, color: colors.onSurfaceVariant)),
               ]),
             ));
           })),
         SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(10, 6, 10, 8), child: Row(children: [
+          IconButton(onPressed: _sending || _uploadingMedia ? null : _pickMedia, tooltip: 'Média', icon: _uploadingMedia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.attach_file_rounded)),
           Expanded(child: TextField(controller: _input, minLines: 1, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(hintText: 'chat_groups_message_hint'.tr, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11)), onSubmitted: (_) => _send())),
           const SizedBox(width: 8),
-          IconButton.filled(onPressed: _sending ? null : _send, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)),
+          IconButton(onPressed: _uploadingMedia ? null : _toggleRecording, tooltip: _recording ? 'Arrêter le vocal' : 'Enregistrer un vocal', icon: Icon(_recording ? Icons.stop_circle_rounded : Icons.mic_none_rounded, color: _recording ? colors.error : colors.primary)),
+          IconButton.filled(onPressed: _sending || _recording ? null : _send, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)),
         ]))),
       ]),
     );
