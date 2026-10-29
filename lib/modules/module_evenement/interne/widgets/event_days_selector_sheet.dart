@@ -170,8 +170,12 @@ class _EventDaysSelectorSheetState extends State<EventDaysSelectorSheet> {
                   title: Text(
                     formattedDate[0].toUpperCase() + formattedDate.substring(1),
                     style: AppTextStyles.body.copyWith(
-                      color: colorScheme.onSurface,
+                      color: isPast
+                          ? colorScheme.onSurfaceVariant.withValues(alpha: 0.55)
+                          : colorScheme.onSurface,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      decoration: isPast ? TextDecoration.lineThrough : TextDecoration.none,
+                      decorationThickness: 1.5,
                     ),
                   ),
                   activeColor: AppColors.primary,
