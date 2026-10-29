@@ -1112,6 +1112,13 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                   ),
                                 ],
                               ),
+                              if ((_pollData!['question'] ?? '').toString().trim().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _pollData!['question'].toString(),
+                                  style: TextStyle(fontSize: 18, height: 1.3, fontWeight: FontWeight.w800, color: colorScheme.onSurface),
+                                ),
+                              ],
                               if ((_pollData!['image_file_path'] ?? '').toString().isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ClipRRect(
