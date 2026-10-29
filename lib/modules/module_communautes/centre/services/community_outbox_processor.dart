@@ -655,50 +655,56 @@ class CommunityOutboxProcessor extends GetxService {
           final reactionsEnabled = payload['p_reactions_enabled'] == true;
           final poll = payload['p_poll'] is Map ? Map<String, dynamic>.from(payload['p_poll']) : null;
           if (poll != null) {
-            final pollImagePath = poll.remove('image_file_path')?.toString();
-            if (pollImagePath != null && pollImagePath.isNotEmpty) {
-              final imageFile = File(pollImagePath);
-              if (await imageFile.exists()) {
-                final ext = p.extension(pollImagePath).toLowerCase();
-                final storagePath = 'users/${_authService.userId}/posts/${pId}/poll/question${ext.isEmpty ? '.jpg' : ext}';
-                await supabaseClient.storage.from('community-media').upload(
-                  storagePath,
-                  imageFile,
-                  fileOptions: FileOptions(
-                    upsert: true,
-                    contentType: ext == '.png' ? 'image/png' : ext == '.webp' ? 'image/webp' : 'image/jpeg',
-                  ),
-                );
-                poll['image_url'] = supabaseClient.storage.from('community-media').getPublicUrl(storagePath);
+            final r2MediaRepository = R2MediaRepository(client: supabaseClient);
+
+            Future<void> uploadPollImage(Map<String, dynamic> target, String localPathKey, String urlKey) async {
+              final localPath = target.remove(localPathKey)?.toString();
+              final existingUrl = target[urlKey]?.toString();
+              if ((existingUrl ?? '').startsWith('http://') || (existingUrl ?? '').startsWith('https://')) {
+                return;
               }
+              if (localPath == null || localPath.isEmpty) return;
+              final imageFile = File(localPath);
+              if (!await imageFile.exists()) {
+                throw FileSystemException('Une image du sondage est introuvable.', localPath);
+              }
+              final uploaded = await r2MediaRepository.uploadFile(
+                file: imageFile,
+                category: 'post_media',
+                mediaType: 'image',
+                entityId: pId,
+                communityId: communityId,
+              );
+              final publicUrl = uploaded.publicUrl;
+              if (publicUrl == null || publicUrl.isEmpty || !uploaded.isPublic) {
+                throw StateError('R2 n’a pas retourné d’URL publique pour une image de sondage.');
+              }
+              target[urlKey] = publicUrl;
+              target['${urlKey}_storage'] = 'r2';
+              target['${urlKey}_object_key'] = uploaded.objectKey;
             }
+
+            await uploadPollImage(poll, 'image_file_path', 'image_url');
             final rawOptions = poll['options'];
             if (rawOptions is List) {
               final updatedOptions = <Map<String, dynamic>>[];
-              for (var optionIndex = 0; optionIndex < rawOptions.length; optionIndex++) {
-                if (rawOptions[optionIndex] is! Map) continue;
-                final option = Map<String, dynamic>.from(rawOptions[optionIndex] as Map);
-                final localOptionPath = option.remove('image_file_path')?.toString();
-                if (localOptionPath != null && localOptionPath.isNotEmpty) {
-                  final imageFile = File(localOptionPath);
-                  if (await imageFile.exists()) {
-                    final ext = p.extension(localOptionPath).toLowerCase();
-                    final storagePath = 'users/${_authService.userId}/posts/${pId}/poll/option_${optionIndex + 1}${ext.isEmpty ? '.jpg' : ext}';
-                    await supabaseClient.storage.from('community-media').upload(
-                      storagePath,
-                      imageFile,
-                      fileOptions: FileOptions(
-                        upsert: true,
-                        contentType: ext == '.png' ? 'image/png' : ext == '.webp' ? 'image/webp' : 'image/jpeg',
-                      ),
-                    );
-                    option['image_url'] = supabaseClient.storage.from('community-media').getPublicUrl(storagePath);
-                  }
-                }
+              for (final rawOption in rawOptions) {
+                if (rawOption is! Map) continue;
+                final option = Map<String, dynamic>.from(rawOption);
+                await uploadPollImage(option, 'image_file_path', 'image_url');
                 updatedOptions.add(option);
               }
               poll['options'] = updatedOptions;
             }
+            // Save uploaded R2 URLs in the durable outbox before the RPC. A retry
+            // after a transient database error reuses them instead of uploading again.
+            payload['p_poll'] = poll;
+            await db.update(
+              'post_outbox',
+              {'payload': jsonEncode(payload), 'updated_at': DateTime.now().toIso8601String()},
+              where: 'id = ?',
+              whereArgs: [id],
+            );
           }
           final allowPromotion = payload['p_allow_promotion'] ?? true;
 
