@@ -92,7 +92,7 @@ class _EventDaysSelectorScreenState extends State<EventDaysSelectorScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'save_error'.tr,
+              Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
               style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
             ),
             backgroundColor: AppColors.error,
