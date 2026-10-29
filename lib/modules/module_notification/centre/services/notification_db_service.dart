@@ -41,7 +41,10 @@ class NotificationDbService extends GetxService {
         'message': message,
         'type': type,
         'payload': payload,
-        'created_at': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
+        // Garder la date originale : une notification reçue de nouveau via
+        // FCM/Realtime ne doit pas remonter en tête comme si elle était neuve.
+        if (createdAt != null)
+          'created_at': createdAt.millisecondsSinceEpoch,
       };
       if (isRead && !wasRead) update['is_read'] = 1;
       await db.update('notifications', update,
