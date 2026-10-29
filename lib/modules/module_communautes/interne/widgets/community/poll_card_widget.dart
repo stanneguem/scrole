@@ -125,10 +125,24 @@ class _PollCardWidgetState extends State<PollCardWidget> {
             Row(children: [Icon(_closed ? Icons.lock_clock_rounded : Icons.schedule_rounded, size: 13, color: colors.onSurfaceVariant), const SizedBox(width: 4), Flexible(child: Text(_closed ? 'poll_interaction_ended'.tr : _endLabel(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colors.onSurfaceVariant)))]),
           ])),
           if (voters > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: colors.surfaceContainerHighest.withValues(alpha: .75), borderRadius: BorderRadius.circular(30)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.people_alt_outlined, size: 13, color: colors.onSurfaceVariant), const SizedBox(width: 5), Text('poll_votes_count'.trParams({'count': '$voters'}), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.onSurfaceVariant))])),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+                decoration: BoxDecoration(color: colors.surfaceContainerHighest.withValues(alpha: .75), borderRadius: BorderRadius.circular(30)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.people_alt_outlined, size: 13, color: colors.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      'poll_votes_count'.trParams({'count': '$voters'}),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
         ]),
         if ((_poll['image_url'] ?? '').toString().trim().isNotEmpty) ...[
           const SizedBox(height: 14),
