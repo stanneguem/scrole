@@ -279,9 +279,9 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                               : Image.file(_questionImage!, fit: BoxFit.cover),
                           )),
                           const SizedBox(width: 10),
-                          Expanded(child: Text('Image du sondage (facultatif)', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
-                          if (_questionImage != null) IconButton(tooltip: 'Retirer l’image', onPressed: () => setState(() => _questionImage = null), icon: const Icon(Icons.close_rounded)),
-                          IconButton(tooltip: 'Ajouter une image', onPressed: _pickQuestionImage, icon: const Icon(Icons.add_photo_alternate_outlined)),
+                          Expanded(child: Text('poll_image_question'.tr, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+                          if (_questionImage != null) IconButton(tooltip: 'poll_image_remove'.tr, onPressed: () => setState(() => _questionImage = null), icon: const Icon(Icons.close_rounded)),
+                          IconButton(tooltip: 'poll_image_add'.tr, onPressed: _pickQuestionImage, icon: const Icon(Icons.add_photo_alternate_outlined)),
                         ]),
                       ),
                       const SizedBox(height: 12),
@@ -346,7 +346,7 @@ class _CommunityPollComposerScreenState extends State<CommunityPollComposerScree
                             Align(alignment: Alignment.centerLeft, child: TextButton.icon(
                               onPressed: () => _pickOptionImage(index),
                               icon: Icon(_optionImages[index] == null ? Icons.add_photo_alternate_outlined : Icons.image_rounded, size: 18),
-                              label: Text(_optionImages[index] == null ? 'Ajouter une image à la réponse' : 'Image de la réponse ajoutée'),
+                              label: Text(_optionImages[index] == null ? 'poll_image_option_add'.tr : 'poll_image_option_added'.tr),
                             )),
                             if (_optionImages[index] != null)
                               Padding(padding: const EdgeInsets.only(left: 55), child: Row(children: [
