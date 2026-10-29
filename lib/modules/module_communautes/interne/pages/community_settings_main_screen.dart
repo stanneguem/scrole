@@ -2653,6 +2653,7 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
   String? _loadError;
   String _visibility = 'public';
   bool _requireManualApproval = false;
+  String _salonAllowedCreators = 'admins_moderators';
   bool _certificationRequired = false;
   bool _membersListVisible = true;
   bool _allowReports = true;
@@ -2787,6 +2788,11 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
           : <String, dynamic>{};
       _visibility = community['visibility']?.toString() ?? 'public';
       _requireManualApproval = community['require_manual_approval'] == true;
+      try {
+        _salonAllowedCreators = (await Supabase.instance.client.rpc('get_community_salon_creation_setting', params: {'p_community_id': widget.communityId})).toString();
+      } catch (_) {
+        _salonAllowedCreators = 'admins_moderators';
+      }
       _membersListVisible = settings['members_list_visible'] != false;
       _allowReports = settings['allow_reports'] != false;
       _allowComments = settings['allow_comments'] != false;
@@ -2867,6 +2873,10 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
         clearAgeMax: _ageMaxController.text.trim().isEmpty,
         clearGender: _genderRestriction == null,
       );
+      await Supabase.instance.client.rpc('set_community_salon_creation_setting', params: {
+        'p_community_id': widget.communityId,
+        'p_allowed_creators': _salonAllowedCreators,
+      });
       Get.snackbar('community_save_success'.tr, '', snackPosition: SnackPosition.BOTTOM);
       Get.back();
     } catch (e) {
@@ -2899,6 +2909,37 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
+                      _SettingsSectionCard(
+                        title: 'community_chat_group_creation_permissions'.tr,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Text(
+                              'community_chat_group_creation_permissions_help'.tr,
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                            ),
+                          ),
+                          RadioListTile<String>(
+                            value: 'admins_only',
+                            groupValue: _salonAllowedCreators,
+                            onChanged: (value) => setState(() => _salonAllowedCreators = value!),
+                            title: Text('community_chat_group_creators_admins'.tr),
+                          ),
+                          RadioListTile<String>(
+                            value: 'admins_moderators',
+                            groupValue: _salonAllowedCreators,
+                            onChanged: (value) => setState(() => _salonAllowedCreators = value!),
+                            title: Text('community_chat_group_creators_admins_moderators'.tr),
+                          ),
+                          RadioListTile<String>(
+                            value: 'all_members',
+                            groupValue: _salonAllowedCreators,
+                            onChanged: (value) => setState(() => _salonAllowedCreators = value!),
+                            title: Text('community_chat_group_creators_all_members'.tr),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       _SettingsSectionCard(
                         title: 'community_mgmt_access'.tr,
                         children: [
