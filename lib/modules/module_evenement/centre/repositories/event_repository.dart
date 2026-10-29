@@ -1729,9 +1729,23 @@ class EventRepository {
     }
   }
 
+  String agendaRestrictionMessageKey(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('agenda_selected_day_horizon_exceeded')) {
+      return 'agenda_day_horizon_exceeded_message';
+    }
+    if (message.contains('agenda_horizon_exceeded')) {
+      return 'agenda_horizon_exceeded_message';
+    }
+    if (message.contains('agenda_event_quota_exceeded')) {
+      return 'agenda_event_quota_exceeded_message';
+    }
+    return 'agenda_save_error';
+  }
+
   Future<String?> addEventToCalendarOptimistic(String eventId, String userId) async {
     await _dao.saveCalendarEventStructured(userId, eventId, syncStatus: 'pending_push');
-    await _dao.enqueueOutbox(
+    final outboxId = await _dao.enqueueOutbox(
       userId: userId,
       eventId: eventId,
       tableName: 'event_calendar',
@@ -1741,11 +1755,22 @@ class EventRepository {
 
     try {
       final suggestedCommunityId = await _remote.addEventToCalendar(eventId);
+      await _dao.removeFromOutbox(outboxId);
       await _dao.saveCalendarEventStructured(userId, eventId, syncStatus: 'synced');
       return suggestedCommunityId;
     } catch (e) {
-      debugPrint('[Outbox Queue] addEventToCalendar offline/error: $e. Conservé en outbox.');
-      return null;
+      if (_isNetworkError(e)) {
+        // Garder la modification en attente uniquement pour les erreurs réseau.
+        debugPrint('[Outbox Queue] addEventToCalendar network error: $e. Conservé en outbox.');
+        return null;
+      }
+
+      // Un refus métier (quota, horizon de certification, droits, etc.)
+      // ne doit jamais rester dans le cache ni être retenté en arrière-plan.
+      await _dao.removeFromOutbox(outboxId);
+      await _dao.removeCalendarEventStructured(userId, eventId);
+      debugPrint('[EventRepository] addEventToCalendar rejected by backend; local optimistic state rolled back: $e');
+      rethrow;
     }
   }
 
