@@ -219,7 +219,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   void initState() {
     super.initState();
     _loadMessages();
-    _channel = _client.channel('salon:${widget.salonId}')
+    _channel = _client.channel('salon:${widget.salonId}', opts: const RealtimeChannelConfig(private: true))
       .onBroadcast(event: 'salon_message_sent', callback: (_) { _loadMessages(); })
       .onBroadcast(event: 'salon_message_edited', callback: (_) { _loadMessages(); })
       .onBroadcast(event: 'salon_message_deleted', callback: (_) { _loadMessages(); })
