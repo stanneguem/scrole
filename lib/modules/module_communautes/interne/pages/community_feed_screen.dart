@@ -11,6 +11,7 @@ import 'package:scrole/shared/widgets/post_media_slider.dart';
 import 'package:scrole/modules/module_principale/interne/widgets/community_comments_sheet.dart';
 import 'create_community_post_screen.dart';
 import 'community_settings_screen.dart';
+import 'community_chat_groups_screen.dart';
 import '../../../../shared/widgets/entity_certified_badge.dart';
 
 class CommunityFeedScreen extends StatefulWidget {
@@ -204,6 +205,16 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
           },
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.forum_outlined, color: colorScheme.primary),
+            tooltip: 'Discussions de groupe',
+            onPressed: () {
+              Get.to(() => CommunityChatGroupsScreen(
+                    communityId: communityId,
+                    communityName: communityName,
+                  ));
+            },
+          ),
           IconButton(
             icon: Icon(Icons.add_rounded, color: colorScheme.primary, size: 28),
             onPressed: () {
