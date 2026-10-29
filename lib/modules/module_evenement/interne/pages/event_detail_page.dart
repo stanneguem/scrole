@@ -120,6 +120,17 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
       EventPreviewModel preview;
       try {
         preview = await repo.getEventPreviewPublic(widget.event.id);
+        // La RPC publique renvoie volontairement un aperçu restreint aux membres
+        // de l'équipe. Pour le propriétaire/co-créateur/staff, récupérer le bon
+        // payload afin de ne pas perdre les activités liées à l'événement.
+        if (!preview.canViewPublicPreview) {
+          final role = (preview.viewerRole ?? '').toLowerCase();
+          if (['owner', 'creator', 'fondateur', 'cofounder', 'co_founder', 'co_createur', 'co_creator', 'managed'].contains(role)) {
+            preview = await repo.getEventPreviewOwner(widget.event.id);
+          } else if (role == 'staff') {
+            preview = await repo.getEventPreviewStaff(widget.event.id);
+          }
+        }
       } catch (e) {
         debugPrint('[EventDetailPage] getEventPreviewPublic error: $e. Falling back to getEventPreview...');
         preview = await repo.getEventPreview(widget.event.id);
@@ -678,6 +689,12 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
     final event = preview?.event ?? widget.event;
     final ranking = preview?.ranking ?? const EventRankingInfo();
     final creator = preview?.creator;
+    final currentUserId = Get.find<AppController>().authUser.value?.id;
+    final role = (preview?.viewerRole ?? event.userRole ?? '').toLowerCase();
+    final canManageActivities = preview != null && (
+      ['owner', 'creator', 'fondateur', 'cofounder', 'co_founder', 'co_createur', 'co_creator', 'managed', 'staff'].contains(role) ||
+      (currentUserId != null && currentUserId.isNotEmpty && event.creatorId == currentUserId)
+    );
 
     // Calculs réels pour Billet minimum & Budget total estimé
     final cheapestAmount = preview?.cheapestTicket != null
@@ -1019,12 +1036,16 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                               return Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: () {
-                                    Get.toNamed(
-                                      AppPages.eventActivities.replaceFirst(':id', widget.event.id),
-                                      arguments: {'activity': act, 'event': widget.event},
-                                    );
-                                  },
+                                  // Les visiteurs consultent uniquement la carte.
+                                  // L'écran de gestion est réservé à l'équipe.
+                                  onTap: canManageActivities
+                                      ? () {
+                                          Get.toNamed(
+                                            AppPages.eventActivities.replaceFirst(':id', widget.event.id),
+                                            arguments: {'activity': act, 'event': widget.event},
+                                          );
+                                        }
+                                      : null,
                                   borderRadius: BorderRadius.circular(16),
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
