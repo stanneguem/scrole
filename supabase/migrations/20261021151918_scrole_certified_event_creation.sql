@@ -149,7 +149,8 @@ declare
   v_quota integer;
   v_used integer;
 begin
-  if current_setting('scrole.certify_event_on_create',true) <> 'true' then
+  -- Absence du paramètre = création standard, sans certification.
+  if current_setting('scrole.certify_event_on_create', true) is distinct from 'true' then
     return new;
   end if;
 
