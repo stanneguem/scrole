@@ -327,12 +327,12 @@ class StoriesController extends GetxController {
             if (duration <= Duration.zero) {
               throw StateError('Impossible de déterminer la durée de la vidéo.');
             }
-            if (duration > const Duration(seconds: 30)) {
+            if (duration > const Duration(seconds: 29)) {
               Get.snackbar(
-                'Vidéo trop longue',
-                'La durée maximale d’une story vidéo est de 30 secondes.',
+                'post_composer_attention'.tr,
+                'post_composer_video_too_long'.tr,
                 snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.red,
+                backgroundColor: Colors.black87,
                 colorText: Colors.white,
               );
               return;
