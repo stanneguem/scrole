@@ -532,7 +532,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Impossible de modifier votre agenda. Veuillez réessayer.',
+                Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
                 style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
               ),
               backgroundColor: AppColors.error,
