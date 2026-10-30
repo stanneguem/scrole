@@ -39,7 +39,7 @@ class NotificationDeepLinkRouter {
     final actorId = value(['actor_id', 'sender_id', 'user_id', 'target_user_id']);
 
     try {
-      if (type == 'community_salon_message') {
+      if (type == 'community_salon_message' || type == 'community_salon_reply') {
         final salonId = value(['salon_id']);
         if (salonId != null &&
             RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(salonId)) {
