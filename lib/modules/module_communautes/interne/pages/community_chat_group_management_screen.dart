@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_chat_group_edit_info_screen.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_chat_group_members_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
