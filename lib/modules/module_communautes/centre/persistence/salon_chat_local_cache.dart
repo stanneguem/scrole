@@ -2,22 +2,22 @@ import 'dart:convert';
 
 import 'package:sqflite/sqflite.dart';
 
-import '../../../../app/local_storage/structured/app_cache_database.dart';
+import 'salon_chat_database.dart';
 
 /// Persistance SQLite locale des messages de salons, isolée par compte et salon.
 class SalonChatLocalCache {
-  SalonChatLocalCache(this._appDatabase);
+  SalonChatLocalCache([SalonChatDatabase? database]) : _database = database ?? SalonChatDatabase.instance;
 
-  final AppDatabase _appDatabase;
+  final SalonChatDatabase _database;
 
   Future<List<Map<String, dynamic>>> readMessages({
     required String userId,
     required String salonId,
     int limit = 300,
   }) async {
-    final db = await _appDatabase.database;
+    final db = await _database.database;
     final rows = await db.query(
-      'community_salon_messages_cache',
+      'salon_messages',
       columns: ['payload'],
       where: 'user_id = ? AND salon_id = ?',
       whereArgs: [userId, salonId],
@@ -40,7 +40,7 @@ class SalonChatLocalCache {
     required List<Map<String, dynamic>> messages,
   }) async {
     if (messages.isEmpty) return;
-    final db = await _appDatabase.database;
+    final db = await _database.database;
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await db.transaction((txn) async {
       for (final message in messages) {
@@ -48,7 +48,7 @@ class SalonChatLocalCache {
         if (id == null || id.isEmpty || message['is_uploading'] == true) continue;
         if (message['is_deleted'] == true) {
           await txn.delete(
-            'community_salon_messages_cache',
+            'salon_messages',
             where: 'user_id = ? AND salon_id = ? AND message_id = ?',
             whereArgs: [userId, salonId, id],
           );
@@ -57,7 +57,7 @@ class SalonChatLocalCache {
         final rawSentAt = message['sent_at'] ?? message['created_at'];
         final sentAt = DateTime.tryParse(rawSentAt?.toString() ?? '')?.toUtc().millisecondsSinceEpoch ?? now;
         await txn.insert(
-          'community_salon_messages_cache',
+          'salon_messages',
           {
             'user_id': userId,
             'salon_id': salonId,
@@ -86,9 +86,9 @@ class SalonChatLocalCache {
     required String userId,
     required String salonId,
   }) async {
-    final db = await _appDatabase.database;
+    final db = await _database.database;
     final rows = await db.query(
-      'community_salon_sync_cursors',
+      'salon_sync_cursors',
       where: 'user_id = ? AND salon_id = ?',
       whereArgs: [userId, salonId],
       limit: 1,
@@ -110,11 +110,11 @@ class SalonChatLocalCache {
     required String messageId,
   }) async {
     if (messageId.isEmpty) return;
-    final db = await _appDatabase.database;
+    final db = await _database.database;
     final nextAt = sentAt.toUtc().millisecondsSinceEpoch;
     await db.transaction((txn) async {
       final existing = await txn.query(
-        'community_salon_sync_cursors',
+        'salon_sync_cursors',
         where: 'user_id = ? AND salon_id = ?',
         whereArgs: [userId, salonId],
         limit: 1,
@@ -125,7 +125,7 @@ class SalonChatLocalCache {
         if (nextAt < previousAt || (nextAt == previousAt && messageId.compareTo(previousId) <= 0)) return;
       }
       await txn.insert(
-        'community_salon_sync_cursors',
+        'salon_sync_cursors',
         {
           'user_id': userId,
           'salon_id': salonId,
@@ -143,9 +143,9 @@ class SalonChatLocalCache {
     required String salonId,
     required String messageId,
   }) async {
-    final db = await _appDatabase.database;
+    final db = await _database.database;
     await db.delete(
-      'community_salon_messages_cache',
+      'salon_messages',
       where: 'user_id = ? AND salon_id = ? AND message_id = ?',
       whereArgs: [userId, salonId, messageId],
     );
@@ -155,9 +155,9 @@ class SalonChatLocalCache {
     required String userId,
     required String salonId,
   }) async {
-    final db = await _appDatabase.database;
+    final db = await _database.database;
     await db.delete(
-      'community_salon_messages_cache',
+      'salon_messages',
       where: 'user_id = ? AND salon_id = ?',
       whereArgs: [userId, salonId],
     );
