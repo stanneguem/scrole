@@ -9,6 +9,7 @@ import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'create_community_chat_group_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -313,6 +314,40 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       .onBroadcast(event: 'salon_message_edited', callback: (_) { _loadMessages(); })
       .onBroadcast(event: 'salon_message_deleted', callback: (_) { _loadMessages(); })
       .subscribe();
+  }
+
+  void _showMessageActions(Map<String, dynamic> message, bool mine) {
+    final content = (message['content'] ?? '').toString();
+    final type = (message['type'] ?? 'text').toString();
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            if (content.isNotEmpty && type != 'image' && type != 'video')
+              ListTile(
+                leading: const Icon(Icons.copy_outlined),
+                title: Text('chats_copy'.tr),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: content));
+                  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('chats_copied'.tr)),
+                    );
+                  }
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.close_rounded),
+              title: Text('common_cancel'.tr),
+              onTap: () => Navigator.of(sheetContext).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadMessages() async {
