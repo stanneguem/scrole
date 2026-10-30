@@ -126,7 +126,7 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
   Widget _section(ColorScheme c,List<Widget> children)=>Container(
     margin:const EdgeInsets.symmetric(horizontal:16),decoration:BoxDecoration(
       color:c.surfaceContainerHighest.withOpacity(.28),borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:c.outline.withOpacity(.08))),clipBehavior:Clip.antiAlias,child:Column(children:children));
+      border:Border.all(color:c.outline.withOpacity(.08))),clipBehavior:Clip.antiAlias,child:Column(children:children.map((child)=>Material(color:Colors.transparent,child:child)).toList()));
 
   Widget _tile(ColorScheme c,IconData icon,String title,String subtitle,VoidCallback tap,{Color? color,String? trailing})=>ListTile(
     leading:Icon(icon,color:color??c.onSurfaceVariant),title:Text(title,style:TextStyle(fontWeight:FontWeight.w600,color:color)),
