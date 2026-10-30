@@ -296,6 +296,19 @@ Deno.serve(async (req: Request) => {
       }
       referencedUrl = parts[2] === "avatar" ? community.photo_profile : community.photo_cover;
       authorized = true;
+    } else if (parts[0] === "salons" && parts.length === 4 && parts[2] === "avatar") {
+      const salonId = parts[1];
+      const { data: salon, error } = await admin.from("community_salons")
+        .select("avatar_url").eq("id", salonId).maybeSingle();
+      if (error) return reply(500, { error: "salon_check_failed" });
+      const { data: membership, error: membershipError } = await admin.from("community_salon_members")
+        .select("role").eq("salon_id", salonId).eq("user_id", user.id).maybeSingle();
+      if (membershipError) return reply(500, { error: "salon_membership_check_failed" });
+      if (!salon || !["owner", "moderator"].includes(String(membership?.role ?? "").toLowerCase())) {
+        return reply(403, { error: "salon_manager_required" });
+      }
+      referencedUrl = salon.avatar_url;
+      authorized = true;
     } else if (parts[0] === "events" && parts.length === 4 && parts[2] === user.id) {
       const eventId = parts[1];
       const { data: event, error } = await admin.from("events")
@@ -312,7 +325,7 @@ Deno.serve(async (req: Request) => {
         const referenced = new URL(referencedUrl.trim());
         const pathParts = referenced.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
         const stillReferenced = pathParts.some((part, index) =>
-          (part === "profiles" || part === "communities" || part === "events") &&
+          (part === "profiles" || part === "communities" || part === "events" || part === "salons") &&
           pathParts.slice(index).join("/") === objectKey
         );
         if (stillReferenced) return reply(409, { error: "media_still_referenced" });
