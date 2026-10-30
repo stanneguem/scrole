@@ -1269,10 +1269,23 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             'p_media_duration_seconds': duration.inMilliseconds / 1000,
         });
         if (mounted) {
-          setState(() => _messages.removeWhere((message) => message['id']?.toString() == id));
+          setState(() {
+            final messageIndex = _messages.indexWhere(
+              (message) => message['id']?.toString() == id,
+            );
+            if (messageIndex >= 0) {
+              _messages[messageIndex] = {
+                ..._messages[messageIndex],
+                'content': content,
+                if (isImageGroup) 'media_object_keys': indices.map((index) => uploadedKeys[index]).toList(),
+                if (!isImageGroup) 'media_object_key': content,
+                'is_uploading': false,
+              };
+            }
+          });
         }
+        unawaited(_syncMessageDelta(id));
       }
-      await _loadMessages();
     } catch (e) {
       if (mounted) {
         setState(() => _messages.removeWhere(
@@ -2024,9 +2037,69 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 }
 
 
+class _SalonAnimatedWaveform extends StatefulWidget {
+  const _SalonAnimatedWaveform({
+    required this.active,
+    required this.inactive,
+    required this.animated,
+  });
+  final Color active;
+  final Color inactive;
+  final bool animated;
+
+  @override
+  State<_SalonAnimatedWaveform> createState() => _SalonAnimatedWaveformState();
+}
+
+class _SalonAnimatedWaveformState extends State<_SalonAnimatedWaveform>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    if (widget.animated) _animation.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SalonAnimatedWaveform oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animated) {
+      if (!_animation.isAnimating) _animation.repeat();
+    } else {
+      _animation.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _animation,
+    builder: (_, __) => CustomPaint(
+      painter: _SalonWaveformPainter(
+        active: widget.active,
+        inactive: widget.inactive,
+        progress: _animation.value,
+        animated: widget.animated,
+      ),
+    ),
+  );
+}
+
 class _SalonWaveformPainter extends CustomPainter {
-  const _SalonWaveformPainter({required this.active, required this.inactive});
+  const _SalonWaveformPainter({required this.active, required this.inactive, this.progress = 0, this.animated = false});
   final Color active, inactive;
+  final double progress;
+  final bool animated;
   static const List<double> _heights = [
     .18,.28,.45,.7,.38,.62,.3,.52,.76,.4,.66,.25,.5,.32,.72,.46,
     .22,.58,.8,.35,.64,.42,.25,.55,.74,.34,.62,.45,.2,.5,.7,.3,
@@ -2037,20 +2110,22 @@ class _SalonWaveformPainter extends CustomPainter {
     final spacing = size.width / _heights.length;
     final barWidth = math.max(2.0, spacing * .34);
     for (var i = 0; i < _heights.length; i++) {
-      final h = math.max(5.0, _heights[i] * size.height * .72);
+      final wave = animated ? (math.sin((progress * math.pi * 2) + i * .55) + 1) * .12 : 0.0;
+      final h = math.max(5.0, math.min(1.0, _heights[i] + wave) * size.height * .72);
       final x = spacing * i + (spacing - barWidth) / 2;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromCenter(center: Offset(x + barWidth / 2, size.height / 2), width: barWidth, height: h),
           const Radius.circular(3),
         ),
-        Paint()..color = i < 29 ? active : inactive,
+        Paint()..color = animated ? (i <= (progress * _heights.length).floor() ? active : inactive) : (i < 29 ? active : inactive),
       );
     }
   }
   @override
   bool shouldRepaint(covariant _SalonWaveformPainter oldDelegate) =>
-      oldDelegate.active != active || oldDelegate.inactive != inactive;
+      oldDelegate.active != active || oldDelegate.inactive != inactive ||
+      oldDelegate.progress != progress || oldDelegate.animated != animated;
 }
 
 class _SalonCircleAction extends StatelessWidget {
