@@ -1,6 +1,8 @@
 ALTER TABLE public.community_salons ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE public.community_salons DROP COLUMN IF EXISTS avatar_path;
+DROP FUNCTION IF EXISTS public.set_community_chat_group_avatar(uuid, text);
 
-CREATE OR REPLACE FUNCTION public.set_community_chat_group_avatar(
+CREATE FUNCTION public.set_community_chat_group_avatar(
   p_salon_id uuid,
   p_avatar_url text
 ) RETURNS text
