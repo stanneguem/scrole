@@ -80,13 +80,15 @@ Deno.serve(async (req: Request) => {
       }
     }
     const pref = preferences ?? {};
-    const categoryEnabled = type.includes("message")
-      ? pref.notif_messages !== false
-      : (type.includes("event") || type.includes("evenement"))
-        ? pref.notif_evenements !== false
-        : (type.includes("community") || type.includes("communaute"))
-          ? pref.notif_communautes !== false
-          : pref.notif_social !== false;
+    const categoryEnabled = type === "community_salon_message"
+      ? pref.notif_messages !== false && pref.notif_communautes !== false
+      : type.includes("message")
+        ? pref.notif_messages !== false
+        : (type.includes("event") || type.includes("evenement"))
+          ? pref.notif_evenements !== false
+          : (type.includes("community") || type.includes("communaute"))
+            ? pref.notif_communautes !== false
+            : pref.notif_social !== false;
 
     // Honor preferences on the server as well, including background push
     // notifications that Flutter cannot filter in its background isolate.
