@@ -257,7 +257,18 @@ class _CommunityChatGroupAccessRulesScreenState
       });
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      _toast('salon_access_save_error'.trParams({'error': e.toString()}));
+      final raw = e.toString().toLowerCase();
+      String message;
+      if (raw.contains('propriétaire du salon') || raw.contains('owner')) {
+        message = 'salon_access_owner_conflict'.tr;
+      } else if (raw.contains('certification')) {
+        message = 'salon_access_owner_certification_conflict'.tr;
+      } else if (raw.contains('âge') || raw.contains('age')) {
+        message = 'salon_access_owner_age_conflict'.tr;
+      } else {
+        message = 'salon_access_save_error'.trParams({'error': e.toString()});
+      }
+      _toast(message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
