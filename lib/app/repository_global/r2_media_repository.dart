@@ -40,6 +40,15 @@ class R2MediaRepository {
     'gif': 'image/gif',
   };
 
+  static const Map<String, String> _audioTypes = {
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+    'mp3': 'audio/mpeg',
+    'ogg': 'audio/ogg',
+    'wav': 'audio/wav',
+    'webm': 'audio/webm',
+  };
+
   static const Map<String, String> _videoTypes = {
     'mp4': 'video/mp4',
     'mov': 'video/quicktime',
@@ -131,7 +140,8 @@ class R2MediaRepository {
 
     final extension = p.extension(file.path).replaceFirst('.', '').toLowerCase();
     final isVideo = mediaType == 'video';
-    final contentType = (isVideo ? _videoTypes : _imageTypes)[extension];
+    final isAudio = mediaType == 'audio';
+    final contentType = (isVideo ? _videoTypes : isAudio ? _audioTypes : _imageTypes)[extension];
     if (contentType == null) {
       debugPrint('[R2_UPLOAD][$traceId] ABORT: extension non prise en charge .$extension');
       throw ArgumentError('Format de média non pris en charge : .$extension');
@@ -181,7 +191,7 @@ class R2MediaRepository {
     final objectKey = data['object_key'] as String?;
     final publicUrl = data['public_url'] as String?;
     final isPublic = data['is_public'] == true;
-    final privateKeyPrefixes = ['private/', 'stories/', 'messages/', 'bug-reports/', 'comments/'];
+    final privateKeyPrefixes = ['private/', 'stories/', 'messages/', 'salon-messages/', 'bug-reports/', 'comments/'];
     if (uploadUrl == null || objectKey == null || (isPublic && publicUrl == null) ||
         (!isPublic && !privateKeyPrefixes.any((prefix) => objectKey.startsWith(prefix)))) {
       debugPrint('[R2_UPLOAD][$traceId] ABORT: réponse incomplète uploadUrl=${uploadUrl != null} objectKey=${objectKey != null} publicUrl=${publicUrl != null} isPublic=$isPublic');
