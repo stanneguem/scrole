@@ -99,8 +99,8 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
 
   Future<void> _leave() async {
     final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('community_chat_settings_leave_title'.tr),
-      content: const Text('community_chat_settings_leave_body'.tr),
+      title: Text('community_chat_settings_leave_title'.tr),
+      content: Text('community_chat_settings_leave_body'.tr),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr)),
         FilledButton(style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
