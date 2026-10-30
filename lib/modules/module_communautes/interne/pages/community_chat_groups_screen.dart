@@ -16,6 +16,7 @@ import 'package:scrole/modules/module_discussion_direct/centre/services/chat_med
 import 'package:scrole/modules/module_discussion_direct/interne/pages/chat_media_viewer_screen.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/chat_cached_media.dart';
 import 'package:scrole/app/service_global/notification_service.dart';
+import 'package:scrole/modules/module_notification/centre/services/notification_db_service.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
@@ -520,6 +521,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   String? _initialAnchorMessageId;
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartedAt;
+  String? _recordingFilePath;
   RealtimeChannel? _channel;
   StreamSubscription<bool>? _connectivitySubscription;
 
@@ -1360,7 +1362,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 
   Future<void> _startRecording() async {
-    if (_recording || _uploadingMedia) return;
+    if (_recording || _reviewingRecording || _uploadingMedia) return;
+    if (!_audioMessagesAllowed) return;
     final permission = await Permission.microphone.request();
     if (!permission.isGranted) {
       if (mounted) {
@@ -1374,12 +1377,22 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/salon_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
       await _recorder.start(const RecordConfig(), path: path);
+      _recordingStartedAt = DateTime.now();
+      _recordingFilePath = path;
+      _recordingTimer?.cancel();
       if (mounted) {
         setState(() {
           _recording = true;
-          _recordingStartedAt = DateTime.now();
+          _reviewingRecording = false;
+          _playingRecordingReview = false;
+          _recordingDurationSeconds = 0;
         });
       }
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted && _recording) {
+          setState(() => _recordingDurationSeconds++);
+        }
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1391,61 +1404,196 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _stopRecordingAndSend() async {
     if (!_recording) return;
-    await _toggleRecording();
+    _recordingTimer?.cancel();
+    try {
+      final path = await _recorder.stop();
+      if (path == null || _recordingDurationSeconds < 1) {
+        if (mounted) setState(() => _recording = false);
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _recording = false;
+          _reviewingRecording = true;
+          _playingRecordingReview = false;
+        });
+      }
+      await _recordingPreviewPlayer.setFilePath(path);
+    } catch (e) {
+      if (mounted) {
+        setState(() { _recording = false; _reviewingRecording = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'chat_groups_audio_send_error'.tr} : $e')),
+        );
+      }
+    }
   }
 
-  Future<void> _toggleRecording() async {
-    if (!_audioMessagesAllowed) return;
-    if (_recording) {
-      try {
-        final path = await _recorder.stop();
-        final duration = _recordingStartedAt == null ? 0 : DateTime.now().difference(_recordingStartedAt!).inSeconds;
-        if (path == null || duration < 1) {
-          if (mounted) setState(() => _recording = false);
-          return;
+  Future<void> _toggleRecordingReview() async {
+    if (!_reviewingRecording) return;
+    try {
+      if (_recordingPreviewPlayer.playing) {
+        await _recordingPreviewPlayer.pause();
+        if (mounted) setState(() => _playingRecordingReview = false);
+      } else {
+        if (_recordingPreviewPlayer.processingState == ProcessingState.completed) {
+          await _recordingPreviewPlayer.seek(Duration.zero);
         }
-        setState(() { _recording = false; _uploadingMedia = true; });
-        final key = await _uploadFile(path, mediaType: 'audio');
-        await _client.rpc('send_salon_message', params: {
-          'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': '', 'p_type': 'audio',
-          'p_audio_url': key, 'p_replied_to_id': null,
-        });
-        await _loadMessages();
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_audio_send_error'.tr} : $e')));
-      } finally { if (mounted) setState(() { _recording = false; _uploadingMedia = false; }); }
-      return;
+        if (mounted) setState(() => _playingRecordingReview = true);
+        await _recordingPreviewPlayer.play();
+        if (mounted) setState(() => _playingRecordingReview = false);
+      }
+    } catch (error) {
+      debugPrint('[SALON_AUDIO] Preview playback failed: $error');
+      if (mounted) setState(() => _playingRecordingReview = false);
     }
-    final permission = await Permission.microphone.request();
-    if (!permission.isGranted) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_microphone_permission'.tr)));
-      return;
+  }
+
+  Future<void> _cancelRecording() async {
+    if (_recording) {
+      _recordingTimer?.cancel();
+      try { await _recorder.stop(); } catch (_) {}
+    }
+    try { await _recordingPreviewPlayer.stop(); } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _recording = false;
+        _reviewingRecording = false;
+        _playingRecordingReview = false;
+        _recordingStartedAt = null;
+        _recordingFilePath = null;
+        _recordingDurationSeconds = 0;
+      });
+    }
+  }
+
+  Future<void> _sendVoiceRecording() async {
+    if (!_reviewingRecording || _uploadingMedia) return;
+    // AudioPlayer's source is not used as a filesystem contract; the recorder
+    // output path is retained explicitly by the preview state.
+    final filePath = _recordingFilePath;
+    if (filePath == null || !await File(filePath).exists()) return;
+    final id = _newUuid();
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    final duration = _recordingDurationSeconds;
+    final optimistic = <String, dynamic>{
+      'id': id,
+      'sender_id': userId,
+      'sender_name': 'MOI',
+      'type': 'audio',
+      'content': '',
+      'audio_url': filePath,
+      'local_audio_path': filePath,
+      'duration_seconds': duration,
+      'is_uploading': true,
+      'is_deleted': false,
+      'sent_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (mounted) {
+      setState(() {
+        _messages.add(optimistic);
+        _reviewingRecording = false;
+        _playingRecordingReview = false;
+        _uploadingMedia = true;
+      });
     }
     try {
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/salon_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
-      await _recorder.start(const RecordConfig(), path: path);
-      if (mounted) setState(() { _recording = true; _recordingStartedAt = DateTime.now(); });
+      await _recordingPreviewPlayer.stop();
+      final key = await _uploadFile(filePath, mediaType: 'audio');
+      await _client.rpc('send_salon_message', params: {
+        'p_id': id,
+        'p_salon_id': widget.salonId,
+        'p_content': '',
+        'p_type': 'audio',
+        'p_audio_url': key,
+        'p_replied_to_id': null,
+        'p_media_duration_seconds': duration,
+      });
+      if (mounted) {
+        setState(() {
+          final index = _messages.indexWhere((message) => message['id']?.toString() == id);
+          if (index >= 0) {
+            _messages[index] = {
+              ..._messages[index],
+              'audio_url': key,
+              'is_uploading': false,
+            };
+          }
+        });
+      }
+      unawaited(_syncMessageDelta(id));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_audio_start_error'.tr} : $e')));
+      if (mounted) {
+        setState(() => _messages.removeWhere((message) => message['id']?.toString() == id));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'chat_groups_audio_send_error'.tr} : $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploadingMedia = false;
+          _recordingStartedAt = null;
+          _recordingFilePath = null;
+          _recordingDurationSeconds = 0;
+        });
+      }
     }
   }
 
   Future<void> _send() async {
     final content = _input.text.trim();
     if (content.isEmpty || _sending || !_textMessagesAllowed) return;
-    setState(() => _sending = true);
+    final id = _newUuid();
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    final replyId = _replyToMessage?['id'];
+    final optimistic = <String, dynamic>{
+      'id': id,
+      'sender_id': userId,
+      'sender_name': 'MOI',
+      'type': 'texte',
+      'content': content,
+      'is_uploading': true,
+      'is_deleted': false,
+      'sent_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    _input.clear();
+    if (mounted) {
+      setState(() {
+        _messages.add(optimistic);
+        _replyToMessage = null;
+        _sending = true;
+      });
+    }
+    _scrollToLatestMessage();
     try {
       await _client.rpc('send_salon_message', params: {
-        'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': content, 'p_type': 'texte',
-        'p_replied_to_id': _replyToMessage?['id'],
+        'p_id': id,
+        'p_salon_id': widget.salonId,
+        'p_content': content,
+        'p_type': 'texte',
+        'p_replied_to_id': replyId,
       });
-      _input.clear();
-      if (mounted) setState(() => _replyToMessage = null);
-      await _loadMessages();
+      if (mounted) {
+        setState(() {
+          final index = _messages.indexWhere((message) => message['id']?.toString() == id);
+          if (index >= 0) _messages[index] = {..._messages[index], 'is_uploading': false};
+        });
+      }
+      unawaited(_syncMessageDelta(id));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_send_error'.tr} : $e')));
-    } finally { if (mounted) setState(() => _sending = false); }
+      if (mounted) {
+        setState(() => _messages.removeWhere((message) => message['id']?.toString() == id));
+        _input.text = content;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'chat_groups_send_error'.tr} : $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   String _newUuid() {
