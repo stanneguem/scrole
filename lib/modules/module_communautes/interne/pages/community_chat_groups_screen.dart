@@ -539,9 +539,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final timeLabel = sentAt == null ? '' : TimeOfDay.fromDateTime(sentAt.toLocal()).format(context);
             return Align(
               alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-              child: GestureDetector(
-                onLongPress: () => _showMessageActions(message, mine),
-                child: Container(
+              child: Container(
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .82),
                   margin: EdgeInsets.only(
                     left: mine ? 54 : 4, right: mine ? 4 : 54,
@@ -605,7 +603,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     ],
                   ),
                 ),
-              ),
             );
           })),
         SafeArea(
