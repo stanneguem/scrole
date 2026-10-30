@@ -266,6 +266,13 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
             } else {
               statusIndicator = const SizedBox(width: 17, height: 17);
             }
+            if (_openingSalonIds.contains(group['id']?.toString())) {
+              statusIndicator = const SizedBox(
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              );
+            }
             return Material(
               color: colors.surfaceContainerHighest.withOpacity(.42),
               borderRadius: BorderRadius.circular(22),
