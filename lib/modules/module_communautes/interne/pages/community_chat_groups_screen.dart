@@ -1320,17 +1320,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
   }
 
-  Future<void> _cancelRecording() async {
-    if (!_recording) return;
-    try {
-      await _recorder.stop();
-    } catch (_) {}
-    if (mounted) setState(() {
-      _recording = false;
-      _recordingStartedAt = null;
-    });
-  }
-
   Widget _recordingPanel(ColorScheme colors) {
     final reviewing = _reviewingRecording;
     return SafeArea(
