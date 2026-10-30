@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
+import 'package:scrole/shared/widgets/image_source_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'create_community_chat_group_screen.dart';
@@ -437,6 +438,79 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     } finally { if (mounted) setState(() => _uploadingMedia = false); }
   }
 
+  Future<void> _cancelRecording() async {
+    if (!_recording) return;
+    try {
+      await _recorder.stop();
+    } catch (_) {}
+    if (mounted) setState(() {
+      _recording = false;
+      _recordingStartedAt = null;
+    });
+  }
+
+  Widget _recordingPanel(ColorScheme colors) {
+    final elapsed = _recordingStartedAt == null
+        ? 0 : DateTime.now().difference(_recordingStartedAt!).inSeconds;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+        child: GestureDetector(
+          onHorizontalDragUpdate: (details) {
+            if (details.delta.dx < -8) _cancelRecording();
+          },
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: colors.outline.withOpacity(.12)),
+              boxShadow: [BoxShadow(color: colors.shadow.withOpacity(.14), blurRadius: 18, offset: const Offset(0, 7))],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: [
+                  const Icon(Icons.mic_rounded, size: 18, color: Color(0xFFEF5B25)),
+                  const SizedBox(width: 8),
+                  Text('Enregistrement vocal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.onSurface)),
+                  const Spacer(),
+                  Text('${elapsed}s', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFEF5B25))),
+                ]),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 82, width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: ColoredBox(
+                      color: colors.surface.withOpacity(.5),
+                      child: CustomPaint(painter: _SalonWaveformPainter(
+                        active: const Color(0xFFEF5B25),
+                        inactive: colors.onSurfaceVariant.withOpacity(.22),
+                      )),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(children: [
+                  _SalonCircleAction(icon: Icons.close_rounded, onTap: _cancelRecording, size: 48),
+                  const Spacer(),
+                  _SalonCircleAction(icon: Icons.mic_rounded, primary: true, onTap: _stopRecordingAndSend, size: 74),
+                  const Spacer(),
+                  _SalonCircleAction(icon: Icons.stop_rounded, onTap: _stopRecordingAndSend, size: 48),
+                ]),
+                const SizedBox(height: 8),
+                Text('Glissez vers la gauche pour annuler',
+                  style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(.7))),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _startRecording() async {
     if (_recording || _uploadingMedia) return;
     final permission = await Permission.microphone.request();
@@ -570,144 +644,201 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final senderName = (message['sender_name'] ?? 'Membre').toString();
             final sentAt = DateTime.tryParse(message['sent_at']?.toString() ?? '');
             final timeLabel = sentAt == null ? '' : TimeOfDay.fromDateTime(sentAt.toLocal()).format(context);
-            return Align(
-              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .82),
-                  margin: EdgeInsets.only(
-                    left: mine ? 54 : 4, right: mine ? 4 : 54,
-                    top: 3, bottom: 3,
-                  ),
-                  padding: const EdgeInsets.fromLTRB(12, 9, 10, 7),
-                  decoration: BoxDecoration(
-                    color: mine
-                        ? colors.primary.withOpacity(colors.brightness == Brightness.dark ? .88 : .13)
-                        : colors.surfaceContainerHighest.withOpacity(.78),
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(18),
-                      topRight: const Radius.circular(18),
-                      bottomLeft: Radius.circular(mine ? 18 : 5),
-                      bottomRight: Radius.circular(mine ? 5 : 18),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!mine)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(senderName, style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w800, color: colors.primary,
-                          )),
-                        ),
-                      if (deleted)
-                        Text('chat_groups_deleted_message'.tr,
-                          style: TextStyle(color: colors.onSurfaceVariant, fontStyle: FontStyle.italic))
-                      else if (type == 'audio' && audioUrl.isNotEmpty)
-                        SizedBox(width: 250, child: DirectVoiceMessagePlayer(
-                          voiceMessage: legacy.VoiceMessage(
-                            fileName: 'audio.m4a', sizeLabel: '',
-                            durationLabel: '${message['duration_seconds'] ?? ''}',
-                            url: audioUrl,
-                          ),
-                          audioPath: audioUrl, messageId: message['id'].toString(), isMine: mine,
-                        ))
-                      else if ((type == 'image' || type == 'video') && mediaUrl.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
-                          child: type == 'video'
-                            ? _SalonVideoPlayer(url: mediaUrl)
-                            : Image.network(mediaUrl, width: 250, height: 190, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox(width: 250, height: 90,
-                                  child: Center(child: Icon(Icons.broken_image_outlined))),
-                              ),
-                        )
-                      else if ((message['content'] ?? '').toString().isNotEmpty)
-                        Text((message['content'] ?? '').toString(),
-                          style: TextStyle(color: colors.onSurface, fontSize: 14.5, height: 1.35)),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(timeLabel, style: TextStyle(
-                          fontSize: 10, color: colors.onSurfaceVariant.withOpacity(.7),
-                        )),
+            final isAudio = type == 'audio' && audioUrl.isNotEmpty;
+            final isMedia = (type == 'image' || type == 'video') && mediaUrl.isNotEmpty;
+            final timeColor = colors.onSurfaceVariant.withOpacity(.52);
+            return GestureDetector(
+              onLongPress: () => _showMessageActions(message, mine),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 9, bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 4,
+                      height: isAudio || isMedia ? 50 : 50,
+                      decoration: BoxDecoration(
+                        color: (mine ? Colors.grey : colors.primary).withOpacity(.42),
+                        borderRadius: BorderRadius.circular(3),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            mine ? 'MOI' : senderName.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: mine ? colors.onSurfaceVariant.withOpacity(.65) : colors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (deleted)
+                            Text('chat_groups_deleted_message'.tr,
+                              style: TextStyle(color: colors.onSurfaceVariant, fontStyle: FontStyle.italic))
+                          else if (isAudio)
+                            DirectVoiceMessagePlayer(
+                              voiceMessage: legacy.VoiceMessage(
+                                fileName: 'audio.m4a', sizeLabel: '',
+                                durationLabel: '${message['duration_seconds'] ?? ''}',
+                                url: audioUrl,
+                              ),
+                              audioPath: audioUrl, messageId: message['id'].toString(), isMine: mine,
+                            )
+                          else if (isMedia)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(13),
+                              child: type == 'video'
+                                ? _SalonVideoPlayer(url: mediaUrl)
+                                : Image.network(mediaUrl, width: 250, height: 190, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const SizedBox(width: 250, height: 90,
+                                      child: Center(child: Icon(Icons.broken_image_outlined))),
+                                  ),
+                            )
+                          else if ((message['content'] ?? '').toString().isNotEmpty)
+                            Text((message['content'] ?? '').toString(),
+                              style: TextStyle(color: colors.onSurface.withOpacity(.92), fontSize: 14.5, height: 1.35)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(timeLabel, style: TextStyle(fontSize: 9, color: timeColor)),
+                        if (mine) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.done_all_rounded, size: 12,
+                                color: colors.onSurfaceVariant.withOpacity(.55)),
+                              const SizedBox(width: 3),
+                              Text('Envoyé', style: TextStyle(fontSize: 9, color: timeColor)),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
+              ),
             );
           })),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 7, 12, 9),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _SalonCircleAction(
-                  icon: Icons.add_rounded,
-                  onTap: _sending || _uploadingMedia ? null : _pickMedia,
-                  loading: _uploadingMedia,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _input,
-                    minLines: 1,
-                    maxLines: 5,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'chat_groups_message_hint'.tr,
-                      filled: true,
-                      fillColor: colors.surfaceContainerHighest.withOpacity(.55),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: colors.primary.withOpacity(.65)),
-                      ),
-                    ),
-                    onSubmitted: (_) => _send(),
+        if (_recording)
+          _recordingPanel(colors)
+        else
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              decoration: BoxDecoration(
+                color: colors.surface.withOpacity(.97),
+                border: Border(top: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .6)),
+              ),
+              child: Row(
+                children: [
+                  _SalonCircleAction(
+                    icon: Icons.photo_library_outlined,
+                    onTap: _sending || _uploadingMedia ? null : _pickMedia,
+                    loading: _uploadingMedia,
+                    size: 42,
                   ),
-                ),
-                const SizedBox(width: 8),
-                _SalonCircleAction(
-                  icon: _input.text.trim().isNotEmpty ? Icons.send_rounded : (_recording ? Icons.stop_rounded : Icons.mic_none_rounded),
-                  primary: _input.text.trim().isNotEmpty,
-                  recording: _recording,
-                  onTap: _sending || _uploadingMedia ? null : (_input.text.trim().isNotEmpty ? _send : _toggleRecording),
-                  onLongPress: _input.text.trim().isEmpty && !_recording ? _startRecording : null,
-                  onLongPressUp: _recording ? _stopRecordingAndSend : null,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _input,
+                      minLines: 1,
+                      maxLines: 5,
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'chat_groups_message_hint'.tr,
+                        hintStyle: TextStyle(color: colors.onSurfaceVariant),
+                        filled: true,
+                        fillColor: colors.surfaceContainerHighest.withOpacity(.3),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .5),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: colors.outline.withOpacity(.55), width: .7),
+                        ),
+                      ),
+                      onSubmitted: (_) => _send(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _SalonCircleAction(
+                    icon: _input.text.trim().isNotEmpty ? Icons.send_rounded : Icons.mic_none_rounded,
+                    primary: _input.text.trim().isNotEmpty,
+                    onTap: _sending || _uploadingMedia ? null :
+                      (_input.text.trim().isNotEmpty ? _send : _startRecording),
+                    size: 42,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
       ]),
     );
   }
 }
 
 
+class _SalonWaveformPainter extends CustomPainter {
+  const _SalonWaveformPainter({required this.active, required this.inactive});
+  final Color active, inactive;
+  static const List<double> _heights = [
+    .18,.28,.45,.7,.38,.62,.3,.52,.76,.4,.66,.25,.5,.32,.72,.46,
+    .22,.58,.8,.35,.64,.42,.25,.55,.74,.34,.62,.45,.2,.5,.7,.3,
+    .56,.78,.38,.62,.28,.48,.68,.34,.58,.76,.4,.24,.52,.72,.36,.6,
+  ];
+  @override
+  void paint(Canvas canvas, Size size) {
+    final spacing = size.width / _heights.length;
+    final barWidth = math.max(2.0, spacing * .34);
+    for (var i = 0; i < _heights.length; i++) {
+      final h = math.max(5.0, _heights[i] * size.height * .72);
+      final x = spacing * i + (spacing - barWidth) / 2;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(x + barWidth / 2, size.height / 2), width: barWidth, height: h),
+          const Radius.circular(3),
+        ),
+        Paint()..color = i < 29 ? active : inactive,
+      );
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _SalonWaveformPainter oldDelegate) =>
+      oldDelegate.active != active || oldDelegate.inactive != inactive;
+}
+
 class _SalonCircleAction extends StatelessWidget {
   const _SalonCircleAction({
     required this.icon, required this.onTap, this.primary = false,
-    this.loading = false, this.recording = false, this.onLongPress, this.onLongPressUp,
+    this.loading = false, this.recording = false, this.onLongPress, this.onLongPressUp, this.size = 43,
   });
   final IconData icon;
   final VoidCallback? onTap;
   final bool primary, loading, recording;
   final VoidCallback? onLongPress, onLongPressUp;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -716,7 +847,7 @@ class _SalonCircleAction extends StatelessWidget {
     return GestureDetector(
       onTap: onTap, onLongPress: onLongPress, onLongPressUp: onLongPressUp,
       child: Container(
-        width: 43, height: 43,
+        width: size, height: size,
         decoration: BoxDecoration(shape: BoxShape.circle, color: color.withOpacity(.13)),
         alignment: Alignment.center,
         child: loading
