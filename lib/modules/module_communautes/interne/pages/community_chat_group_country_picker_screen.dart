@@ -129,7 +129,7 @@ class _CommunitySalonCountryPickerScreenState
                         secondary: CircleAvatar(
                           backgroundColor: colors.surfaceContainerHighest,
                           child: Text(
-                            code.isEmpty ? name.characters.firstOrNull ?? '?' : code,
+                            code.isEmpty ? (name.isEmpty ? '?' : name.substring(0, 1)) : code,
                             style: TextStyle(
                               color: colors.onSurfaceVariant,
                               fontSize: 11,
