@@ -1214,7 +1214,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final sentAt = DateTime.tryParse(message['sent_at']?.toString() ?? '');
             final timeLabel = sentAt == null ? '' : TimeOfDay.fromDateTime(sentAt.toLocal()).format(context);
             final isAudio = type == 'audio' && audioUrl.isNotEmpty;
-            final isMedia = (type == 'image' || type == 'video') && mediaUrl.isNotEmpty;
+            final isMedia = (type == 'image' || type == 'video') &&
+                (mediaUrl.isNotEmpty || mediaUrls.isNotEmpty);
             final timeColor = colors.onSurfaceVariant.withOpacity(.52);
             return GestureDetector(
               onDoubleTap: () => _showMessageActions(message, mine),
