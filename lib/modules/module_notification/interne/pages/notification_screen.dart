@@ -7,6 +7,7 @@ import '../../../../app/routes/app_pages.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../centre/services/notification_db_service.dart';
+import '../../centre/services/notification_deep_link_router.dart';
 import '../../../module_communautes/interne/pages/community_feed_screen.dart';
 import '../../../../shared/widgets/shared_post_link_screen.dart';
 import '../controllers/notification_controller.dart';
@@ -139,6 +140,11 @@ class NotificationScreen extends GetView<NotificationController> {
     }
 
     final type = notification.type.toLowerCase();
+
+    if (type == 'community_salon_message') {
+      await NotificationDeepLinkRouter.open(payload);
+      return;
+    }
 
     if (type == 'follow_request') {
       Get.toNamed(AppPages.followRequests, arguments: {'requestId': data['request_id']});
