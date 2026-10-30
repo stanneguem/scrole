@@ -1,4 +1,13 @@
 insert into private.notification_templates(type,language,title_template,body_template) values
+('follow_request_accepted','fr','Demande de suivi acceptée','{{actor_name}} a accepté votre demande de suivi.'),
+('follow_request_accepted','en','Follow request accepted','{{actor_name}} accepted your follow request.'),
+('follow_request_accepted','es','Solicitud de seguimiento aceptada','{{actor_name}} aceptó tu solicitud de seguimiento.'),
+('follow_request_accepted','de','Folgeanfrage angenommen','{{actor_name}} hat deine Folgeanfrage angenommen.'),
+('follow_request_accepted','it','Richiesta di follow accettata','{{actor_name}} ha accettato la tua richiesta di follow.'),
+('follow_request_accepted','pt','Pedido para seguir aceito','{{actor_name}} aceitou seu pedido para seguir.'),
+('follow_request_accepted','zh','关注请求已接受','{{actor_name}} 接受了你的关注请求。'),
+('follow_request_accepted','ja','フォローリクエストが承認されました','{{actor_name}}さんがフォローリクエストを承認しました。'),
+('follow_request_accepted','ru','Запрос на подписку принят','{{actor_name}} принял(а) ваш запрос на подписку.'),
 ('ami_confirme','fr','Nouvel ami','{{actor_name}} a scanné votre QR code et est maintenant votre ami(e).'),
 ('ami_confirme','en','New friend','{{actor_name}} scanned your QR code and is now your friend.'),
 ('ami_confirme','es','Nuevo amigo','{{actor_name}} escaneó tu código QR y ahora es tu amigo.'),
