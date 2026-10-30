@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/centre/services/chat_media_cache.dart';
+import 'package:scrole/modules/module_discussion_direct/interne/pages/chat_media_viewer_screen.dart';
 import 'package:scrole/app/service_global/notification_service.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
@@ -626,6 +627,19 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     } catch (e) {
       debugPrint('[SALON_PERMISSIONS] Could not load message permissions: $e');
     }
+  }
+
+  void _openSalonMediaViewer({
+    required List<String> urls,
+    required String type,
+    int initialIndex = 0,
+  }) {
+    if (urls.isEmpty) return;
+    Get.to(() => ChatMediaViewerScreen(
+      mediaUrls: urls,
+      initialIndex: initialIndex,
+      mediaTypes: List<String>.filled(urls.length, type),
+    ));
   }
 
   Future<void> _loadMessages() async {
@@ -1280,27 +1294,40 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                                 runSpacing: 5,
                                 children: (localMediaPaths.isNotEmpty
                                     ? localMediaPaths
-                                    : mediaUrls).map((source) {
+                                    : mediaUrls).asMap().entries.map((entry) {
+                                  final source = entry.value;
+                                  final mediaIndex = entry.key;
                                   final isLocal = localMediaPaths.isNotEmpty;
+                                  final allImageSources = localMediaPaths.isNotEmpty
+                                      ? localMediaPaths
+                                      : mediaUrls;
                                   final isSingle = (localMediaPaths.isNotEmpty
                                           ? localMediaPaths.length
                                           : mediaUrls.length) == 1;
                                   final width = isSingle ? 250.0 : 118.0;
                                   final height = isSingle ? 190.0 : 118.0;
-                                  return Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(13),
-                                        child: isLocal
-                                            ? Image.file(File(source), width: width, height: height, fit: BoxFit.cover)
-                                            : Image.network(source, width: width, height: height, fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => SizedBox(
-                                                  width: width, height: height,
-                                                  child: const Center(child: Icon(Icons.broken_image_outlined)),
+                                  return GestureDetector(
+                                    onTap: message['is_uploading'] == true
+                                        ? null
+                                        : () => _openSalonMediaViewer(
+                                            urls: allImageSources,
+                                            type: 'image',
+                                            initialIndex: mediaIndex,
+                                          ),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(13),
+                                          child: isLocal
+                                              ? Image.file(File(source), width: width, height: height, fit: BoxFit.cover)
+                                              : Image.network(source, width: width, height: height, fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => SizedBox(
+                                                    width: width, height: height,
+                                                    child: const Center(child: Icon(Icons.broken_image_outlined)),
+                                                  ),
                                                 ),
-                                              ),
-                                      ),
+                                        ),
                                       if (message['is_uploading'] == true)
                                         Container(
                                           width: width, height: height,
@@ -1311,21 +1338,31 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                                           child: const Center(
                                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                                           ),
-                                        ),
-                                    ],
+                                          ),
+                                      ],
+                                    ),
                                   );
                                 }).toList(),
                               )
                             else
-                              Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(13),
-                                    child: localMediaPaths.isNotEmpty
-                                        ? _SalonVideoPlayer(url: localMediaPaths.first, isLocal: true)
-                                        : _SalonVideoPlayer(url: mediaUrl),
-                                  ),
+                              GestureDetector(
+                                onTap: message['is_uploading'] == true
+                                    ? null
+                                    : () => _openSalonMediaViewer(
+                                        urls: localMediaPaths.isNotEmpty
+                                            ? localMediaPaths
+                                            : <String>[mediaUrl],
+                                        type: 'video',
+                                      ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(13),
+                                      child: localMediaPaths.isNotEmpty
+                                          ? _SalonVideoPlayer(url: localMediaPaths.first, isLocal: true)
+                                          : _SalonVideoPlayer(url: mediaUrl),
+                                    ),
                                   if (message['is_uploading'] == true)
                                     Container(
                                       width: 250, height: 190,
@@ -1336,8 +1373,9 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                                       child: const Center(
                                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                                       ),
-                                    ),
-                                ],
+                                      ),
+                                  ],
+                                ),
                               )
                           else if ((message['content'] ?? '').toString().isNotEmpty)
                             Text((message['content'] ?? '').toString(),
