@@ -40,6 +40,24 @@ class _CommunityChatGroupMembersScreenState extends State<CommunityChatGroupMemb
     }catch(e){_toast('Impossible de modifier le rôle : $e');}
   }
 
+  Future<void> _transferOwnership(Map<String,dynamic> member) async {
+    final name=(member['display_name']??'ce membre').toString();
+    final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      title:const Text('Transférer la propriété ?'),
+      content:Text('Tu vas transférer la propriété du salon à $name. Tu deviendras administrateur du salon, sans être propriétaire.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Annuler')),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Transférer'))],
+    ));
+    if(yes!=true)return;
+    try{
+      await _db.rpc('transfer_community_chat_group_ownership',params:{
+        'p_salon_id':widget.salonId,'p_new_owner_id':member['user_id'],
+      });
+      _toast('Propriété transférée.');
+      await _load();
+    }catch(e){_toast('Impossible de transférer la propriété : $e');}
+  }
+
   Future<void> _remove(Map<String,dynamic> member)async{
     final name=(member['display_name']??'ce membre').toString();
     final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
@@ -64,10 +82,11 @@ class _CommunityChatGroupMembersScreenState extends State<CommunityChatGroupMemb
     if(!canPromote&&!canRemove)return const SizedBox.shrink();
     return PopupMenuButton<String>(
       tooltip:'Gérer ce membre',
-      onSelected:(action){if(action=='promote')_setRole(member,'moderator');if(action=='demote')_setRole(member,'member');if(action=='remove')_remove(member);},
+      onSelected:(action){if(action=='promote')_setRole(member,'moderator');if(action=='demote')_setRole(member,'member');if(action=='remove')_remove(member);if(action=='transfer')_transferOwnership(member);},
       itemBuilder:(_)=>[
         if(canPromote&&role=='member')const PopupMenuItem(value:'promote',child:ListTile(dense:true,leading:Icon(Icons.admin_panel_settings_outlined),title:Text('Nommer administrateur'))),
         if(canPromote&&role=='moderator')const PopupMenuItem(value:'demote',child:ListTile(dense:true,leading:Icon(Icons.person_outline),title:Text('Retirer le rôle admin'))),
+        if(_myRole=='owner')const PopupMenuItem(value:'transfer',child:ListTile(dense:true,leading:Icon(Icons.swap_horiz_rounded),title:Text('Transférer la propriété'))),
         if(canRemove)const PopupMenuItem(value:'remove',child:ListTile(dense:true,leading:Icon(Icons.person_remove_outlined,color:Colors.red),title:Text('Retirer du salon',style:TextStyle(color:Colors.red)))),
       ],
     );
