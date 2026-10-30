@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
   static const String _dbName = 'app_local.db';
-  static const int _dbVersion = 31;
+  static const int _dbVersion = 32;
   Future<Database>? _dbOpenFuture;
   Database? _database;
 
@@ -55,6 +55,7 @@ class AppDatabase {
     await _createSocialTables(db);
     await _createPostOutboxTable(db);
     await _createHomeFeedCacheTable(db);
+    await _createSalonChatCacheTables(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -213,6 +214,9 @@ class AppDatabase {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug)');
       } catch (_) {}
     }
+    if (oldVersion < 32) {
+      await _createSalonChatCacheTables(db);
+    }
     if (oldVersion < 31) {
       final columns = await db.rawQuery('PRAGMA table_info(user_preferences)');
       final existing = columns.map((column) => column['name']).whereType<String>().toSet();
@@ -230,6 +234,28 @@ class AppDatabase {
         }
       }
     }
+  }
+
+  Future<void> _createSalonChatCacheTables(Database db) async {
+    await db.execute('''CREATE TABLE IF NOT EXISTS community_salon_messages_cache (
+      user_id TEXT NOT NULL,
+      salon_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      sent_at INTEGER NOT NULL,
+      payload TEXT NOT NULL,
+      cached_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id, salon_id, message_id)
+    )''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_salon_messages_cache_order ON community_salon_messages_cache(user_id,salon_id,sent_at,message_id)');
+    await db.execute('''CREATE TABLE IF NOT EXISTS community_salon_sync_cursors (
+      user_id TEXT NOT NULL,
+      salon_id TEXT NOT NULL,
+      last_sent_at INTEGER NOT NULL,
+      last_message_id TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id,salon_id)
+    )''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_salon_sync_cursor_user ON community_salon_sync_cursors(user_id)');
   }
 
   Future<void> _createHomeFeedCacheTable(Database db) async {
@@ -880,6 +906,8 @@ class AppDatabase {
       await txn.delete('deleted_notifications', where: 'user_id = ?', whereArgs: [userId]);
       await txn.delete('direct_chat_media_cache', where: 'user_id = ?', whereArgs: [userId]);
       await txn.delete('community_members', where: 'user_id = ?', whereArgs: [userId]);
+      await txn.delete('community_salon_messages_cache', where: 'user_id = ?', whereArgs: [userId]);
+      await txn.delete('community_salon_sync_cursors', where: 'user_id = ?', whereArgs: [userId]);
       
       // Note: On peut garder la table 'communities' car elle est globale, 
       // mais on a supprimé l'appartenance de l'utilisateur via community_members.
