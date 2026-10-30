@@ -1276,6 +1276,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Administrateurs uniquement",
       'community_chat_group_creators_admins_moderators': "Administrateurs et modérateurs",
       'community_chat_group_creators_all_members': "Tous les membres",
+      'chat_groups_cover_hint': "Ajouter une photo au salon (facultatif)",
+      'chat_groups_audio_message': "Message vocal",
 },
     'en': {
       'webview_help_center_title': "Help center",
@@ -2545,6 +2547,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Admins only",
       'community_chat_group_creators_admins_moderators': "Admins and moderators",
       'community_chat_group_creators_all_members': "All members",
+      'chat_groups_cover_hint': "Add a salon photo (optional)",
+      'chat_groups_audio_message': "Voice message",
 },
     'es': {
       'webview_help_center_title': "Centro de ayuda",
@@ -3715,6 +3719,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Solo administradores",
       'community_chat_group_creators_admins_moderators': "Administradores y moderadores",
       'community_chat_group_creators_all_members': "Todos los miembros",
+      'chat_groups_cover_hint': "Añadir una foto al chat (opcional)",
+      'chat_groups_audio_message': "Mensaje de voz",
 },
     'de': {
       'webview_help_center_title': "Hilfezentrum",
@@ -4868,6 +4874,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Nur Administratoren",
       'community_chat_group_creators_admins_moderators': "Administratoren und Moderatoren",
       'community_chat_group_creators_all_members': "Alle Mitglieder",
+      'chat_groups_cover_hint': "Ein Gruppenbild hinzufügen (optional)",
+      'chat_groups_audio_message': "Sprachnachricht",
 },
     'it': {
       'webview_help_center_title': "Centro assistenza",
@@ -6019,6 +6027,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Solo amministratori",
       'community_chat_group_creators_admins_moderators': "Amministratori e moderatori",
       'community_chat_group_creators_all_members': "Tutti i membri",
+      'chat_groups_cover_hint': "Aggiungi una foto alla chat (facoltativo)",
+      'chat_groups_audio_message': "Messaggio vocale",
 },
     'pt': {
       'webview_help_center_title': "Central de ajuda",
@@ -7170,6 +7180,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Somente administradores",
       'community_chat_group_creators_admins_moderators': "Administradores e moderadores",
       'community_chat_group_creators_all_members': "Todos os membros",
+      'chat_groups_cover_hint': "Adicionar uma foto ao grupo (opcional)",
+      'chat_groups_audio_message': "Mensagem de voz",
 },
     'zh': {
       'webview_help_center_title': "帮助中心",
@@ -8323,6 +8335,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "仅管理员",
       'community_chat_group_creators_admins_moderators': "管理员和版主",
       'community_chat_group_creators_all_members': "所有成员",
+      'chat_groups_cover_hint': "添加讨论组图片（可选）",
+      'chat_groups_audio_message': "语音消息",
 },
     'ja': {
       'webview_help_center_title': "ヘルプセンター",
@@ -9475,6 +9489,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "管理者のみ",
       'community_chat_group_creators_admins_moderators': "管理者とモデレーター",
       'community_chat_group_creators_all_members': "すべてのメンバー",
+      'chat_groups_cover_hint': "サロンの写真を追加（任意）",
+      'chat_groups_audio_message': "ボイスメッセージ",
 },
     'ru': {
       'webview_help_center_title': "Центр помощи",
@@ -10622,6 +10638,8 @@ class AppTranslationAdditions {
       'community_chat_group_creators_admins': "Только администраторы",
       'community_chat_group_creators_admins_moderators': "Администраторы и модераторы",
       'community_chat_group_creators_all_members': "Все участники",
+      'chat_groups_cover_hint': "Добавить фото обсуждения (необязательно)",
+      'chat_groups_audio_message': "Голосовое сообщение",
 },
   };
 
