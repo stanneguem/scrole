@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
+import 'package:scrole/modules/module_discussion_direct/centre/services/chat_media_cache.dart';
+import 'package:scrole/app/service_global/notification_service.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
@@ -307,6 +309,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _uploadingMedia = false;
   bool _textMessagesAllowed = true;
   bool _audioMessagesAllowed = false;
+  bool _saveIncomingMedia = true;
+  final Set<String> _autoSavedIncomingMediaIds = <String>{};
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartedAt;
   RealtimeChannel? _channel;
@@ -316,6 +320,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     super.initState();
     _conversationName = widget.name;
     _conversationAvatarUrl = widget.avatarUrl;
+    NotificationService.instance.setActiveSalon(widget.salonId);
     _loadMessagePermissions();
     _loadMessages();
     _channel = _client.channel('salon:${widget.salonId}', opts: const RealtimeChannelConfig(private: true))
@@ -437,6 +442,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       setState(() {
         _textMessagesAllowed = settings['text_messages_allowed'] != false;
         _audioMessagesAllowed = settings['audio_messages_allowed'] == true;
+        _saveIncomingMedia = settings['media_visibility_enabled'] != false;
       });
     } catch (e) {
       debugPrint('[SALON_PERMISSIONS] Could not load message permissions: $e');
@@ -513,11 +519,46 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         }
       }
       setState(() { _messages = messages; _loading = false; });
+      unawaited(_autoSaveIncomingMedia(messages));
       WidgetsBinding.instance.addPostFrameCallback((_) { if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent); });
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_messages_error'.tr} : $e')));
+    }
+  }
+
+  Future<void> _autoSaveIncomingMedia(List<Map<String, dynamic>> messages) async {
+    if (!_saveIncomingMedia || !mounted) return;
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return;
+    for (final message in messages) {
+      final type = message['type']?.toString();
+      if ((type != 'image' && type != 'video') ||
+          message['sender_id']?.toString() == currentUserId) {
+        continue;
+      }
+      final id = message['id']?.toString() ?? '';
+      final url = message['media_signed_url']?.toString() ?? '';
+      if (id.isEmpty || url.isEmpty || !_autoSavedIncomingMediaIds.add(id)) continue;
+      try {
+        final localPath = await ChatMediaCache.instance.resolveLocalPath(url);
+        if (localPath == null || !_saveIncomingMedia || !mounted) continue;
+        final uriPath = Uri.tryParse(url)?.path ?? url;
+        final extension = uriPath.split('/').last.contains('.')
+            ? '.${uriPath.split('/').last.split('.').last.toLowerCase()}'
+            : (type == 'video' ? '.mp4' : '.jpg');
+        final safeExtension = type == 'video'
+            ? (const {'.mp4', '.mov', '.m4v', '.webm'}.contains(extension) ? extension : '.mp4')
+            : (const {'.jpg', '.jpeg', '.png', '.webp'}.contains(extension) ? extension : '.jpg');
+        await ChatMediaCache.instance.saveToGallery(
+          sourcePath: localPath,
+          fileName: 'scrole_salon_${widget.salonId}_${id}_$safeExtension',
+        );
+      } catch (e) {
+        debugPrint('[SALON_MEDIA] Automatic gallery save failed: $e');
+        _autoSavedIncomingMediaIds.remove(id);
+      }
     }
   }
 
@@ -751,6 +792,16 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     _input.dispose(); _scroll.dispose();
     _recorder.dispose();
     if (_channel != null) _client.removeChannel(_channel!);
+    super.dispose();
+  }
+
+  @override
+  void dispose() {
+    NotificationService.instance.setActiveSalon(null);
+    _input.dispose();
+    _scroll.dispose();
+    _channel?.unsubscribe();
+    _recorder.dispose();
     super.dispose();
   }
 
