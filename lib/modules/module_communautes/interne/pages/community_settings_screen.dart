@@ -430,12 +430,14 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
       body: _isLoadingRole
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: EdgeInsets.zero,
               children: [
-                // --- En-tête visuel de la communauté ---
+                // La couverture occupe toute la largeur de l'écran.
                 _communityHero(colorScheme),
-                const SizedBox(height: 20),
-
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                  child: Column(
+                    children: [
                 // --- Section A : GESTION (Admins / Modérateurs) ---
                 if (_isAdminOrModerator) ...[
                   _SettingsCard(
@@ -530,6 +532,9 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
