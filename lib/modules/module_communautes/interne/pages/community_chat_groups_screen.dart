@@ -849,7 +849,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
     Scrollable.ensureVisible(
       targetContext,
-      alignment: 0.72,
+      alignment: 0.92,
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
@@ -908,58 +908,73 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
     try {
-      final cursor = await _localCache.readCursor(userId: userId, salonId: widget.salonId);
-      dynamic data;
-      if (cursor == null) {
-        // First open: restore the exact notification target or the last-read
-        // message, keeping unread messages below the reading position.
-        String? anchorId = widget.targetMessageId;
-        if (anchorId == null || anchorId.isEmpty) {
+      // Resolve the reading anchor on every fresh screen entry, even when a
+      // local incremental cursor already exists.
+      String? anchorId = widget.targetMessageId;
+      if (anchorId == null || anchorId.isEmpty) {
+        try {
           final position = await _client.rpc('get_salon_read_position', params: {
             'p_salon_id': widget.salonId,
           });
           if (position is List && position.isNotEmpty) {
-            anchorId = (position.first as Map)['last_read_message_id']?.toString();
+            final row = Map<String, dynamic>.from(position.first as Map);
+            anchorId = (row['last_read_message_id'] ??
+                    row['first_unread_message_id'])
+                ?.toString();
           }
+        } catch (error) {
+          debugPrint('[SALON_READ] Could not restore read position: $error');
         }
-        if (anchorId != null && anchorId.isNotEmpty) {
-          _initialAnchorMessageId = anchorId;
-          data = await _client.rpc('get_salon_messages_around', params: {
-            'p_salon_id': widget.salonId,
-            'p_message_id': anchorId,
-            'p_before': 30,
-            'p_after': 50,
-          });
-          await _applyRemoteSalonMessages(data as List);
-        } else {
-          data = await _client.rpc('get_salon_messages', params: {
-            'p_salon_id': widget.salonId,
-            'p_limit': 100,
-          });
-          final ordered = (data as List).reversed.toList();
-          await _applyRemoteSalonMessages(ordered);
-        }
-      } else {
-        // Drain all pending revisions in bounded batches after long offline periods.
-        while (mounted) {
-          final currentCursor = await _localCache.readCursor(
-            userId: userId,
-            salonId: widget.salonId,
-          );
-          if (currentCursor == null) break;
-          data = await _client.rpc('get_salon_messages_since', params: {
-            'p_salon_id': widget.salonId,
-            'p_after_sent_at': currentCursor['sent_at'],
-            'p_after_id': currentCursor['id'],
-            'p_limit': 300,
-          });
-          final batch = data as List;
-          if (batch.isEmpty) break;
-          await _applyRemoteSalonMessages(batch);
-          if (batch.length < 300) break;
-        }
-        if (mounted) setState(() => _loading = false);
       }
+      if (anchorId != null && anchorId.isNotEmpty) {
+        _initialAnchorMessageId = anchorId;
+        final around = await _client.rpc('get_salon_messages_around', params: {
+          'p_salon_id': widget.salonId,
+          'p_message_id': anchorId,
+          'p_before': 30,
+          'p_after': 50,
+        }) as List;
+        await _applyRemoteSalonMessages(around);
+      }
+
+      var cursor = await _localCache.readCursor(
+        userId: userId,
+        salonId: widget.salonId,
+      );
+      if (cursor == null && (anchorId == null || anchorId.isEmpty)) {
+        // No previous read receipt: seed the most recent bounded snapshot.
+        final data = await _client.rpc('get_salon_messages', params: {
+          'p_salon_id': widget.salonId,
+          'p_limit': 100,
+        });
+        await _applyRemoteSalonMessages((data as List).reversed.toList());
+      } else if (cursor == null && anchorId != null && anchorId.isNotEmpty) {
+        // The around-query has seeded the cache and its sync cursor.
+        cursor = await _localCache.readCursor(
+          userId: userId,
+          salonId: widget.salonId,
+        );
+      }
+
+      // Drain all pending revisions in bounded batches after long offline periods.
+      while (mounted && cursor != null) {
+        final currentCursor = await _localCache.readCursor(
+          userId: userId,
+          salonId: widget.salonId,
+        );
+        if (currentCursor == null) break;
+        final data = await _client.rpc('get_salon_messages_since', params: {
+          'p_salon_id': widget.salonId,
+          'p_after_sent_at': currentCursor['sent_at'],
+          'p_after_id': currentCursor['id'],
+          'p_limit': 300,
+        });
+        final batch = data as List;
+        if (batch.isEmpty) break;
+        await _applyRemoteSalonMessages(batch);
+        if (batch.length < 300) break;
+      }
+      if (mounted) setState(() => _loading = false);
     } catch (error) {
       debugPrint('[SALON_SYNC] Incremental sync failed: $error');
       if (!mounted) return;
@@ -1412,7 +1427,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final message = _messages[i];
             final messageId = message['id']?.toString() ?? 'pending-$i';
             final messageKey = _messageKeys.putIfAbsent(messageId, () => GlobalKey());
-            final messageIsMine = message['sender_id']?.toString() == uid;
             final mine = message['sender_id']?.toString() == uid;
             final deleted = message['is_deleted'] == true;
             final type = message['type']?.toString() ?? 'texte';
