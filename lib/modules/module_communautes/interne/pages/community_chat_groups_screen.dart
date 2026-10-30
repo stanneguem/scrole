@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
@@ -497,7 +498,13 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _loading = true;
   bool _sending = false;
   bool _recording = false;
+  bool _reviewingRecording = false;
+  bool _playingRecordingReview = false;
+  int _recordingDurationSeconds = 0;
+  Timer? _recordingTimer;
+  final AudioPlayer _recordingPreviewPlayer = AudioPlayer();
   bool _uploadingMedia = false;
+  Timer? _salonPresenceHeartbeat;
   Map<String, dynamic>? _replyToMessage;
   bool _textMessagesAllowed = true;
   bool _audioMessagesAllowed = false;
@@ -524,6 +531,11 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     _localCache = SalonChatLocalCache();
     _initialAnchorMessageId = widget.targetMessageId;
     NotificationService.instance.setActiveSalon(widget.salonId);
+    unawaited(_setSalonPresence(true));
+    _salonPresenceHeartbeat = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => unawaited(_setSalonPresence(true)),
+    );
     _loadMessagePermissions();
     if (Get.isRegistered<ConnectivityService>()) {
       var wasConnected = Get.find<ConnectivityService>().isConnected.value;
@@ -675,6 +687,25 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           SnackBar(content: Text('Impossible de supprimer ce message : $e')),
         );
       }
+    }
+  }
+
+  Future<void> _setSalonPresence(bool active) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      await _client.rpc('set_salon_active_presence', params: {
+        'p_salon_id': widget.salonId,
+        'p_active': active,
+      });
+      if (active) {
+        await Get.find<NotificationDbService>().deleteSalonMessageNotifications(
+          userId: userId,
+          salonId: widget.salonId,
+        );
+      }
+    } catch (error) {
+      debugPrint('[SALON_PRESENCE] Could not update presence: $error');
     }
   }
 
@@ -1428,6 +1459,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   @override
   void dispose() {
     NotificationService.instance.setActiveSalon(null);
+    _salonPresenceHeartbeat?.cancel();
+    unawaited(_setSalonPresence(false));
+    _recordingTimer?.cancel();
+    unawaited(_recordingPreviewPlayer.dispose());
     _connectivitySubscription?.cancel();
     _input.dispose();
     _scroll.dispose();
