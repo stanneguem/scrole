@@ -1363,6 +1363,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "Ce salon est public. Vous pouvez le rejoindre maintenant, sous réserve des règles d'accès de la communauté.",
       'chat_groups_preview_request': "Demander à rejoindre",
       'chat_groups_preview_join': "Rejoindre le salon",
+      'chat_groups_preview_see_more': "Voir plus",
+      'chat_groups_preview_see_less': "Voir moins",
+      'chat_groups_preview_not_eligible': "Vous ne remplissez pas les conditions d’accès à ce salon.",
 },
     'en': {
       'webview_help_center_title': "Help center",
@@ -2719,6 +2722,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "This chat room is public. You can join now, subject to the community's access rules.",
       'chat_groups_preview_request': "Request to join",
       'chat_groups_preview_join': "Join chat room",
+      'chat_groups_preview_see_more': "See more",
+      'chat_groups_preview_see_less': "See less",
+      'chat_groups_preview_not_eligible': "You don't meet this chat room's access requirements.",
 },
     'es': {
       'webview_help_center_title': "Centro de ayuda",
@@ -3978,6 +3984,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "Esta sala es pública. Puedes unirte ahora, sujeto a las reglas de acceso de la comunidad.",
       'chat_groups_preview_request': "Solicitar unirse",
       'chat_groups_preview_join': "Unirse a la sala",
+      'chat_groups_preview_see_more': "Ver más",
+      'chat_groups_preview_see_less': "Ver menos",
+      'chat_groups_preview_not_eligible': "No cumples los requisitos de acceso a esta sala.",
 },
     'de': {
       'webview_help_center_title': "Hilfezentrum",
@@ -5220,6 +5229,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "Dieser Chatraum ist öffentlich. Du kannst jetzt beitreten, vorbehaltlich der Zugangsregeln der Community.",
       'chat_groups_preview_request': "Beitritt anfragen",
       'chat_groups_preview_join': "Chatraum beitreten",
+      'chat_groups_preview_see_more': "Mehr anzeigen",
+      'chat_groups_preview_see_less': "Weniger anzeigen",
+      'chat_groups_preview_not_eligible': "Du erfüllst die Zugangsbedingungen für diesen Chatraum nicht.",
 },
     'it': {
       'webview_help_center_title': "Centro assistenza",
@@ -6460,6 +6472,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "Questa chat è pubblica. Puoi entrare subito, nel rispetto delle regole di accesso della community.",
       'chat_groups_preview_request': "Richiedi di entrare",
       'chat_groups_preview_join': "Entra nella chat",
+      'chat_groups_preview_see_more': "Mostra altro",
+      'chat_groups_preview_see_less': "Mostra meno",
+      'chat_groups_preview_not_eligible': "Non soddisfi i requisiti di accesso a questa chat.",
 },
     'pt': {
       'webview_help_center_title': "Central de ajuda",
@@ -7700,6 +7715,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "Esta sala é pública. Você pode entrar agora, sujeito às regras de acesso da comunidade.",
       'chat_groups_preview_request': "Solicitar entrada",
       'chat_groups_preview_join': "Entrar na sala",
+      'chat_groups_preview_see_more': "Ver mais",
+      'chat_groups_preview_see_less': "Ver menos",
+      'chat_groups_preview_not_eligible': "Você não atende aos requisitos de acesso a esta sala.",
 },
     'zh': {
       'webview_help_center_title': "帮助中心",
@@ -8942,6 +8960,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "此聊天室为公开聊天室。你可以立即加入，但须遵守社群的访问规则。",
       'chat_groups_preview_request': "申请加入",
       'chat_groups_preview_join': "加入聊天室",
+      'chat_groups_preview_see_more': "查看更多",
+      'chat_groups_preview_see_less': "收起",
+      'chat_groups_preview_not_eligible': "你不符合此聊天室的访问条件。",
 },
     'ja': {
       'webview_help_center_title': "ヘルプセンター",
@@ -10177,6 +10198,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "このチャットルームは公開されています。コミュニティのアクセスルールに従って、すぐに参加できます。",
       'chat_groups_preview_request': "参加をリクエスト",
       'chat_groups_preview_join': "チャットルームに参加",
+      'chat_groups_preview_see_more': "もっと見る",
+      'chat_groups_preview_see_less': "閉じる",
+      'chat_groups_preview_not_eligible': "このチャットルームの参加条件を満たしていません。",
 },
     'ru': {
       'webview_help_center_title': "Центр помощи",
@@ -11413,6 +11437,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_public_info': "Этот чат открыт. Вы можете присоединиться сейчас с учётом правил доступа сообщества.",
       'chat_groups_preview_request': "Запросить вступление",
       'chat_groups_preview_join': "Вступить в чат",
+      'chat_groups_preview_see_more': "Показать ещё",
+      'chat_groups_preview_see_less': "Свернуть",
+      'chat_groups_preview_not_eligible': "Вы не соответствуете условиям доступа к этому чату.",
 },
   };
 
