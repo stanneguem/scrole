@@ -311,6 +311,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _audioMessagesAllowed = false;
   bool _saveIncomingMedia = true;
   final Set<String> _autoSavedIncomingMediaIds = <String>{};
+  final Set<String> _knownSalonMessageIds = <String>{};
+  bool _initialSalonMessagesLoaded = false;
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartedAt;
   RealtimeChannel? _channel;
@@ -518,8 +520,21 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           }
         }
       }
+      final newlyReceived = _initialSalonMessagesLoaded
+          ? messages.where((message) {
+              final id = message['id']?.toString() ?? '';
+              return id.isNotEmpty && !_knownSalonMessageIds.contains(id);
+            }).toList()
+          : <Map<String, dynamic>>[];
+      for (final message in messages) {
+        final id = message['id']?.toString() ?? '';
+        if (id.isNotEmpty) _knownSalonMessageIds.add(id);
+      }
+      _initialSalonMessagesLoaded = true;
       setState(() { _messages = messages; _loading = false; });
-      unawaited(_autoSaveIncomingMedia(messages));
+      if (newlyReceived.isNotEmpty) {
+        unawaited(_autoSaveIncomingMedia(newlyReceived));
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) { if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent); });
     } catch (e) {
       if (!mounted) return;
