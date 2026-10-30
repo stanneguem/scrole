@@ -142,7 +142,7 @@ class NotificationScreen extends GetView<NotificationController> {
     final type = notification.type.toLowerCase();
 
     if (type == 'community_salon_message' || type == 'community_salon_reply') {
-      await NotificationDeepLinkRouter.open(payload);
+      await NotificationDeepLinkRouter.open({...payload, 'type': type});
       return;
     }
 
