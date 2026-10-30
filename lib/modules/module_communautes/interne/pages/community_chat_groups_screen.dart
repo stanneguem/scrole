@@ -670,11 +670,21 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       if (!mounted || cached.isEmpty) return;
       _initialSalonMessagesLoaded = true;
       final knownIds = cached.map((message) => message['id']?.toString() ?? '').toSet();
+      final byId = <String, Map<String, dynamic>>{
+        for (final message in cached)
+          if (message['id'] != null) message['id'].toString(): message,
+      };
+      for (final message in _messages) {
+        if (message['is_uploading'] != true && message['id'] != null) {
+          byId[message['id'].toString()] = message;
+        }
+      }
+      final merged = byId.values.toList()
+        ..sort((a, b) => (DateTime.tryParse((a['sent_at'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(DateTime.tryParse((b['sent_at'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)));
       final pending = _messages.where((message) => message['is_uploading'] == true).toList();
       setState(() {
-        _messages = [...cached, ...pending]
-          ..sort((a, b) => (DateTime.tryParse((a['sent_at'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(DateTime.tryParse((b['sent_at'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)));
+        _messages = [...merged, ...pending];
         _knownSalonMessageIds.addAll(knownIds);
         _loading = false;
       });
