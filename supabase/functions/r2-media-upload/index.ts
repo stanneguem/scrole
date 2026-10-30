@@ -27,7 +27,7 @@ const AUDIO_TYPES: Record<string, string> = {
 };
 const CATEGORIES = new Set([
   "profile_avatar", "profile_cover", "community_avatar", "community_cover",
-  "post_media", "story_media", "comment_media", "message_media", "event_media", "bug_report", "salon_avatar",
+  "post_media", "story_media", "comment_media", "message_media", "event_media", "bug_report", "salon_avatar", "salon_message_media",
 ]);
 
 Deno.serve(async (req: Request) => {
@@ -208,7 +208,7 @@ Deno.serve(async (req: Request) => {
   if (body.action === "create-download-url") {
     const key = typeof body.object_key === "string" ? body.object_key.trim() : "";
     if (!key || key.includes("..") || key.startsWith("/") || key.includes("\\\\")) return reply(400, { error: "invalid_object_key" });
-    const privatePrefixes = ["private/", "stories/", "messages/", "bug-reports/", "comments/"];
+    const privatePrefixes = ["private/", "stories/", "messages/", "salon-messages/", "bug-reports/", "comments/"];
     const isPrivate = privatePrefixes.some((prefix) => key.startsWith(prefix));
     if (!isPrivate) {
       const encoded = key.split("/").map(encodeURIComponent).join("/");
@@ -222,6 +222,11 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
     let allowed = false;
     const parts = key.split("/");
+    if (parts[0] === "salon-messages" && parts.length >= 4) {
+      const salonId = parts[1];
+      const { data: salon } = await admin.from("community_salons").select("id,created_by").eq("id", salonId).maybeSingle();
+      const { data: member } = await admin.from("community_salon_members").select("user_id").eq("salon_id", salonId).eq("user_id", user.id).maybeSingle();
+      allowed = !!salon && (salon.created_by === user.id || !!member);
     if (parts[0] === "messages" && parts.length >= 3) {
       const conversationId = parts[1];
       const { data } = await admin.from("direct_conversations").select("user_one_id,user_two_id").eq("id", conversationId).maybeSingle();
@@ -360,6 +365,17 @@ Deno.serve(async (req: Request) => {
     const { data: community } = await admin.from("communities").select("creator_id").eq("id", entityId).maybeSingle();
     const { data: membership } = await admin.from("community_members").select("role").eq("community_id", entityId).eq("user_id", user.id).maybeSingle();
     if (!community || (community.creator_id !== user.id && !["owner","admin","moderator"].includes(String(membership?.role ?? "").toLowerCase()))) return reply(403, { error: "community_manager_required" });
+  } else if (category === "salon_message_media") {
+    if (!entityId) return reply(400, { error: "salon_id_required" });
+    const { data: salon, error: salonError } = await admin
+      .from("community_salons").select("id,created_by").eq("id", entityId).maybeSingle();
+    if (salonError) return reply(500, { error: "salon_check_failed" });
+    if (!salon) return reply(404, { error: "salon_not_found" });
+    const { data: membership, error: memberError } = await admin
+      .from("community_salon_members").select("user_id").eq("salon_id", entityId).eq("user_id", user.id).maybeSingle();
+    if (memberError) return reply(500, { error: "salon_membership_check_failed" });
+    if (salon.created_by !== user.id && !membership) return reply(403, { error: "salon_membership_required" });
+    if (!privateBucket) return reply(503, { error: "private_media_bucket_not_configured" });
   } else if (category === "salon_avatar") {
     if (!entityId) return reply(400, { error: "salon_id_required" });
     const { data: salon, error: salonError } = await admin
@@ -446,6 +462,7 @@ Deno.serve(async (req: Request) => {
     case "community_avatar": key = `communities/${entityId}/avatar/${uploadId}.${expectedExtension}`; break;
     case "community_cover": key = `communities/${entityId}/cover/${uploadId}.${expectedExtension}`; break;
     case "salon_avatar": key = `salons/${entityId}/avatar/${uploadId}.${expectedExtension}`; break;
+    case "salon_message_media": key = `salon-messages/${entityId}/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "event_media": key = `events/${entityId}/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "message_media": key = `messages/${entityId}/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "story_media": key = `stories/${user.id}/${uploadId}.${expectedExtension}`; break;
@@ -457,7 +474,7 @@ Deno.serve(async (req: Request) => {
     // Keep the signed request minimal. Content-Type is sent by Flutter and must
     // match this value; omit ContentLength to avoid signing a transport header
     // that HTTP clients/proxies may normalize differently.
-    const isPrivateObject = key.startsWith("private/") || key.startsWith("messages/") || key.startsWith("stories/") || key.startsWith("bug-reports/");
+    const isPrivateObject = key.startsWith("private/") || key.startsWith("messages/") || key.startsWith("salon-messages/") || key.startsWith("stories/") || key.startsWith("bug-reports/");
     const targetBucket = isPrivateObject ? privateBucket : bucket;
     if (!targetBucket) return reply(503, { error: "private_media_bucket_not_configured" });
     if (isPrivateObject && (!privateAccessKeyId || !privateSecretAccessKey || !privateEndpoint)) {
