@@ -85,26 +85,35 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   }
 
   Future<void> _openOrRequest(Map<String, dynamic> group) async {
-    try {
-      final result = await _client.rpc('request_community_chat_group_access', params: {'p_salon_id': group['id']});
-      final status = result is Map ? result['status']?.toString() : 'accepted';
-      if (status == 'accepted') {
-        if (!mounted) return;
-        await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CommunityChatGroupConversation(
-          salonId: group['id'].toString(), name: group['name']?.toString() ?? 'Discussion',
-          communityName: widget.communityName,
-          avatarUrl: group['avatar_url']?.toString(),
-        )));
-        await _load();
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_request_sent'.tr)));
-        await _load();
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_access_error'.tr} : $e')));
+    final status = (group['my_status'] ?? 'none').toString();
+    final isMember = status == 'member' || group['created_by'] == _client.auth.currentUser?.id;
+    if (isMember) { await _openConversation(group); return; }
+    final action = await showModalBottomSheet<String>(
+      context: context, isScrollControlled: true, useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CommunityChatSalonPreviewSheet(
+        group: group, communityName: widget.communityName,
+        onJoin: () async {
+          final result = await _client.rpc('request_community_chat_group_access', params: {'p_salon_id': group['id']});
+          return result is Map ? (result['status'] ?? 'accepted').toString() : 'accepted';
+        },
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'accepted') { await _openConversation(group); }
+    else if (action == 'pending') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_request_sent'.tr)));
+      await _load();
     }
   }
 
+  Future<void> _openConversation(Map<String, dynamic> group) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CommunityChatGroupConversation(
+      salonId: group['id'].toString(), name: group['name']?.toString() ?? 'Discussion',
+      communityName: widget.communityName, avatarUrl: group['avatar_url']?.toString(),
+    )));
+    await _load();
+  }
   Future<void> _showRequests(Map<String, dynamic> group) async {
     try {
       final data = await _client.rpc('get_community_chat_group_requests', params: {'p_salon_id': group['id']});
@@ -287,6 +296,79 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   }
 }
 
+class CommunityChatSalonPreviewSheet extends StatefulWidget {
+  const CommunityChatSalonPreviewSheet({super.key, required this.group, required this.communityName, required this.onJoin});
+  final Map<String, dynamic> group;
+  final String communityName;
+  final Future<String> Function() onJoin;
+  @override State<CommunityChatSalonPreviewSheet> createState() => _CommunityChatSalonPreviewSheetState();
+}
+
+class _CommunityChatSalonPreviewSheetState extends State<CommunityChatSalonPreviewSheet> {
+  bool _busy = false;
+  String? _error;
+  Future<void> _join() async {
+    if (_busy) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      final status = (await widget.onJoin()).toLowerCase();
+      if (!mounted) return;
+      Navigator.of(context).pop(['accepted', 'member', 'joined'].contains(status) ? 'accepted' : 'pending');
+    } catch (e) {
+      if (mounted) setState(() { _busy = false; _error = e.toString().replaceFirst('Exception: ', ''); });
+    }
+  }
+  @override Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final g = widget.group;
+    final name = (g['name'] ?? 'Discussion').toString();
+    final desc = (g['description'] ?? '').toString().trim();
+    final avatar = (g['avatar_url'] ?? '').toString();
+    final private = g['visibility'] == 'private';
+    final count = (g['member_count'] as num?)?.toInt() ?? 0;
+    final approval = private || g['requires_approval'] == true;
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * .82),
+      decoration: BoxDecoration(color: colors.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      child: SafeArea(top: false, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const SizedBox(height: 10),
+        Container(width: 38, height: 4, decoration: BoxDecoration(color: colors.onSurfaceVariant.withOpacity(.35), borderRadius: BorderRadius.circular(4))),
+        Padding(padding: const EdgeInsets.fromLTRB(18, 8, 10, 10), child: Row(children: [
+          Expanded(child: Text('chat_groups_salon_preview_title'.tr, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
+          IconButton(onPressed: _busy ? null : () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+        ])),
+        const Divider(height: 1),
+        Flexible(child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(height: 125, width: double.infinity, decoration: BoxDecoration(gradient: LinearGradient(colors: [colors.primary.withOpacity(.75), colors.tertiary.withOpacity(.55)])), child: Center(child: CircleAvatar(radius: 40, backgroundColor: colors.surface, backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null, child: avatar.isEmpty ? Icon(private ? Icons.lock_outline : Icons.forum_outlined, size: 34, color: colors.primary) : null))),
+          Padding(padding: const EdgeInsets.fromLTRB(20, 18, 20, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5), Text(widget.communityName, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              _SalonPreviewTag(icon: private ? Icons.lock_outline : Icons.public, label: private ? 'chat_groups_private_label'.tr : 'chat_groups_public_label'.tr),
+              _SalonPreviewTag(icon: Icons.people_outline, label: 'chat_groups_preview_members'.trParams({'count': '$count'})),
+              if (approval) _SalonPreviewTag(icon: Icons.verified_user_outlined, label: 'chat_groups_preview_approval'.tr),
+            ]),
+            if (desc.isNotEmpty) ...[const SizedBox(height: 20), Text('chat_groups_preview_about'.tr, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), const SizedBox(height: 7), Text(desc, style: TextStyle(height: 1.45, color: colors.onSurfaceVariant))],
+            const SizedBox(height: 18),
+            Container(padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: colors.surfaceContainerHighest.withOpacity(.5), borderRadius: BorderRadius.circular(14)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.info_outline, color: colors.primary), const SizedBox(width: 9), Expanded(child: Text(approval ? 'chat_groups_preview_private_info'.tr : 'chat_groups_preview_public_info'.tr, style: TextStyle(fontSize: 12.5, height: 1.4, color: colors.onSurfaceVariant)))])),
+            if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: TextStyle(color: colors.error, fontSize: 12))],
+          ])),
+        ]))),
+        Padding(padding: const EdgeInsets.fromLTRB(18, 10, 18, 16), child: SizedBox(width: double.infinity, height: 50, child: FilledButton(onPressed: _busy ? null : _join, child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text((approval ? 'chat_groups_preview_request' : 'chat_groups_preview_join').tr, style: const TextStyle(fontWeight: FontWeight.w700))))),
+      ])),
+    );
+  }
+}
+
+class _SalonPreviewTag extends StatelessWidget {
+  const _SalonPreviewTag({required this.icon, required this.label});
+  final IconData icon; final String label;
+  @override Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7), decoration: BoxDecoration(color: c.secondaryContainer.withOpacity(.55), borderRadius: BorderRadius.circular(20)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: c.primary), const SizedBox(width: 5), Text(label, style: TextStyle(fontSize: 12, color: c.onSurface, fontWeight: FontWeight.w600))]));
+  }
+}
 class CommunityChatGroupConversation extends StatefulWidget {
   final String salonId;
   final String name;
