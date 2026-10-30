@@ -186,11 +186,7 @@ class _CommunityChatGroupAccessRulesScreenState
       _countries = result;
       if (_countriesEnabled) {
         final allowedCountryIds = _countries.toSet();
-        final availableCityIds = _cityOptions
-            .where((city) => allowedCountryIds.contains(city['country_id']?.toString()))
-            .map((city) => city['id'].toString())
-            .toSet();
-        _cities = _cities.where(availableCityIds.contains).toList();
+        _refreshCityOptions();
       }
     });
   }
