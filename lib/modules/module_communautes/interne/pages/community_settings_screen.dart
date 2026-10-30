@@ -447,22 +447,10 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, size: 24),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'community_settings_title'.tr,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ),
       body: _isLoadingRole
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               children: [
                 // --- En-tête visuel de la communauté ---
                 _communityHero(colorScheme),
