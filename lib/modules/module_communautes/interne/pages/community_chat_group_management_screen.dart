@@ -28,7 +28,7 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
       final data=Map<String,dynamic>.from(raw as Map);
       final requests=await _db.rpc('get_community_chat_group_requests',params:{'p_salon_id':widget.salonId});
       if(!mounted)return;
-      setState(()=>{_data=data,_pending=(requests as List).length,_loading=false});
+      setState(() { _data=data; _pending=(requests as List).length; _loading=false; });
     } catch(e) {
       if(!mounted)return;
       setState(()=>_loading=false);
