@@ -1651,46 +1651,57 @@ class _SalonVideoPlayer extends StatefulWidget {
 }
 
 class _SalonVideoPlayerState extends State<_SalonVideoPlayer> {
-  late final VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _ready = false;
   bool _failed = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = widget.isLocal
-        ? VideoPlayerController.file(File(widget.url))
-        : VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) setState(() => _ready = true);
-      }).catchError((_) {
-        if (mounted) setState(() => _failed = true);
-      });
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      final localPath = widget.isLocal
+          ? widget.url
+          : await ChatMediaCache.instance.resolveLocalPath(widget.url);
+      final controller = localPath != null && await File(localPath).exists()
+          ? VideoPlayerController.file(File(localPath))
+          : VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      _controller = controller;
+      await controller.initialize();
+      if (mounted) setState(() => _ready = true);
+    } catch (error) {
+      debugPrint('[SALON_MEDIA] Video preview failed: $error');
+      if (mounted) setState(() => _failed = true);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = _controller;
     if (_failed) return const SizedBox(width: 230, height: 130, child: Center(child: Icon(Icons.videocam_off_outlined)));
-    if (!_ready) return const SizedBox(width: 230, height: 130, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+    if (!_ready || controller == null) return const SizedBox(width: 230, height: 130, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
     return SizedBox(
       width: 230,
       child: AspectRatio(
-        aspectRatio: _controller.value.aspectRatio,
+        aspectRatio: controller.value.aspectRatio,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            VideoPlayer(_controller),
+            VideoPlayer(controller),
             IconButton.filledTonal(
               onPressed: () => setState(() {
-                _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                controller.value.isPlaying ? controller.pause() : controller.play();
               }),
-              icon: Icon(_controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+              icon: Icon(controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
             ),
           ],
         ),
