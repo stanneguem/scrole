@@ -20,6 +20,7 @@ import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:get/get.dart';
 import 'create_community_chat_group_screen.dart';
 import 'community_chat_group_settings_screen.dart';
@@ -455,10 +456,11 @@ class _SalonPreviewTag extends StatelessWidget {
 }
 class CommunityChatGroupConversation extends StatefulWidget {
   final String salonId;
+  final String? targetMessageId;
   final String name;
   final String communityName;
   final String? avatarUrl;
-  const CommunityChatGroupConversation({super.key, required this.salonId, required this.name, required this.communityName, this.avatarUrl});
+  const CommunityChatGroupConversation({super.key, required this.salonId, this.targetMessageId, required this.name, required this.communityName, this.avatarUrl});
   @override
   State<CommunityChatGroupConversation> createState() => _CommunityChatGroupConversationState();
 }
@@ -483,7 +485,11 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _autoDownloadIncomingMedia = false;
   final Set<String> _autoDownloadedMediaMessageIds = <String>{};
   final Set<String> _knownSalonMessageIds = <String>{};
+  final Set<String> _readThroughInFlight = <String>{};
+  final Map<String, GlobalKey> _messageKeys = <String, GlobalKey>{};
   bool _initialSalonMessagesLoaded = false;
+  bool _initialScrollApplied = false;
+  String? _initialAnchorMessageId;
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartedAt;
   RealtimeChannel? _channel;
@@ -495,6 +501,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     _conversationName = widget.name;
     _conversationAvatarUrl = widget.avatarUrl;
     _localCache = SalonChatLocalCache();
+    _initialAnchorMessageId = widget.targetMessageId;
     NotificationService.instance.setActiveSalon(widget.salonId);
     _loadMessagePermissions();
     if (Get.isRegistered<ConnectivityService>()) {
@@ -710,9 +717,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         _knownSalonMessageIds.addAll(knownIds);
         _loading = false;
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      });
     } catch (error) {
       debugPrint('[SALON_CACHE] Local snapshot read failed: $error');
     }
@@ -827,9 +831,50 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     } catch (error) {
       debugPrint('[SALON_READ] Could not mark salon messages as read: $error');
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!_initialScrollApplied) {
+      _initialScrollApplied = true;
+      final anchorId = _initialAnchorMessageId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (anchorId != null && anchorId.isNotEmpty) {
+          _scrollToMessage(anchorId);
+        } else if (_scroll.hasClients) {
+          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        }
+      });
+    }
+  }
+
+  void _scrollToMessage(String messageId) {
+    final key = _messageKeys[messageId];
+    final targetContext = key?.currentContext;
+    if (targetContext == null) {
       if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
-    });
+      return;
+    }
+    Scrollable.ensureVisible(
+      targetContext,
+      alignment: 0.72,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _markVisibleMessageRead(Map<String, dynamic> message) async {
+    final userId = _client.auth.currentUser?.id;
+    final messageId = message['id']?.toString() ?? '';
+    if (userId == null || messageId.isEmpty ||
+        message['sender_id']?.toString() == userId ||
+        !_readThroughInFlight.add(messageId)) return;
+    try {
+      await _client.rpc('mark_salon_messages_read_through', params: {
+        'p_salon_id': widget.salonId,
+        'p_message_id': messageId,
+      });
+    } catch (error) {
+      debugPrint('[SALON_READ] Could not advance read position to $messageId: $error');
+      _readThroughInFlight.remove(messageId);
+    }
   }
 
   Future<void> _autoCacheIncomingMedia(List<Map<String, dynamic>> messages) async {
@@ -871,13 +916,34 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       final cursor = await _localCache.readCursor(userId: userId, salonId: widget.salonId);
       dynamic data;
       if (cursor == null) {
-        // First visit or cache upgrade: seed a bounded recent snapshot.
-        data = await _client.rpc('get_salon_messages', params: {
-          'p_salon_id': widget.salonId,
-          'p_limit': 100,
-        });
-        final ordered = (data as List).reversed.toList();
-        await _applyRemoteSalonMessages(ordered);
+        // First open: restore the exact notification target or the last-read
+        // message, keeping unread messages below the reading position.
+        String? anchorId = widget.targetMessageId;
+        if (anchorId == null || anchorId.isEmpty) {
+          final position = await _client.rpc('get_salon_read_position', params: {
+            'p_salon_id': widget.salonId,
+          });
+          if (position is List && position.isNotEmpty) {
+            anchorId = (position.first as Map)['last_read_message_id']?.toString();
+          }
+        }
+        if (anchorId != null && anchorId.isNotEmpty) {
+          _initialAnchorMessageId = anchorId;
+          data = await _client.rpc('get_salon_messages_around', params: {
+            'p_salon_id': widget.salonId,
+            'p_message_id': anchorId,
+            'p_before': 30,
+            'p_after': 50,
+          });
+          await _applyRemoteSalonMessages(data as List);
+        } else {
+          data = await _client.rpc('get_salon_messages', params: {
+            'p_salon_id': widget.salonId,
+            'p_limit': 100,
+          });
+          final ordered = (data as List).reversed.toList();
+          await _applyRemoteSalonMessages(ordered);
+        }
       } else {
         // Drain all pending revisions in bounded batches after long offline periods.
         while (mounted) {
@@ -1314,6 +1380,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     _connectivitySubscription?.cancel();
     _input.dispose();
     _scroll.dispose();
+    _messageKeys.clear();
     _recorder.dispose();
     if (_channel != null) _client.removeChannel(_channel!);
     super.dispose();
@@ -1348,6 +1415,9 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           ? Center(child: Text('chat_groups_first_message'.tr))
           : ListView.builder(controller: _scroll, padding: const EdgeInsets.all(12), itemCount: _messages.length, itemBuilder: (_, i) {
             final message = _messages[i];
+            final messageId = message['id']?.toString() ?? 'pending-$i';
+            final messageKey = _messageKeys.putIfAbsent(messageId, () => GlobalKey());
+            final messageIsMine = message['sender_id']?.toString() == uid;
             final mine = message['sender_id']?.toString() == uid;
             final deleted = message['is_deleted'] == true;
             final type = message['type']?.toString() ?? 'texte';
@@ -1388,9 +1458,17 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final isMedia = (type == 'image' || type == 'video') &&
                 (mediaUrl.isNotEmpty || mediaUrls.isNotEmpty);
             final timeColor = colors.onSurfaceVariant.withOpacity(.52);
-            return GestureDetector(
+            return VisibilityDetector(
+              key: ValueKey('salon-message-$messageId'),
+              onVisibilityChanged: (info) {
+                if (info.visibleFraction >= 0.6) {
+                  unawaited(_markVisibleMessageRead(message));
+                }
+              },
+              child: GestureDetector(
               onDoubleTap: () => _showMessageActions(message, mine),
               child: Padding(
+                key: messageKey,
                 padding: const EdgeInsets.only(top: 9, bottom: 4),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1551,6 +1629,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     ),
                   ],
                 ),
+              ),
               ),
             );
           })),
