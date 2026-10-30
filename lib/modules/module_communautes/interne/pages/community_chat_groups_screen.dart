@@ -85,9 +85,24 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   }
 
   Future<void> _openOrRequest(Map<String, dynamic> group) async {
-    final status = (group['my_status'] ?? 'none').toString();
-    final isMember = status == 'member' || group['created_by'] == _client.auth.currentUser?.id;
-    if (isMember) { await _openConversation(group); return; }
+    // Never trust the cached my_status returned by the list RPC: a removed
+    // member can still have a stale row in the in-memory list.
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    final salonId = group['id'].toString();
+    final membership = await _client
+        .from('community_salon_members')
+        .select('user_id')
+        .eq('salon_id', salonId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    if (!mounted) return;
+    if (membership != null) {
+      await _openConversation(group);
+      return;
+    }
+    // Every non-member must see the preview, including public salons and
+    // users whose old my_status value still says "member".
     final action = await showModalBottomSheet<String>(
       context: context, isScrollControlled: true, useSafeArea: true,
       backgroundColor: Colors.transparent,
