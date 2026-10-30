@@ -1012,7 +1012,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       final fraction = _messages.length <= 1 ? 0.0 : index / (_messages.length - 1);
       final estimatedOffset = _scroll.position.maxScrollExtent * fraction;
       await _scroll.animateTo(
-        estimatedOffset.clamp(0.0, _scroll.position.maxScrollExtent),
+        estimatedOffset.clamp(0.0, _scroll.position.maxScrollExtent).toDouble(),
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
