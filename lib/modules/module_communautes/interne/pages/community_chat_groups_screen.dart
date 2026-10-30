@@ -982,6 +982,14 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         if (batch.length < 300) break;
       }
       if (mounted) setState(() => _loading = false);
+      if (!_initialScrollApplied) {
+        _initialScrollApplied = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scroll.hasClients) {
+            _scroll.jumpTo(_scroll.position.maxScrollExtent);
+          }
+        });
+      }
     } catch (error) {
       debugPrint('[SALON_SYNC] Incremental sync failed: $error');
       if (!mounted) return;
