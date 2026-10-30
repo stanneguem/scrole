@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
@@ -65,7 +67,7 @@ class _CommunityChatGroupEditInfoScreenState
     final name = _name.text.trim();
     if (name.length < 2 || name.length > 80) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(''community_chat_group_edit_name_invalid'.tr')),
+        SnackBar(content: Text('community_chat_group_edit_name_invalid'.tr)),
       );
       return;
     }
@@ -112,7 +114,7 @@ class _CommunityChatGroupEditInfoScreenState
             );
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Text(
                     'community_chat_group_edit_avatar_cleanup_error'.tr,
                   ),
