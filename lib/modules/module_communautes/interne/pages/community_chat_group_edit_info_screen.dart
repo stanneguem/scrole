@@ -103,7 +103,24 @@ class _CommunityChatGroupEditInfoScreenState
     final colors = Theme.of(context).colorScheme;
     final avatarUrl = widget.initialData['avatar_url']?.toString();
     return Scaffold(
-      appBar: AppBar(title: const Text('Modifier les informations')),
+      appBar: AppBar(
+        title: const Text('Modifier les informations'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Enregistrer'),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -153,14 +170,6 @@ class _CommunityChatGroupEditInfoScreenState
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Enregistrer'),
           ),
         ],
       ),
