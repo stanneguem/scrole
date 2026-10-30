@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:sqflite/sqflite.dart';
@@ -125,6 +126,37 @@ class NotificationDbService extends GetxService {
     for (final row in unread) {
       await _enqueueOutbox(userId, row['id'].toString(), 'mark_read');
     }
+    _changes.add(userId);
+  }
+
+  Future<void> deleteSalonMessageNotifications({
+    required String userId,
+    required String salonId,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'notifications',
+      columns: ['id', 'payload'],
+      where: 'user_id = ? AND type = ?',
+      whereArgs: [userId, 'community_salon_message'],
+    );
+    final ids = <String>[];
+    for (final row in rows) {
+      final raw = row['payload']?.toString();
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map && decoded['salon_id']?.toString() == salonId) {
+          ids.add(row['id'].toString());
+        }
+      } catch (_) {}
+    }
+    if (ids.isEmpty) return;
+    await db.delete(
+      'notifications',
+      where: 'user_id = ? AND id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: [userId, ...ids],
+    );
     _changes.add(userId);
   }
 
