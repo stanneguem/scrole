@@ -812,7 +812,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final merged = byId.values.toList()
       ..sort((a, b) => (DateTime.tryParse((a['sent_at'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0))
           .compareTo(DateTime.tryParse((b['sent_at'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)));
-    await _localCache.upsertMessages(userId: userId, salonId: widget.salonId, messages: hydrated);
+    // Never persist expiring signed URLs in SQLite. Store stable R2 object keys;
+    // ChatMediaCache resolves them locally first and requests a fresh URL only online.
+    final cacheableMessages = hydrated.map((message) {
+      final safe = Map<String, dynamic>.from(message)
+        ..remove('media_signed_url')
+        ..remove('media_signed_urls')
+        ..remove('audio_signed_url');
+      return safe;
+    }).toList();
+    await _localCache.upsertMessages(
+      userId: userId,
+      salonId: widget.salonId,
+      messages: cacheableMessages,
+    );
     if (!mounted) return;
     setState(() {
       _messages = [...merged, ...pending];
@@ -1303,13 +1316,24 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final mine = message['sender_id']?.toString() == uid;
             final deleted = message['is_deleted'] == true;
             final type = message['type']?.toString() ?? 'texte';
-            final mediaUrl = (message['media_signed_url'] ?? '').toString();
+            final mediaKeys = message['media_object_keys'] is List
+                ? (message['media_object_keys'] as List)
+                    .map((value) => value.toString())
+                    .where((value) => value.isNotEmpty)
+                    .toList()
+                : <String>[];
+            final mediaUrl = (message['media_signed_url'] ??
+                message['media_object_key'] ??
+                (mediaKeys.isNotEmpty ? mediaKeys.first : message['content']) ??
+                '').toString();
             final mediaUrls = message['media_signed_urls'] is List
                 ? (message['media_signed_urls'] as List)
                     .map((value) => value.toString())
                     .where((value) => value.isNotEmpty)
                     .toList()
-                : (mediaUrl.isNotEmpty ? <String>[mediaUrl] : <String>[]);
+                : (mediaKeys.isNotEmpty
+                    ? mediaKeys
+                    : (mediaUrl.isNotEmpty ? <String>[mediaUrl] : <String>[]));
             final localMediaPaths = message['local_media_paths'] is List
                 ? (message['local_media_paths'] as List)
                     .map((value) => value.toString())
@@ -1318,7 +1342,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 : (message['local_media_path'] != null
                     ? <String>[message['local_media_path'].toString()]
                     : <String>[]);
-            final audioUrl = (message['audio_signed_url'] ?? '').toString();
+            final audioUrl = (message['audio_signed_url'] ?? message['audio_url'] ?? '').toString();
             final senderName = (message['sender_name'] ?? 'Membre').toString();
             final sentAt = DateTime.tryParse(message['sent_at']?.toString() ?? '');
             final timeLabel = sentAt == null ? '' : TimeOfDay.fromDateTime(sentAt.toLocal()).format(context);
