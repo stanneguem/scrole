@@ -611,11 +611,12 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 title: Text('chats_copy'.tr),
                 onTap: () => Navigator.of(sheetContext).pop('copy'),
               ),
-            ListTile(
-              leading: const Icon(Icons.reply_rounded),
-              title: Text('chat_groups_reply_action'.tr),
-              onTap: () => Navigator.of(sheetContext).pop('reply'),
-            ),
+            if (message['is_deleted'] != true)
+              ListTile(
+                leading: const Icon(Icons.reply_rounded),
+                title: Text('chat_groups_reply_action'.tr),
+                onTap: () => Navigator.of(sheetContext).pop('reply'),
+              ),
             ListTile(
               leading: const Icon(Icons.delete_sweep_outlined),
               title: const Text('Supprimer le message pour moi'),
