@@ -471,6 +471,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   Map<String, dynamic>? _replyToMessage;
   bool _textMessagesAllowed = true;
   bool _audioMessagesAllowed = false;
+  bool _imageMessagesAllowed = true;
+  bool _videoMessagesAllowed = true;
   bool _saveIncomingMedia = true;
   final Set<String> _autoSavedIncomingMediaIds = <String>{};
   final Set<String> _knownSalonMessageIds = <String>{};
@@ -615,6 +617,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       setState(() {
         _textMessagesAllowed = settings['text_messages_allowed'] != false;
         _audioMessagesAllowed = settings['audio_messages_allowed'] == true;
+        _imageMessagesAllowed = settings['image_messages_allowed'] != false;
+        _videoMessagesAllowed = settings['video_messages_allowed'] != false;
         _saveIncomingMedia = settings['media_visibility_enabled'] != false;
       });
     } catch (e) {
@@ -769,7 +773,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 
   Future<void> _pickMedia() async {
-    if (_sending || _uploadingMedia) return;
+    if (_sending || _uploadingMedia || (!_imageMessagesAllowed && !_videoMessagesAllowed)) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -792,13 +796,15 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       for (final file in files) {
         final extension = file.path.split('.').last.toLowerCase();
         final isVideo = const {'mp4', 'mov', 'm4v', 'webm'}.contains(extension);
+        if (isVideo && !_videoMessagesAllowed) throw Exception('chat_groups_video_not_allowed'.tr);
+        if (!isVideo && !_imageMessagesAllowed) throw Exception('chat_groups_image_not_allowed'.tr);
         final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
         await _client.rpc('send_salon_message', params: {
           'p_id': _newUuid(),
           'p_salon_id': widget.salonId,
           'p_content': key,
           'p_type': isVideo ? 'video' : 'image',
-          'p_audio_url': null,
+          'p_audio_url': key,
           'p_replied_to_id': null,
         });
       }
@@ -1152,7 +1158,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     children: [
                   _SalonCircleAction(
                     icon: Icons.photo_library_outlined,
-                    onTap: _sending || _uploadingMedia ? null : _pickMedia,
+                    onTap: _sending || _uploadingMedia || (!_imageMessagesAllowed && !_videoMessagesAllowed) ? null : _pickMedia,
                     loading: _uploadingMedia,
                     size: 42,
                   ),
