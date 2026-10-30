@@ -1300,17 +1300,18 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 
   Widget _recordingPanel(ColorScheme colors) {
-    final elapsed = _recordingStartedAt == null
-        ? 0 : DateTime.now().difference(_recordingStartedAt!).inSeconds;
+    final reviewing = _reviewingRecording;
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
         child: GestureDetector(
-          onHorizontalDragUpdate: (details) {
-            if (details.delta.dx < -8) _cancelRecording();
-          },
-          child: Container(
+          onHorizontalDragUpdate: reviewing
+              ? null
+              : (details) { if (details.delta.dx < -8) _cancelRecording(); },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
             decoration: BoxDecoration(
               color: colors.surfaceContainerHighest,
@@ -1322,11 +1323,21 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(children: [
-                  const Icon(Icons.mic_rounded, size: 18, color: Color(0xFFEF5B25)),
+                  Icon(reviewing ? Icons.graphic_eq_rounded : Icons.mic_rounded,
+                    size: 18, color: const Color(0xFFEF5B25)),
                   const SizedBox(width: 8),
-                  Text('Enregistrement vocal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.onSurface)),
+                  Text(reviewing ? 'Aperçu du message vocal' : 'Enregistrement vocal',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.onSurface)),
                   const Spacer(),
-                  Text('${elapsed}s', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFEF5B25))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF5B25).withOpacity(.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('${_recordingDurationSeconds}s',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFEF5B25))),
+                  ),
                 ]),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -1335,10 +1346,11 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     borderRadius: BorderRadius.circular(16),
                     child: ColoredBox(
                       color: colors.surface.withOpacity(.5),
-                      child: CustomPaint(painter: _SalonWaveformPainter(
+                      child: _SalonAnimatedWaveform(
                         active: const Color(0xFFEF5B25),
                         inactive: colors.onSurfaceVariant.withOpacity(.22),
-                      )),
+                        animated: !reviewing,
+                      ),
                     ),
                   ),
                 ),
@@ -1346,13 +1358,29 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 Row(children: [
                   _SalonCircleAction(icon: Icons.close_rounded, onTap: _cancelRecording, size: 48),
                   const Spacer(),
-                  _SalonCircleAction(icon: Icons.mic_rounded, primary: true, onTap: _stopRecordingAndSend, size: 74),
+                  if (reviewing)
+                    _SalonCircleAction(
+                      icon: _playingRecordingReview ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      primary: true,
+                      onTap: _toggleRecordingReview,
+                      size: 58,
+                    )
+                  else
+                    _SalonCircleAction(icon: Icons.mic_rounded, primary: true,
+                      onTap: _stopRecordingAndSend, size: 74),
                   const Spacer(),
-                  _SalonCircleAction(icon: Icons.stop_rounded, onTap: _stopRecordingAndSend, size: 48),
+                  if (reviewing)
+                    _SalonCircleAction(icon: Icons.send_rounded, primary: true,
+                      loading: _uploadingMedia, onTap: _uploadingMedia ? null : _sendVoiceRecording, size: 48)
+                  else
+                    _SalonCircleAction(icon: Icons.stop_rounded,
+                      onTap: _stopRecordingAndSend, size: 48),
                 ]),
-                const SizedBox(height: 8),
-                Text('Glissez vers la gauche pour annuler',
-                  style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(.7))),
+                if (!reviewing) ...[
+                  const SizedBox(height: 8),
+                  Text('Glissez vers la gauche pour annuler',
+                    style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(.7))),
+                ],
               ],
             ),
           ),
@@ -1734,6 +1762,30 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                           if (deleted)
                             Text('chat_groups_deleted_message'.tr,
                               style: TextStyle(color: colors.onSurfaceVariant, fontStyle: FontStyle.italic))
+                          else if (isAudio && message['is_uploading'] == true)
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 230, maxWidth: 290),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: colors.primaryContainer.withOpacity(.35),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(children: [
+                                Icon(Icons.mic_rounded, color: colors.primary),
+                                const SizedBox(width: 10),
+                                Expanded(child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Message vocal', style: TextStyle(fontWeight: FontWeight.w700, color: colors.onSurface)),
+                                    const SizedBox(height: 5),
+                                    const LinearProgressIndicator(minHeight: 3),
+                                  ],
+                                )),
+                                const SizedBox(width: 8),
+                                const SizedBox(width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2)),
+                              ]),
+                            )
                           else if (isAudio)
                             DirectVoiceMessagePlayer(
                               voiceMessage: legacy.VoiceMessage(
@@ -1851,10 +1903,15 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.done_all_rounded, size: 12,
-                                color: colors.onSurfaceVariant.withOpacity(.55)),
+                              if (message['is_uploading'] == true)
+                                const SizedBox(width: 11, height: 11,
+                                  child: CircularProgressIndicator(strokeWidth: 1.5))
+                              else
+                                Icon(Icons.done_all_rounded, size: 12,
+                                  color: colors.onSurfaceVariant.withOpacity(.55)),
                               const SizedBox(width: 3),
-                              Text('Envoyé', style: TextStyle(fontSize: 9, color: timeColor)),
+                              Text(message['is_uploading'] == true ? 'Envoi…' : 'Envoyé',
+                                style: TextStyle(fontSize: 9, color: timeColor)),
                             ],
                           ),
                         ],
@@ -1866,7 +1923,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               ),
             );
           })),
-        if (_recording)
+        if (_recording || _reviewingRecording)
           _recordingPanel(colors)
         else
           SafeArea(
