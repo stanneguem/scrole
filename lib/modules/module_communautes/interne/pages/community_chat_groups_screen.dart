@@ -8,7 +8,6 @@ import 'package:video_player/video_player.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
-import 'package:scrole/shared/widgets/image_source_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'create_community_chat_group_screen.dart';
@@ -409,55 +408,44 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _pickMedia() async {
     if (_sending || _uploadingMedia) return;
-    await showImageSourceSheet(
-      context,
-      onCamera: _pickCameraMedia,
-      onGallery: _pickGalleryMedia,
-    );
-  }
-
-  Future<void> _pickGalleryMedia() async {
-    if (_sending || _uploadingMedia) return;
     final picker = ImagePicker();
     final choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => SafeArea(child: Wrap(children: [
-        ListTile(
-          leading: const Icon(Icons.photo_outlined),
-          title: Text('chat_groups_pick_image'.tr),
-          onTap: () => Navigator.pop(ctx, 'image'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.videocam_outlined),
-          title: Text('chat_groups_pick_video'.tr),
-          onTap: () => Navigator.pop(ctx, 'video'),
-        ),
-      ])),
+      builder: (ctx) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: Text('chat_groups_pick_image'.tr),
+            onTap: () => Navigator.pop(ctx, 'image'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.videocam_outlined),
+            title: Text('chat_groups_pick_video'.tr),
+            onTap: () => Navigator.pop(ctx, 'video'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt_outlined),
+            title: Text('chat_groups_take_photo'.tr),
+            onTap: () => Navigator.pop(ctx, 'camera'),
+          ),
+        ]),
+      ),
     );
     if (choice == null) return;
-    final file = choice == 'video'
-        ? await picker.pickVideo(source: ImageSource.gallery)
-        : await picker.pickImage(source: ImageSource.gallery);
-    await _uploadAndSendPickedMedia(file, isVideo: choice == 'video');
-  }
-
-  Future<void> _pickCameraMedia() async {
-    if (_sending || _uploadingMedia) return;
-    final file = await ImagePicker().pickImage(source: ImageSource.camera);
-    await _uploadAndSendPickedMedia(file, isVideo: false);
-  }
-
-  Future<void> _uploadAndSendPickedMedia(XFile? file, {required bool isVideo}) async {
-    if (file == null) return;
     try {
+      XFile? file;
+      if (choice == 'image') file = await picker.pickImage(source: ImageSource.gallery);
+      if (choice == 'video') file = await picker.pickVideo(source: ImageSource.gallery);
+      if (choice == 'camera') file = await picker.pickImage(source: ImageSource.camera);
+      if (file == null) return;
       setState(() => _uploadingMedia = true);
-      final video = isVideo || file.mimeType?.startsWith('video/') == true;
-      final key = await _uploadFile(file.path, mediaType: video ? 'video' : 'image');
+      final isVideo = choice == 'video' || file.mimeType?.startsWith('video/') == true;
+      final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
       await _client.rpc('send_salon_message', params: {
         'p_id': _newUuid(),
         'p_salon_id': widget.salonId,
         'p_content': key,
-        'p_type': video ? 'video' : 'image',
+        'p_type': isVideo ? 'video' : 'image',
         'p_audio_url': null,
         'p_replied_to_id': null,
       });
@@ -822,7 +810,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     icon: _input.text.trim().isNotEmpty ? Icons.send_rounded : Icons.mic_none_rounded,
                     primary: _input.text.trim().isNotEmpty,
                     onTap: _sending || _uploadingMedia ? null :
-                      (_input.text.trim().isNotEmpty ? _send : _startRecording),
+                      (_input.text.trim().isNotEmpty ? _send : (_recording ? _stopRecordingAndSend : _startRecording)),
                     onLongPress: _input.text.trim().isEmpty ? _startRecording : null,
                     onLongPressUp: _recording ? _stopRecordingAndSend : null,
                     size: 42,
