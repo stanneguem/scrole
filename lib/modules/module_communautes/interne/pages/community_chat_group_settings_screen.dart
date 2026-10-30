@@ -121,18 +121,20 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
     clipBehavior: Clip.antiAlias, child: Column(children: children));
 
   Widget _action(ColorScheme c, IconData icon, String title, VoidCallback tap, {String? subtitle, bool danger = false}) =>
-    ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 4),
+    Material(color: Colors.transparent, child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 4),
       leading: Icon(icon, size: 21, color: danger ? c.error : c.onSurfaceVariant),
       title: Text(title, style: TextStyle(color: danger ? c.error : c.onSurface, fontWeight: FontWeight.w600)),
       subtitle: subtitle == null ? null : Text(subtitle),
-      trailing: Icon(Icons.chevron_right_rounded, color: c.onSurfaceVariant.withOpacity(.65)), onTap: tap);
+      trailing: Icon(Icons.chevron_right_rounded, color: c.onSurfaceVariant.withOpacity(.65)), onTap: tap));
 
   Widget _switch(ColorScheme c, IconData icon, String title, String subtitle, bool value, ValueChanged<bool> changed) =>
-    ListTile(contentPadding: const EdgeInsets.fromLTRB(17, 3, 12, 3),
+    Material(color: Colors.transparent, child: ListTile(
+      contentPadding: const EdgeInsets.fromLTRB(17, 3, 12, 3),
       leading: Icon(icon, size: 21, color: c.onSurfaceVariant),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(subtitle),
-      trailing: Switch.adaptive(value: value, onChanged: _saving ? null : changed, activeColor: const Color(0xFFF0642C)));
+      trailing: Switch.adaptive(value: value, onChanged: _saving ? null : changed, activeColor: const Color(0xFFF0642C))));
 
   @override
   Widget build(BuildContext context) {
