@@ -188,14 +188,25 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
         Text(widget.communityName, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: c.onSurfaceVariant)),
         if (_description.trim().isNotEmpty) ...[
           const SizedBox(height: 10),
-          Text(_description, maxLines: _expanded ? null : 2,
-            overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
-          if (_description.length > 90)
-            GestureDetector(onTap: () => setState(() => _expanded = !_expanded),
-              child: Padding(padding: const EdgeInsets.only(top: 3),
-                child: Text(_expanded ? 'Voir moins' : 'Voir plus',
-                  style: TextStyle(color: c.primary, fontWeight: FontWeight.w600)))),
+          LayoutBuilder(builder: (context, constraints) {
+            final style = Theme.of(context).textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant);
+            final painter = TextPainter(
+              text: TextSpan(text: _description, style: style),
+              textDirection: Directionality.of(context),
+              maxLines: 2,
+            )..layout(maxWidth: constraints.maxWidth);
+            final hasMore = painter.didExceedMaxLines;
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_description, maxLines: _expanded ? null : 2,
+                overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                style: style),
+              if (hasMore)
+                GestureDetector(onTap: () => setState(() => _expanded = !_expanded),
+                  child: Padding(padding: const EdgeInsets.only(top: 3),
+                    child: Text(_expanded ? 'Voir moins' : 'Voir plus',
+                      style: TextStyle(color: c.primary, fontWeight: FontWeight.w600)))),
+            ]);
+          }),
         ],
       ])),
       const SizedBox(width: 12),
