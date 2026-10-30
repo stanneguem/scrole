@@ -125,6 +125,7 @@ class CommunityScreen extends StatelessWidget {
                 child: _MyCommunityTile(
                   community: community,
                   isPending: isPending,
+                  unreadCount: controller.unreadSalonCounts[community.id] ?? 0,
                   onTap: isPending
                       ? () {
                           Get.snackbar(
@@ -154,11 +155,13 @@ class CommunityScreen extends StatelessWidget {
 class _MyCommunityTile extends StatelessWidget {
   final dynamic community;
   final bool isPending;
+  final int unreadCount;
   final VoidCallback onTap;
 
   const _MyCommunityTile({
     required this.community,
     required this.isPending,
+    this.unreadCount = 0,
     required this.onTap,
   });
 
@@ -203,6 +206,26 @@ class _MyCommunityTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (unreadCount > 0)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 23, minHeight: 23),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD94B50),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white, width: 1.2),
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 2))],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
               if (isPending)
                 Positioned(
                   top: 8,
