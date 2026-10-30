@@ -849,7 +849,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
     Scrollable.ensureVisible(
       targetContext,
-      alignment: 0.92,
+      alignment: widget.targetMessageId != null ? 0.5 : 0.92,
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
@@ -928,13 +928,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       }
       if (anchorId != null && anchorId.isNotEmpty) {
         _initialAnchorMessageId = anchorId;
-        final around = await _client.rpc('get_salon_messages_around', params: {
-          'p_salon_id': widget.salonId,
-          'p_message_id': anchorId,
-          'p_before': 30,
-          'p_after': 50,
-        }) as List;
-        await _applyRemoteSalonMessages(around);
+        try {
+          final around = await _client.rpc('get_salon_messages_around', params: {
+            'p_salon_id': widget.salonId,
+            'p_message_id': anchorId,
+            'p_before': 30,
+            'p_after': 50,
+          }) as List;
+          await _applyRemoteSalonMessages(around);
+        } catch (error) {
+          // A deleted or expired read anchor must not prevent opening the salon.
+          debugPrint('[SALON_READ] Anchor $anchorId unavailable, falling back to recent messages: $error');
+          _initialAnchorMessageId = null;
+          anchorId = null;
+        }
       }
 
       var cursor = await _localCache.readCursor(
