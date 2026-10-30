@@ -409,33 +409,68 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _pickMedia() async {
     if (_sending || _uploadingMedia) return;
+    await showImageSourceSheet(
+      context,
+      onCamera: _pickCameraMedia,
+      onGallery: _pickGalleryMedia,
+    );
+  }
+
+  Future<void> _pickGalleryMedia() async {
+    if (_sending || _uploadingMedia) return;
     final picker = ImagePicker();
     final choice = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(child: Wrap(children: [
-        ListTile(leading: const Icon(Icons.photo_library_outlined), title: Text('chat_groups_pick_image'.tr), onTap: () => Navigator.pop(ctx, 'image')),
-        ListTile(leading: const Icon(Icons.videocam_outlined), title: Text('chat_groups_pick_video'.tr), onTap: () => Navigator.pop(ctx, 'video')),
-        ListTile(leading: const Icon(Icons.camera_alt_outlined), title: Text('chat_groups_take_photo'.tr), onTap: () => Navigator.pop(ctx, 'camera')),
+        ListTile(
+          leading: const Icon(Icons.photo_outlined),
+          title: Text('chat_groups_pick_image'.tr),
+          onTap: () => Navigator.pop(ctx, 'image'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.videocam_outlined),
+          title: Text('chat_groups_pick_video'.tr),
+          onTap: () => Navigator.pop(ctx, 'video'),
+        ),
       ])),
     );
     if (choice == null) return;
+    final file = choice == 'video'
+        ? await picker.pickVideo(source: ImageSource.gallery)
+        : await picker.pickImage(source: ImageSource.gallery);
+    await _uploadAndSendPickedMedia(file, isVideo: choice == 'video');
+  }
+
+  Future<void> _pickCameraMedia() async {
+    if (_sending || _uploadingMedia) return;
+    final file = await ImagePicker().pickImage(source: ImageSource.camera);
+    await _uploadAndSendPickedMedia(file, isVideo: false);
+  }
+
+  Future<void> _uploadAndSendPickedMedia(XFile? file, {required bool isVideo}) async {
+    if (file == null) return;
     try {
-      XFile? file;
-      if (choice == 'image') file = await picker.pickImage(source: ImageSource.gallery);
-      if (choice == 'video') file = await picker.pickVideo(source: ImageSource.gallery);
-      if (choice == 'camera') file = await picker.pickImage(source: ImageSource.camera);
-      if (file == null) return;
       setState(() => _uploadingMedia = true);
-      final isVideo = choice == 'video' || file.mimeType?.startsWith('video/') == true;
-      final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
+      final video = isVideo || file.mimeType?.startsWith('video/') == true;
+      final key = await _uploadFile(file.path, mediaType: video ? 'video' : 'image');
       await _client.rpc('send_salon_message', params: {
-        'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': key,
-        'p_type': isVideo ? 'video' : 'image', 'p_audio_url': null, 'p_replied_to_id': null,
+        'p_id': _newUuid(),
+        'p_salon_id': widget.salonId,
+        'p_content': key,
+        'p_type': video ? 'video' : 'image',
+        'p_audio_url': null,
+        'p_replied_to_id': null,
       });
       await _loadMessages();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : $e')));
-    } finally { if (mounted) setState(() => _uploadingMedia = false); }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
+    }
   }
 
   Future<void> _cancelRecording() async {
@@ -788,6 +823,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     primary: _input.text.trim().isNotEmpty,
                     onTap: _sending || _uploadingMedia ? null :
                       (_input.text.trim().isNotEmpty ? _send : _startRecording),
+                    onLongPress: _input.text.trim().isEmpty ? _startRecording : null,
+                    onLongPressUp: _recording ? _stopRecordingAndSend : null,
                     size: 42,
                   ),
                 ],
