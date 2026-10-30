@@ -918,9 +918,14 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           });
           if (position is List && position.isNotEmpty) {
             final row = Map<String, dynamic>.from(position.first as Map);
-            anchorId = (row['last_read_message_id'] ??
-                    row['first_unread_message_id'])
-                ?.toString();
+            final unreadCount = (row['unread_count'] as num?)?.toInt() ?? 0;
+            // If everything is read, open at the latest message. Otherwise
+            // restore the last-read boundary, or the first unread if new here.
+            if (unreadCount > 0) {
+              anchorId = (row['last_read_message_id'] ??
+                      row['first_unread_message_id'])
+                  ?.toString();
+            }
           }
         } catch (error) {
           debugPrint('[SALON_READ] Could not restore read position: $error');
