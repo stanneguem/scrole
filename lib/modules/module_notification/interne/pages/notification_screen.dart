@@ -327,36 +327,14 @@ class _NotificationTile extends StatelessWidget {
   }
 
   String _localizedTitle(NotificationController controller) {
-    final type = notification.type.toLowerCase();
-    const supported = {'new_follower', 'new_friend', 'ami_confirme', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
-    if (supported.contains(type)) {
-      final payload = controller.payloadOf(notification);
-      final rawData = payload['data'];
-      final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
-      final name = (data['display_name'] ?? data['name'] ?? data['username'] ?? data['pseudo'] ?? payload['actor_name'] ?? '').toString();
-      final key = switch (type) {
-        'new_follower' => 'follow_notification_new_follower',
-        'new_friend' || 'ami_confirme' => 'follow_notification_new_friend',
-        'follow_request' => 'follow_notification_request',
-        'follow_request_accepted' => 'follow_notification_accepted',
-        _ => 'follow_notification_friend_qr',
-      };
-      return key.trParams({'name': name});
-    }
-    final family = _genericNotificationFamily(type);
-    if (family != null) return 'notification_generic_${family}_title'.tr;
-    // A direct message body is user-generated content and must never be translated.
-    return notification.title;
+    // Server-rendered titles are localized and include the real actor name.
+    final title = notification.title.trim();
+    return title.isNotEmpty ? title : 'notifications_title'.tr;
   }
 
   String _localizedMessage(NotificationController controller) {
-    final type = notification.type.toLowerCase();
-    const followTypes = {'new_follower', 'new_friend', 'ami_confirme', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
-    if (followTypes.contains(type)) return '';
-    final family = _genericNotificationFamily(type);
-    if (family != null) return 'notification_generic_${family}_body'.tr;
-    // For messages, keep the sender's original text exactly as written.
-    return notification.message;
+    // Preserve server-rendered action details and user-authored message text.
+    return notification.message.trim();
   }
 
   @override
