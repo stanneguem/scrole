@@ -913,6 +913,22 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
   }
 
+  void _scrollToLatestMessage({bool animated = true}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final target = _scroll.position.maxScrollExtent;
+      if (!animated) {
+        _scroll.jumpTo(target);
+        return;
+      }
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
   void _scrollToMessage(String messageId) {
     final key = _messageKeys[messageId];
     final targetContext = key?.currentContext;
