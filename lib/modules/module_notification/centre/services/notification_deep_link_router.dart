@@ -60,6 +60,7 @@ class NotificationDeepLinkRouter {
           Get.to(
             () => CommunityChatGroupConversation(
               salonId: salonId,
+              targetMessageId: value(['message_id', 'target_message_id']),
               name: (settings['name'] ?? '').toString(),
               communityName: (community?['name'] ?? '').toString(),
               avatarUrl: settings['avatar_url']?.toString(),
