@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -636,8 +637,16 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         final type = message['type']?.toString();
         final field = type == 'audio' ? 'audio_url' : 'content';
         if (type == 'audio' || type == 'image' || type == 'video' || type == 'file') {
-          final key = message[field]?.toString() ?? '';
-          if (key.isNotEmpty) {
+          final rawKeys = message['media_object_keys'];
+          final storedKeys = rawKeys is List
+              ? rawKeys.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
+              : <String>[];
+          final fallbackKey = message[field]?.toString() ?? '';
+          final keys = type == 'image' && storedKeys.isNotEmpty
+              ? storedKeys
+              : (fallbackKey.isNotEmpty ? <String>[fallbackKey] : <String>[]);
+          final signedUrls = <String>[];
+          for (final key in keys) {
             try {
               final response = await _client.functions.invoke('r2-media-upload', body: {
                 'action': 'create-download-url',
@@ -645,13 +654,19 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               });
               if (response.status >= 200 && response.status < 300 && response.data is Map) {
                 final url = (response.data as Map)['url']?.toString();
-                if (url != null && url.isNotEmpty) {
-                  message[type == 'audio' ? 'audio_signed_url' : 'media_signed_url'] = url;
-                }
+                if (url != null && url.isNotEmpty) signedUrls.add(url);
               }
             } catch (error) {
               debugPrint('[SALON_MEDIA] URL resolution failed: $error');
             }
+          }
+          if (type == 'audio') {
+            if (signedUrls.isNotEmpty) message['audio_signed_url'] = signedUrls.first;
+          } else if (type == 'image') {
+            message['media_signed_urls'] = signedUrls;
+            if (signedUrls.isNotEmpty) message['media_signed_url'] = signedUrls.first;
+          } else if (signedUrls.isNotEmpty) {
+            message['media_signed_url'] = signedUrls.first;
           }
         }
       }
@@ -828,14 +843,22 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final currentUserId = _client.auth.currentUser?.id;
     final pendingIds = <String>[];
     try {
+      // Préparer toute la sélection avant de créer les messages optimistes.
+      // Les photos seront regroupées dans un seul message ; chaque vidéo
+      // conserve son propre message car le contrat SQL vidéo est unitaire.
+      final preparedMedia = <Map<String, dynamic>>[];
       for (final picked in files) {
         final extension = picked.path.split('.').last.toLowerCase();
         final isVideo = const {'mp4', 'mov', 'm4v', 'webm'}.contains(extension) ||
             (picked.mimeType?.startsWith('video/') ?? false);
-        if (isVideo && !_videoMessagesAllowed) throw Exception('chat_groups_video_not_allowed'.tr);
-        if (!isVideo && !_imageMessagesAllowed) throw Exception('chat_groups_image_not_allowed'.tr);
+        if (isVideo && !_videoMessagesAllowed) {
+          throw Exception('chat_groups_video_not_allowed'.tr);
+        }
+        if (!isVideo && !_imageMessagesAllowed) {
+          throw Exception('chat_groups_image_not_allowed'.tr);
+        }
 
-        File sourceFile;
+        File sourceFile = File(picked.path);
         Duration? videoDuration;
         if (isVideo) {
           final prepared = await _prepareSalonVideo(picked);
@@ -851,45 +874,96 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           if (videoDuration > const Duration(seconds: 30)) {
             throw StateError('La vidéo doit durer 30 secondes maximum.');
           }
-        } else {
-          sourceFile = File(picked.path);
         }
+        preparedMedia.add({
+          'file': sourceFile,
+          'is_video': isVideo,
+          'duration': videoDuration,
+        });
+      }
+      if (preparedMedia.isEmpty) return;
 
-        final localId = _newUuid();
-        pendingIds.add(localId);
+      // Un groupe de photos = un message. Les vidéos restent des messages
+      // distincts, dans l'ordre de leur première apparition dans la sélection.
+      final outgoingGroups = <Map<String, dynamic>>[];
+      Map<String, dynamic>? imageGroup;
+      for (var index = 0; index < preparedMedia.length; index++) {
+        final item = preparedMedia[index];
+        final isVideo = item['is_video'] == true;
+        if (isVideo) {
+          outgoingGroups.add({
+            'id': _newUuid(),
+            'type': 'video',
+            'indices': <int>[index],
+            'duration': item['duration'],
+          });
+        } else {
+          imageGroup ??= {
+            'id': _newUuid(),
+            'type': 'image',
+            'indices': <int>[],
+          };
+          (imageGroup['indices'] as List<int>).add(index);
+          if (!outgoingGroups.contains(imageGroup)) outgoingGroups.add(imageGroup);
+        }
+      }
+
+      for (final group in outgoingGroups) {
+        final indices = group['indices'] as List<int>;
+        final id = group['id'].toString();
+        pendingIds.add(id);
+        final isImageGroup = group['type'] == 'image';
         final localMessage = <String, dynamic>{
-          'id': localId,
+          'id': id,
           'sender_id': currentUserId,
           'sender_name': 'MOI',
-          'type': isVideo ? 'video' : 'image',
+          'type': group['type'],
           'content': '',
-          'local_media_path': sourceFile.path,
+          if (isImageGroup)
+            'local_media_paths': indices
+                .map((index) => (preparedMedia[index]['file'] as File).path)
+                .toList(),
+          if (!isImageGroup)
+            'local_media_path':
+                (preparedMedia[indices.first]['file'] as File).path,
           'is_uploading': true,
           'is_deleted': false,
           'sent_at': DateTime.now().toUtc().toIso8601String(),
         };
         if (mounted) setState(() => _messages.add(localMessage));
+      }
 
+      // Future.wait conserve l'ordre des clés tout en téléversant en parallèle.
+      final uploadedKeys = await Future.wait(preparedMedia.map((item) async {
         final uploaded = await R2MediaRepository().uploadFile(
-          file: sourceFile,
+          file: item['file'] as File,
           category: 'salon_message_media',
-          mediaType: isVideo ? 'video' : 'image',
+          mediaType: item['is_video'] == true ? 'video' : 'image',
           entityId: widget.salonId,
-          videoDuration: videoDuration,
+          videoDuration: item['duration'] as Duration?,
         );
+        return uploaded.objectKey;
+      }));
+
+      for (final group in outgoingGroups) {
+        final indices = group['indices'] as List<int>;
+        final isImageGroup = group['type'] == 'image';
+        final id = group['id'].toString();
+        final content = isImageGroup
+            ? jsonEncode(indices.map((index) => uploadedKeys[index]).toList())
+            : uploadedKeys[indices.first];
+        final duration = group['duration'] as Duration?;
         await _client.rpc('send_salon_message', params: {
-          'p_id': localId,
+          'p_id': id,
           'p_salon_id': widget.salonId,
-          'p_content': uploaded.objectKey,
-          'p_type': isVideo ? 'video' : 'image',
+          'p_content': content,
+          'p_type': group['type'],
           'p_replied_to_id': null,
-          if (isVideo && videoDuration != null)
-            'p_media_duration_seconds': videoDuration.inMilliseconds / 1000,
+          if (!isImageGroup && duration != null)
+            'p_media_duration_seconds': duration.inMilliseconds / 1000,
         });
         if (mounted) {
-          setState(() {
-            _messages.removeWhere((m) => m['id']?.toString() == localId);
-          });
+          setState(() => _messages.removeWhere((message) => message['id']?.toString() == id));
         }
       }
       await _loadMessages();
@@ -1121,6 +1195,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final deleted = message['is_deleted'] == true;
             final type = message['type']?.toString() ?? 'texte';
             final mediaUrl = (message['media_signed_url'] ?? '').toString();
+            final mediaUrls = message['media_signed_urls'] is List
+                ? (message['media_signed_urls'] as List)
+                    .map((value) => value.toString())
+                    .where((value) => value.isNotEmpty)
+                    .toList()
+                : (mediaUrl.isNotEmpty ? <String>[mediaUrl] : <String>[]);
+            final localMediaPaths = message['local_media_paths'] is List
+                ? (message['local_media_paths'] as List)
+                    .map((value) => value.toString())
+                    .where((value) => value.isNotEmpty)
+                    .toList()
+                : (message['local_media_path'] != null
+                    ? <String>[message['local_media_path'].toString()]
+                    : <String>[]);
             final audioUrl = (message['audio_signed_url'] ?? '').toString();
             final senderName = (message['sender_name'] ?? 'Membre').toString();
             final sentAt = DateTime.tryParse(message['sent_at']?.toString() ?? '');
@@ -1172,36 +1260,72 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                               ),
                               audioPath: audioUrl, messageId: message['id'].toString(), isMine: mine,
                             )
-                          else if (message['local_media_path'] != null || isMedia)
-                            Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(13),
-                                  child: type == 'video'
-                                    ? (message['local_media_path'] != null
-                                        ? _SalonVideoPlayer(url: (message['local_media_path']).toString(), isLocal: true)
-                                        : _SalonVideoPlayer(url: mediaUrl))
-                                    : (message['local_media_path'] != null
-                                        ? Image.file(File(message['local_media_path'].toString()), width: 250, height: 190, fit: BoxFit.cover)
-                                        : Image.network(mediaUrl, width: 250, height: 190, fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => const SizedBox(width: 250, height: 90,
-                                              child: Center(child: Icon(Icons.broken_image_outlined))),
-                                          )),
-                                ),
-                                if (message['is_uploading'] == true)
-                                  Container(
-                                    width: 250, height: 190,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(.38),
-                                      borderRadius: BorderRadius.circular(13),
-                                    ),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-                                    ),
+                          else if (localMediaPaths.isNotEmpty || isMedia)
+                            if (type == 'image')
+                              Wrap(
+                                spacing: 5,
+                                runSpacing: 5,
+                                children: (localMediaPaths.isNotEmpty
+                                    ? localMediaPaths
+                                    : mediaUrls).map((source) {
+                                  final isLocal = localMediaPaths.isNotEmpty;
+                                  final isSingle = (localMediaPaths.isNotEmpty
+                                          ? localMediaPaths.length
+                                          : mediaUrls.length) == 1;
+                                  final width = isSingle ? 250.0 : 118.0;
+                                  final height = isSingle ? 190.0 : 118.0;
+                                  return Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(13),
+                                        child: isLocal
+                                            ? Image.file(File(source), width: width, height: height, fit: BoxFit.cover)
+                                            : Image.network(source, width: width, height: height, fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => SizedBox(
+                                                  width: width, height: height,
+                                                  child: const Center(child: Icon(Icons.broken_image_outlined)),
+                                                ),
+                                              ),
+                                      ),
+                                      if (message['is_uploading'] == true)
+                                        Container(
+                                          width: width, height: height,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(.38),
+                                            borderRadius: BorderRadius.circular(13),
+                                          ),
+                                          child: const Center(
+                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                }).toList(),
+                              )
+                            else
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(13),
+                                    child: localMediaPaths.isNotEmpty
+                                        ? _SalonVideoPlayer(url: localMediaPaths.first, isLocal: true)
+                                        : _SalonVideoPlayer(url: mediaUrl),
                                   ),
-                              ],
-                            )
+                                  if (message['is_uploading'] == true)
+                                    Container(
+                                      width: 250, height: 190,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(.38),
+                                        borderRadius: BorderRadius.circular(13),
+                                      ),
+                                      child: const Center(
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                                      ),
+                                    ),
+                                ],
+                              )
                           else if ((message['content'] ?? '').toString().isNotEmpty)
                             Text((message['content'] ?? '').toString(),
                               style: TextStyle(color: colors.onSurface.withOpacity(.92), fontSize: 14.5, height: 1.35)),
@@ -1267,7 +1391,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                   _SalonCircleAction(
                     icon: Icons.photo_library_outlined,
                     onTap: _sending || _uploadingMedia || (!_imageMessagesAllowed && !_videoMessagesAllowed) ? null : _pickMedia,
-                    loading: _uploadingMedia,
                     size: 42,
                   ),
                   const SizedBox(width: 8),
