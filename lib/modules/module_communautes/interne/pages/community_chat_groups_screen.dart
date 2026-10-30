@@ -36,10 +36,21 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
 
   Future<void> _load() async {
     try {
-      final data = await _client.rpc('list_community_chat_groups', params: {'p_community_id': widget.communityId});
+      final data = await _client.rpc('list_community_chat_groups_with_preview', params: {'p_community_id': widget.communityId});
+      final groups = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      for (final group in groups) {
+        final path = group['avatar_path']?.toString() ?? '';
+        if (path.isNotEmpty) {
+          try {
+            group['avatar_signed_url'] = await _client.storage
+                .from('community-salon-media')
+                .createSignedUrl(path, 3600);
+          } catch (_) {}
+        }
+      }
       if (!mounted) return;
       setState(() {
-        _groups = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _groups = groups;
         _loading = false;
       });
     } catch (e) {
@@ -84,6 +95,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
         await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CommunityChatGroupConversation(
           salonId: group['id'].toString(), name: group['name']?.toString() ?? 'Discussion',
           communityName: widget.communityName,
+          avatarUrl: group['avatar_signed_url']?.toString(),
         )));
         await _load();
       } else {
@@ -160,20 +172,60 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
             final canManage = group['can_manage'] == true;
             final isMember = status == 'member' || group['created_by'] == _client.auth.currentUser?.id;
             final pending = status == 'pending';
-            return Card(child: ListTile(
-              leading: CircleAvatar(backgroundColor: colors.primaryContainer, child: Icon(isPrivate ? Icons.lock_outline : Icons.forum_outlined, color: colors.onPrimaryContainer)),
-              title: Text((group['name'] ?? 'Discussion').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if ((group['description'] ?? '').toString().isNotEmpty) Text(group['description'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Text(isPrivate ? 'chat_groups_private_label'.tr : 'chat_groups_public_label'.tr),
-                if (group['member_count'] != null) Text('chat_groups_count'.trParams({'count': '${group['member_count']}'})),
-                if (pending) Text('chat_groups_request_pending'.tr),
-              ]),
-              isThreeLine: (group['description'] ?? '').toString().isNotEmpty,
-              onTap: pending ? null : () => _openOrRequest(group),
-              trailing: canManage && isPrivate ? IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'Gérer les demandes', onPressed: () => _showRequests(group)) : Icon(isMember ? Icons.chevron_right : (pending ? Icons.hourglass_top : Icons.lock_open_outlined)),
-            ));
+            final avatarUrl = group['avatar_signed_url']?.toString();
+            final messageType = group['last_message_type']?.toString() ?? '';
+            final rawPreview = (group['last_message'] ?? '').toString().trim();
+            final preview = messageType == 'audio'
+                ? 'chat_groups_audio_message'.tr
+                : messageType == 'image'
+                    ? 'chat_groups_pick_image'.tr
+                    : messageType == 'video'
+                        ? 'chat_groups_pick_video'.tr
+                        : rawPreview.isEmpty
+                            ? (group['description'] ?? '').toString()
+                            : rawPreview;
+            final sentAt = DateTime.tryParse(group['last_message_at']?.toString() ?? '');
+            final dateLabel = sentAt == null
+                ? ''
+                : (DateUtils.isSameDay(sentAt.toLocal(), DateTime.now())
+                    ? '${sentAt.toLocal().hour.toString().padLeft(2, '0')}:${sentAt.toLocal().minute.toString().padLeft(2, '0')}'
+                    : '${sentAt.toLocal().day.toString().padLeft(2, '0')}/${sentAt.toLocal().month.toString().padLeft(2, '0')}');
+            return Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                leading: CircleAvatar(
+                  radius: 27,
+                  backgroundColor: colors.primaryContainer,
+                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                  child: avatarUrl == null || avatarUrl.isEmpty
+                      ? Icon(isPrivate ? Icons.lock_outline : Icons.forum_outlined, color: colors.onPrimaryContainer)
+                      : null,
+                ),
+                title: Row(children: [
+                  Expanded(child: Text((group['name'] ?? 'Discussion').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  if (dateLabel.isNotEmpty) const SizedBox(width: 8),
+                  if (dateLabel.isNotEmpty) Text(dateLabel, style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant)),
+                ]),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(
+                      pending ? 'chat_groups_request_pending'.tr : (preview.isEmpty ? (isPrivate ? 'chat_groups_private_label'.tr : 'chat_groups_public_label'.tr) : preview),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: colors.onSurfaceVariant),
+                    ),
+                    if (group['member_count'] != null)
+                      Padding(padding: const EdgeInsets.only(top: 3), child: Text('chat_groups_count'.trParams({'count': '${group['member_count']}'}), style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant))),
+                  ]),
+                ),
+                onTap: pending ? null : () => _openOrRequest(group),
+                trailing: canManage && isPrivate
+                    ? IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'Gérer les demandes', onPressed: () => _showRequests(group))
+                    : Icon(isMember ? Icons.chevron_right : (pending ? Icons.hourglass_top : Icons.lock_open_outlined)),
+              ),
+            );
           },
         ),
       ),
@@ -185,7 +237,8 @@ class CommunityChatGroupConversation extends StatefulWidget {
   final String salonId;
   final String name;
   final String communityName;
-  const CommunityChatGroupConversation({super.key, required this.salonId, required this.name, required this.communityName});
+  final String? avatarUrl;
+  const CommunityChatGroupConversation({super.key, required this.salonId, required this.name, required this.communityName, this.avatarUrl});
   @override
   State<CommunityChatGroupConversation> createState() => _CommunityChatGroupConversationState();
 }
@@ -398,9 +451,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final uid = _client.auth.currentUser?.id;
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+      appBar: AppBar(title: Row(children: [
+        CircleAvatar(
+          radius: 19,
+          backgroundColor: colors.primaryContainer,
+          backgroundImage: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty ? NetworkImage(widget.avatarUrl!) : null,
+          child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
+              ? Icon(Icons.forum_outlined, color: colors.onPrimaryContainer, size: 19)
+              : null,
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+        ])),
       ])),
       body: Column(children: [
         Expanded(child: _loading ? Center(child: CircularProgressIndicator()) : _messages.isEmpty
