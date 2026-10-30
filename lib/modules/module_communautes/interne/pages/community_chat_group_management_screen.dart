@@ -4,6 +4,7 @@ import 'package:scrole/modules/module_communautes/interne/pages/community_chat_g
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'community_chat_group_access_rules_screen.dart';
 import 'community_chat_group_join_requests_screen.dart';
+import 'community_chat_group_visibility_screen.dart';
 
 class CommunityChatGroupManagementScreen extends StatefulWidget {
   const CommunityChatGroupManagementScreen({super.key, required this.salonId, required this.groupName});
@@ -126,13 +127,25 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
         ]),
         const SizedBox(height:16),
         _section(c,[
-          ListTile(contentPadding:const EdgeInsets.symmetric(horizontal:17,vertical:4),
-            leading:Icon(Icons.lock_outline_rounded,color:c.onSurfaceVariant),
-            title:const Text('Visibilité du salon',style:TextStyle(fontWeight:FontWeight.w600)),
-            subtitle:const Text('Qui peut trouver et rejoindre cette discussion'),
-            trailing:DropdownButton<String>(value:visibility=='private'?'private':'public',underline:const SizedBox.shrink(),
-              items:const[DropdownMenuItem(value:'public',child:Text('Publique')),DropdownMenuItem(value:'private',child:Text('Privée'))],
-              onChanged:_saving?null:(v){if(v!=null)_visibility(v);})),
+          _tile(
+            c,
+            Icons.lock_outline_rounded,
+            'Visibilité du salon',
+            'Qui peut trouver et rejoindre cette discussion',
+            () async {
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CommunityChatGroupVisibilityScreen(
+                    salonId: widget.salonId,
+                    initialData: _data,
+                  ),
+                ),
+              );
+              if (changed == true) await _load();
+            },
+            trailing: visibility == 'private' ? 'Privée' : 'Publique',
+          ),
           SwitchListTile.adaptive(contentPadding:const EdgeInsets.symmetric(horizontal:17),
             secondary:Icon(Icons.mic_none_rounded,color:c.onSurfaceVariant),
             title:const Text('Messages audio',style:TextStyle(fontWeight:FontWeight.w600)),
