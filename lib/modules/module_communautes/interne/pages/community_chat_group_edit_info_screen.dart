@@ -97,6 +97,31 @@ class _CommunityChatGroupEditInfoScreenState
           'set_community_chat_group_avatar',
           params: {'p_salon_id': widget.salonId, 'p_avatar_url': avatarUrl},
         );
+
+        // Supprimer l'ancien objet R2 seulement après confirmation que la
+        // nouvelle URL est enregistrée sur le salon.
+        final previousAvatarUrl =
+            widget.initialData['avatar_url']?.toString().trim() ?? '';
+        if (previousAvatarUrl.isNotEmpty &&
+            previousAvatarUrl != avatarUrl) {
+          try {
+            await R2MediaRepository()
+                .deleteReplacedPublicMedia(previousAvatarUrl);
+          } catch (cleanupError) {
+            debugPrint(
+              '[SALON_AVATAR] Ancienne photo non supprimée de R2: $cleanupError',
+            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'La nouvelle photo est enregistrée, mais l’ancienne n’a pas pu être supprimée de R2.',
+                  ),
+                ),
+              );
+            }
+          }
+        }
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
