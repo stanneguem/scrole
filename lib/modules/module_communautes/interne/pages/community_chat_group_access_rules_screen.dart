@@ -73,7 +73,7 @@ class _CommunityChatGroupAccessRulesScreenState extends State<CommunityChatGroup
       ));
     });
     if(result==null)return;
-    setState(()=>countries?_countries=result.toList():_cities=result.toList());
+    setState(() { if (countries) { _countries=result.toList(); } else { _cities=result.toList(); } });
   }
 
   Future<void> _save()async{
