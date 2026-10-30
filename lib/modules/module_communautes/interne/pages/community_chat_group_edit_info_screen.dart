@@ -1,0 +1,169 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:scrole/app/repository_global/r2_media_repository.dart';
+import 'package:scrole/shared/widgets/app_cached_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class CommunityChatGroupEditInfoScreen extends StatefulWidget {
+  const CommunityChatGroupEditInfoScreen({
+    super.key,
+    required this.salonId,
+    required this.initialData,
+  });
+  final String salonId;
+  final Map<String, dynamic> initialData;
+
+  @override
+  State<CommunityChatGroupEditInfoScreen> createState() =>
+      _CommunityChatGroupEditInfoScreenState();
+}
+
+class _CommunityChatGroupEditInfoScreenState
+    extends State<CommunityChatGroupEditInfoScreen> {
+  late final TextEditingController _name;
+  late final TextEditingController _description;
+  XFile? _avatar;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.initialData['name']?.toString() ?? '');
+    _description = TextEditingController(text: widget.initialData['description']?.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1200,
+    );
+    if (file != null && mounted) setState(() => _avatar = file);
+  }
+
+  Future<void> _save() async {
+    final name = _name.text.trim();
+    if (name.length < 2 || name.length > 80) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le nom doit contenir entre 2 et 80 caractères.')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await Supabase.instance.client.rpc(
+        'update_community_chat_group_settings',
+        params: {
+          'p_salon_id': widget.salonId,
+          'p_name': name,
+          'p_description': _description.text.trim(),
+          'p_visibility': widget.initialData['visibility'] ?? 'public',
+        },
+      );
+      String? avatarUrl = widget.initialData['avatar_url']?.toString();
+      if (_avatar != null) {
+        final uploaded = await R2MediaRepository().uploadFile(
+          file: File(_avatar!.path),
+          category: 'salon_avatar',
+          mediaType: 'image',
+          entityId: widget.salonId,
+        );
+        avatarUrl = uploaded.publicUrl;
+        if (avatarUrl == null || avatarUrl.isEmpty || !uploaded.isPublic) {
+          throw StateError('Impossible de récupérer l’URL publique Cloudflare R2.');
+        }
+        await Supabase.instance.client.rpc(
+          'set_community_chat_group_avatar',
+          params: {'p_salon_id': widget.salonId, 'p_avatar_url': avatarUrl},
+        );
+      }
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossible d’enregistrer les informations : $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final avatarUrl = widget.initialData['avatar_url']?.toString();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Modifier les informations')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Center(
+            child: GestureDetector(
+              onTap: _saving ? null : _pickAvatar,
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 54,
+                    backgroundColor: colors.surfaceContainerHighest,
+                    child: ClipOval(
+                      child: _avatar != null
+                          ? Image.file(File(_avatar!.path), width: 108, height: 108, fit: BoxFit.cover)
+                          : avatarUrl == null || avatarUrl.isEmpty
+                              ? Icon(Icons.forum_outlined, size: 38, color: colors.onSurfaceVariant)
+                              : AppCachedImage(imageUrl: avatarUrl, fit: BoxFit.cover),
+                    ),
+                  ),
+                  CircleAvatar(
+                    radius: 17,
+                    backgroundColor: colors.primary,
+                    child: Icon(Icons.camera_alt_outlined, size: 17, color: colors.onPrimary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          TextField(
+            controller: _name,
+            maxLength: 80,
+            decoration: const InputDecoration(
+              labelText: 'Nom de la discussion',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _description,
+            maxLength: 300,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+}
