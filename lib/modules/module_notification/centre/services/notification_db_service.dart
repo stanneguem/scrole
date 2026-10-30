@@ -137,8 +137,8 @@ class NotificationDbService extends GetxService {
     final rows = await db.query(
       'notifications',
       columns: ['id', 'payload'],
-      where: 'user_id = ? AND type = ?',
-      whereArgs: [userId, 'community_salon_message'],
+      where: 'user_id = ? AND type IN (?, ?)',
+      whereArgs: [userId, 'community_salon_message', 'community_salon_reply'],
     );
     final ids = <String>[];
     for (final row in rows) {

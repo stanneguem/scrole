@@ -561,7 +561,7 @@ class NotificationService {
     final notificationData = rawPayloadData is Map
         ? Map<String, dynamic>.from(rawPayloadData)
         : <String, dynamic>{};
-    final incomingSalonId = type == 'community_salon_message'
+    final incomingSalonId = (type == 'community_salon_message' || type == 'community_salon_reply')
         ? (notificationData['salon_id']?.toString() ?? data['salon_id']?.toString())
         : null;
     if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
@@ -623,7 +623,7 @@ class NotificationService {
 
       final data = Map<String, dynamic>.from(message.data);
       final type = data['type']?.toString() ?? 'info';
-      final incomingSalonId = type == 'community_salon_message'
+      final incomingSalonId = (type == 'community_salon_message' || type == 'community_salon_reply')
           ? (data['salon_id']?.toString() ??
               (data['data'] is Map
                   ? (data['data'] as Map)['salon_id']?.toString()
