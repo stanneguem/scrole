@@ -86,6 +86,14 @@ class SalonChatDatabase {
     // sans modifier la base générale ni celle des messages directs.
   }
 
+  Future<void> clearUserData(String userId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('salon_messages', where: 'user_id = ?', whereArgs: [userId]);
+      await txn.delete('salon_sync_cursors', where: 'user_id = ?', whereArgs: [userId]);
+    });
+  }
+
   Future<void> close() async {
     final db = _database;
     _database = null;
