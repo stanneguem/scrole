@@ -776,16 +776,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     for (final message in hydrated) {
       final id = message['id']?.toString() ?? '';
       if (id.isEmpty) continue;
-      if (message['is_deleted'] == true) {
-        byId.remove(id);
-        await _localCache.deleteMessage(userId: userId, salonId: widget.salonId, messageId: id);
-        continue;
-      }
-      if (_initialSalonMessagesLoaded && !_knownSalonMessageIds.contains(id)) {
-        newlyReceived.add(message);
-      }
-      _knownSalonMessageIds.add(id);
-      byId[id] = message;
       final syncAt = DateTime.tryParse(
         (message['sync_updated_at'] ?? message['sent_at'] ?? message['created_at'] ?? '').toString(),
       );
@@ -797,6 +787,16 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           messageId: id,
         );
       }
+      if (message['is_deleted'] == true) {
+        byId.remove(id);
+        await _localCache.deleteMessage(userId: userId, salonId: widget.salonId, messageId: id);
+        continue;
+      }
+      if (_initialSalonMessagesLoaded && !_knownSalonMessageIds.contains(id)) {
+        newlyReceived.add(message);
+      }
+      _knownSalonMessageIds.add(id);
+      byId[id] = message;
     }
     final pending = _messages.where((message) => message['is_uploading'] == true).toList();
     final merged = byId.values.toList()
