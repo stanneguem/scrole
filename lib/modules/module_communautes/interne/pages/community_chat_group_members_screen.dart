@@ -24,7 +24,7 @@ class _CommunityChatGroupMembersScreenState extends State<CommunityChatGroupMemb
       final data=Map<String,dynamic>.from(raw as Map);
       final members=(data['members'] as List? ??const[]).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
       if(!mounted)return;
-      setState(()=>{_members=members,_myRole=(data['my_role']??'member').toString(),_loading=false});
+      setState(() { _members=members; _myRole=(data['my_role']??'member').toString(); _loading=false; });
     }catch(e){if(!mounted)return;setState(()=>_loading=false);_toast('Impossible de charger les membres : $e');}
   }
 
