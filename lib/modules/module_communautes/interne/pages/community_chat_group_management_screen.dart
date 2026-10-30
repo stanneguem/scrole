@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_chat_group_edit_info_screen.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_chat_group_members_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,6 +21,7 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
   Map<String,dynamic> _data = {};
   int _pending = 0;
   bool _loading = true;
+  bool _saving = false;
   bool get _owner => _data['my_role']=='owner';
 
   @override
