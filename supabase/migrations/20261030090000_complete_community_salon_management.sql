@@ -141,3 +141,23 @@ begin
 end $$;
 revoke all on function public.set_community_chat_group_avatar(uuid,text) from public,anon;
 grant execute on function public.set_community_chat_group_avatar(uuid,text) to authenticated;
+
+-- Allow the current salon owner to transfer ownership to an existing member.
+create or replace function public.transfer_community_chat_group_ownership(p_salon_id uuid,p_new_owner_id uuid)
+returns void language plpgsql security definer set search_path=public as $$
+declare v_uid uuid:=auth.uid(); v_role text;
+begin
+  if v_uid is null then raise exception 'Authentification requise'; end if;
+  select role into v_role from public.community_salon_members
+    where salon_id=p_salon_id and user_id=v_uid for update;
+  if coalesce(v_role,'')<>'owner' then raise exception 'Seul le propriétaire actuel peut transférer la propriété'; end if;
+  if p_new_owner_id=v_uid then raise exception 'Cette personne est déjà propriétaire'; end if;
+  if not exists(select 1 from public.community_salon_members where salon_id=p_salon_id and user_id=p_new_owner_id) then
+    raise exception 'Le nouveau propriétaire doit déjà être membre de cette discussion';
+  end if;
+  update public.community_salon_members set role='moderator' where salon_id=p_salon_id and user_id=v_uid;
+  update public.community_salon_members set role='owner' where salon_id=p_salon_id and user_id=p_new_owner_id;
+  update public.community_salons set created_by=p_new_owner_id,updated_at=now() where id=p_salon_id;
+end $$;
+revoke all on function public.transfer_community_chat_group_ownership(uuid,uuid) from public,anon;
+grant execute on function public.transfer_community_chat_group_ownership(uuid,uuid) to authenticated;
