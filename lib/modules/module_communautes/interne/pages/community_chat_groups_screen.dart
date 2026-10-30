@@ -41,6 +41,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   List<Map<String, dynamic>> _groups = [];
   bool _loading = true;
   bool _creating = false;
+  final Set<String> _openingSalonIds = <String>{};
 
   @override
   void initState() {
@@ -92,51 +93,61 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
   }
 
   Future<void> _openOrRequest(Map<String, dynamic> group) async {
-    // Never trust the cached my_status returned by the list RPC: a removed
-    // member can still have a stale row in the in-memory list.
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return;
-    final salonId = group['id'].toString();
-    Map<String, dynamic>? membership;
+    final salonId = group['id']?.toString();
+    if (salonId == null || salonId.isEmpty || _openingSalonIds.contains(salonId)) return;
+    _openingSalonIds.add(salonId);
+    if (mounted) setState(() {});
     try {
-      membership = await _client
-          .from('community_salon_members')
-          .select('user_id')
-          .eq('salon_id', salonId)
-          .eq('user_id', userId)
-          .maybeSingle();
-    } catch (e, st) {
-      debugPrint('[CommunityChatGroups] Membership lookup failed; opening preview safely: $e');
-      debugPrintStack(stackTrace: st);
-      // Fail closed: a lookup error must never grant access to salon messages.
-      membership = null;
+      // Never trust the cached my_status returned by the list RPC: a removed
+      // member can still have a stale row in the in-memory list.
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+      final salonId = group['id'].toString();
+      Map<String, dynamic>? membership;
+      try {
+        membership = await _client
+            .from('community_salon_members')
+            .select('user_id')
+            .eq('salon_id', salonId)
+            .eq('user_id', userId)
+            .maybeSingle();
+      } catch (e, st) {
+        debugPrint('[CommunityChatGroups] Membership lookup failed; opening preview safely: $e');
+        debugPrintStack(stackTrace: st);
+        // Fail closed: a lookup error must never grant access to salon messages.
+        membership = null;
+      }
+      if (!mounted) return;
+      if (membership != null) {
+        await _openConversation(group);
+        return;
+      }
+      // Every non-member must see the preview, including public salons and
+      // users whose old my_status value still says "member".
+      final action = await showModalBottomSheet<String>(
+        context: context, isScrollControlled: true, useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => CommunityChatSalonPreviewSheet(
+          group: group, communityName: widget.communityName,
+          onJoin: () async {
+            final result = await _client.rpc('request_community_chat_group_access', params: {'p_salon_id': group['id']});
+            return result is Map ? (result['status'] ?? 'accepted').toString() : 'accepted';
+          },
+        ),
+      );
+      if (!mounted || action == null) return;
+      if (action == 'accepted') { await _openConversation(group); }
+      else if (action == 'pending') {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_request_sent'.tr)));
+        await _load();
+      }
     }
-    if (!mounted) return;
-    if (membership != null) {
-      await _openConversation(group);
-      return;
-    }
-    // Every non-member must see the preview, including public salons and
-    // users whose old my_status value still says "member".
-    final action = await showModalBottomSheet<String>(
-      context: context, isScrollControlled: true, useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => CommunityChatSalonPreviewSheet(
-        group: group, communityName: widget.communityName,
-        onJoin: () async {
-          final result = await _client.rpc('request_community_chat_group_access', params: {'p_salon_id': group['id']});
-          return result is Map ? (result['status'] ?? 'accepted').toString() : 'accepted';
-        },
-      ),
-    );
-    if (!mounted || action == null) return;
-    if (action == 'accepted') { await _openConversation(group); }
-    else if (action == 'pending') {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_request_sent'.tr)));
-      await _load();
+  
+    } finally {
+      _openingSalonIds.remove(salonId);
+      if (mounted) setState(() {});
     }
   }
-
   Future<void> _openConversation(Map<String, dynamic> group) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CommunityChatGroupConversation(
       salonId: group['id'].toString(), name: group['name']?.toString() ?? 'Discussion',
@@ -257,7 +268,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
               borderRadius: BorderRadius.circular(22),
               child: InkWell(
                 borderRadius: BorderRadius.circular(22),
-                onTap: pending ? null : () => _openOrRequest(group),
+                onTap: pending || _openingSalonIds.contains(group['id']?.toString()) ? null : () => _openOrRequest(group),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   child: Row(
