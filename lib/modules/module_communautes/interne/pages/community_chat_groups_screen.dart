@@ -387,9 +387,14 @@ class _CommunityChatSalonPreviewSheetState extends State<CommunityChatSalonPrevi
         ])),
         const Divider(height: 1),
         Flexible(child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(height: 125, width: double.infinity, decoration: BoxDecoration(gradient: LinearGradient(colors: [colors.primary.withOpacity(.75), colors.tertiary.withOpacity(.55)])), child: Center(child: CircleAvatar(radius: 40, backgroundColor: colors.surface, backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null, child: avatar.isEmpty ? Icon(private ? Icons.lock_outline : Icons.forum_outlined, size: 34, color: colors.primary) : null))),
           Padding(padding: const EdgeInsets.fromLTRB(20, 18, 20, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+            Row(children: [
+              CircleAvatar(radius: 27, backgroundColor: colors.primaryContainer,
+                backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                child: avatar.isEmpty ? Icon(private ? Icons.lock_outline : Icons.forum_outlined, color: colors.onPrimaryContainer) : null),
+              const SizedBox(width: 12),
+              Expanded(child: Text(name, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800))),
+            ]),
             const SizedBox(height: 5), Text(widget.communityName, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
             const SizedBox(height: 14),
             Wrap(spacing: 8, runSpacing: 8, children: [
@@ -688,6 +693,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       }
       _initialSalonMessagesLoaded = true;
       setState(() { _messages = messages; _loading = false; });
+      // Mark every incoming message as read as soon as it is loaded in the
+      // active conversation. This also handles messages received via realtime.
+      final currentUserId = _client.auth.currentUser?.id;
+      if (currentUserId != null) {
+        for (final message in messages) {
+          final messageId = message['id']?.toString() ?? '';
+          if (messageId.isEmpty || message['sender_id']?.toString() == currentUserId) continue;
+          try {
+            await _client.rpc('mark_salon_message_read', params: {'p_id': messageId});
+          } catch (error) {
+            debugPrint('[SALON_READ] Could not mark message $messageId as read: $error');
+          }
+        }
+      }
       if (newlyReceived.isNotEmpty) {
         unawaited(_autoSaveIncomingMedia(newlyReceived));
       }
