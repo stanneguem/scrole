@@ -227,7 +227,7 @@ Deno.serve(async (req: Request) => {
       const { data: salon } = await admin.from("community_salons").select("id,created_by").eq("id", salonId).maybeSingle();
       const { data: member } = await admin.from("community_salon_members").select("user_id").eq("salon_id", salonId).eq("user_id", user.id).maybeSingle();
       allowed = !!salon && (salon.created_by === user.id || !!member);
-    if (parts[0] === "messages" && parts.length >= 3) {
+    } else if (parts[0] === "messages" && parts.length >= 3) {
       const conversationId = parts[1];
       const { data } = await admin.from("direct_conversations").select("user_one_id,user_two_id").eq("id", conversationId).maybeSingle();
       allowed = !!data && (data.user_one_id === user.id || data.user_two_id === user.id);
