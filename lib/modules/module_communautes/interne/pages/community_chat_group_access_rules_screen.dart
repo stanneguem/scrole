@@ -184,10 +184,7 @@ class _CommunityChatGroupAccessRulesScreenState
     if (result == null || !mounted) return;
     setState(() {
       _countries = result;
-      if (_countriesEnabled) {
-        final allowedCountryIds = _countries.toSet();
-        _refreshCityOptions();
-      }
+      if (_countriesEnabled) _refreshCityOptions();
     });
   }
 
