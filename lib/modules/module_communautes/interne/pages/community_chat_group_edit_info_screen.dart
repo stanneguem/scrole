@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
@@ -66,7 +65,7 @@ class _CommunityChatGroupEditInfoScreenState
     final name = _name.text.trim();
     if (name.length < 2 || name.length > 80) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Le nom doit contenir entre 2 et 80 caractères.')),
+        const SnackBar(content: Text(''community_chat_group_edit_name_invalid'.tr')),
       );
       return;
     }
@@ -115,7 +114,7 @@ class _CommunityChatGroupEditInfoScreenState
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'La nouvelle photo est enregistrée, mais l’ancienne n’a pas pu être supprimée de R2.',
+                    'community_chat_group_edit_avatar_cleanup_error'.tr,
                   ),
                 ),
               );
@@ -127,7 +126,7 @@ class _CommunityChatGroupEditInfoScreenState
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Impossible d’enregistrer les informations : $error')),
+          SnackBar(content: Text('community_chat_group_edit_error'.trParams({'error': error.toString()}))),
         );
       }
     } finally {
@@ -141,7 +140,7 @@ class _CommunityChatGroupEditInfoScreenState
     final avatarUrl = widget.initialData['avatar_url']?.toString();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Modifier les informations'),
+        title: Text('community_chat_group_edit_title'.tr),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -153,7 +152,7 @@ class _CommunityChatGroupEditInfoScreenState
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Enregistrer'),
+                  : Text('community_chat_group_edit_save'.tr),
             ),
           ),
         ],
@@ -162,7 +161,10 @@ class _CommunityChatGroupEditInfoScreenState
         padding: const EdgeInsets.all(20),
         children: [
           Center(
-            child: GestureDetector(
+            child: Semantics(
+              button: true,
+              label: 'community_chat_group_edit_avatar_hint'.tr,
+              child: GestureDetector(
               onTap: _saving ? null : _pickAvatar,
               child: Stack(
                 alignment: Alignment.bottomRight,
@@ -208,13 +210,14 @@ class _CommunityChatGroupEditInfoScreenState
                 ],
               ),
             ),
+            ),
           ),
           const SizedBox(height: 28),
           TextField(
             controller: _name,
             maxLength: 80,
             decoration: const InputDecoration(
-              labelText: 'Nom de la discussion',
+              labelText: 'community_chat_group_edit_name'.tr,
               border: OutlineInputBorder(),
             ),
           ),
@@ -225,7 +228,7 @@ class _CommunityChatGroupEditInfoScreenState
             minLines: 3,
             maxLines: 5,
             decoration: const InputDecoration(
-              labelText: 'Description',
+              labelText: 'community_chat_group_edit_description'.tr,
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
