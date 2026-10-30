@@ -42,62 +42,7 @@ class NotificationDeepLinkRouter {
       if (type == 'community_salon_message') {
         final salonId = value(['salon_id']);
         if (salonId != null &&
-            RegExp(r'^[0-9a-fA-F-]{36}
-      // for personal posts and community posts and can focus the exact comment.
-      if (postId != null) {
-        Get.to(
-          () => SharedPostLinkScreen(
-            postId: postId,
-            commentId: commentId ?? value(['parent_comment_id']),
-          ),
-          preventDuplicates: false,
-        );
-        return;
-      }
-
-      if (eventId != null) {
-        Get.toNamed(
-          AppPages.eventPreview.replaceFirst(':id', eventId),
-          arguments: {'id': eventId, 'eventId': eventId},
-        );
-        return;
-      }
-
-      if (actorId != null &&
-          (type.contains('follow') ||
-              type.contains('friend') ||
-              type.contains('connection') ||
-              type.contains('ami'))) {
-        Get.toNamed(AppPages.externalProfilePath(actorId));
-        return;
-      }
-
-      if (type == 'message_received') {
-        final conversationId = value(['conversation_id']);
-        if (conversationId != null) {
-          Get.toNamed(
-            AppPages.conversation,
-            parameters: {'chatId': conversationId},
-            arguments: {
-              'userId': value(['sender_id']) ?? '',
-              'name': value(['sender_name']) ?? 'Ami',
-              'avatar': value(['sender_photo_url']),
-            },
-          );
-        }
-      }
-    } catch (e, st) {
-      debugPrint('[NotificationDeepLinkRouter] Navigation failed: $e');
-      debugPrintStack(stackTrace: st);
-      Get.snackbar(
-        'Notification',
-        'Impossible d’ouvrir ce contenu. Il a peut-être été supprimé ou tu n’y as plus accès.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    }
-  }
-}
-).hasMatch(salonId)) {
+            RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(salonId)) {
           final client = Supabase.instance.client;
           final rawSettings = await client.rpc(
             'get_community_chat_group_settings',
