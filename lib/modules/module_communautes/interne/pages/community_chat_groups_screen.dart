@@ -786,17 +786,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     for (final message in hydrated) {
       final id = message['id']?.toString() ?? '';
       if (id.isEmpty) continue;
-      final syncAt = DateTime.tryParse(
-        (message['sync_updated_at'] ?? message['sent_at'] ?? message['created_at'] ?? '').toString(),
-      );
-      if (syncAt != null) {
-        await _localCache.advanceCursor(
-          userId: userId,
-          salonId: widget.salonId,
-          sentAt: syncAt,
-          messageId: id,
-        );
-      }
       if (message['is_deleted'] == true) {
         byId.remove(id);
         await _localCache.deleteMessage(userId: userId, salonId: widget.salonId, messageId: id);
@@ -826,6 +815,22 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       salonId: widget.salonId,
       messages: cacheableMessages,
     );
+    // Advance only after message writes/deletions succeed: a crash can cause
+    // harmless replay, never a cursor that skips data not yet persisted.
+    for (final message in hydrated) {
+      final id = message['id']?.toString() ?? '';
+      final syncAt = DateTime.tryParse(
+        (message['sync_updated_at'] ?? message['sent_at'] ?? message['created_at'] ?? '').toString(),
+      );
+      if (id.isNotEmpty && syncAt != null) {
+        await _localCache.advanceCursor(
+          userId: userId,
+          salonId: widget.salonId,
+          sentAt: syncAt,
+          messageId: id,
+        );
+      }
+    }
     if (!mounted) return;
     setState(() {
       _messages = [...merged, ...pending];
