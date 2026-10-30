@@ -495,7 +495,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     super.initState();
     _conversationName = widget.name;
     _conversationAvatarUrl = widget.avatarUrl;
-    _localCache = SalonChatLocalCache(Get.find<AppDatabase>());
+    _localCache = SalonChatLocalCache();
     NotificationService.instance.setActiveSalon(widget.salonId);
     _loadMessagePermissions();
     if (Get.isRegistered<ConnectivityService>()) {
