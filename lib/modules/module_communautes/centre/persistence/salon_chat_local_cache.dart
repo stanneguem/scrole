@@ -21,11 +21,11 @@ class SalonChatLocalCache {
       columns: ['payload'],
       where: 'user_id = ? AND salon_id = ?',
       whereArgs: [userId, salonId],
-      orderBy: 'sent_at ASC, message_id ASC',
+      orderBy: 'sent_at DESC, message_id DESC',
       limit: limit,
     );
     final messages = <Map<String, dynamic>>[];
-    for (final row in rows) {
+    for (final row in rows.reversed) {
       try {
         final decoded = jsonDecode(row['payload'] as String);
         if (decoded is Map) messages.add(Map<String, dynamic>.from(decoded));
