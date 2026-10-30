@@ -712,46 +712,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         .whereType<Map>()
         .map((value) => Map<String, dynamic>.from(value))
         .toList();
-    for (final message in messages) {
-      final type = message['type']?.toString();
-      final rawKeys = message['media_object_keys'];
-      final keys = rawKeys is List
-          ? rawKeys.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
-          : <String>[];
-      final fallbackKey = (type == 'audio'
-              ? message['audio_url']
-              : message['media_object_key'] ?? message['content'])
-          ?.toString() ?? '';
-      final mediaKeys = keys.isNotEmpty
-          ? keys
-          : (fallbackKey.isNotEmpty ? <String>[fallbackKey] : <String>[]);
-      if (type == 'audio' || type == 'image' || type == 'video' || type == 'file') {
-        final signedUrls = <String>[];
-        for (final key in mediaKeys) {
-          try {
-            final response = await _client.functions.invoke('r2-media-upload', body: {
-              'action': 'create-download-url',
-              'object_key': key,
-            });
-            if (response.status >= 200 && response.status < 300 && response.data is Map) {
-              final url = (response.data as Map)['url']?.toString();
-              if (url != null && url.isNotEmpty) signedUrls.add(url);
-            }
-          } catch (error) {
-            debugPrint('[SALON_MEDIA] URL resolution failed: $error');
-          }
-        }
-        if (type == 'audio') {
-          if (signedUrls.isNotEmpty) message['audio_signed_url'] = signedUrls.first;
-        } else if (type == 'image') {
-          message['media_signed_urls'] = signedUrls;
-          if (signedUrls.isNotEmpty) message['media_signed_url'] = signedUrls.first;
-        } else if (signedUrls.isNotEmpty) {
-          message['media_signed_url'] = signedUrls.first;
-        }
-      }
-    }
-
     final senderIds = messages.map((message) => message['sender_id']?.toString())
         .whereType<String>().where((id) => id.isNotEmpty).toSet().toList();
     if (senderIds.isNotEmpty) {
@@ -1350,17 +1310,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     .where((value) => value.isNotEmpty)
                     .toList()
                 : <String>[];
-            final mediaUrl = (message['media_signed_url'] ??
-                message['media_object_key'] ??
-                (mediaKeys.isNotEmpty ? mediaKeys.first : message['content']) ??
+            // Stable R2 object keys are the media references persisted and displayed.
+            // ChatMediaCache resolves a key to a signed URL only when the file is needed.
+            final mediaUrl = (message['media_object_key'] ??
+                (mediaKeys.isNotEmpty ? mediaKeys.first : null) ??
+                message['content'] ??
+                message['media_signed_url'] ??
                 '').toString();
-            final mediaUrls = message['media_signed_urls'] is List
-                ? (message['media_signed_urls'] as List)
-                    .map((value) => value.toString())
-                    .where((value) => value.isNotEmpty)
-                    .toList()
-                : (mediaKeys.isNotEmpty
-                    ? mediaKeys
+            final mediaUrls = mediaKeys.isNotEmpty
+                ? mediaKeys
+                : (message['media_signed_urls'] is List
+                    ? (message['media_signed_urls'] as List)
+                        .map((value) => value.toString())
+                        .where((value) => value.isNotEmpty)
+                        .toList()
                     : (mediaUrl.isNotEmpty ? <String>[mediaUrl] : <String>[]));
             final localMediaPaths = message['local_media_paths'] is List
                 ? (message['local_media_paths'] as List)
@@ -1370,7 +1333,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 : (message['local_media_path'] != null
                     ? <String>[message['local_media_path'].toString()]
                     : <String>[]);
-            final audioUrl = (message['audio_signed_url'] ?? message['audio_url'] ?? '').toString();
+            final audioUrl = (message['audio_url'] ?? message['audio_signed_url'] ?? '').toString();
             final senderName = (message['sender_name'] ?? 'Membre').toString();
             final sentAt = DateTime.tryParse(message['sent_at']?.toString() ?? '');
             final timeLabel = sentAt == null ? '' : TimeOfDay.fromDateTime(sentAt.toLocal()).format(context);
