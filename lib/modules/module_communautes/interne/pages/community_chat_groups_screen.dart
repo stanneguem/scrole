@@ -1348,7 +1348,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                   Icon(reviewing ? Icons.graphic_eq_rounded : Icons.mic_rounded,
                     size: 18, color: const Color(0xFFEF5B25)),
                   const SizedBox(width: 8),
-                  Text(reviewing ? 'Aperçu du message vocal' : 'Enregistrement vocal',
+                  Text(reviewing ? 'salon_voice_preview_title'.tr : 'salon_voice_recording_title'.tr,
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.onSurface)),
                   const Spacer(),
                   Container(
@@ -1400,7 +1400,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 ]),
                 if (!reviewing) ...[
                   const SizedBox(height: 8),
-                  Text('Glissez vers la gauche pour annuler',
+                  Text('salon_voice_cancel_hint'.tr,
                     style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(.7))),
                 ],
               ],
@@ -1801,7 +1801,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                                 Expanded(child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Message vocal', style: TextStyle(fontWeight: FontWeight.w700, color: colors.onSurface)),
+                                    Text('salon_voice_message_label'.tr, style: TextStyle(fontWeight: FontWeight.w700, color: colors.onSurface)),
                                     const SizedBox(height: 5),
                                     const LinearProgressIndicator(minHeight: 3),
                                   ],
@@ -1935,7 +1935,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                                 Icon(Icons.done_all_rounded, size: 12,
                                   color: colors.onSurfaceVariant.withOpacity(.55)),
                               const SizedBox(width: 3),
-                              Text(message['is_uploading'] == true ? 'Envoi…' : 'Envoyé',
+                              Text(message['is_uploading'] == true ? 'salon_message_sending'.tr : 'salon_message_sent'.tr,
                                 style: TextStyle(fontSize: 9, color: timeColor)),
                             ],
                           ),
