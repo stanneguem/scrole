@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
+import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CommunityChatGroupEditInfoScreen extends StatefulWidget {
@@ -42,12 +43,23 @@ class _CommunityChatGroupEditInfoScreenState
   }
 
   Future<void> _pickAvatar() async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 82,
-      maxWidth: 1200,
+    if (_saving) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (galleryContext) => MediaGallerySheet(
+        maxSelection: 1,
+        allowMixedMedia: false,
+        onSelected: (files) {
+          if (files.isNotEmpty && mounted) {
+            setState(() => _avatar = files.first);
+          }
+          Navigator.of(galleryContext).pop();
+        },
+      ),
     );
-    if (file != null && mounted) setState(() => _avatar = file);
   }
 
   Future<void> _save() async {
@@ -130,15 +142,37 @@ class _CommunityChatGroupEditInfoScreenState
               child: Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  CircleAvatar(
-                    radius: 54,
-                    backgroundColor: colors.surfaceContainerHighest,
+                  Container(
+                    width: 116,
+                    height: 116,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.surfaceContainerHighest,
+                      border: Border.all(
+                        color: colors.outlineVariant.withOpacity(.65),
+                        width: 1,
+                      ),
+                    ),
                     child: ClipOval(
-                      child: _avatar != null
-                          ? Image.file(File(_avatar!.path), width: 108, height: 108, fit: BoxFit.cover)
-                          : avatarUrl == null || avatarUrl.isEmpty
-                              ? Icon(Icons.forum_outlined, size: 38, color: colors.onSurfaceVariant)
-                              : AppCachedImage(imageUrl: avatarUrl, fit: BoxFit.cover),
+                      child: SizedBox.expand(
+                        child: _avatar != null
+                            ? Image.file(
+                                File(_avatar!.path),
+                                fit: BoxFit.cover,
+                                width: 116,
+                                height: 116,
+                              )
+                            : avatarUrl == null || avatarUrl.isEmpty
+                                ? Icon(
+                                    Icons.forum_outlined,
+                                    size: 40,
+                                    color: colors.onSurfaceVariant,
+                                  )
+                                : AppCachedImage(
+                                    imageUrl: avatarUrl,
+                                    fit: BoxFit.cover,
+                                  ),
+                      ),
                     ),
                   ),
                   CircleAvatar(
