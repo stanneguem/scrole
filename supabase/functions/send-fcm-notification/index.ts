@@ -61,6 +61,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const type = String(record.type ?? "info").toLowerCase();
+    const recordData = record.data && typeof record.data === "object" ? record.data : {};
+    if (type === "community_salon_message") {
+      const salonId = String(recordData.salon_id ?? "");
+      if (!salonId) return json({ ok: true, sent: 0, reason: "missing_salon_id" });
+      const { data: salonPreference, error: salonPreferenceError } = await supabaseAdmin
+        .from("community_salon_user_preferences")
+        .select("notifications_enabled")
+        .eq("salon_id", salonId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (salonPreferenceError) {
+        console.error("salon preference lookup failed", salonPreferenceError);
+        return json({ error: "salon_preference_lookup_failed" }, 500);
+      }
+      if (salonPreference?.notifications_enabled === false) {
+        return json({ ok: true, sent: 0, reason: "disabled_for_this_salon" });
+      }
+    }
     const pref = preferences ?? {};
     const categoryEnabled = type.includes("message")
       ? pref.notif_messages !== false
@@ -82,7 +100,6 @@ Deno.serve(async (req: Request) => {
 
     const sa = JSON.parse(serviceAccountRaw);
     const accessToken = await getFirebaseAccessToken(sa);
-    const recordData = record.data && typeof record.data === "object" ? record.data : {};
     const dataBase: Record<string, string> = { type, notification_id: String(record.id ?? "") };
     for (const [key, value] of Object.entries(recordData)) if (value != null)
       dataBase[key] = typeof value === "string" ? value : JSON.stringify(value);
