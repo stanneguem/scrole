@@ -90,12 +90,20 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
     final salonId = group['id'].toString();
-    final membership = await _client
-        .from('community_salon_members')
-        .select('user_id')
-        .eq('salon_id', salonId)
-        .eq('user_id', userId)
-        .maybeSingle();
+    Map<String, dynamic>? membership;
+    try {
+      membership = await _client
+          .from('community_salon_members')
+          .select('user_id')
+          .eq('salon_id', salonId)
+          .eq('user_id', userId)
+          .maybeSingle();
+    } catch (e, st) {
+      debugPrint('[CommunityChatGroups] Membership lookup failed; opening preview safely: $e');
+      debugPrintStack(stackTrace: st);
+      // Fail closed: a lookup error must never grant access to salon messages.
+      membership = null;
+    }
     if (!mounted) return;
     if (membership != null) {
       await _openConversation(group);
