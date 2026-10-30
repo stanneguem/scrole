@@ -115,7 +115,7 @@ class _CommunityChatGroupMembersScreenState extends State<CommunityChatGroupMemb
     return Scaffold(appBar:AppBar(title:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Text('community_members_title'.tr),Text(widget.groupName,style:Theme.of(context).textTheme.bodySmall)]),
       actions:[IconButton(tooltip:'community_members_search'.tr,icon:const Icon(Icons.search),onPressed:(){
-        showSearch(context:context,delegate:_MembersSearch(_members,_myId,(m)=>_actions(m)));
+        showSearch(context:context,delegate:_MembersSearch(_members,_myId,(m){ if(m['user_id']==_myId){_actions(m);}else{_profile(m);} }));
       })]),
       body:_loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:_load,child:ListView(padding:const EdgeInsets.fromLTRB(16,12,16,28),children:[
         Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:c.primaryContainer.withOpacity(.45),borderRadius:BorderRadius.circular(20)),
