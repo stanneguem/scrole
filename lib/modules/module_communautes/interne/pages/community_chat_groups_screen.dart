@@ -805,19 +805,11 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   @override
   void dispose() {
-    _input.dispose(); _scroll.dispose();
-    _recorder.dispose();
-    if (_channel != null) _client.removeChannel(_channel!);
-    super.dispose();
-  }
-
-  @override
-  void dispose() {
     NotificationService.instance.setActiveSalon(null);
     _input.dispose();
     _scroll.dispose();
-    _channel?.unsubscribe();
     _recorder.dispose();
+    if (_channel != null) _client.removeChannel(_channel!);
     super.dispose();
   }
 
