@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -75,21 +76,19 @@ class _CreateCommunityChatGroupScreenState
         'p_visibility': _visibility,
       });
       if (_selectedCover != null) {
-        final uid = _client.auth.currentUser!.id;
-        final extension = _selectedCover!.path.split('.').last.toLowerCase();
-        final safeExtension = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].contains(extension) ? extension : 'jpg';
-        final objectPath = '$salonId/$uid/cover_${_newUuid()}.$safeExtension';
-        await _client.storage.from('community-salon-media').upload(
-          objectPath,
-          File(_selectedCover!.path),
-          fileOptions: FileOptions(
-            contentType: _selectedCover!.mimeType ?? 'image/jpeg',
-            upsert: false,
-          ),
+        final uploaded = await R2MediaRepository().uploadFile(
+          file: File(_selectedCover!.path),
+          category: 'salon_avatar',
+          mediaType: 'image',
+          entityId: salonId,
         );
+        final publicUrl = uploaded.publicUrl;
+        if (publicUrl == null || publicUrl.isEmpty || !uploaded.isPublic) {
+          throw StateError('L’image du salon n’a pas reçu d’URL publique R2.');
+        }
         await _client.rpc('set_community_chat_group_avatar', params: {
           'p_salon_id': salonId,
-          'p_avatar_path': objectPath,
+          'p_avatar_url': publicUrl,
         });
       }
       if (mounted) Navigator.of(context).pop(true);
