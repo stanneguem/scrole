@@ -46,6 +46,14 @@ class SalonChatLocalCache {
       for (final message in messages) {
         final id = message['id']?.toString();
         if (id == null || id.isEmpty || message['is_uploading'] == true) continue;
+        if (message['is_deleted'] == true) {
+          await txn.delete(
+            'community_salon_messages_cache',
+            where: 'user_id = ? AND salon_id = ? AND message_id = ?',
+            whereArgs: [userId, salonId, id],
+          );
+          continue;
+        }
         final rawSentAt = message['sent_at'] ?? message['created_at'];
         final sentAt = DateTime.tryParse(rawSentAt?.toString() ?? '')?.toUtc().millisecondsSinceEpoch ?? now;
         await txn.insert(
