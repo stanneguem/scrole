@@ -321,7 +321,31 @@ class CommunityChatSalonPreviewSheet extends StatefulWidget {
 
 class _CommunityChatSalonPreviewSheetState extends State<CommunityChatSalonPreviewSheet> {
   bool _busy = false;
+  bool _checkingEligibility = true;
+  bool _eligible = false;
+  bool _descriptionExpanded = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkEligibility();
+  }
+
+  Future<void> _checkEligibility() async {
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'check_salon_eligibility',
+        params: {'p_salon_id': widget.group['id'], 'p_user_id': Supabase.instance.client.auth.currentUser?.id},
+      );
+      if (!mounted) return;
+      setState(() { _eligible = result == true; _checkingEligibility = false; });
+    } catch (_) {
+      if (!mounted) return;
+      // Fail closed: never offer a join action when eligibility cannot be verified.
+      setState(() { _eligible = false; _checkingEligibility = false; });
+    }
+  }
   Future<void> _join() async {
     if (_busy) return;
     setState(() { _busy = true; _error = null; });
@@ -342,6 +366,7 @@ class _CommunityChatSalonPreviewSheetState extends State<CommunityChatSalonPrevi
     final private = g['visibility'] == 'private';
     final count = (g['member_count'] as num?)?.toInt() ?? 0;
     final approval = private || g['requires_approval'] == true;
+    final showJoinAction = !_checkingEligibility && _eligible;
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * .82),
       decoration: BoxDecoration(color: colors.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
@@ -364,13 +389,38 @@ class _CommunityChatSalonPreviewSheetState extends State<CommunityChatSalonPrevi
               _SalonPreviewTag(icon: Icons.people_outline, label: 'chat_groups_preview_members'.trParams({'count': '$count'})),
               if (approval) _SalonPreviewTag(icon: Icons.verified_user_outlined, label: 'chat_groups_preview_approval'.tr),
             ]),
-            if (desc.isNotEmpty) ...[const SizedBox(height: 20), Text('chat_groups_preview_about'.tr, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), const SizedBox(height: 7), Text(desc, style: TextStyle(height: 1.45, color: colors.onSurfaceVariant))],
+            if (desc.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text('chat_groups_preview_about'.tr, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const SizedBox(height: 7),
+              LayoutBuilder(builder: (context, constraints) {
+                final painter = TextPainter(
+                  text: TextSpan(text: desc, style: TextStyle(height: 1.45, fontSize: 14, color: colors.onSurfaceVariant)),
+                  textDirection: Directionality.of(context),
+                  maxLines: 3,
+                )..layout(maxWidth: constraints.maxWidth);
+                final needsExpansion = painter.didExceedMaxLines;
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(desc, maxLines: _descriptionExpanded ? null : 3, overflow: _descriptionExpanded ? TextOverflow.visible : TextOverflow.ellipsis, style: TextStyle(height: 1.45, color: colors.onSurfaceVariant)),
+                  if (needsExpansion) Align(alignment: Alignment.centerLeft, child: TextButton(
+                    onPressed: () => setState(() => _descriptionExpanded = !_descriptionExpanded),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: Text((_descriptionExpanded ? 'chat_groups_preview_see_less' : 'chat_groups_preview_see_more').tr),
+                  )),
+                ]);
+              }),
+            ],
             const SizedBox(height: 18),
             Container(padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: colors.surfaceContainerHighest.withOpacity(.5), borderRadius: BorderRadius.circular(14)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.info_outline, color: colors.primary), const SizedBox(width: 9), Expanded(child: Text(approval ? 'chat_groups_preview_private_info'.tr : 'chat_groups_preview_public_info'.tr, style: TextStyle(fontSize: 12.5, height: 1.4, color: colors.onSurfaceVariant)))])),
             if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: TextStyle(color: colors.error, fontSize: 12))],
           ])),
         ]))),
-        Padding(padding: const EdgeInsets.fromLTRB(18, 10, 18, 16), child: SizedBox(width: double.infinity, height: 50, child: FilledButton(onPressed: _busy ? null : _join, child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text((approval ? 'chat_groups_preview_request' : 'chat_groups_preview_join').tr, style: const TextStyle(fontWeight: FontWeight.w700))))),
+        if (_checkingEligibility)
+          const Padding(padding: EdgeInsets.fromLTRB(18, 12, 18, 20), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))))
+        else if (showJoinAction)
+          Padding(padding: const EdgeInsets.fromLTRB(18, 10, 18, 16), child: SizedBox(width: double.infinity, height: 50, child: FilledButton(onPressed: _busy ? null : _join, child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text((approval ? 'chat_groups_preview_request' : 'chat_groups_preview_join').tr, style: const TextStyle(fontWeight: FontWeight.w700)))))
+        else
+          Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 20), child: Container(width: double.infinity, padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: colors.errorContainer.withOpacity(.55), borderRadius: BorderRadius.circular(14)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.lock_outline_rounded, color: colors.error), const SizedBox(width: 10), Expanded(child: Text('chat_groups_preview_not_eligible'.tr, style: TextStyle(color: colors.onErrorContainer, fontSize: 13, height: 1.4)))]))),
       ])),
     );
   }
