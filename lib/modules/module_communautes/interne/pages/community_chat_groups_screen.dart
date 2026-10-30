@@ -826,11 +826,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     if (newlyReceived.isNotEmpty) {
       unawaited(_autoCacheIncomingMedia(newlyReceived));
     }
-    try {
-      await _client.rpc('mark_salon_messages_read', params: {'p_salon_id': widget.salonId});
-    } catch (error) {
-      debugPrint('[SALON_READ] Could not mark salon messages as read: $error');
-    }
     if (!_initialScrollApplied) {
       _initialScrollApplied = true;
       final anchorId = _initialAnchorMessageId;
