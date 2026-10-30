@@ -488,7 +488,7 @@ class CommunityChatGroupConversation extends StatefulWidget {
   State<CommunityChatGroupConversation> createState() => _CommunityChatGroupConversationState();
 }
 
-class _CommunityChatGroupConversationState extends State<CommunityChatGroupConversation> {
+class _CommunityChatGroupConversationState extends State<CommunityChatGroupConversation> with WidgetsBindingObserver {
   late String _conversationName;
   String? _conversationAvatarUrl;
   final _client = Supabase.instance.client;
@@ -528,6 +528,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _conversationName = widget.name;
     _conversationAvatarUrl = widget.avatarUrl;
     _localCache = SalonChatLocalCache();
@@ -689,6 +690,24 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           SnackBar(content: Text('Impossible de supprimer ce message : $e')),
         );
       }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      NotificationService.instance.setActiveSalon(widget.salonId);
+      unawaited(_setSalonPresence(true));
+      _salonPresenceHeartbeat ??= Timer.periodic(
+        const Duration(seconds: 45),
+        (_) => unawaited(_setSalonPresence(true)),
+      );
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _salonPresenceHeartbeat?.cancel();
+      _salonPresenceHeartbeat = null;
+      NotificationService.instance.setActiveSalon(null);
+      unawaited(_setSalonPresence(false));
     }
   }
 
@@ -1647,6 +1666,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     NotificationService.instance.setActiveSalon(null);
     _salonPresenceHeartbeat?.cancel();
     unawaited(_setSalonPresence(false));
