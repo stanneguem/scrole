@@ -42,6 +42,10 @@ class _CommunityChatGroupMessagePermissionsScreenState
         _audioAllowed = data['audio_messages_allowed'] == true;
         _imageAllowed = data['image_messages_allowed'] != false;
         _videoAllowed = data['video_messages_allowed'] != false;
+        _initialTextAllowed = _textAllowed;
+        _initialAudioAllowed = _audioAllowed;
+        _initialImageAllowed = _imageAllowed;
+        _initialVideoAllowed = _videoAllowed;
         _loading = false;
       });
     } catch (e) {
@@ -51,19 +55,30 @@ class _CommunityChatGroupMessagePermissionsScreenState
     }
   }
 
-  Future<void> _update({bool? text, bool? audio, bool? image, bool? video}) async {
+  bool _initialTextAllowed = true;
+  bool _initialAudioAllowed = false;
+  bool _initialImageAllowed = true;
+  bool _initialVideoAllowed = true;
+
+  bool get _hasChanges =>
+      _textAllowed != _initialTextAllowed ||
+      _audioAllowed != _initialAudioAllowed ||
+      _imageAllowed != _initialImageAllowed ||
+      _videoAllowed != _initialVideoAllowed;
+
+  void _update({bool? text, bool? audio, bool? image, bool? video}) {
     if (_saving || !_isAdmin) return;
-    final oldText = _textAllowed;
-    final oldAudio = _audioAllowed;
-    final oldImage = _imageAllowed;
-    final oldVideo = _videoAllowed;
     setState(() {
-      _saving = true;
       if (text != null) _textAllowed = text;
       if (audio != null) _audioAllowed = audio;
       if (image != null) _imageAllowed = image;
       if (video != null) _videoAllowed = video;
     });
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_isAdmin || !_hasChanges) return;
+    setState(() => _saving = true);
     try {
       await _db.rpc('update_salon_message_permissions', params: {
         'p_salon_id': widget.salonId,
@@ -77,18 +92,11 @@ class _CommunityChatGroupMessagePermissionsScreenState
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _textAllowed = oldText;
-        _audioAllowed = oldAudio;
-        _imageAllowed = oldImage;
-        _videoAllowed = oldVideo;
-      });
       _toast('community_message_permissions_save_error'.trParams({'error': e.toString()}));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
-
   void _toast(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -138,7 +146,18 @@ class _CommunityChatGroupMessagePermissionsScreenState
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text('community_message_permissions_screen_title'.tr)),
+      appBar: AppBar(
+        title: Text('community_message_permissions_screen_title'.tr),
+        actions: [
+          TextButton(
+            onPressed: _loading || _saving || !_isAdmin || !_hasChanges ? null : _save,
+            child: _saving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('community_message_permissions_save_button'.tr),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
