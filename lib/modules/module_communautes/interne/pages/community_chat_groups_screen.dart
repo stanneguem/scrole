@@ -695,17 +695,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       setState(() { _messages = messages; _loading = false; });
       // Mark every incoming message as read as soon as it is loaded in the
       // active conversation. This also handles messages received via realtime.
-      final currentUserId = _client.auth.currentUser?.id;
-      if (currentUserId != null) {
-        for (final message in messages) {
-          final messageId = message['id']?.toString() ?? '';
-          if (messageId.isEmpty || message['sender_id']?.toString() == currentUserId) continue;
-          try {
-            await _client.rpc('mark_salon_message_read', params: {'p_id': messageId});
-          } catch (error) {
-            debugPrint('[SALON_READ] Could not mark message $messageId as read: $error');
-          }
-        }
+      try {
+        await _client.rpc('mark_salon_messages_read', params: {'p_salon_id': widget.salonId});
+      } catch (error) {
+        debugPrint('[SALON_READ] Could not mark salon messages as read: $error');
       }
       if (newlyReceived.isNotEmpty) {
         unawaited(_autoSaveIncomingMedia(newlyReceived));
