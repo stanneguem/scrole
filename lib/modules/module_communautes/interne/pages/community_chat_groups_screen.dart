@@ -480,7 +480,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _audioMessagesAllowed = false;
   bool _imageMessagesAllowed = true;
   bool _videoMessagesAllowed = true;
-  bool _autoDownloadIncomingMedia = true;
+  bool _autoDownloadIncomingMedia = false;
   final Set<String> _autoDownloadedMediaMessageIds = <String>{};
   final Set<String> _knownSalonMessageIds = <String>{};
   bool _initialSalonMessagesLoaded = false;
