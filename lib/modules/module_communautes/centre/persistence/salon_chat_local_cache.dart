@@ -74,6 +74,62 @@ class SalonChatLocalCache {
     });
   }
 
+  Future<Map<String, dynamic>?> readCursor({
+    required String userId,
+    required String salonId,
+  }) async {
+    final db = await _appDatabase.database;
+    final rows = await db.query(
+      'community_salon_sync_cursors',
+      where: 'user_id = ? AND salon_id = ?',
+      whereArgs: [userId, salonId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return {
+      'sent_at': DateTime.fromMillisecondsSinceEpoch(
+        (rows.first['last_sent_at'] as num).toInt(),
+        isUtc: true,
+      ).toIso8601String(),
+      'id': rows.first['last_message_id']?.toString() ?? '',
+    };
+  }
+
+  Future<void> advanceCursor({
+    required String userId,
+    required String salonId,
+    required DateTime sentAt,
+    required String messageId,
+  }) async {
+    if (messageId.isEmpty) return;
+    final db = await _appDatabase.database;
+    final nextAt = sentAt.toUtc().millisecondsSinceEpoch;
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'community_salon_sync_cursors',
+        where: 'user_id = ? AND salon_id = ?',
+        whereArgs: [userId, salonId],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        final previousAt = (existing.first['last_sent_at'] as num).toInt();
+        final previousId = existing.first['last_message_id']?.toString() ?? '';
+        if (nextAt < previousAt || (nextAt == previousAt && messageId.compareTo(previousId) <= 0)) return;
+      }
+      await txn.insert(
+        'community_salon_sync_cursors',
+        {
+          'user_id': userId,
+          'salon_id': salonId,
+          'last_sent_at': nextAt,
+          'last_message_id': messageId,
+          'updated_at': DateTime.now().toUtc().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+  }
+
   Future<void> deleteMessage({
     required String userId,
     required String salonId,
