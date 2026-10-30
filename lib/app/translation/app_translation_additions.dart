@@ -1341,7 +1341,6 @@ class AppTranslationAdditions {
       'community_visibility_note': "La visibilité détermine qui peut découvrir le salon. Les conditions d’accès supplémentaires restent applicables.",
       'community_visibility_save_error': "Impossible d’enregistrer la visibilité : @error",
       'community_message_permissions_title': "Autorisations des messages",
-      'community_message_permissions_title': "Message permissions",
       'community_text_messages': "Text messages",
       'community_text_messages_description': "Allow members to send text messages.",
       'community_audio_messages': "Audio messages",
