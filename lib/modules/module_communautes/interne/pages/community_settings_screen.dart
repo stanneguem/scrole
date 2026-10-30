@@ -31,6 +31,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
   String _role = 'member';
   String _searchQuery = '';
   String? _avatarUrl;
+  String? _coverUrl;
   String? _slogan;
 
   @override
@@ -53,6 +54,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
         setState(() {
           _role = role;
           _avatarUrl = comm?.avatarUrl ?? widget.communityAvatar;
+          _coverUrl = comm?.bannerUrl;
           _slogan = widget.communitySlogan ?? comm?.description;
           _isLoadingRole = false;
         });
@@ -277,6 +279,168 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
   }
 
 
+  Future<void> _openCommunityImages() async {
+    if (!_isAdmin) return;
+    await Get.to(() => CommunityImagesScreen(communityId: widget.communityId));
+    if (!mounted) return;
+    try {
+      final comm = await _service.getCommunityById(widget.communityId);
+      if (mounted && comm != null) {
+        setState(() {
+          _avatarUrl = comm.avatarUrl ?? _avatarUrl;
+          _coverUrl = comm.bannerUrl ?? _coverUrl;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Widget _communityHero(ColorScheme colors) {
+    final hasCover = _coverUrl != null && _coverUrl!.trim().isNotEmpty;
+    final hasAvatar = _avatarUrl != null && _avatarUrl!.trim().isNotEmpty;
+    return SizedBox(
+      height: 258,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            bottom: 34,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(26)),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (hasCover)
+                    Image.network(_coverUrl!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _coverPlaceholder(colors))
+                  else
+                    _coverPlaceholder(colors),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(.28),
+                          Colors.transparent,
+                          Colors.black.withOpacity(.78),
+                        ],
+                        stops: const [0, .38, 1],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    left: 12,
+                    child: _heroButton(Icons.arrow_back_rounded, () => Navigator.of(context).pop()),
+                  ),
+                  if (_isAdmin)
+                    Positioned(
+                      top: 10,
+                      right: 12,
+                      child: _heroButton(Icons.camera_alt_outlined, _openCommunityImages),
+                    ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 48,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.communityName,
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 23,
+                            fontWeight: FontWeight.w800, letterSpacing: -.4)),
+                        if ((_slogan ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Text(_slogan!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white.withOpacity(.9), fontSize: 13, height: 1.3)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            bottom: 0,
+            child: Stack(
+              children: [
+                Container(
+                  width: 82,
+                  height: 82,
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(.16), blurRadius: 12, offset: const Offset(0, 3))],
+                  ),
+                  child: ClipOval(
+                    child: hasAvatar
+                      ? Image.network(_avatarUrl!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _avatarPlaceholder(colors))
+                      : _avatarPlaceholder(colors),
+                  ),
+                ),
+                if (_isAdmin)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      color: colors.primary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _openCommunityImages,
+                        child: const SizedBox(width: 29, height: 29,
+                          child: Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 20,
+            bottom: 9,
+            child: Row(
+              children: [
+                Icon(Icons.groups_rounded, size: 16, color: colors.onSurfaceVariant),
+                const SizedBox(width: 5),
+                Text('community_members_title'.tr,
+                  style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroButton(IconData icon, VoidCallback onTap) => Material(
+    color: Colors.black.withOpacity(.42),
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: SizedBox(width: 42, height: 42,
+        child: Icon(icon, color: Colors.white, size: 20)),
+    ),
+  );
+
+  Widget _coverPlaceholder(ColorScheme colors) => Container(
+    color: colors.primaryContainer,
+    child: Center(child: Icon(Icons.groups_rounded, size: 54, color: colors.onPrimaryContainer.withOpacity(.55))),
+  );
+
+  Widget _avatarPlaceholder(ColorScheme colors) => Container(
+    color: colors.primaryContainer,
+    alignment: Alignment.center,
+    child: Text(widget.communityName.isNotEmpty ? widget.communityName[0].toUpperCase() : 'C',
+      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: colors.onPrimaryContainer)),
+  );
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -300,41 +464,9 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
           : ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                // --- En-tête Communauté (comme sur la maquette 1) ---
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty ? NetworkImage(_avatarUrl!) : null,
-                        child: _avatarUrl == null || _avatarUrl!.isEmpty
-                            ? Text(widget.communityName.isNotEmpty ? widget.communityName[0].toUpperCase() : 'C', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
-                            : null,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.communityName,
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                            ),
-                            const SizedBox(height: 2),
-
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // --- En-tête visuel de la communauté ---
+                _communityHero(colorScheme),
+                const SizedBox(height: 20),
 
                 // --- Section A : GESTION (Admins / Modérateurs) ---
                 if (_isAdminOrModerator) ...[
