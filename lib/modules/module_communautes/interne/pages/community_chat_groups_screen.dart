@@ -1304,12 +1304,12 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         }
       }
 
+      final replySnapshot = _replyToMessage == null ? null : _replySnapshot(_replyToMessage!);
       for (final group in outgoingGroups) {
         final indices = group['indices'] as List<int>;
         final id = group['id'].toString();
         pendingIds.add(id);
         final isImageGroup = group['type'] == 'image';
-        final replySnapshot = _replyToMessage == null ? null : _replySnapshot(_replyToMessage!);
         final localMessage = <String, dynamic>{
           'id': id,
           'sender_id': currentUserId,
@@ -1379,6 +1379,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         }
         unawaited(_syncMessageDelta(id));
       }
+      if (replySnapshot != null && mounted) setState(() => _replyToMessage = null);
     } catch (e) {
       if (mounted) {
         setState(() => _messages.removeWhere(
@@ -1509,7 +1510,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           _reviewingRecording = false;
           _playingRecordingReview = false;
           _recordingDurationSeconds = 0;
-          if (replySnapshot != null) _replyToMessage = null;
         });
       }
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -1648,6 +1648,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               'is_uploading': false,
             };
           }
+          if (replySnapshot != null) _replyToMessage = null;
         });
       }
       unawaited(_syncMessageDelta(id));
@@ -1711,6 +1712,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         setState(() {
           final index = _messages.indexWhere((message) => message['id']?.toString() == id);
           if (index >= 0) _messages[index] = {..._messages[index], 'is_uploading': false};
+          if (replySnapshot != null) _replyToMessage = null;
         });
       }
       unawaited(_syncMessageDelta(id));
@@ -1718,6 +1720,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       if (mounted) {
         setState(() => _messages.removeWhere((message) => message['id']?.toString() == id));
         _input.text = content;
+        if (replySnapshot != null) setState(() => _replyToMessage = replySnapshot);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${'chat_groups_send_error'.tr} : $e')),
         );
