@@ -873,13 +873,25 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         final ordered = (data as List).reversed.toList();
         await _applyRemoteSalonMessages(ordered);
       } else {
-        data = await _client.rpc('get_salon_messages_since', params: {
-          'p_salon_id': widget.salonId,
-          'p_after_sent_at': cursor['sent_at'],
-          'p_after_id': cursor['id'],
-          'p_limit': 300,
-        });
-        await _applyRemoteSalonMessages(data as List);
+        // Drain all pending revisions in bounded batches after long offline periods.
+        while (mounted) {
+          final currentCursor = await _localCache.readCursor(
+            userId: userId,
+            salonId: widget.salonId,
+          );
+          if (currentCursor == null) break;
+          data = await _client.rpc('get_salon_messages_since', params: {
+            'p_salon_id': widget.salonId,
+            'p_after_sent_at': currentCursor['sent_at'],
+            'p_after_id': currentCursor['id'],
+            'p_limit': 300,
+          });
+          final batch = data as List;
+          if (batch.isEmpty) break;
+          await _applyRemoteSalonMessages(batch);
+          if (batch.length < 300) break;
+        }
+        if (mounted) setState(() => _loading = false);
       }
     } catch (error) {
       debugPrint('[SALON_SYNC] Incremental sync failed: $error');
