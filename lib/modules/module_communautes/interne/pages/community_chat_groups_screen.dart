@@ -901,6 +901,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : $e')),
         );
+        await _loadMessages();
       }
     } finally {
       if (mounted) setState(() => _uploadingMedia = false);
