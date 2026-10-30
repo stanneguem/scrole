@@ -1366,6 +1366,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "Voir plus",
       'chat_groups_preview_see_less': "Voir moins",
       'chat_groups_preview_not_eligible': "Vous ne remplissez pas les conditions d’accès à ce salon.",
+      'salon_access_owner_conflict': "Impossible d’enregistrer ces règles : elles excluraient le propriétaire du salon. Ajoutez sa ville ou son pays, ou assouplissez la restriction.",
+      'salon_access_owner_certification_conflict': "Le propriétaire du salon ne possède pas la certification exigée. La règle a été refusée.",
+      'salon_access_owner_age_conflict': "La tranche d’âge exclurait le propriétaire du salon. Modifiez les limites d’âge.",
 },
     'en': {
       'webview_help_center_title': "Help center",
@@ -2725,6 +2728,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "See more",
       'chat_groups_preview_see_less': "See less",
       'chat_groups_preview_not_eligible': "You don't meet this chat room's access requirements.",
+      'salon_access_owner_conflict': "These rules would lock the salon owner out. Include the owner's city or country, or relax the restriction.",
+      'salon_access_owner_certification_conflict': "The salon owner does not have the required verification. This rule was rejected.",
+      'salon_access_owner_age_conflict': "The age range would exclude the salon owner. Adjust the age limits.",
 },
     'es': {
       'webview_help_center_title': "Centro de ayuda",
@@ -3987,6 +3993,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "Ver más",
       'chat_groups_preview_see_less': "Ver menos",
       'chat_groups_preview_not_eligible': "No cumples los requisitos de acceso a esta sala.",
+      'salon_access_owner_conflict': "Estas reglas impedirían el acceso al propietario. Incluye su ciudad o país, o flexibiliza la restricción.",
+      'salon_access_owner_certification_conflict': "El propietario no tiene la verificación requerida. Se rechazó esta regla.",
+      'salon_access_owner_age_conflict': "El rango de edad excluiría al propietario. Ajusta los límites.",
 },
     'de': {
       'webview_help_center_title': "Hilfezentrum",
@@ -5232,6 +5241,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "Mehr anzeigen",
       'chat_groups_preview_see_less': "Weniger anzeigen",
       'chat_groups_preview_not_eligible': "Du erfüllst die Zugangsbedingungen für diesen Chatraum nicht.",
+      'salon_access_owner_conflict': "Diese Regeln würden den Eigentümer aussperren. Füge seine Stadt oder sein Land hinzu oder lockere die Einschränkung.",
+      'salon_access_owner_certification_conflict': "Der Eigentümer hat nicht die erforderliche Verifizierung. Die Regel wurde abgelehnt.",
+      'salon_access_owner_age_conflict': "Die Altersspanne würde den Eigentümer ausschließen. Passe die Altersgrenzen an.",
 },
     'it': {
       'webview_help_center_title': "Centro assistenza",
@@ -6475,6 +6487,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "Mostra altro",
       'chat_groups_preview_see_less': "Mostra meno",
       'chat_groups_preview_not_eligible': "Non soddisfi i requisiti di accesso a questa chat.",
+      'salon_access_owner_conflict': "Queste regole impedirebbero l'accesso al proprietario. Aggiungi la sua città o il suo paese oppure allenta la restrizione.",
+      'salon_access_owner_certification_conflict': "Il proprietario non dispone della verifica richiesta. La regola è stata rifiutata.",
+      'salon_access_owner_age_conflict': "La fascia d'età escluderebbe il proprietario. Modifica i limiti di età.",
 },
     'pt': {
       'webview_help_center_title': "Central de ajuda",
@@ -7718,6 +7733,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "Ver mais",
       'chat_groups_preview_see_less': "Ver menos",
       'chat_groups_preview_not_eligible': "Você não atende aos requisitos de acesso a esta sala.",
+      'salon_access_owner_conflict': "Estas regras impediriam o acesso do proprietário. Inclua a cidade ou o país dele, ou flexibilize a restrição.",
+      'salon_access_owner_certification_conflict': "O proprietário não possui a verificação exigida. A regra foi recusada.",
+      'salon_access_owner_age_conflict': "A faixa etária excluiria o proprietário. Ajuste os limites.",
 },
     'zh': {
       'webview_help_center_title': "帮助中心",
@@ -8963,6 +8981,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "查看更多",
       'chat_groups_preview_see_less': "收起",
       'chat_groups_preview_not_eligible': "你不符合此聊天室的访问条件。",
+      'salon_access_owner_conflict': "这些规则会导致聊天室所有者无法进入。请加入所有者所在的城市或国家，或放宽限制。",
+      'salon_access_owner_certification_conflict': "聊天室所有者未通过所需认证，因此已拒绝此规则。",
+      'salon_access_owner_age_conflict': "年龄范围会排除聊天室所有者。请调整年龄限制。",
 },
     'ja': {
       'webview_help_center_title': "ヘルプセンター",
@@ -10201,6 +10222,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "もっと見る",
       'chat_groups_preview_see_less': "閉じる",
       'chat_groups_preview_not_eligible': "このチャットルームの参加条件を満たしていません。",
+      'salon_access_owner_conflict': "このルールではチャットルームの所有者がアクセスできなくなります。所有者の都市・国を含めるか、制限を緩和してください。",
+      'salon_access_owner_certification_conflict': "チャットルームの所有者は必要な認証を満たしていないため、このルールは拒否されました。",
+      'salon_access_owner_age_conflict': "年齢制限によって所有者が除外されます。年齢条件を調整してください。",
 },
     'ru': {
       'webview_help_center_title': "Центр помощи",
@@ -11440,6 +11464,9 @@ class AppTranslationAdditions {
       'chat_groups_preview_see_more': "Показать ещё",
       'chat_groups_preview_see_less': "Свернуть",
       'chat_groups_preview_not_eligible': "Вы не соответствуете условиям доступа к этому чату.",
+      'salon_access_owner_conflict': "Эти правила лишат владельца доступа к чату. Добавьте его город или страну либо смягчите ограничение.",
+      'salon_access_owner_certification_conflict': "Владелец чата не прошёл необходимую проверку. Правило отклонено.",
+      'salon_access_owner_age_conflict': "Возрастной диапазон исключит владельца чата. Измените возрастные ограничения.",
 },
   };
 
