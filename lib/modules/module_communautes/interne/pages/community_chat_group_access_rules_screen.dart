@@ -103,6 +103,7 @@ class _CommunityChatGroupAccessRulesScreenState
       final allCities = (cityResponse as List)
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
+      _allCityOptions = allCities;
 
       _countryOptions = _parentCountriesEnabled
           ? allCountries.where((e) => _parentCountries.contains(e['id'].toString())).toList()
@@ -123,16 +124,21 @@ class _CommunityChatGroupAccessRulesScreenState
       _countries = _countries.where(availableCountryIds.contains).toList();
       _cities = _cities.where(availableCityIds.contains).toList();
 
+      // A parent restriction is inherited by default and cannot be removed by a salon.
+      if (_parentCountriesEnabled) {
+        _countriesEnabled = true;
+        if (_countries.isEmpty) _countries = List<String>.from(_parentCountries);
+      }
+      if (_parentCitiesEnabled) {
+        _citiesEnabled = true;
+        if (_cities.isEmpty) _cities = List<String>.from(_parentCities);
+      }
+      _refreshCityOptions();
+
       if (_parentCertification) _certification = true;
       if (_parentGender != null) _gender = _parentGender;
-      if (_parentAgeMin != null) {
-        final current = int.tryParse(_minAge.text);
-        if (current == null || current < _parentAgeMin!) _minAge.text = '$_parentAgeMin';
-      }
-      if (_parentAgeMax != null) {
-        final current = int.tryParse(_maxAge.text);
-        if (current == null || current > _parentAgeMax!) _maxAge.text = '$_parentAgeMax';
-      }
+      if (_parentAgeMin != null && _minAge.text.trim().isEmpty) _minAge.text = '$_parentAgeMin';
+      if (_parentAgeMax != null && _maxAge.text.trim().isEmpty) _maxAge.text = '$_parentAgeMax';
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
@@ -147,6 +153,24 @@ class _CommunityChatGroupAccessRulesScreenState
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
+
+  void _refreshCityOptions() {
+    final selectedCountryIds = _countriesEnabled ? _countries.toSet() : <String>{};
+    final parentCityIds = _parentCitiesEnabled ? _parentCities.toSet() : <String>{};
+    final parentCountryIds = _parentCountriesEnabled ? _parentCountries.toSet() : <String>{};
+    _cityOptions = _allCityOptions.where((city) {
+      final id = city['id'].toString();
+      final countryId = city['country_id']?.toString() ?? '';
+      if (_parentCitiesEnabled && !parentCityIds.contains(id)) return false;
+      if (_parentCountriesEnabled && !parentCountryIds.contains(countryId)) return false;
+      if (_countriesEnabled && !selectedCountryIds.contains(countryId)) return false;
+      return true;
+    }).toList();
+    final available = _cityOptions.map((e) => e['id'].toString()).toSet();
+    _cities = _cities.where(available.contains).toList();
+  }
+
+  List<Map<String, dynamic>> _allCityOptions = [];
 
   Future<void> _chooseCountries() async {
     final result = await Navigator.of(context).push<List<String>>(
@@ -397,9 +421,15 @@ class _CommunityChatGroupAccessRulesScreenState
                   title: 'salon_access_country_restriction'.tr,
                   subtitle: 'salon_access_country_description'.tr,
                   value: _countriesEnabled,
-                  onChanged: _parentCountriesEnabled || _countryOptions.isNotEmpty
-                      ? (value) => setState(() => _countriesEnabled = value)
-                      : null,
+                  onChanged: _countryOptions.isEmpty && !_parentCountriesEnabled
+                      ? null
+                      : (value) {
+                          if (_parentCountriesEnabled && !value) return;
+                          setState(() {
+                            _countriesEnabled = value;
+                            _refreshCityOptions();
+                          });
+                        },
                 ),
                 const SizedBox(height: 9),
                 _selectionTile(
@@ -415,9 +445,12 @@ class _CommunityChatGroupAccessRulesScreenState
                   title: 'salon_access_city_restriction'.tr,
                   subtitle: 'salon_access_city_description'.tr,
                   value: _citiesEnabled,
-                  onChanged: _parentCitiesEnabled || _cityOptions.isNotEmpty
-                      ? (value) => setState(() => _citiesEnabled = value)
-                      : null,
+                  onChanged: _cityOptions.isEmpty && !_parentCitiesEnabled
+                      ? null
+                      : (value) {
+                          if (_parentCitiesEnabled && !value) return;
+                          setState(() => _citiesEnabled = value);
+                        },
                 ),
                 const SizedBox(height: 9),
                 _selectionTile(
@@ -481,7 +514,7 @@ class _CommunityChatGroupAccessRulesScreenState
                     Expanded(
                       child: TextField(
                         controller: _minAge,
-                        enabled: !_saving && _parentAgeMin == null,
+                        enabled: !_saving,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           labelText: 'salon_access_age_min'.tr,
@@ -493,7 +526,7 @@ class _CommunityChatGroupAccessRulesScreenState
                     Expanded(
                       child: TextField(
                         controller: _maxAge,
-                        enabled: !_saving && _parentAgeMax == null,
+                        enabled: !_saving,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           labelText: 'salon_access_age_max'.tr,
