@@ -613,7 +613,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               ),
             ListTile(
               leading: const Icon(Icons.reply_rounded),
-              title: Text('chat_groups_reply'.tr),
+              title: Text('chat_groups_reply_action'.tr),
               onTap: () => Navigator.of(sheetContext).pop('reply'),
             ),
             ListTile(
@@ -939,7 +939,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (anchorId != null && anchorId.isNotEmpty) {
-          _scrollToMessage(anchorId);
+          unawaited(_scrollToMessage(anchorId));
         } else if (_scroll.hasClients) {
           _scroll.jumpTo(_scroll.position.maxScrollExtent);
         }
@@ -984,19 +984,50 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     'is_deleted': message['is_deleted'] == true,
   };
 
-  void _scrollToMessage(String messageId) {
-    final key = _messageKeys[messageId];
-    final targetContext = key?.currentContext;
-    if (targetContext == null) {
-      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      return;
+  Future<void> _scrollToMessage(String messageId) async {
+    if (messageId.isEmpty || !mounted) return;
+    var targetContext = _messageKeys[messageId]?.currentContext;
+
+    // A quoted message can be older than the local 100-message snapshot.
+    if (!_messages.any((message) => message['id']?.toString() == messageId)) {
+      try {
+        final around = await _client.rpc('get_salon_messages_around', params: {
+          'p_salon_id': widget.salonId,
+          'p_message_id': messageId,
+          'p_before': 30,
+          'p_after': 30,
+        }) as List;
+        await _applyRemoteSalonMessages(around);
+      } catch (error) {
+        debugPrint('[SALON_REPLY] Could not load quoted message $messageId: $error');
+      }
     }
-    Scrollable.ensureVisible(
-      targetContext,
-      alignment: widget.targetMessageId != null ? 0.5 : 0.92,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
-    );
+    if (!mounted) return;
+
+    final index = _messages.indexWhere((message) => message['id']?.toString() == messageId);
+    if (index < 0 || !_scroll.hasClients) return;
+    targetContext = _messageKeys[messageId]?.currentContext;
+    if (targetContext == null) {
+      // First move the lazy list close to the target so its keyed child is built.
+      final fraction = _messages.length <= 1 ? 0.0 : index / (_messages.length - 1);
+      final estimatedOffset = _scroll.position.maxScrollExtent * fraction;
+      await _scroll.animateTo(
+        estimatedOffset.clamp(0.0, _scroll.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      targetContext = _messageKeys[messageId]?.currentContext;
+    }
+    if (targetContext != null) {
+      await Scrollable.ensureVisible(
+        targetContext,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   Future<void> _markVisibleMessageRead(Map<String, dynamic> message) async {
