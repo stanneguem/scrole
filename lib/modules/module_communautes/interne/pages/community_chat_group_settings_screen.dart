@@ -174,7 +174,7 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
             _management, subtitle: 'community_chat_settings_management_desc'.tr)]),
           const SizedBox(height: 16),
         ],
-        _section(c, [_action(c, Icons.logout_rounded, 'Quitter la discussion', _leave, danger: true)]),
+        _section(c, [_action(c, Icons.logout_rounded, 'community_chat_settings_leave'.tr, _leave, danger: true)]),
         const SizedBox(height: 32),
       ]),
     )));
