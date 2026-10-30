@@ -439,6 +439,41 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     } finally { if (mounted) setState(() => _uploadingMedia = false); }
   }
 
+  Future<void> _startRecording() async {
+    if (_recording || _uploadingMedia) return;
+    final permission = await Permission.microphone.request();
+    if (!permission.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('chat_groups_microphone_permission'.tr)),
+        );
+      }
+      return;
+    }
+    try {
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/salon_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
+      await _recorder.start(const RecordConfig(), path: path);
+      if (mounted) {
+        setState(() {
+          _recording = true;
+          _recordingStartedAt = DateTime.now();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'chat_groups_audio_start_error'.tr} : $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopRecordingAndSend() async {
+    if (!_recording) return;
+    await _toggleRecording();
+  }
+
   Future<void> _toggleRecording() async {
     if (_recording) {
       try {
