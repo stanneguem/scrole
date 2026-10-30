@@ -6,6 +6,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
+import 'package:scrole/shared/widgets/video_trim_screen.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/centre/services/chat_media_cache.dart';
 import 'package:scrole/app/service_global/notification_service.dart';
@@ -789,28 +790,114 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     );
   }
 
+  Future<File?> _prepareSalonVideo(XFile pickedFile) async {
+    final source = File(pickedFile.path);
+    final controller = VideoPlayerController.file(source);
+    try {
+      await controller.initialize();
+      final duration = controller.value.duration;
+      if (duration <= const Duration(seconds: 30)) return source;
+    } finally {
+      await controller.dispose();
+    }
+    if (!mounted) return null;
+    final trimmed = await Navigator.of(context).push<File?>(
+      MaterialPageRoute(
+        builder: (_) => VideoTrimScreen(
+          videoFile: source,
+          maxDuration: const Duration(seconds: 30),
+        ),
+      ),
+    );
+    if (trimmed == null || !await trimmed.exists()) return null;
+    final verify = VideoPlayerController.file(trimmed);
+    try {
+      await verify.initialize();
+      if (verify.value.duration > const Duration(seconds: 30)) {
+        throw StateError('La vidéo découpée dépasse encore 30 secondes.');
+      }
+    } finally {
+      await verify.dispose();
+    }
+    return trimmed;
+  }
+
   Future<void> _uploadAndSendGalleryFiles(List<XFile> files) async {
     if (files.isEmpty || _uploadingMedia) return;
-    setState(() => _uploadingMedia = true);
+    if (mounted) setState(() => _uploadingMedia = true);
+    final currentUserId = _client.auth.currentUser?.id;
+    final pendingIds = <String>[];
     try {
-      for (final file in files) {
-        final extension = file.path.split('.').last.toLowerCase();
-        final isVideo = const {'mp4', 'mov', 'm4v', 'webm'}.contains(extension);
+      for (final picked in files) {
+        final extension = picked.path.split('.').last.toLowerCase();
+        final isVideo = const {'mp4', 'mov', 'm4v', 'webm'}.contains(extension) ||
+            (picked.mimeType?.startsWith('video/') ?? false);
         if (isVideo && !_videoMessagesAllowed) throw Exception('chat_groups_video_not_allowed'.tr);
         if (!isVideo && !_imageMessagesAllowed) throw Exception('chat_groups_image_not_allowed'.tr);
-        final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
+
+        File sourceFile;
+        Duration? videoDuration;
+        if (isVideo) {
+          final prepared = await _prepareSalonVideo(picked);
+          if (prepared == null) continue;
+          sourceFile = prepared;
+          final durationController = VideoPlayerController.file(sourceFile);
+          try {
+            await durationController.initialize();
+            videoDuration = durationController.value.duration;
+          } finally {
+            await durationController.dispose();
+          }
+          if (videoDuration > const Duration(seconds: 30)) {
+            throw StateError('La vidéo doit durer 30 secondes maximum.');
+          }
+        } else {
+          sourceFile = File(picked.path);
+        }
+
+        final localId = _newUuid();
+        pendingIds.add(localId);
+        final localMessage = <String, dynamic>{
+          'id': localId,
+          'sender_id': currentUserId,
+          'sender_name': 'MOI',
+          'type': isVideo ? 'video' : 'image',
+          'content': '',
+          'local_media_path': sourceFile.path,
+          'is_uploading': true,
+          'is_deleted': false,
+          'sent_at': DateTime.now().toUtc().toIso8601String(),
+        };
+        if (mounted) setState(() => _messages.add(localMessage));
+
+        final uploaded = await R2MediaRepository().uploadFile(
+          file: sourceFile,
+          category: 'salon_message_media',
+          mediaType: isVideo ? 'video' : 'image',
+          entityId: widget.salonId,
+          videoDuration: videoDuration,
+        );
         await _client.rpc('send_salon_message', params: {
-          'p_id': _newUuid(),
+          'p_id': localId,
           'p_salon_id': widget.salonId,
-          'p_content': key,
+          'p_content': uploaded.objectKey,
           'p_type': isVideo ? 'video' : 'image',
-          'p_audio_url': key,
           'p_replied_to_id': null,
+          if (isVideo && videoDuration != null)
+            'p_media_duration_seconds': videoDuration.inMilliseconds / 1000,
         });
+        if (mounted) {
+          setState(() {
+            _messages.removeWhere((m) => m['id']?.toString() == localId);
+          });
+        }
       }
       await _loadMessages();
     } catch (e) {
       if (mounted) {
+        setState(() => _messages.removeWhere(
+          (message) => pendingIds.contains(message['id']?.toString()),
+        ));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : $e')),
         );
@@ -1084,15 +1171,35 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                               ),
                               audioPath: audioUrl, messageId: message['id'].toString(), isMine: mine,
                             )
-                          else if (isMedia)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(13),
-                              child: type == 'video'
-                                ? _SalonVideoPlayer(url: mediaUrl)
-                                : Image.network(mediaUrl, width: 250, height: 190, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const SizedBox(width: 250, height: 90,
-                                      child: Center(child: Icon(Icons.broken_image_outlined))),
+                          else if (message['local_media_path'] != null || isMedia)
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(13),
+                                  child: type == 'video'
+                                    ? (message['local_media_path'] != null
+                                        ? _SalonVideoPlayer(url: (message['local_media_path']).toString(), isLocal: true)
+                                        : _SalonVideoPlayer(url: mediaUrl))
+                                    : (message['local_media_path'] != null
+                                        ? Image.file(File(message['local_media_path'].toString()), width: 250, height: 190, fit: BoxFit.cover)
+                                        : Image.network(mediaUrl, width: 250, height: 190, fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const SizedBox(width: 250, height: 90,
+                                              child: Center(child: Icon(Icons.broken_image_outlined))),
+                                          )),
+                                ),
+                                if (message['is_uploading'] == true)
+                                  Container(
+                                    width: 250, height: 190,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(.38),
+                                      borderRadius: BorderRadius.circular(13),
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                                    ),
                                   ),
+                              ],
                             )
                           else if ((message['content'] ?? '').toString().isNotEmpty)
                             Text((message['content'] ?? '').toString(),
