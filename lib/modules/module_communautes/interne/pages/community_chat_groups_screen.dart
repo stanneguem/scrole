@@ -828,6 +828,40 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         debugPrint('[SALON_CACHE] Sender names refresh failed: $error');
       }
     }
+    final replyIds = messages.map((m) => m['replied_to_id']?.toString())
+        .whereType<String>().where((id) => id.isNotEmpty).toSet().toList();
+    if (replyIds.isNotEmpty) {
+      try {
+        final rows = await _client.from('community_salon_messages')
+            .select('id,sender_id,content,type,is_deleted')
+            .inFilter('id', replyIds);
+        final parents = rows.map((r) => Map<String, dynamic>.from(r as Map)).toList();
+        final senderIds = parents.map((m) => m['sender_id']?.toString())
+            .whereType<String>().where((id) => id.isNotEmpty).toSet().toList();
+        final names = <String, String>{};
+        if (senderIds.isNotEmpty) {
+          final profiles = await _client.from('user_profiles')
+              .select('user_id,username,first_name,last_name').inFilter('user_id', senderIds);
+          for (final raw in profiles) {
+            final p = Map<String, dynamic>.from(raw as Map);
+            final full = [p['first_name'],p['last_name']].where((x)=>x!=null&&x.toString().trim().isNotEmpty).join(' ').trim();
+            names[p['user_id'].toString()] = full.isNotEmpty ? full : (p['username'] ?? 'Membre').toString();
+          }
+        }
+        final byId = <String, Map<String, dynamic>>{};
+        for (final parent in parents) {
+          final sid = parent['sender_id']?.toString() ?? '';
+          byId[parent['id'].toString()] = {...parent,'sender_name':names[sid] ?? 'Membre'};
+        }
+        for (final message in messages) {
+          final parentId = message['replied_to_id']?.toString();
+          if (parentId == null) continue;
+          message['reply_preview'] = byId[parentId] ?? {'is_deleted':true,'sender_name':'Membre'};
+        }
+      } catch (error) {
+        debugPrint('[SALON_REPLY] Could not hydrate quoted messages: $error');
+      }
+    }
     return messages;
   }
 
@@ -928,6 +962,27 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       );
     });
   }
+
+  String _messageReplyLabel(Map<String, dynamic>? message) {
+    if (message == null || message['is_deleted'] == true) return 'chat_groups_reply_deleted'.tr;
+    switch (message['type']?.toString()) {
+      case 'image': return 'chat_groups_pick_image'.tr;
+      case 'video': return 'chat_groups_pick_video'.tr;
+      case 'audio': return 'chat_groups_audio_message'.tr;
+      default:
+        final content = (message['content'] ?? '').toString().trim();
+        return content.isEmpty ? 'chat_groups_reply_message'.tr : content;
+    }
+  }
+
+  Map<String, dynamic> _replySnapshot(Map<String, dynamic> message) => {
+    'id': message['id'],
+    'sender_id': message['sender_id'],
+    'sender_name': message['sender_name'] ?? 'Membre',
+    'type': message['type'] ?? 'texte',
+    'content': message['content'] ?? '',
+    'is_deleted': message['is_deleted'] == true,
+  };
 
   void _scrollToMessage(String messageId) {
     final key = _messageKeys[messageId];
@@ -1254,12 +1309,14 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         final id = group['id'].toString();
         pendingIds.add(id);
         final isImageGroup = group['type'] == 'image';
+        final replySnapshot = _replyToMessage == null ? null : _replySnapshot(_replyToMessage!);
         final localMessage = <String, dynamic>{
           'id': id,
           'sender_id': currentUserId,
           'sender_name': 'MOI',
           'type': group['type'],
           'content': '',
+          if (replySnapshot != null) ...{'replied_to_id': replySnapshot['id'], 'reply_preview': replySnapshot},
           if (isImageGroup)
             'local_media_paths': indices
                 .map((index) => (preparedMedia[index]['file'] as File).path)
@@ -1300,7 +1357,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           'p_salon_id': widget.salonId,
           'p_content': content,
           'p_type': group['type'],
-          'p_replied_to_id': null,
+          'p_replied_to_id': replySnapshot?['id'],
           if (!isImageGroup && duration != null)
             'p_media_duration_seconds': duration.inMilliseconds / 1000,
         });
@@ -1452,6 +1509,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           _reviewingRecording = false;
           _playingRecordingReview = false;
           _recordingDurationSeconds = 0;
+          if (replySnapshot != null) _replyToMessage = null;
         });
       }
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -1544,12 +1602,14 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
     final duration = _recordingDurationSeconds;
+    final replySnapshot = _replyToMessage == null ? null : _replySnapshot(_replyToMessage!);
     final optimistic = <String, dynamic>{
       'id': id,
       'sender_id': userId,
       'sender_name': 'MOI',
       'type': 'audio',
       'content': '',
+      if (replySnapshot != null) ...{'replied_to_id': replySnapshot['id'], 'reply_preview': replySnapshot},
       'audio_url': filePath,
       'local_audio_path': filePath,
       'duration_seconds': duration,
@@ -1575,7 +1635,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         'p_content': '',
         'p_type': 'audio',
         'p_audio_url': key,
-        'p_replied_to_id': null,
+        'p_replied_to_id': replySnapshot?['id'],
         'p_media_duration_seconds': duration,
       });
       if (mounted) {
@@ -1616,13 +1676,16 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final id = _newUuid();
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
-    final replyId = _replyToMessage?['id'];
+    final replySnapshot = _replyToMessage == null ? null : _replySnapshot(_replyToMessage!);
+    final replyId = replySnapshot?['id'];
     final optimistic = <String, dynamic>{
       'id': id,
       'sender_id': userId,
       'sender_name': 'MOI',
       'type': 'texte',
       'content': content,
+      if (replySnapshot != null) 'reply_preview': replySnapshot,
+      if (replySnapshot != null) 'replied_to_id': replyId,
       'is_uploading': true,
       'is_deleted': false,
       'sent_at': DateTime.now().toUtc().toIso8601String(),
@@ -1800,6 +1863,14 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                             ),
                           ),
                           const SizedBox(height: 4),
+                          if (message['replied_to_id'] != null)
+                            _SalonQuotedMessage(
+                              preview: message['reply_preview'] is Map
+                                  ? Map<String, dynamic>.from(message['reply_preview'] as Map) : null,
+                              label: _messageReplyLabel(message['reply_preview'] is Map
+                                  ? Map<String, dynamic>.from(message['reply_preview'] as Map) : null),
+                              onTap: () => _scrollToMessage(message['replied_to_id'].toString()),
+                            ),
                           if (deleted)
                             Text('chat_groups_deleted_message'.tr,
                               style: TextStyle(color: colors.onSurfaceVariant, fontStyle: FontStyle.italic))
@@ -2064,6 +2135,52 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 }
 
+
+class _SalonQuotedMessage extends StatelessWidget {
+  const _SalonQuotedMessage({required this.preview, required this.label, required this.onTap});
+  final Map<String, dynamic>? preview;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final deleted = preview == null || preview?['is_deleted'] == true;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Material(
+        color: colors.surfaceContainerHighest.withOpacity(.55),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: colors.primary, width: 3)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                deleted ? 'chat_groups_reply_deleted'.tr : (preview?['sender_name'] ?? 'Membre').toString(),
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: colors.primary),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                deleted ? 'chat_groups_reply_deleted'.tr : label,
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant,
+                  fontStyle: deleted ? FontStyle.italic : FontStyle.normal),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _SalonAnimatedWaveform extends StatefulWidget {
   const _SalonAnimatedWaveform({
