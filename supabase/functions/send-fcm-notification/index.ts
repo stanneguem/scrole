@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const type = String(record.type ?? "info").toLowerCase();
-    const recordData = record.data && typeof record.data === "object" ? record.data : {};
+    const recordData = record.data && typeof record.data === "object" ? { ...record.data } : {};
     if (type === "community_salon_message") {
       const salonId = String(recordData.salon_id ?? "");
       if (!salonId) return json({ ok: true, sent: 0, reason: "missing_salon_id" });
@@ -102,6 +102,11 @@ Deno.serve(async (req: Request) => {
 
     const sa = JSON.parse(serviceAccountRaw);
     const accessToken = await getFirebaseAccessToken(sa);
+    // actor_id is stored in its own notifications column for some legacy
+    // writers. Include it in the renderer payload so push copy names the actor.
+    if (record.actor_id != null && recordData.actor_id == null) {
+      recordData.actor_id = String(record.actor_id);
+    }
     const dataBase: Record<string, string> = { type, notification_id: String(record.id ?? "") };
     for (const [key, value] of Object.entries(recordData)) if (value != null)
       dataBase[key] = typeof value === "string" ? value : JSON.stringify(value);
