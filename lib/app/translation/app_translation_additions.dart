@@ -5,6 +5,12 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'salon_voice_recording_title': 'Enregistrement vocal',
+      'salon_voice_preview_title': 'Aperçu du message vocal',
+      'salon_voice_message_label': 'Message vocal',
+      'salon_message_sending': 'Envoi…',
+      'salon_message_sent': 'Envoyé',
+      'salon_voice_cancel_hint': 'Glissez vers la gauche pour annuler',
       'community_message_permissions_save_button': 'Enregistrer',
       'webview_help_center_title': "Centre d'aide",
       'webview_credits_title': "Remerciements",
@@ -1379,6 +1385,12 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'salon_voice_recording_title': 'Recording voice message',
+      'salon_voice_preview_title': 'Voice message preview',
+      'salon_voice_message_label': 'Voice message',
+      'salon_message_sending': 'Sending…',
+      'salon_message_sent': 'Sent',
+      'salon_voice_cancel_hint': 'Swipe left to cancel',
       'community_message_permissions_save_button': 'Save',
       'webview_help_center_title': "Help center",
       'webview_credits_title': "Acknowledgements",
@@ -2749,6 +2761,12 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'salon_voice_recording_title': 'Grabando mensaje de voz',
+      'salon_voice_preview_title': 'Vista previa del mensaje de voz',
+      'salon_voice_message_label': 'Mensaje de voz',
+      'salon_message_sending': 'Enviando…',
+      'salon_message_sent': 'Enviado',
+      'salon_voice_cancel_hint': 'Desliza hacia la izquierda para cancelar',
       'community_message_permissions_save_button': 'Guardar',
       'webview_help_center_title': "Centro de ayuda",
       'webview_credits_title': "Agradecimientos",
@@ -4022,6 +4040,12 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'salon_voice_recording_title': 'Sprachnachricht aufnehmen',
+      'salon_voice_preview_title': 'Vorschau der Sprachnachricht',
+      'salon_voice_message_label': 'Sprachnachricht',
+      'salon_message_sending': 'Wird gesendet…',
+      'salon_message_sent': 'Gesendet',
+      'salon_voice_cancel_hint': 'Zum Abbrechen nach links wischen',
       'community_message_permissions_save_button': 'Speichern',
       'webview_help_center_title': "Hilfezentrum",
       'webview_credits_title': "Danksagungen",
@@ -5278,6 +5302,12 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'salon_voice_recording_title': 'Registrazione messaggio vocale',
+      'salon_voice_preview_title': 'Anteprima del messaggio vocale',
+      'salon_voice_message_label': 'Messaggio vocale',
+      'salon_message_sending': 'Invio…',
+      'salon_message_sent': 'Inviato',
+      'salon_voice_cancel_hint': 'Scorri verso sinistra per annullare',
       'community_message_permissions_save_button': 'Salva',
       'webview_help_center_title': "Centro assistenza",
       'webview_credits_title': "Ringraziamenti",
@@ -6532,6 +6562,12 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'salon_voice_recording_title': 'Gravando mensagem de voz',
+      'salon_voice_preview_title': 'Prévia da mensagem de voz',
+      'salon_voice_message_label': 'Mensagem de voz',
+      'salon_message_sending': 'Enviando…',
+      'salon_message_sent': 'Enviado',
+      'salon_voice_cancel_hint': 'Deslize para a esquerda para cancelar',
       'community_message_permissions_save_button': 'Salvar',
       'webview_help_center_title': "Central de ajuda",
       'webview_credits_title': "Agradecimentos",
@@ -7786,6 +7822,12 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'salon_voice_recording_title': '正在录制语音消息',
+      'salon_voice_preview_title': '语音消息预览',
+      'salon_voice_message_label': '语音消息',
+      'salon_message_sending': '正在发送…',
+      'salon_message_sent': '已发送',
+      'salon_voice_cancel_hint': '向左滑动以取消',
       'community_message_permissions_save_button': '保存',
       'webview_help_center_title': "帮助中心",
       'webview_credits_title': "致谢",
@@ -9042,6 +9084,12 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'salon_voice_recording_title': '音声メッセージを録音中',
+      'salon_voice_preview_title': '音声メッセージのプレビュー',
+      'salon_voice_message_label': '音声メッセージ',
+      'salon_message_sending': '送信中…',
+      'salon_message_sent': '送信済み',
+      'salon_voice_cancel_hint': '左にスワイプしてキャンセル',
       'community_message_permissions_save_button': '保存',
       'webview_help_center_title': "ヘルプセンター",
       'webview_credits_title': "謝辞",
@@ -10291,6 +10339,12 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'salon_voice_recording_title': 'Запись голосового сообщения',
+      'salon_voice_preview_title': 'Прослушивание голосового сообщения',
+      'salon_voice_message_label': 'Голосовое сообщение',
+      'salon_message_sending': 'Отправка…',
+      'salon_message_sent': 'Отправлено',
+      'salon_voice_cancel_hint': 'Проведите влево, чтобы отменить',
       'community_message_permissions_save_button': 'Сохранить',
       'webview_help_center_title': "Центр помощи",
       'webview_credits_title': "Благодарности",
