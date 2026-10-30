@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'community_message_permissions_save_button': 'Enregistrer',
       'webview_help_center_title': "Centre d'aide",
       'webview_credits_title': "Remerciements",
       'webview_whats_new_title': "Nouveautés Scrole",
@@ -1378,6 +1379,7 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'community_message_permissions_save_button': 'Save',
       'webview_help_center_title': "Help center",
       'webview_credits_title': "Acknowledgements",
       'webview_whats_new_title': "What's new on Scrole",
@@ -2747,6 +2749,7 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'community_message_permissions_save_button': 'Guardar',
       'webview_help_center_title': "Centro de ayuda",
       'webview_credits_title': "Agradecimientos",
       'webview_whats_new_title': "Novedades de Scrole",
@@ -4019,6 +4022,7 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'community_message_permissions_save_button': 'Speichern',
       'webview_help_center_title': "Hilfezentrum",
       'webview_credits_title': "Danksagungen",
       'webview_whats_new_title': "Neuigkeiten bei Scrole",
@@ -5274,6 +5278,7 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'community_message_permissions_save_button': 'Salva',
       'webview_help_center_title': "Centro assistenza",
       'webview_credits_title': "Ringraziamenti",
       'webview_whats_new_title': "Novità di Scrole",
@@ -6527,6 +6532,7 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'community_message_permissions_save_button': 'Salvar',
       'webview_help_center_title': "Central de ajuda",
       'webview_credits_title': "Agradecimentos",
       'webview_whats_new_title': "Novidades do Scrole",
@@ -7780,6 +7786,7 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'community_message_permissions_save_button': '保存',
       'webview_help_center_title': "帮助中心",
       'webview_credits_title': "致谢",
       'webview_whats_new_title': "Scrole 最新动态",
@@ -9035,6 +9042,7 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'community_message_permissions_save_button': '保存',
       'webview_help_center_title': "ヘルプセンター",
       'webview_credits_title': "謝辞",
       'webview_whats_new_title': "Scrole の新着情報",
@@ -10283,6 +10291,7 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'community_message_permissions_save_button': 'Сохранить',
       'webview_help_center_title': "Центр помощи",
       'webview_credits_title': "Благодарности",
       'webview_whats_new_title': "Что нового в Scrole",
