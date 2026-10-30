@@ -616,10 +616,21 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       if (confirmed != true || !mounted) return;
       if (deleteForAll) {
         await _client.rpc('delete_salon_message', params: {'p_id': messageId});
+        await _syncMessageDelta(messageId);
       } else {
         await _client.rpc('hide_salon_message_for_me', params: {'p_id': messageId});
+        final userId = _client.auth.currentUser?.id;
+        if (userId != null) {
+          await _localCache.deleteMessage(
+            userId: userId,
+            salonId: widget.salonId,
+            messageId: messageId,
+          );
+        }
+        if (mounted) {
+          setState(() => _messages.removeWhere((item) => item['id']?.toString() == messageId));
+        }
       }
-      await _loadMessages();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
