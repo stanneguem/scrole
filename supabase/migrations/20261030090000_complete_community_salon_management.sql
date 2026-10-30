@@ -80,17 +80,18 @@ begin
     age_min=excluded.age_min,age_max=excluded.age_max;
 end $$;
 
-create or replace function public.get_community_chat_group_requests(p_salon_id uuid)
-returns table(request_id uuid,user_id uuid,username text,photo_url text,requested_at timestamptz,status text)
-language plpgsql stable security definer set search_path=public as $$
+create or replace function public.get_community_chat_group_requests(p_salon_id uuid) returns table(request_id uuid,user_id uuid,username text,photo_url text,requested_at timestamptz,status text) language plpgsql stable security definer set search_path=public as $$
 declare v_role text;
 begin
   if auth.uid() is null then raise exception 'Authentification requise'; end if;
-  select role into v_role from public.community_salon_members where salon_id=p_salon_id and user_id=auth.uid();
+  select csm.role into v_role from public.community_salon_members as csm where csm.salon_id=p_salon_id and csm.user_id=auth.uid();
   if coalesce(v_role,'') not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
-  return query select r.id,r.user_id,p.username,p.photo_url,r.requested_at,r.status
-    from public.community_salon_join_requests r left join public.user_profiles p on p.user_id=r.user_id
-    where r.salon_id=p_salon_id and r.status='pending' order by r.requested_at asc;
+  return query
+    select r.id,r.user_id,up.username,up.photo_url,r.requested_at,r.status
+    from public.community_salon_join_requests as r
+    left join public.user_profiles as up on up.user_id=r.user_id
+    where r.salon_id=p_salon_id and r.status='pending'
+    order by r.requested_at asc;
 end $$;
 
 create or replace function public.review_community_chat_group_request(p_request_id uuid,p_decision text)
