@@ -5,6 +5,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
+import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
 import 'package:flutter/material.dart';
@@ -322,15 +323,23 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       for (final message in messages) {
         final type = message['type']?.toString();
         final field = type == 'audio' ? 'audio_url' : 'content';
-        if (type == 'audio' || type == 'image' || type == 'video') {
+        if (type == 'audio' || type == 'image' || type == 'video' || type == 'file') {
           final key = message[field]?.toString() ?? '';
-          if (key.isNotEmpty && !key.startsWith('http')) {
+          if (key.isNotEmpty) {
             try {
-              message[type == 'audio' ? 'audio_signed_url' : 'media_signed_url'] =
-                  await _client.storage.from('community-salon-media').createSignedUrl(key, 3600);
-            } catch (_) {}
-          } else {
-            message[type == 'audio' ? 'audio_signed_url' : 'media_signed_url'] = key;
+              final response = await _client.functions.invoke('r2-media-upload', body: {
+                'action': 'create-download-url',
+                'object_key': key,
+              });
+              if (response.status >= 200 && response.status < 300 && response.data is Map) {
+                final url = (response.data as Map)['url']?.toString();
+                if (url != null && url.isNotEmpty) {
+                  message[type == 'audio' ? 'audio_signed_url' : 'media_signed_url'] = url;
+                }
+              }
+            } catch (error) {
+              debugPrint('[SALON_MEDIA] URL resolution failed: $error');
+            }
           }
         }
       }
@@ -384,15 +393,17 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
   }
 
-  Future<String> _uploadFile(String path, String extension, String contentType) async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) throw StateError('Utilisateur non authentifié');
-    final objectPath = '${widget.salonId}/$uid/${_newUuid()}.$extension';
-    await _client.storage.from('community-salon-media').upload(
-      objectPath, File(path),
-      fileOptions: FileOptions(contentType: contentType, upsert: false),
+  Future<String> _uploadFile(
+    String path, {
+    required String mediaType,
+  }) async {
+    final uploaded = await R2MediaRepository().uploadFile(
+      file: File(path),
+      category: 'salon_message_media',
+      mediaType: mediaType,
+      entityId: widget.salonId,
     );
-    return objectPath;
+    return uploaded.objectKey;
   }
 
   Future<void> _pickMedia() async {
@@ -417,7 +428,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       final isVideo = choice == 'video' || file.mimeType?.startsWith('video/') == true;
       final ext = file.path.split('.').last.toLowerCase();
       final safeExt = ext.length <= 5 ? ext : (isVideo ? 'mp4' : 'jpg');
-      final key = await _uploadFile(file.path, safeExt, file.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'));
+      final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
       await _client.rpc('send_salon_message', params: {
         'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': key,
         'p_type': isVideo ? 'video' : 'image', 'p_audio_url': null, 'p_replied_to_id': null,
@@ -428,7 +439,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     } finally { if (mounted) setState(() => _uploadingMedia = false); }
   }
 
-  Future<void> _toggleRecording() async {
+  Future<void> _startRecording() async {\n    if (_recording || _uploadingMedia) return;\n    final permission = await Permission.microphone.request();\n    if (!permission.isGranted) {\n      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('chat_groups_microphone_permission'.tr)));\n      return;\n    }\n    try {\n      final dir = await getTemporaryDirectory();\n      final path = '${dir.path}/salon_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';\n      await _recorder.start(const RecordConfig(), path: path);\n      if (mounted) setState(() { _recording = true; _recordingStartedAt = DateTime.now(); });\n    } catch (e) {\n      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_audio_start_error'.tr} : $e')));\n    }\n  }\n\n  Future<void> _stopRecordingAndSend() async {\n    if (!_recording) return;\n    await _toggleRecording();\n  }\n\n  Future<void> _toggleRecording() async {
     if (_recording) {
       try {
         final path = await _recorder.stop();
@@ -438,7 +449,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           return;
         }
         setState(() { _recording = false; _uploadingMedia = true; });
-        final key = await _uploadFile(path, 'm4a', 'audio/mp4');
+        final key = await _uploadFile(path, mediaType: 'audio');
         await _client.rpc('send_salon_message', params: {
           'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': '', 'p_type': 'audio',
           'p_audio_url': key, 'p_replied_to_id': null,
@@ -520,48 +531,171 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final message = _messages[i];
             final mine = message['sender_id']?.toString() == uid;
             final deleted = message['is_deleted'] == true;
-            return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft, child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-              decoration: BoxDecoration(color: mine ? colors.primaryContainer : colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (!mine) Text((message['sender_name'] ?? 'Membre').toString(), style: TextStyle(fontSize: 10, color: colors.primary, fontWeight: FontWeight.bold)),
-                if (deleted)
-                  Text('chat_groups_deleted_message'.tr, style: TextStyle(color: colors.onSurface))
-                else if (message['type'] == 'audio' && (message['audio_signed_url'] ?? '').toString().isNotEmpty)
-                  SizedBox(width: 235, child: DirectVoiceMessagePlayer(
-                    voiceMessage: legacy.VoiceMessage(fileName: 'audio.m4a', sizeLabel: '', durationLabel: '', url: message['audio_signed_url'].toString()),
-                    audioPath: message['audio_signed_url'].toString(), messageId: message['id'].toString(), isMine: mine,
-                  ))
-                else if ((message['type'] == 'image' || message['type'] == 'video') && (message['media_signed_url'] ?? '').toString().isNotEmpty)
-                  Padding(padding: const EdgeInsets.only(top: 4, bottom: 4), child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: message['type'] == 'video'
-                        ? _SalonVideoPlayer(url: message['media_signed_url'].toString())
-                        : Image.network(message['media_signed_url'].toString(), width: 230, height: 170, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox(width: 230, height: 80, child: Center(child: Icon(Icons.broken_image_outlined))),
+            final type = message['type']?.toString() ?? 'texte';
+            final mediaUrl = (message['media_signed_url'] ?? '').toString();
+            final audioUrl = (message['audio_signed_url'] ?? '').toString();
+            final senderName = (message['sender_name'] ?? 'Membre').toString();
+            final sentAt = DateTime.tryParse(message['sent_at']?.toString() ?? '');
+            final timeLabel = sentAt == null ? '' : TimeOfDay.fromDateTime(sentAt.toLocal()).format(context);
+            return Align(
+              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+              child: GestureDetector(
+                onLongPress: () => _showMessageActions(message, mine),
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .82),
+                  margin: EdgeInsets.only(
+                    left: mine ? 54 : 4, right: mine ? 4 : 54,
+                    top: 3, bottom: 3,
+                  ),
+                  padding: const EdgeInsets.fromLTRB(12, 9, 10, 7),
+                  decoration: BoxDecoration(
+                    color: mine
+                        ? colors.primary.withOpacity(colors.brightness == Brightness.dark ? .88 : .13)
+                        : colors.surfaceContainerHighest.withOpacity(.78),
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(mine ? 18 : 5),
+                      bottomRight: Radius.circular(mine ? 5 : 18),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!mine)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(senderName, style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w800, color: colors.primary,
+                          )),
+                        ),
+                      if (deleted)
+                        Text('chat_groups_deleted_message'.tr,
+                          style: TextStyle(color: colors.onSurfaceVariant, fontStyle: FontStyle.italic))
+                      else if (type == 'audio' && audioUrl.isNotEmpty)
+                        SizedBox(width: 250, child: DirectVoiceMessagePlayer(
+                          voiceMessage: legacy.VoiceMessage(
+                            fileName: 'audio.m4a', sizeLabel: '',
+                            durationLabel: '${message['duration_seconds'] ?? ''}',
+                            url: audioUrl,
                           ),
-                  ))
-                else if ((message['content'] ?? '').toString().isNotEmpty)
-                  Text((message['content'] ?? '').toString(), style: TextStyle(color: colors.onSurface)),
-                const SizedBox(height: 3),
-                Text((message['sent_at'] ?? '').toString().replaceFirst('T', ' ').split('.').first, style: TextStyle(fontSize: 9, color: colors.onSurfaceVariant)),
-              ]),
-            ));
+                          audioPath: audioUrl, messageId: message['id'].toString(), isMine: mine,
+                        ))
+                      else if ((type == 'image' || type == 'video') && mediaUrl.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: type == 'video'
+                            ? _SalonVideoPlayer(url: mediaUrl)
+                            : Image.network(mediaUrl, width: 250, height: 190, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox(width: 250, height: 90,
+                                  child: Center(child: Icon(Icons.broken_image_outlined))),
+                              ),
+                        )
+                      else if ((message['content'] ?? '').toString().isNotEmpty)
+                        Text((message['content'] ?? '').toString(),
+                          style: TextStyle(color: colors.onSurface, fontSize: 14.5, height: 1.35)),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(timeLabel, style: TextStyle(
+                          fontSize: 10, color: colors.onSurfaceVariant.withOpacity(.7),
+                        )),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
           })),
-        SafeArea(top: false, child: Padding(padding: const EdgeInsets.fromLTRB(10, 6, 10, 8), child: Row(children: [
-          IconButton(onPressed: _sending || _uploadingMedia ? null : _pickMedia, tooltip: 'chat_groups_media_tooltip'.tr, icon: _uploadingMedia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.attach_file_rounded)),
-          Expanded(child: TextField(controller: _input, minLines: 1, maxLines: 5, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(hintText: 'chat_groups_message_hint'.tr, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11)), onSubmitted: (_) => _send())),
-          const SizedBox(width: 8),
-          IconButton(onPressed: _uploadingMedia ? null : _toggleRecording, tooltip: _recording ? 'chat_groups_stop_audio'.tr : 'chat_groups_record_audio'.tr, icon: Icon(_recording ? Icons.stop_circle_rounded : Icons.mic_none_rounded, color: _recording ? colors.error : colors.primary)),
-          IconButton.filled(onPressed: _sending || _recording ? null : _send, icon: _sending ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)),
-        ]))),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 7, 12, 9),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _SalonCircleAction(
+                  icon: Icons.add_rounded,
+                  onTap: _sending || _uploadingMedia ? null : _pickMedia,
+                  loading: _uploadingMedia,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _input,
+                    minLines: 1,
+                    maxLines: 5,
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'chat_groups_message_hint'.tr,
+                      filled: true,
+                      fillColor: colors.surfaceContainerHighest.withOpacity(.55),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: colors.primary.withOpacity(.65)),
+                      ),
+                    ),
+                    onSubmitted: (_) => _send(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _SalonCircleAction(
+                  icon: _input.text.trim().isNotEmpty ? Icons.send_rounded : (_recording ? Icons.stop_rounded : Icons.mic_none_rounded),
+                  primary: _input.text.trim().isNotEmpty,
+                  recording: _recording,
+                  onTap: _sending || _uploadingMedia ? null : (_input.text.trim().isNotEmpty ? _send : _toggleRecording),
+                  onLongPress: _input.text.trim().isEmpty && !_recording ? _startRecording : null,
+                  onLongPressUp: _recording ? _stopRecordingAndSend : null,
+                ),
+              ],
+            ),
+          ),
+        ),
       ]),
     );
   }
 }
 
+
+class _SalonCircleAction extends StatelessWidget {
+  const _SalonCircleAction({
+    required this.icon, required this.onTap, this.primary = false,
+    this.loading = false, this.recording = false, this.onLongPress, this.onLongPressUp,
+  });
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool primary, loading, recording;
+  final VoidCallback? onLongPress, onLongPressUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final color = recording ? colors.error : primary ? colors.primary : colors.onSurfaceVariant;
+    return GestureDetector(
+      onTap: onTap, onLongPress: onLongPress, onLongPressUp: onLongPressUp,
+      child: Container(
+        width: 43, height: 43,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color.withOpacity(.13)),
+        alignment: Alignment.center,
+        child: loading
+          ? SizedBox(width: 19, height: 19, child: CircularProgressIndicator(strokeWidth: 2, color: color))
+          : Icon(icon, size: 22, color: color),
+      ),
+    );
+  }
+}
 
 class _SalonVideoPlayer extends StatefulWidget {
   const _SalonVideoPlayer({required this.url});
