@@ -1393,8 +1393,9 @@ class _SalonCircleAction extends StatelessWidget {
 }
 
 class _SalonVideoPlayer extends StatefulWidget {
-  const _SalonVideoPlayer({required this.url});
+  const _SalonVideoPlayer({required this.url, this.isLocal = false});
   final String url;
+  final bool isLocal;
 
   @override
   State<_SalonVideoPlayer> createState() => _SalonVideoPlayerState();
@@ -1408,7 +1409,9 @@ class _SalonVideoPlayerState extends State<_SalonVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+    _controller = widget.isLocal
+        ? VideoPlayerController.file(File(widget.url))
+        : VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..initialize().then((_) {
         if (mounted) setState(() => _ready = true);
       }).catchError((_) {
