@@ -1369,6 +1369,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "Impossible d’enregistrer ces règles : elles excluraient le propriétaire du salon. Ajoutez sa ville ou son pays, ou assouplissez la restriction.",
       'salon_access_owner_certification_conflict': "Le propriétaire du salon ne possède pas la certification exigée. La règle a été refusée.",
       'salon_access_owner_age_conflict': "La tranche d’âge exclurait le propriétaire du salon. Modifiez les limites d’âge.",
+      'community_message_permissions_image_title': "Photos",
+      'community_message_permissions_image_description': "Autoriser les membres à envoyer des photos.",
+      'community_message_permissions_video_title': "Vidéos",
+      'community_message_permissions_video_description': "Autoriser les membres à envoyer des vidéos de 30 secondes maximum.",
+      'chat_groups_image_not_allowed': "L’envoi de photos n’est pas autorisé dans ce salon.",
+      'chat_groups_video_not_allowed': "L’envoi de vidéos n’est pas autorisé dans ce salon.",
+
 },
     'en': {
       'webview_help_center_title': "Help center",
@@ -2731,6 +2738,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "These rules would lock the salon owner out. Include the owner's city or country, or relax the restriction.",
       'salon_access_owner_certification_conflict': "The salon owner does not have the required verification. This rule was rejected.",
       'salon_access_owner_age_conflict': "The age range would exclude the salon owner. Adjust the age limits.",
+      'community_message_permissions_image_title': "Photos",
+      'community_message_permissions_image_description': "Allow members to send photos.",
+      'community_message_permissions_video_title': "Videos",
+      'community_message_permissions_video_description': "Allow members to send videos up to 30 seconds long.",
+      'chat_groups_image_not_allowed': "Sending photos is not allowed in this chat.",
+      'chat_groups_video_not_allowed': "Sending videos is not allowed in this chat.",
+
 },
     'es': {
       'webview_help_center_title': "Centro de ayuda",
@@ -3996,6 +4010,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "Estas reglas impedirían el acceso al propietario. Incluye su ciudad o país, o flexibiliza la restricción.",
       'salon_access_owner_certification_conflict': "El propietario no tiene la verificación requerida. Se rechazó esta regla.",
       'salon_access_owner_age_conflict': "El rango de edad excluiría al propietario. Ajusta los límites.",
+      'community_message_permissions_image_title': "Fotos",
+      'community_message_permissions_image_description': "Permitir que los miembros envíen fotos.",
+      'community_message_permissions_video_title': "Vídeos",
+      'community_message_permissions_video_description': "Permitir que los miembros envíen vídeos de hasta 30 segundos.",
+      'chat_groups_image_not_allowed': "No se permite enviar fotos en este chat.",
+      'chat_groups_video_not_allowed': "No se permite enviar vídeos en este chat.",
+
 },
     'de': {
       'webview_help_center_title': "Hilfezentrum",
@@ -5244,6 +5265,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "Diese Regeln würden den Eigentümer aussperren. Füge seine Stadt oder sein Land hinzu oder lockere die Einschränkung.",
       'salon_access_owner_certification_conflict': "Der Eigentümer hat nicht die erforderliche Verifizierung. Die Regel wurde abgelehnt.",
       'salon_access_owner_age_conflict': "Die Altersspanne würde den Eigentümer ausschließen. Passe die Altersgrenzen an.",
+      'community_message_permissions_image_title': "Fotos",
+      'community_message_permissions_image_description': "Mitglieder dürfen Fotos senden.",
+      'community_message_permissions_video_title': "Videos",
+      'community_message_permissions_video_description': "Mitglieder dürfen Videos mit einer Länge von bis zu 30 Sekunden senden.",
+      'chat_groups_image_not_allowed': "Das Senden von Fotos ist in diesem Chat nicht erlaubt.",
+      'chat_groups_video_not_allowed': "Das Senden von Videos ist in diesem Chat nicht erlaubt.",
+
 },
     'it': {
       'webview_help_center_title': "Centro assistenza",
@@ -6490,6 +6518,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "Queste regole impedirebbero l'accesso al proprietario. Aggiungi la sua città o il suo paese oppure allenta la restrizione.",
       'salon_access_owner_certification_conflict': "Il proprietario non dispone della verifica richiesta. La regola è stata rifiutata.",
       'salon_access_owner_age_conflict': "La fascia d'età escluderebbe il proprietario. Modifica i limiti di età.",
+      'community_message_permissions_image_title': "Foto",
+      'community_message_permissions_image_description': "Consenti ai membri di inviare foto.",
+      'community_message_permissions_video_title': "Video",
+      'community_message_permissions_video_description': "Consenti ai membri di inviare video fino a 30 secondi.",
+      'chat_groups_image_not_allowed': "L’invio di foto non è consentito in questa chat.",
+      'chat_groups_video_not_allowed': "L’invio di video non è consentito in questa chat.",
+
 },
     'pt': {
       'webview_help_center_title': "Central de ajuda",
@@ -7736,6 +7771,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "Estas regras impediriam o acesso do proprietário. Inclua a cidade ou o país dele, ou flexibilize a restrição.",
       'salon_access_owner_certification_conflict': "O proprietário não possui a verificação exigida. A regra foi recusada.",
       'salon_access_owner_age_conflict': "A faixa etária excluiria o proprietário. Ajuste os limites.",
+      'community_message_permissions_image_title': "Fotos",
+      'community_message_permissions_image_description': "Permitir que os membros enviem fotos.",
+      'community_message_permissions_video_title': "Vídeos",
+      'community_message_permissions_video_description': "Permitir que os membros enviem vídeos de até 30 segundos.",
+      'chat_groups_image_not_allowed': "O envio de fotos não é permitido neste chat.",
+      'chat_groups_video_not_allowed': "O envio de vídeos não é permitido neste chat.",
+
 },
     'zh': {
       'webview_help_center_title': "帮助中心",
@@ -8984,6 +9026,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "这些规则会导致聊天室所有者无法进入。请加入所有者所在的城市或国家，或放宽限制。",
       'salon_access_owner_certification_conflict': "聊天室所有者未通过所需认证，因此已拒绝此规则。",
       'salon_access_owner_age_conflict': "年龄范围会排除聊天室所有者。请调整年龄限制。",
+      'community_message_permissions_image_title': "照片",
+      'community_message_permissions_image_description': "允许成员发送照片。",
+      'community_message_permissions_video_title': "视频",
+      'community_message_permissions_video_description': "允许成员发送最长 30 秒的视频。",
+      'chat_groups_image_not_allowed': "此聊天室不允许发送照片。",
+      'chat_groups_video_not_allowed': "此聊天室不允许发送视频。",
+
 },
     'ja': {
       'webview_help_center_title': "ヘルプセンター",
@@ -10225,6 +10274,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "このルールではチャットルームの所有者がアクセスできなくなります。所有者の都市・国を含めるか、制限を緩和してください。",
       'salon_access_owner_certification_conflict': "チャットルームの所有者は必要な認証を満たしていないため、このルールは拒否されました。",
       'salon_access_owner_age_conflict': "年齢制限によって所有者が除外されます。年齢条件を調整してください。",
+      'community_message_permissions_image_title': "写真",
+      'community_message_permissions_image_description': "メンバーによる写真の送信を許可します。",
+      'community_message_permissions_video_title': "動画",
+      'community_message_permissions_video_description': "30秒以内の動画の送信を許可します。",
+      'chat_groups_image_not_allowed': "このチャットでは写真を送信できません。",
+      'chat_groups_video_not_allowed': "このチャットでは動画を送信できません。",
+
 },
     'ru': {
       'webview_help_center_title': "Центр помощи",
@@ -11467,6 +11523,13 @@ class AppTranslationAdditions {
       'salon_access_owner_conflict': "Эти правила лишат владельца доступа к чату. Добавьте его город или страну либо смягчите ограничение.",
       'salon_access_owner_certification_conflict': "Владелец чата не прошёл необходимую проверку. Правило отклонено.",
       'salon_access_owner_age_conflict': "Возрастной диапазон исключит владельца чата. Измените возрастные ограничения.",
+      'community_message_permissions_image_title': "Фотографии",
+      'community_message_permissions_image_description': "Разрешить участникам отправлять фотографии.",
+      'community_message_permissions_video_title': "Видео",
+      'community_message_permissions_video_description': "Разрешить участникам отправлять видео длительностью до 30 секунд.",
+      'chat_groups_image_not_allowed': "Отправка фотографий в этом чате запрещена.",
+      'chat_groups_video_not_allowed': "Отправка видео в этом чате запрещена.",
+
 },
   };
 
