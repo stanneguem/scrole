@@ -333,12 +333,6 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                     left: 12,
                     child: _heroButton(Icons.arrow_back_rounded, () => Navigator.of(context).pop()),
                   ),
-                  if (_isAdmin)
-                    Positioned(
-                      top: 10,
-                      right: 12,
-                      child: _heroButton(Icons.camera_alt_outlined, _openCommunityImages),
-                    ),
                   Positioned(
                     left: 20,
                     right: 20,
@@ -383,21 +377,6 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                       : _avatarPlaceholder(colors),
                   ),
                 ),
-                if (_isAdmin)
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Material(
-                      color: colors.primary,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: _openCommunityImages,
-                        child: const SizedBox(width: 29, height: 29,
-                          child: Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white)),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -453,7 +432,10 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               children: [
                 // --- En-tête visuel de la communauté ---
-                _communityHero(colorScheme),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _communityHero(colorScheme),
+                ),
                 const SizedBox(height: 20),
 
                 // --- Section A : GESTION (Admins / Modérateurs) ---
