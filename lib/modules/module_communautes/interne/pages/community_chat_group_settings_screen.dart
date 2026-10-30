@@ -319,10 +319,17 @@ class _CommunityChatGroupSettingsScreenState
                     ],
                     _section(colors, children: [
                       ListTile(
-                        leading: Icon(Icons.logout_rounded, color: colors.error),
+                        leading: Icon(Icons.logout_rounded,
+                          color: _isOwner ? colors.onSurfaceVariant : colors.error),
                         title: Text('Quitter la discussion',
-                          style: TextStyle(color: colors.error, fontWeight: FontWeight.w600)),
-                        onTap: _leave,
+                          style: TextStyle(
+                            color: _isOwner ? colors.onSurfaceVariant : colors.error,
+                            fontWeight: FontWeight.w600,
+                          )),
+                        subtitle: _isOwner
+                            ? const Text('Transférez la propriété du groupe avant de pouvoir le quitter.')
+                            : null,
+                        onTap: _isOwner ? null : _leave,
                       ),
                     ]),
                     if (_isOwner) ...[
