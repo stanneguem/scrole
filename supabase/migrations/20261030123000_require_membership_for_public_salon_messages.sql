@@ -28,3 +28,14 @@ $function$;
 
 revoke all on function public.can_access_salon(uuid) from public, anon;
 grant execute on function public.can_access_salon(uuid) to authenticated;
+
+-- Allow authenticated clients to verify only their own salon membership.
+-- RLS remains enabled and prevents reading other users' membership rows.
+grant select on table public.community_salon_members to authenticated;
+
+drop policy if exists "Users can read their own salon memberships" on public.community_salon_members;
+create policy "Users can read their own salon memberships"
+on public.community_salon_members
+for select
+to authenticated
+using (user_id = (select auth.uid()));
