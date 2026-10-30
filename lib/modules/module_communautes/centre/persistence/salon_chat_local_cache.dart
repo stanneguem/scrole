@@ -71,9 +71,9 @@ class SalonChatLocalCache {
       }
       // Garder un historique local borné, les plus récents en priorité.
       await txn.rawDelete(
-        '''DELETE FROM community_salon_messages_cache
+        '''DELETE FROM salon_messages
            WHERE user_id = ? AND salon_id = ? AND message_id NOT IN (
-             SELECT message_id FROM community_salon_messages_cache
+             SELECT message_id FROM salon_messages
              WHERE user_id = ? AND salon_id = ?
              ORDER BY sent_at DESC, message_id DESC LIMIT 500
            )''',
