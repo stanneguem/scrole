@@ -305,6 +305,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _sending = false;
   bool _recording = false;
   bool _uploadingMedia = false;
+  bool _textMessagesAllowed = true;
+  bool _audioMessagesAllowed = false;
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartedAt;
   RealtimeChannel? _channel;
@@ -314,6 +316,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     super.initState();
     _conversationName = widget.name;
     _conversationAvatarUrl = widget.avatarUrl;
+    _loadMessagePermissions();
     _loadMessages();
     _channel = _client.channel('salon:${widget.salonId}', opts: const RealtimeChannelConfig(private: true))
       .onBroadcast(event: 'salon_message_sent', callback: (_) { _loadMessages(); })
@@ -334,6 +337,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       ),
     );
     if (!mounted) return;
+    await _loadMessagePermissions();
     if (result == 'left' || result == 'deleted') {
       Navigator.of(context).pop(true);
       return;
@@ -422,6 +426,20 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           SnackBar(content: Text('Impossible de supprimer ce message : $e')),
         );
       }
+    }
+  }
+
+  Future<void> _loadMessagePermissions() async {
+    try {
+      final raw = await _client.rpc('get_community_chat_group_settings', params: {'p_salon_id': widget.salonId});
+      final settings = Map<String, dynamic>.from(raw as Map);
+      if (!mounted) return;
+      setState(() {
+        _textMessagesAllowed = settings['text_messages_allowed'] != false;
+        _audioMessagesAllowed = settings['audio_messages_allowed'] == true;
+      });
+    } catch (e) {
+      debugPrint('[SALON_PERMISSIONS] Could not load message permissions: $e');
     }
   }
 
@@ -671,6 +689,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 
   Future<void> _toggleRecording() async {
+    if (!_audioMessagesAllowed) return;
     if (_recording) {
       try {
         final path = await _recorder.stop();
@@ -708,7 +727,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _send() async {
     final content = _input.text.trim();
-    if (content.isEmpty || _sending) return;
+    if (content.isEmpty || _sending || !_textMessagesAllowed) return;
     setState(() => _sending = true);
     try {
       await _client.rpc('send_salon_message', params: {'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': content, 'p_type': 'texte'});
@@ -880,46 +899,58 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                     size: 42,
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 5,
-                      textCapitalization: TextCapitalization.sentences,
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        hintText: 'chat_groups_message_hint'.tr,
-                        hintStyle: TextStyle(color: colors.onSurfaceVariant),
-                        filled: true,
-                        fillColor: colors.surfaceContainerHighest.withOpacity(.3),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .5),
+                  if (_textMessagesAllowed)
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 5,
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'chat_groups_message_hint'.tr,
+                          hintStyle: TextStyle(color: colors.onSurfaceVariant),
+                          filled: true,
+                          fillColor: colors.surfaceContainerHighest.withOpacity(.3),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .5),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .5),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: colors.outline.withOpacity(.55), width: .7),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: colors.outline.withOpacity(.55), width: .7),
-                        ),
+                        onSubmitted: (_) => _send(),
                       ),
-                      onSubmitted: (_) => _send(),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  _SalonCircleAction(
-                    icon: _input.text.trim().isNotEmpty ? Icons.send_rounded : Icons.mic_none_rounded,
-                    primary: _input.text.trim().isNotEmpty,
-                    onTap: _sending || _uploadingMedia ? null :
-                      (_input.text.trim().isNotEmpty ? _send : (_recording ? _stopRecordingAndSend : _startRecording)),
-                    onLongPress: _input.text.trim().isEmpty ? _startRecording : null,
-                    onLongPressUp: _recording ? _stopRecordingAndSend : null,
-                    size: 42,
-                  ),
+                  if (_audioMessagesAllowed) const SizedBox(width: 8),
+                  if (_audioMessagesAllowed)
+                    _SalonCircleAction(
+                      icon: _textMessagesAllowed && _input.text.trim().isNotEmpty ? Icons.send_rounded : Icons.mic_none_rounded,
+                      primary: _textMessagesAllowed && _input.text.trim().isNotEmpty,
+                      onTap: _sending || _uploadingMedia
+                          ? null
+                          : (_textMessagesAllowed && _input.text.trim().isNotEmpty
+                              ? _send
+                              : (_recording ? _stopRecordingAndSend : _startRecording)),
+                      onLongPress: _textMessagesAllowed ? null : _startRecording,
+                      onLongPressUp: _recording ? _stopRecordingAndSend : null,
+                      size: 42,
+                    )
+                  else if (_textMessagesAllowed)
+                    _SalonCircleAction(
+                      icon: Icons.send_rounded,
+                      primary: true,
+                      onTap: _input.text.trim().isNotEmpty && !_sending && !_uploadingMedia ? _send : null,
+                      size: 42,
+                    ),
                 ],
               ),
             ),
