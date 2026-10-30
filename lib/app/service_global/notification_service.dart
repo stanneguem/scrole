@@ -556,6 +556,19 @@ class NotificationService {
       if (data['actor_id'] != null) 'actor_id': data['actor_id'],
     });
 
+    // A live salon message is already visible in the open conversation.
+    // Do not persist it locally or let it enter the Notifications screen.
+    final notificationData = rawPayloadData is Map
+        ? Map<String, dynamic>.from(rawPayloadData)
+        : <String, dynamic>{};
+    final incomingSalonId = type == 'community_salon_message'
+        ? (notificationData['salon_id']?.toString() ?? data['salon_id']?.toString())
+        : null;
+    if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
+      debugPrint('[FCM] Live salon message ignored by notification history');
+      return;
+    }
+
     final dbService = Get.find<NotificationDbService>();
 
     // Récupération de l'horodatage réel du serveur si disponible
@@ -579,13 +592,7 @@ class NotificationService {
     );
 
     // 2. Affichage local si la notification est nouvelle et le corps non vide
-    final notificationData = rawPayloadData is Map
-        ? Map<String, dynamic>.from(rawPayloadData)
-        : <String, dynamic>{};
-    final isCurrentSalon = type == 'community_salon_message' &&
-        (notificationData['salon_id']?.toString() ?? data['salon_id']?.toString()) ==
-            _activeSalonId;
-    if (saved && body.isNotEmpty && !isCurrentSalon) {
+    if (saved && body.isNotEmpty) {
       debugPrint('[FCM] Showing local notification: $title - $body');
       await showNotification(
         id: id.hashCode.abs(),
@@ -616,6 +623,16 @@ class NotificationService {
 
       final data = Map<String, dynamic>.from(message.data);
       final type = data['type']?.toString() ?? 'info';
+      final incomingSalonId = type == 'community_salon_message'
+          ? (data['salon_id']?.toString() ??
+              (data['data'] is Map
+                  ? (data['data'] as Map)['salon_id']?.toString()
+                  : null))
+          : null;
+      if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
+        debugPrint('[FCM] Live salon FCM ignored before local persistence');
+        return;
+      }
       final title =
           message.notification?.title ??
           data['title']?.toString() ??
