@@ -53,25 +53,21 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
     finally{if(mounted)setState(()=>_saving=false);}
   }
 
-  Future<void> _audio(bool value) async {
-    if(_saving)return;
-    final rules=Map<String,dynamic>.from(_data['access_rules']??{});
-    setState(()=>_saving=true);
+  Future<void> _messagePermissions({bool? textAllowed, bool? audioAllowed}) async {
+    if (_saving) return;
+    setState(() => _saving = true);
     try {
-      await _db.rpc('update_community_chat_group_advanced_settings',params:{
-        'p_salon_id':widget.salonId,
-        'p_audio_messages_allowed':value,
-        'p_countries_enabled':rules['countries_enabled']==true,
-        'p_allowed_countries':List<String>.from(rules['allowed_countries']??[]),
-        'p_cities_enabled':rules['cities_enabled']==true,
-        'p_allowed_cities':List<String>.from(rules['allowed_cities']??[]),
-        'p_certification_required':rules['certification_required']==true,
-        'p_gender_restriction':rules['gender_restriction'],
-        'p_age_min':rules['age_min'],'p_age_max':rules['age_max'],
+      await _db.rpc('update_salon_message_permissions', params: {
+        'p_salon_id': widget.salonId,
+        'p_text_messages_allowed': textAllowed ?? _data['text_messages_allowed'] != false,
+        'p_audio_messages_allowed': audioAllowed ?? _data['audio_messages_allowed'] == true,
       });
       await _load();
-    }catch(e){_toast('Impossible de modifier les messages audio : $e');}
-    finally{if(mounted)setState(()=>_saving=false);}
+    } catch (e) {
+      _toast('community_message_permissions_error'.trParams({'error': e.toString()}));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _requests() async {
@@ -146,11 +142,32 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
             },
             trailing: visibility == 'private' ? 'Privée' : 'Publique',
           ),
-          SwitchListTile.adaptive(contentPadding:const EdgeInsets.symmetric(horizontal:17),
-            secondary:Icon(Icons.mic_none_rounded,color:c.onSurfaceVariant),
-            title:const Text('Messages audio',style:TextStyle(fontWeight:FontWeight.w600)),
-            subtitle:const Text('Autoriser les membres à envoyer des messages vocaux'),
-            value:_data['audio_messages_allowed']==true,onChanged:_saving?null:_audio,activeColor:const Color(0xFFF0642C)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(17, 14, 17, 4),
+            child: Row(children: [
+              Icon(Icons.chat_bubble_outline_rounded, color: c.onSurfaceVariant),
+              const SizedBox(width: 12),
+              Expanded(child: Text('community_message_permissions_title'.tr,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
+            ]),
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 17),
+            title: Text('community_text_messages'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text('community_text_messages_description'.tr),
+            value: _data['text_messages_allowed'] != false,
+            onChanged: _saving ? null : (value) => _messagePermissions(textAllowed: value),
+            activeColor: const Color(0xFFF0642C),
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 17),
+            secondary: Icon(Icons.mic_none_rounded, color: c.onSurfaceVariant),
+            title: Text('community_audio_messages'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text('community_audio_messages_description'.tr),
+            value: _data['audio_messages_allowed'] == true,
+            onChanged: _saving ? null : (value) => _messagePermissions(audioAllowed: value),
+            activeColor: const Color(0xFFF0642C),
+          ),
           _tile(c,Icons.admin_panel_settings_outlined,'Conditions d’accès','Pays, villes, certification, genre et âge',()async{
             final changed=await Navigator.push<bool>(context,MaterialPageRoute(builder:(_)=>CommunityChatGroupAccessRulesScreen(salonId:widget.salonId,initialData:_data)));
             if(changed==true)_load();
