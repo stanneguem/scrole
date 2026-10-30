@@ -76,7 +76,7 @@ begin
   if v_uid is null then raise exception 'Authentification requise'; end if;
   select role into v_role from public.community_salon_members
   where salon_id = p_salon_id and user_id = v_uid;
-  if v_role not in ('owner', 'moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
+  if coalesce(v_role, '') not in ('owner', 'moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
   if p_name is null or length(trim(p_name)) < 2 or length(trim(p_name)) > 80 then raise exception 'Nom du groupe invalide'; end if;
   if p_visibility not in ('public', 'private') then raise exception 'Visibilité invalide'; end if;
   update public.community_salons
@@ -102,7 +102,7 @@ begin
   if v_uid is null then raise exception 'Authentification requise'; end if;
   select role into v_actor_role from public.community_salon_members
   where salon_id = p_salon_id and user_id = v_uid;
-  if v_actor_role <> 'owner' then raise exception 'Seul le propriétaire de la discussion peut gérer les rôles administrateurs'; end if;
+  if coalesce(v_actor_role, '') <> 'owner' then raise exception 'Seul le propriétaire de la discussion peut gérer les rôles administrateurs'; end if;
   if p_role not in ('moderator', 'member') then raise exception 'Rôle invalide'; end if;
   if p_user_id = v_uid then raise exception 'Vous ne pouvez pas modifier votre propre rôle'; end if;
   update public.community_salon_members
@@ -130,7 +130,7 @@ begin
   where salon_id = p_salon_id and user_id = v_uid;
   select role into v_target_role from public.community_salon_members
   where salon_id = p_salon_id and user_id = p_user_id;
-  if v_actor_role not in ('owner', 'moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
+  if coalesce(v_actor_role, '') not in ('owner', 'moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
   if v_target_role is null then raise exception 'Membre introuvable'; end if;
   if v_target_role = 'owner' then raise exception 'Le propriétaire ne peut pas être retiré'; end if;
   if v_actor_role = 'moderator' and v_target_role <> 'member' then raise exception 'Un modérateur ne peut retirer qu’un membre'; end if;
