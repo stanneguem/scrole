@@ -1256,6 +1256,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           'sent_at': DateTime.now().toUtc().toIso8601String(),
         };
         if (mounted) setState(() => _messages.add(localMessage));
+        _scrollToLatestMessage();
       }
 
       // Future.wait conserve l'ordre des clés tout en téléversant en parallèle.
@@ -1546,6 +1547,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         _playingRecordingReview = false;
         _uploadingMedia = true;
       });
+      _scrollToLatestMessage();
     }
     try {
       await _recordingPreviewPlayer.stop();
