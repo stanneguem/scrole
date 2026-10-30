@@ -468,6 +468,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _sending = false;
   bool _recording = false;
   bool _uploadingMedia = false;
+  Map<String, dynamic>? _replyToMessage;
   bool _textMessagesAllowed = true;
   bool _audioMessagesAllowed = false;
   bool _saveIncomingMedia = true;
@@ -536,6 +537,11 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 onTap: () => Navigator.of(sheetContext).pop('copy'),
               ),
             ListTile(
+              leading: const Icon(Icons.reply_rounded),
+              title: Text('chat_groups_reply'.tr),
+              onTap: () => Navigator.of(sheetContext).pop('reply'),
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_sweep_outlined),
               title: const Text('Supprimer le message pour moi'),
               onTap: () => Navigator.of(sheetContext).pop('delete_me'),
@@ -552,6 +558,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       ),
     );
     if (!mounted || action == null) return;
+    if (action == 'reply') {
+      setState(() => _replyToMessage = Map<String, dynamic>.from(message));
+      return;
+    }
     try {
       if (action == 'copy') {
         await Clipboard.setData(ClipboardData(text: content));
@@ -954,8 +964,12 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     if (content.isEmpty || _sending || !_textMessagesAllowed) return;
     setState(() => _sending = true);
     try {
-      await _client.rpc('send_salon_message', params: {'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': content, 'p_type': 'texte'});
+      await _client.rpc('send_salon_message', params: {
+        'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': content, 'p_type': 'texte',
+        'p_replied_to_id': _replyToMessage?['id'],
+      });
       _input.clear();
+      if (mounted) setState(() => _replyToMessage = null);
       await _loadMessages();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_send_error'.tr} : $e')));
@@ -1116,8 +1130,26 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                 color: colors.surface.withOpacity(.97),
                 border: Border(top: BorderSide(color: colors.outlineVariant.withOpacity(.35), width: .6)),
               ),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_replyToMessage != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(color: colors.primaryContainer.withOpacity(.45), borderRadius: BorderRadius.circular(13)),
+                      child: Row(children: [
+                        Icon(Icons.reply_rounded, size: 17, color: colors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('chat_groups_replying_to'.trParams({'name': (_replyToMessage?['sender_name'] ?? 'Membre').toString()}), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.primary)),
+                          Text((_replyToMessage?['content'] ?? (_replyToMessage?['type'] == 'image' ? 'chat_groups_pick_image'.tr : _replyToMessage?['type'] == 'video' ? 'chat_groups_pick_video'.tr : 'chat_groups_audio_message'.tr)).toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+                        ])),
+                        IconButton(visualDensity: VisualDensity.compact, onPressed: () => setState(() => _replyToMessage = null), icon: const Icon(Icons.close_rounded, size: 18)),
+                      ]),
+                    ),
+                  Row(
+                    children: [
                   _SalonCircleAction(
                     icon: Icons.photo_library_outlined,
                     onTap: _sending || _uploadingMedia ? null : _pickMedia,
@@ -1177,6 +1209,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                       onTap: _input.text.trim().isNotEmpty && !_sending && !_uploadingMedia ? _send : null,
                       size: 42,
                     ),
+                    ],
+                  ),
                 ],
               ),
             ),
