@@ -480,8 +480,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _audioMessagesAllowed = false;
   bool _imageMessagesAllowed = true;
   bool _videoMessagesAllowed = true;
-  bool _saveIncomingMedia = true;
-  final Set<String> _autoSavedIncomingMediaIds = <String>{};
   final Set<String> _knownSalonMessageIds = <String>{};
   bool _initialSalonMessagesLoaded = false;
   final AudioRecorder _recorder = AudioRecorder();
@@ -641,7 +639,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         _audioMessagesAllowed = settings['audio_messages_allowed'] == true;
         _imageMessagesAllowed = settings['image_messages_allowed'] != false;
         _videoMessagesAllowed = settings['video_messages_allowed'] != false;
-        _saveIncomingMedia = settings['media_visibility_enabled'] != false;
       });
     } catch (e) {
       debugPrint('[SALON_PERMISSIONS] Could not load message permissions: $e');
@@ -671,6 +668,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         limit: 300,
       );
       if (!mounted || cached.isEmpty) return;
+      _initialSalonMessagesLoaded = true;
       final knownIds = cached.map((message) => message['id']?.toString() ?? '').toSet();
       final pending = _messages.where((message) => message['is_uploading'] == true).toList();
       setState(() {
@@ -811,7 +809,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       _loading = false;
     });
     _initialSalonMessagesLoaded = true;
-    if (newlyReceived.isNotEmpty) unawaited(_autoSaveIncomingMedia(newlyReceived));
     try {
       await _client.rpc('mark_salon_messages_read', params: {'p_salon_id': widget.salonId});
     } catch (error) {
@@ -874,40 +871,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     } catch (error) {
       debugPrint('[SALON_SYNC] Realtime delta failed for $messageId: $error');
       // A missed broadcast is recovered by the next cursor-based sync.
-    }
-  }
-
-  Future<void> _autoSaveIncomingMedia(List<Map<String, dynamic>> messages) async {
-    if (!_saveIncomingMedia || !mounted) return;
-    final currentUserId = _client.auth.currentUser?.id;
-    if (currentUserId == null) return;
-    for (final message in messages) {
-      final type = message['type']?.toString();
-      if ((type != 'image' && type != 'video') ||
-          message['sender_id']?.toString() == currentUserId) {
-        continue;
-      }
-      final id = message['id']?.toString() ?? '';
-      final url = message['media_signed_url']?.toString() ?? '';
-      if (id.isEmpty || url.isEmpty || !_autoSavedIncomingMediaIds.add(id)) continue;
-      try {
-        final localPath = await ChatMediaCache.instance.resolveLocalPath(url);
-        if (localPath == null || !_saveIncomingMedia || !mounted) continue;
-        final uriPath = Uri.tryParse(url)?.path ?? url;
-        final extension = uriPath.split('/').last.contains('.')
-            ? '.${uriPath.split('/').last.split('.').last.toLowerCase()}'
-            : (type == 'video' ? '.mp4' : '.jpg');
-        final safeExtension = type == 'video'
-            ? (const {'.mp4', '.mov', '.m4v', '.webm'}.contains(extension) ? extension : '.mp4')
-            : (const {'.jpg', '.jpeg', '.png', '.webp'}.contains(extension) ? extension : '.jpg');
-        await ChatMediaCache.instance.saveToGallery(
-          sourcePath: localPath,
-          fileName: 'scrole_salon_${widget.salonId}_${id}_$safeExtension',
-        );
-      } catch (e) {
-        debugPrint('[SALON_MEDIA] Automatic gallery save failed: $e');
-        _autoSavedIncomingMediaIds.remove(id);
-      }
     }
   }
 
@@ -1431,12 +1394,13 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                                           borderRadius: BorderRadius.circular(13),
                                           child: isLocal
                                               ? Image.file(File(source), width: width, height: height, fit: BoxFit.cover)
-                                              : Image.network(source, width: width, height: height, fit: BoxFit.cover,
-                                                  errorBuilder: (_, __, ___) => SizedBox(
-                                                    width: width, height: height,
-                                                    child: const Center(child: Icon(Icons.broken_image_outlined)),
-                                                  ),
-                                                ),
+                                              : ChatCachedMedia(
+                                                   remoteUrl: source,
+                                                   width: width,
+                                                   height: height,
+                                                   fit: BoxFit.cover,
+                                                   borderRadius: BorderRadius.circular(13),
+                                                 ),
                                         ),
                                       if (message['is_uploading'] == true)
                                         Container(
