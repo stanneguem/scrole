@@ -583,7 +583,8 @@ class NotificationService {
         ? Map<String, dynamic>.from(rawPayloadData)
         : <String, dynamic>{};
     final isCurrentSalon = type == 'community_salon_message' &&
-        notificationData['salon_id']?.toString() == _activeSalonId;
+        (notificationData['salon_id']?.toString() ?? data['salon_id']?.toString()) ==
+            _activeSalonId;
     if (saved && body.isNotEmpty && !isCurrentSalon) {
       debugPrint('[FCM] Showing local notification: $title - $body');
       await showNotification(
@@ -674,7 +675,11 @@ class NotificationService {
       // Si la notification a déjà été sauvegardée (et donc affichée) par le
       // chemin Realtime, on ne l'affiche pas une deuxième fois.
       final isCurrentSalon = type == 'community_salon_message' &&
-          data['salon_id']?.toString() == _activeSalonId;
+          (data['salon_id']?.toString() ??
+                  (data['data'] is Map
+                      ? (data['data'] as Map)['salon_id']?.toString()
+                      : null)) ==
+              _activeSalonId;
       if (saved && body.isNotEmpty && !isCurrentSalon) {
         debugPrint('[FCM] Showing local notification: $title - $body');
         await showNotification(
