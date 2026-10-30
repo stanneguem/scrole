@@ -1461,6 +1461,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         if (mounted) setState(() => _recording = false);
         return;
       }
+      _recordingFilePath = path;
       if (mounted) {
         setState(() {
           _recording = false;
