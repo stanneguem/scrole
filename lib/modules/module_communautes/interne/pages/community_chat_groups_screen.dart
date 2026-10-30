@@ -480,6 +480,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   bool _audioMessagesAllowed = false;
   bool _imageMessagesAllowed = true;
   bool _videoMessagesAllowed = true;
+  bool _autoDownloadIncomingMedia = true;
+  final Set<String> _autoDownloadedMediaMessageIds = <String>{};
   final Set<String> _knownSalonMessageIds = <String>{};
   bool _initialSalonMessagesLoaded = false;
   final AudioRecorder _recorder = AudioRecorder();
@@ -650,6 +652,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         _audioMessagesAllowed = settings['audio_messages_allowed'] == true;
         _imageMessagesAllowed = settings['image_messages_allowed'] != false;
         _videoMessagesAllowed = settings['video_messages_allowed'] != false;
+        _autoDownloadIncomingMedia = settings['media_visibility_enabled'] != false;
       });
     } catch (e) {
       debugPrint('[SALON_PERMISSIONS] Could not load message permissions: $e');
@@ -808,6 +811,9 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       _loading = false;
     });
     _initialSalonMessagesLoaded = true;
+    if (newlyReceived.isNotEmpty) {
+      unawaited(_autoCacheIncomingMedia(newlyReceived));
+    }
     try {
       await _client.rpc('mark_salon_messages_read', params: {'p_salon_id': widget.salonId});
     } catch (error) {
@@ -816,6 +822,38 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
     });
+  }
+
+  Future<void> _autoCacheIncomingMedia(List<Map<String, dynamic>> messages) async {
+    if (!_autoDownloadIncomingMedia || !mounted) return;
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return;
+    for (final message in messages) {
+      if (message['sender_id']?.toString() == currentUserId) continue;
+      final id = message['id']?.toString() ?? '';
+      if (id.isEmpty || !_autoDownloadedMediaMessageIds.add(id)) continue;
+      final type = message['type']?.toString();
+      final keys = <String>[];
+      if (type == 'image' && message['media_object_keys'] is List) {
+        keys.addAll((message['media_object_keys'] as List)
+            .map((value) => value.toString())
+            .where((value) => value.isNotEmpty));
+      } else if (type == 'image' || type == 'video' || type == 'audio' || type == 'file') {
+        final key = (type == 'audio'
+                ? message['audio_url']
+                : message['media_object_key'] ?? message['content'])
+            ?.toString() ?? '';
+        if (key.isNotEmpty) keys.add(key);
+      }
+      try {
+        for (final key in keys) {
+          await ChatMediaCache.instance.resolveLocalPath(key);
+        }
+      } catch (error) {
+        _autoDownloadedMediaMessageIds.remove(id);
+        debugPrint('[SALON_MEDIA_CACHE] Private media download failed: $error');
+      }
+    }
   }
 
   Future<void> _loadMessages() async {
