@@ -57,7 +57,7 @@ declare
 begin
   if v_uid is null then raise exception 'Authentification requise'; end if;
   select role into v_role from public.community_salon_members where salon_id=p_salon_id and user_id=v_uid;
-  if v_role not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
+  if coalesce(v_role,'') not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
   if p_age_min is not null and (p_age_min<13 or p_age_min>120) then raise exception 'Âge minimum invalide'; end if;
   if p_age_max is not null and (p_age_max<13 or p_age_max>120) then raise exception 'Âge maximum invalide'; end if;
   if p_age_min is not null and p_age_max is not null and p_age_min>p_age_max then raise exception 'La tranche d’âge est invalide'; end if;
@@ -87,7 +87,7 @@ declare v_role text;
 begin
   if auth.uid() is null then raise exception 'Authentification requise'; end if;
   select role into v_role from public.community_salon_members where salon_id=p_salon_id and user_id=auth.uid();
-  if v_role not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
+  if coalesce(v_role,'') not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
   return query select r.id,r.user_id,p.username,p.photo_url,r.requested_at,r.status
     from public.community_salon_join_requests r left join public.user_profiles p on p.user_id=r.user_id
     where r.salon_id=p_salon_id and r.status='pending' order by r.requested_at asc;
@@ -101,7 +101,7 @@ begin
   select * into v_request from public.community_salon_join_requests where id=p_request_id for update;
   if not found then raise exception 'Demande introuvable'; end if;
   select role into v_role from public.community_salon_members where salon_id=v_request.salon_id and user_id=auth.uid();
-  if v_role not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
+  if coalesce(v_role,'') not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
   select * into v_salon from public.community_salons where id=v_request.salon_id;
   if v_request.status<>'pending' then raise exception 'Cette demande a déjà été traitée'; end if;
   if p_decision='accepted' then
@@ -121,3 +121,23 @@ revoke all on function public.get_community_chat_group_requests(uuid) from publi
 grant execute on function public.get_community_chat_group_requests(uuid) to authenticated;
 revoke all on function public.review_community_chat_group_request(uuid,text) from public,anon;
 grant execute on function public.review_community_chat_group_request(uuid,text) to authenticated;
+
+-- Ensure the R2 avatar setter cannot be called by a non-member via NULL role semantics.
+create or replace function public.set_community_chat_group_avatar(p_salon_id uuid,p_avatar_url text)
+returns text language plpgsql security definer set search_path=public as $$
+declare v_uid uuid:=auth.uid(); v_role text; v_expected_prefix text;
+begin
+  if v_uid is null then raise exception 'Utilisateur non authentifié'; end if;
+  select role into v_role from public.community_salon_members where salon_id=p_salon_id and user_id=v_uid;
+  if coalesce(v_role,'') not in ('owner','moderator') then raise exception 'Action réservée aux administrateurs de cette discussion'; end if;
+  v_expected_prefix:='/salons/'||p_salon_id::text||'/avatar/';
+  if p_avatar_url is null or p_avatar_url !~ '^https://' or position(v_expected_prefix in p_avatar_url)=0
+     or p_avatar_url !~* '\\.(jpg|jpeg|png|webp|avif|gif)(\\?.*)?$' then
+    raise exception 'URL de couverture R2 invalide';
+  end if;
+  update public.community_salons set avatar_url=p_avatar_url,updated_at=now() where id=p_salon_id;
+  if not found then raise exception 'Discussion introuvable'; end if;
+  return p_avatar_url;
+end $$;
+revoke all on function public.set_community_chat_group_avatar(uuid,text) from public,anon;
+grant execute on function public.set_community_chat_group_avatar(uuid,text) to authenticated;
