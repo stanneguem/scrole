@@ -61,7 +61,7 @@ class R2MediaRepository {
     final uri = Uri.tryParse(previousUrl.trim());
     if (uri == null || !uri.hasAuthority || !["http", "https"].contains(uri.scheme)) return;
     final pathSegments = uri.pathSegments.map(Uri.decodeComponent).toList();
-    final rootIndex = pathSegments.indexWhere((part) => part == "profiles" || part == "communities");
+    final rootIndex = pathSegments.indexWhere((part) => part == "profiles" || part == "communities" || part == "salons");
     if (rootIndex < 0) return;
     final segments = pathSegments.sublist(rootIndex);
     final key = segments.join("/");
@@ -74,11 +74,15 @@ class R2MediaRepository {
         segments[0] == "communities" &&
         ["avatar", "cover"].contains(segments[2]) &&
         segments[1].isNotEmpty;
+    final isSalonAvatar = segments.length == 4 &&
+        segments[0] == "salons" &&
+        segments[1].isNotEmpty &&
+        segments[2] == "avatar";
     final isEventMedia = segments.length == 4 &&
         segments[0] == "events" &&
         segments[1].isNotEmpty &&
         segments[2] == userId;
-    if (!isOwnedProfileMedia && !isCommunityMedia && !isEventMedia) {
+    if (!isOwnedProfileMedia && !isCommunityMedia && !isSalonAvatar && !isEventMedia) {
       // Old Supabase Storage URLs and unrelated URLs are not R2 object keys.
       return;
     }
