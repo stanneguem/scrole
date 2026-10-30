@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
   static const String _dbName = 'app_local.db';
-  static const int _dbVersion = 32;
+  static const int _dbVersion = 33;
   Future<Database>? _dbOpenFuture;
   Database? _database;
 
@@ -55,7 +55,6 @@ class AppDatabase {
     await _createSocialTables(db);
     await _createPostOutboxTable(db);
     await _createHomeFeedCacheTable(db);
-    await _createSalonChatCacheTables(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -213,9 +212,6 @@ class AppDatabase {
         await db.execute('DROP INDEX IF EXISTS idx_communities_slug');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_communities_slug ON communities(slug)');
       } catch (_) {}
-    }
-    if (oldVersion < 32) {
-      await _createSalonChatCacheTables(db);
     }
     if (oldVersion < 31) {
       final columns = await db.rawQuery('PRAGMA table_info(user_preferences)');
