@@ -154,8 +154,8 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
           Center(child: Text('chat_groups_empty'.tr)),
           Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('chat_groups_empty_help'.tr, textAlign: TextAlign.center))),
         ]) : ListView.separated(
-          padding: const EdgeInsets.all(12), itemCount: _groups.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), itemCount: _groups.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 9),
           itemBuilder: (_, i) {
             final group = _groups[i];
             final isPrivate = group['visibility'] == 'private';
@@ -166,55 +166,111 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
             final avatarUrl = group['avatar_url']?.toString();
             final messageType = group['last_message_type']?.toString() ?? '';
             final rawPreview = (group['last_message'] ?? '').toString().trim();
-            final preview = messageType == 'audio'
+            final senderName = (group['last_message_sender_name'] ?? '').toString().trim();
+            final previewContent = messageType == 'audio'
                 ? 'chat_groups_audio_message'.tr
                 : messageType == 'image'
                     ? 'chat_groups_pick_image'.tr
                     : messageType == 'video'
                         ? 'chat_groups_pick_video'.tr
-                        : rawPreview.isEmpty
-                            ? (group['description'] ?? '').toString()
-                            : rawPreview;
+                        : rawPreview;
+            final preview = previewContent.isEmpty
+                ? (group['description'] ?? '').toString()
+                : senderName.isEmpty
+                    ? previewContent
+                    : '$senderName : $previewContent';
             final sentAt = DateTime.tryParse(group['last_message_at']?.toString() ?? '');
             final dateLabel = sentAt == null
                 ? ''
                 : (DateUtils.isSameDay(sentAt.toLocal(), DateTime.now())
                     ? '${sentAt.toLocal().hour.toString().padLeft(2, '0')}:${sentAt.toLocal().minute.toString().padLeft(2, '0')}'
                     : '${sentAt.toLocal().day.toString().padLeft(2, '0')}/${sentAt.toLocal().month.toString().padLeft(2, '0')}');
-            return Card(
-              margin: EdgeInsets.zero,
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                leading: CircleAvatar(
-                  radius: 27,
-                  backgroundColor: colors.primaryContainer,
-                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-                  child: avatarUrl == null || avatarUrl.isEmpty
-                      ? Icon(isPrivate ? Icons.lock_outline : Icons.forum_outlined, color: colors.onPrimaryContainer)
-                      : null,
+            final unreadCount = (group['unread_count'] as num?)?.toInt() ?? 0;
+            final lastMessageFromMe = group['last_message_sender_id']?.toString() == _client.auth.currentUser?.id;
+            final allRead = group['last_message_all_read'] == true;
+            Widget statusIndicator;
+            if (unreadCount > 0) {
+              statusIndicator = Container(
+                constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: const BoxDecoration(color: Color(0xFFD94B50), shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: Text(
+                  unreadCount > 99 ? '99+' : '$unreadCount',
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
                 ),
-                title: Row(children: [
-                  Expanded(child: Text((group['name'] ?? 'Discussion').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600))),
-                  if (dateLabel.isNotEmpty) const SizedBox(width: 8),
-                  if (dateLabel.isNotEmpty) Text(dateLabel, style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant)),
-                ]),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      pending ? 'chat_groups_request_pending'.tr : (preview.isEmpty ? (isPrivate ? 'chat_groups_private_label'.tr : 'chat_groups_public_label'.tr) : preview),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.onSurfaceVariant),
-                    ),
-                    if (group['member_count'] != null)
-                      Padding(padding: const EdgeInsets.only(top: 3), child: Text('chat_groups_count'.trParams({'count': '${group['member_count']}'}), style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant))),
-                  ]),
-                ),
+              );
+            } else if (lastMessageFromMe) {
+              statusIndicator = Icon(Icons.done_all_rounded, size: 17,
+                color: allRead ? const Color(0xFF37C98A) : colors.onSurfaceVariant.withOpacity(.55));
+            } else {
+              statusIndicator = const SizedBox(width: 17, height: 17);
+            }
+            return Material(
+              color: colors.surfaceContainerHighest.withOpacity(.42),
+              borderRadius: BorderRadius.circular(22),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
                 onTap: pending ? null : () => _openOrRequest(group),
-                trailing: canManage && isPrivate
-                    ? IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'Gérer les demandes', onPressed: () => _showRequests(group))
-                    : Icon(isMember ? Icons.chevron_right : (pending ? Icons.hourglass_top : Icons.lock_open_outlined)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 27,
+                        backgroundColor: colors.primaryContainer,
+                        backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl == null || avatarUrl.isEmpty
+                            ? Icon(isPrivate ? Icons.lock_outline : Icons.forum_outlined, color: colors.onPrimaryContainer)
+                            : null,
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    (group['name'] ?? 'Discussion').toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                if (dateLabel.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Text(dateLabel, style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(.8))),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              pending ? 'chat_groups_request_pending'.tr : (preview.isEmpty ? (isPrivate ? 'chat_groups_private_label'.tr : 'chat_groups_public_label'.tr) : preview),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant.withOpacity(.85)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      if (canManage && isPrivate && unreadCount == 0 && !lastMessageFromMe)
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.group_add_outlined, size: 19),
+                          tooltip: 'Gérer les demandes',
+                          onPressed: () => _showRequests(group),
+                        )
+                      else
+                        statusIndicator,
+                    ],
+                  ),
+                ),
               ),
             );
           },
