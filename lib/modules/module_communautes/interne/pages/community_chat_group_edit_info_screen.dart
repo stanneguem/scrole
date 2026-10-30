@@ -218,7 +218,7 @@ class _CommunityChatGroupEditInfoScreenState
           TextField(
             controller: _name,
             maxLength: 80,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'community_chat_group_edit_name'.tr,
               border: OutlineInputBorder(),
             ),
@@ -229,7 +229,7 @@ class _CommunityChatGroupEditInfoScreenState
             maxLength: 300,
             minLines: 3,
             maxLines: 5,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'community_chat_group_edit_description'.tr,
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
