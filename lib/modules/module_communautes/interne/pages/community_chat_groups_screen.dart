@@ -965,7 +965,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   }
 
   String _messageReplyLabel(Map<String, dynamic>? message) {
-    if (message == null || message['is_deleted'] == true) return 'chat_groups_reply_deleted'.tr;
+    if (message == null) return 'chat_groups_reply_message'.tr;
+    if (message['is_deleted'] == true) return 'chat_groups_reply_deleted'.tr;
     switch (message['type']?.toString()) {
       case 'image': return 'chat_groups_pick_image'.tr;
       case 'video': return 'chat_groups_pick_video'.tr;
@@ -2180,7 +2181,7 @@ class _SalonQuotedMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final deleted = preview == null || preview?['is_deleted'] == true;
+    final deleted = preview?['is_deleted'] == true;
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
       child: Material(
