@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
+import 'package:scrole/app/service_global/connectivity_service.dart';
 import 'package:scrole/modules/module_communautes/centre/persistence/salon_chat_local_cache.dart';
 import 'package:scrole/modules/module_discussion_direct/centre/services/chat_media_cache.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/pages/chat_media_viewer_screen.dart';
@@ -487,6 +488,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   final AudioRecorder _recorder = AudioRecorder();
   DateTime? _recordingStartedAt;
   RealtimeChannel? _channel;
+  StreamSubscription<bool>? _connectivitySubscription;
 
   @override
   void initState() {
@@ -496,6 +498,13 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     _localCache = SalonChatLocalCache(Get.find<AppDatabase>());
     NotificationService.instance.setActiveSalon(widget.salonId);
     _loadMessagePermissions();
+    if (Get.isRegistered<ConnectivityService>()) {
+      var wasConnected = Get.find<ConnectivityService>().isConnected.value;
+      _connectivitySubscription = Get.find<ConnectivityService>().isConnected.listen((connected) {
+        if (connected && !wasConnected) unawaited(_loadMessages());
+        wasConnected = connected;
+      });
+    }
     unawaited(_loadLocalMessages());
     unawaited(_loadMessages());
     _channel = _client.channel('salon:${widget.salonId}', opts: const RealtimeChannelConfig(private: true))
@@ -1303,6 +1312,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   @override
   void dispose() {
     NotificationService.instance.setActiveSalon(null);
+    _connectivitySubscription?.cancel();
     _input.dispose();
     _scroll.dispose();
     _recorder.dispose();
