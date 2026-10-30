@@ -426,8 +426,6 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       if (file == null) return;
       setState(() => _uploadingMedia = true);
       final isVideo = choice == 'video' || file.mimeType?.startsWith('video/') == true;
-      final ext = file.path.split('.').last.toLowerCase();
-      final safeExt = ext.length <= 5 ? ext : (isVideo ? 'mp4' : 'jpg');
       final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
       await _client.rpc('send_salon_message', params: {
         'p_id': _newUuid(), 'p_salon_id': widget.salonId, 'p_content': key,
