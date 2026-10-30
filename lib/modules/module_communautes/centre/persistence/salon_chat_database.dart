@@ -33,8 +33,8 @@ class SalonChatDatabase {
       join(directory, _databaseName),
       version: _databaseVersion,
       onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON');
-        await db.execute('PRAGMA busy_timeout = 10000');
+        await db.rawQuery('PRAGMA foreign_keys = ON');
+        await db.rawQuery('PRAGMA busy_timeout = 10000');
         await db.rawQuery('PRAGMA journal_mode = WAL');
       },
       onCreate: _createSchema,
