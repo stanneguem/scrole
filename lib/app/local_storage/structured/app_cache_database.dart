@@ -232,28 +232,6 @@ class AppDatabase {
     }
   }
 
-  Future<void> _createSalonChatCacheTables(Database db) async {
-    await db.execute('''CREATE TABLE IF NOT EXISTS community_salon_messages_cache (
-      user_id TEXT NOT NULL,
-      salon_id TEXT NOT NULL,
-      message_id TEXT NOT NULL,
-      sent_at INTEGER NOT NULL,
-      payload TEXT NOT NULL,
-      cached_at INTEGER NOT NULL,
-      PRIMARY KEY(user_id, salon_id, message_id)
-    )''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_salon_messages_cache_order ON community_salon_messages_cache(user_id,salon_id,sent_at,message_id)');
-    await db.execute('''CREATE TABLE IF NOT EXISTS community_salon_sync_cursors (
-      user_id TEXT NOT NULL,
-      salon_id TEXT NOT NULL,
-      last_sent_at INTEGER NOT NULL,
-      last_message_id TEXT NOT NULL,
-      updated_at INTEGER NOT NULL,
-      PRIMARY KEY(user_id,salon_id)
-    )''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_salon_sync_cursor_user ON community_salon_sync_cursors(user_id)');
-  }
-
   Future<void> _createHomeFeedCacheTable(Database db) async {
     await db.execute('''CREATE TABLE IF NOT EXISTS home_feed_cache (
       id TEXT PRIMARY KEY,
