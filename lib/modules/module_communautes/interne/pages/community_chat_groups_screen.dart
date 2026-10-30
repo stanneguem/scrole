@@ -38,16 +38,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
     try {
       final data = await _client.rpc('list_community_chat_groups_with_preview', params: {'p_community_id': widget.communityId});
       final groups = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
-      for (final group in groups) {
-        final path = group['avatar_path']?.toString() ?? '';
-        if (path.isNotEmpty) {
-          try {
-            group['avatar_signed_url'] = await _client.storage
-                .from('community-salon-media')
-                .createSignedUrl(path, 3600);
-          } catch (_) {}
-        }
-      }
+      // Les images de salon sont publiques sur R2 : l'URL est enregistrée en base.
       if (!mounted) return;
       setState(() {
         _groups = groups;
@@ -95,7 +86,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
         await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CommunityChatGroupConversation(
           salonId: group['id'].toString(), name: group['name']?.toString() ?? 'Discussion',
           communityName: widget.communityName,
-          avatarUrl: group['avatar_signed_url']?.toString(),
+          avatarUrl: group['avatar_url']?.toString(),
         )));
         await _load();
       } else {
@@ -172,7 +163,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
             final canManage = group['can_manage'] == true;
             final isMember = status == 'member' || group['created_by'] == _client.auth.currentUser?.id;
             final pending = status == 'pending';
-            final avatarUrl = group['avatar_signed_url']?.toString();
+            final avatarUrl = group['avatar_url']?.toString();
             final messageType = group['last_message_type']?.toString() ?? '';
             final rawPreview = (group['last_message'] ?? '').toString().trim();
             final preview = messageType == 'audio'
