@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'create_community_chat_group_screen.dart';
+import 'community_chat_group_settings_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Discussions textuelles d'une communauté : groupes publics/privés et demandes d'accès.
@@ -294,6 +295,8 @@ class CommunityChatGroupConversation extends StatefulWidget {
 }
 
 class _CommunityChatGroupConversationState extends State<CommunityChatGroupConversation> {
+  late String _conversationName;
+  String? _conversationAvatarUrl;
   final _client = Supabase.instance.client;
   final _input = TextEditingController();
   final _scroll = ScrollController();
@@ -309,12 +312,38 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   @override
   void initState() {
     super.initState();
+    _conversationName = widget.name;
+    _conversationAvatarUrl = widget.avatarUrl;
     _loadMessages();
     _channel = _client.channel('salon:${widget.salonId}', opts: const RealtimeChannelConfig(private: true))
       .onBroadcast(event: 'salon_message_sent', callback: (_) { _loadMessages(); })
       .onBroadcast(event: 'salon_message_edited', callback: (_) { _loadMessages(); })
       .onBroadcast(event: 'salon_message_deleted', callback: (_) { _loadMessages(); })
       .subscribe();
+  }
+
+  Future<void> _openGroupSettings() async {
+    final result = await Navigator.of(context).push<dynamic>(
+      MaterialPageRoute(
+        builder: (_) => CommunityChatGroupSettingsScreen(
+          salonId: widget.salonId,
+          initialName: _conversationName,
+          communityName: widget.communityName,
+          initialAvatarUrl: _conversationAvatarUrl,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result == 'left' || result == 'deleted') {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    if (result is Map) {
+      setState(() {
+        _conversationName = (result['name'] ?? _conversationName).toString();
+        _conversationAvatarUrl = result['avatar_url']?.toString();
+      });
+    }
   }
 
   Future<void> _showMessageActions(Map<String, dynamic> message, bool mine) async {
@@ -711,21 +740,25 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     final uid = _client.auth.currentUser?.id;
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Row(children: [
-        CircleAvatar(
-          radius: 19,
-          backgroundColor: colors.primaryContainer,
-          backgroundImage: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty ? NetworkImage(widget.avatarUrl!) : null,
-          child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
-              ? Icon(Icons.forum_outlined, color: colors.onPrimaryContainer, size: 19)
-              : null,
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
-        ])),
-      ])),
+      appBar: AppBar(title: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openGroupSettings,
+        child: Row(children: [
+          CircleAvatar(
+            radius: 19,
+            backgroundColor: colors.primaryContainer,
+            backgroundImage: _conversationAvatarUrl != null && _conversationAvatarUrl!.isNotEmpty ? NetworkImage(_conversationAvatarUrl!) : null,
+            child: _conversationAvatarUrl == null || _conversationAvatarUrl!.isEmpty
+                ? Icon(Icons.forum_outlined, color: colors.onPrimaryContainer, size: 19)
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_conversationName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(widget.communityName, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+          ])),
+        ]),
+      )),
       body: Column(children: [
         Expanded(child: _loading ? Center(child: CircularProgressIndicator()) : _messages.isEmpty
           ? Center(child: Text('chat_groups_first_message'.tr))
