@@ -722,7 +722,19 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         if (id.isNotEmpty) _knownSalonMessageIds.add(id);
       }
       _initialSalonMessagesLoaded = true;
-      setState(() { _messages = messages; _loading = false; });
+      // A refresh triggered by Realtime must not erase local media previews
+      // while their uploads are still running.
+      final serverMessageIds = messages
+          .map((message) => message['id']?.toString())
+          .whereType<String>()
+          .toSet();
+      final pendingLocalMessages = _messages.where((message) =>
+          message['is_uploading'] == true &&
+          !serverMessageIds.contains(message['id']?.toString())).toList();
+      setState(() {
+        _messages = [...messages, ...pendingLocalMessages];
+        _loading = false;
+      });
       // Mark every incoming message as read as soon as it is loaded in the
       // active conversation. This also handles messages received via realtime.
       try {
