@@ -324,7 +324,7 @@ class _CommunityChatGroupsScreenState extends State<CommunityChatGroupsScreen> {
                         ),
                       ),
                       const SizedBox(width: 9),
-                      if (canManage && isPrivate && unreadCount == 0 && !lastMessageFromMe)
+                      if (!_openingSalonIds.contains(group['id']?.toString()) && canManage && isPrivate && unreadCount == 0 && !lastMessageFromMe)
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           constraints: const BoxConstraints.tightFor(width: 34, height: 34),
