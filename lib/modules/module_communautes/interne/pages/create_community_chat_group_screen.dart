@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +27,7 @@ class _CreateCommunityChatGroupScreenState
   final _descriptionController = TextEditingController();
   String _visibility = 'public';
   bool _saving = false;
+  XFile? _selectedCover;
 
   @override
   void dispose() {
@@ -42,6 +45,16 @@ class _CreateCommunityChatGroupScreenState
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
   }
 
+  Future<void> _pickCover() async {
+    if (_saving) return;
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1200,
+    );
+    if (image != null && mounted) setState(() => _selectedCover = image);
+  }
+
   Future<void> _create() async {
     if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
     if (_client.auth.currentUser == null) {
@@ -53,13 +66,32 @@ class _CreateCommunityChatGroupScreenState
 
     setState(() => _saving = true);
     try {
+      final salonId = _newUuid();
       await _client.rpc('create_community_chat_group', params: {
-        'p_id': _newUuid(),
+        'p_id': salonId,
         'p_community_id': widget.communityId,
         'p_name': _nameController.text.trim(),
         'p_description': _descriptionController.text.trim(),
         'p_visibility': _visibility,
       });
+      if (_selectedCover != null) {
+        final uid = _client.auth.currentUser!.id;
+        final extension = _selectedCover!.path.split('.').last.toLowerCase();
+        final safeExtension = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].contains(extension) ? extension : 'jpg';
+        final objectPath = '$salonId/$uid/cover_${_newUuid()}.$safeExtension';
+        await _client.storage.from('community-salon-media').upload(
+          objectPath,
+          File(_selectedCover!.path),
+          fileOptions: FileOptions(
+            contentType: _selectedCover!.mimeType ?? 'image/jpeg',
+            upsert: false,
+          ),
+        );
+        await _client.rpc('set_community_chat_group_avatar', params: {
+          'p_salon_id': salonId,
+          'p_avatar_path': objectPath,
+        });
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on PostgrestException catch (error) {
       if (!mounted) return;
@@ -93,7 +125,28 @@ class _CreateCommunityChatGroupScreenState
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
             children: [
-              Icon(Icons.forum_rounded, size: 54, color: colors.primary),
+              Center(
+                child: GestureDetector(
+                  onTap: _saving ? null : _pickCover,
+                  child: Stack(alignment: Alignment.bottomRight, children: [
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: colors.primaryContainer,
+                      backgroundImage: _selectedCover == null ? null : FileImage(File(_selectedCover!.path)),
+                      child: _selectedCover == null
+                          ? Icon(Icons.forum_rounded, size: 42, color: colors.onPrimaryContainer)
+                          : null,
+                    ),
+                    CircleAvatar(
+                      radius: 17,
+                      backgroundColor: colors.primary,
+                      child: Icon(Icons.camera_alt_rounded, size: 17, color: colors.onPrimary),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('chat_groups_cover_hint'.tr, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 14),
               Text(
                 'chat_groups_empty_help'.tr,
