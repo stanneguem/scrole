@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
+import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -316,10 +317,12 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       .subscribe();
   }
 
-  void _showMessageActions(Map<String, dynamic> message, bool mine) {
+  Future<void> _showMessageActions(Map<String, dynamic> message, bool mine) async {
+    final messageId = message['id']?.toString();
+    if (messageId == null || messageId.isEmpty) return;
     final content = (message['content'] ?? '').toString();
     final type = (message['type'] ?? 'text').toString();
-    showModalBottomSheet<void>(
+    final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
@@ -329,25 +332,68 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
               ListTile(
                 leading: const Icon(Icons.copy_outlined),
                 title: Text('chats_copy'.tr),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: content));
-                  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('chats_copied'.tr)),
-                    );
-                  }
-                },
+                onTap: () => Navigator.of(sheetContext).pop('copy'),
               ),
             ListTile(
-              leading: const Icon(Icons.close_rounded),
-              title: Text('common_cancel'.tr),
-              onTap: () => Navigator.of(sheetContext).pop(),
+              leading: const Icon(Icons.delete_sweep_outlined),
+              title: const Text('Supprimer le message pour moi'),
+              onTap: () => Navigator.of(sheetContext).pop('delete_me'),
             ),
+            if (mine)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Supprimer le message pour tous',
+                  style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.of(sheetContext).pop('delete_all'),
+              ),
           ],
         ),
       ),
     );
+    if (!mounted || action == null) return;
+    try {
+      if (action == 'copy') {
+        await Clipboard.setData(ClipboardData(text: content));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('chats_copied'.tr)),
+        );
+        return;
+      }
+      final deleteForAll = action == 'delete_all';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(deleteForAll ? 'Supprimer pour tous ?' : 'Supprimer pour moi ?'),
+          content: Text(deleteForAll
+              ? 'Ce message sera supprimé pour tous les membres du salon.'
+              : 'Ce message sera masqué uniquement dans ta conversation.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text('common_cancel'.tr),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text('Supprimer', style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      if (deleteForAll) {
+        await _client.rpc('delete_salon_message', params: {'p_id': messageId});
+      } else {
+        await _client.rpc('hide_salon_message_for_me', params: {'p_id': messageId});
+      }
+      await _loadMessages();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossible de supprimer ce message : $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadMessages() async {
@@ -443,47 +489,38 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _pickMedia() async {
     if (_sending || _uploadingMedia) return;
-    final picker = ImagePicker();
-    final choice = await showModalBottomSheet<String>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: Text('chat_groups_pick_image'.tr),
-            onTap: () => Navigator.pop(ctx, 'image'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.videocam_outlined),
-            title: Text('chat_groups_pick_video'.tr),
-            onTap: () => Navigator.pop(ctx, 'video'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.camera_alt_outlined),
-            title: Text('chat_groups_take_photo'.tr),
-            onTap: () => Navigator.pop(ctx, 'camera'),
-          ),
-        ]),
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (galleryContext) => MediaGallerySheet(
+        allowMixedMedia: true,
+        onSelected: (files) {
+          Navigator.of(galleryContext).pop();
+          _uploadAndSendGalleryFiles(files);
+        },
       ),
     );
-    if (choice == null) return;
+  }
+
+  Future<void> _uploadAndSendGalleryFiles(List<XFile> files) async {
+    if (files.isEmpty || _uploadingMedia) return;
+    setState(() => _uploadingMedia = true);
     try {
-      XFile? file;
-      if (choice == 'image') file = await picker.pickImage(source: ImageSource.gallery);
-      if (choice == 'video') file = await picker.pickVideo(source: ImageSource.gallery);
-      if (choice == 'camera') file = await picker.pickImage(source: ImageSource.camera);
-      if (file == null) return;
-      setState(() => _uploadingMedia = true);
-      final isVideo = choice == 'video' || file.mimeType?.startsWith('video/') == true;
-      final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
-      await _client.rpc('send_salon_message', params: {
-        'p_id': _newUuid(),
-        'p_salon_id': widget.salonId,
-        'p_content': key,
-        'p_type': isVideo ? 'video' : 'image',
-        'p_audio_url': null,
-        'p_replied_to_id': null,
-      });
+      for (final file in files) {
+        final extension = file.path.split('.').last.toLowerCase();
+        final isVideo = const {'mp4', 'mov', 'm4v', 'webm'}.contains(extension);
+        final key = await _uploadFile(file.path, mediaType: isVideo ? 'video' : 'image');
+        await _client.rpc('send_salon_message', params: {
+          'p_id': _newUuid(),
+          'p_salon_id': widget.salonId,
+          'p_content': key,
+          'p_type': isVideo ? 'video' : 'image',
+          'p_audio_url': null,
+          'p_replied_to_id': null,
+        });
+      }
       await _loadMessages();
     } catch (e) {
       if (mounted) {
@@ -706,7 +743,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
             final isMedia = (type == 'image' || type == 'video') && mediaUrl.isNotEmpty;
             final timeColor = colors.onSurfaceVariant.withOpacity(.52);
             return GestureDetector(
-              onLongPress: () => _showMessageActions(message, mine),
+              onDoubleTap: () => _showMessageActions(message, mine),
               child: Padding(
                 padding: const EdgeInsets.only(top: 9, bottom: 4),
                 child: Row(
