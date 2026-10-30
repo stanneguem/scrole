@@ -4,6 +4,7 @@ import 'package:scrole/modules/module_communautes/centre/services/community_serv
 import 'package:scrole/shared/controllers/search_controller.dart';
 import 'community_members_screen.dart';
 import 'excluded_members_screen.dart';
+import 'community_admin_chat_groups_screen.dart';
 import 'community_settings_main_screen.dart';
 
 class CommunitySettingsScreen extends StatefulWidget {
@@ -432,10 +433,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               children: [
                 // --- En-tête visuel de la communauté ---
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _communityHero(colorScheme),
-                ),
+                _communityHero(colorScheme),
                 const SizedBox(height: 20),
 
                 // --- Section A : GESTION (Admins / Modérateurs) ---
@@ -457,6 +455,19 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                         },
                       ),
                       if (_isAdmin) ...[
+                        const Divider(height: 1, indent: 68, endIndent: 16),
+                        _SettingsMenuTile(
+                          icon: Icons.forum_outlined,
+                          iconColor: colorScheme.primary,
+                          title: 'community_admin_salons_title'.tr,
+                          subtitle: 'community_admin_salons_subtitle'.tr,
+                          onTap: () {
+                            Get.to(() => CommunityAdminChatGroupsScreen(
+                              communityId: widget.communityId,
+                              communityName: widget.communityName,
+                            ));
+                          },
+                        ),
                         const Divider(height: 1, indent: 68, endIndent: 16),
                         _SettingsMenuTile(
                           icon: Icons.block_outlined,
