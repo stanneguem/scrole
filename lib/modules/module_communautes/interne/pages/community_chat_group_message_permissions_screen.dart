@@ -19,6 +19,8 @@ class _CommunityChatGroupMessagePermissionsScreenState
   bool _isAdmin = false;
   bool _textAllowed = true;
   bool _audioAllowed = false;
+  bool _imageAllowed = true;
+  bool _videoAllowed = true;
 
   @override
   void initState() {
@@ -38,6 +40,8 @@ class _CommunityChatGroupMessagePermissionsScreenState
         _isAdmin = data['is_salon_admin'] == true || data['my_role'] == 'owner';
         _textAllowed = data['text_messages_allowed'] != false;
         _audioAllowed = data['audio_messages_allowed'] == true;
+        _imageAllowed = data['image_messages_allowed'] != false;
+        _videoAllowed = data['video_messages_allowed'] != false;
         _loading = false;
       });
     } catch (e) {
@@ -47,20 +51,26 @@ class _CommunityChatGroupMessagePermissionsScreenState
     }
   }
 
-  Future<void> _update({bool? text, bool? audio}) async {
+  Future<void> _update({bool? text, bool? audio, bool? image, bool? video}) async {
     if (_saving || !_isAdmin) return;
     final oldText = _textAllowed;
     final oldAudio = _audioAllowed;
+    final oldImage = _imageAllowed;
+    final oldVideo = _videoAllowed;
     setState(() {
       _saving = true;
       if (text != null) _textAllowed = text;
       if (audio != null) _audioAllowed = audio;
+      if (image != null) _imageAllowed = image;
+      if (video != null) _videoAllowed = video;
     });
     try {
       await _db.rpc('update_salon_message_permissions', params: {
         'p_salon_id': widget.salonId,
         'p_text_messages_allowed': _textAllowed,
         'p_audio_messages_allowed': _audioAllowed,
+        'p_image_messages_allowed': _imageAllowed,
+        'p_video_messages_allowed': _videoAllowed,
       });
       if (!mounted) return;
       _toast('community_message_permissions_saved'.tr);
@@ -70,6 +80,8 @@ class _CommunityChatGroupMessagePermissionsScreenState
       setState(() {
         _textAllowed = oldText;
         _audioAllowed = oldAudio;
+        _imageAllowed = oldImage;
+        _videoAllowed = oldVideo;
       });
       _toast('community_message_permissions_save_error'.trParams({'error': e.toString()}));
     } finally {
@@ -156,6 +168,22 @@ class _CommunityChatGroupMessagePermissionsScreenState
                   description: 'community_message_permissions_audio_description'.tr,
                   value: _audioAllowed,
                   onChanged: (value) => _update(audio: value),
+                ),
+                _permissionCard(
+                  colors: colors,
+                  icon: Icons.photo_outlined,
+                  title: 'community_message_permissions_image_title'.tr,
+                  description: 'community_message_permissions_image_description'.tr,
+                  value: _imageAllowed,
+                  onChanged: (value) => _update(image: value),
+                ),
+                _permissionCard(
+                  colors: colors,
+                  icon: Icons.videocam_outlined,
+                  title: 'community_message_permissions_video_title'.tr,
+                  description: 'community_message_permissions_video_description'.tr,
+                  value: _videoAllowed,
+                  onChanged: (value) => _update(video: value),
                 ),
                 if (!_isAdmin)
                   Padding(
