@@ -3,6 +3,7 @@ import 'package:scrole/modules/module_communautes/interne/pages/community_chat_g
 import 'package:scrole/modules/module_communautes/interne/pages/community_chat_group_members_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'community_chat_group_access_rules_screen.dart';
+import 'community_chat_group_join_requests_screen.dart';
 
 class CommunityChatGroupManagementScreen extends StatefulWidget {
   const CommunityChatGroupManagementScreen({super.key, required this.salonId, required this.groupName});
@@ -73,43 +74,15 @@ class _CommunityChatGroupManagementScreenState extends State<CommunityChatGroupM
   }
 
   Future<void> _requests() async {
-    try {
-      final raw=await _db.rpc('get_community_chat_group_requests',params:{'p_salon_id':widget.salonId});
-      final requests=(raw as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
-      if(!mounted)return;
-      await showModalBottomSheet<void>(context:context,isScrollControlled:true,builder:(ctx)=>SafeArea(
-        child:SizedBox(height:MediaQuery.of(ctx).size.height*.72,child:Column(children:[
-          Padding(padding:const EdgeInsets.all(18),child:Text('Demandes d’adhésion (${requests.length})',style:Theme.of(ctx).textTheme.titleLarge)),
-          Expanded(child:requests.isEmpty?const Center(child:Text('Aucune demande en attente.')):ListView.separated(
-            itemCount:requests.length,separatorBuilder:(_,__)=>const Divider(height:1),
-            itemBuilder:(ctx,i){
-              final item=requests[i];
-              final username=(item['username']??'Utilisateur').toString();
-              final photo=item['photo_url']?.toString();
-              return ListTile(
-                leading:CircleAvatar(backgroundImage:photo==null||photo.isEmpty?null:NetworkImage(photo),child:photo==null||photo.isEmpty?const Icon(Icons.person_outline):null),
-                title:Text(username),subtitle:Text('Demande du ${item['requested_at']??''}'),
-                trailing:Wrap(spacing:0,children:[
-                  IconButton(tooltip:'Refuser',icon:const Icon(Icons.close,color:Colors.red),onPressed:()=>_review(item['request_id'].toString(),'rejected',ctx)),
-                  IconButton(tooltip:'Accepter',icon:const Icon(Icons.check,color:Colors.green),onPressed:()=>_review(item['request_id'].toString(),'accepted',ctx)),
-                ]),
-              );
-            },
-          )),
-        ])),
-      ));
-      await _load();
-    }catch(e){_toast('Impossible de charger les demandes : $e');}
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CommunityChatGroupJoinRequestsScreen(
+        salonId: widget.salonId,
+        groupName: widget.groupName,
+      ),
+    ));
+    if (mounted) await _load();
   }
 
-  Future<void> _review(String id,String decision,BuildContext sheet) async {
-    try {
-      await _db.rpc('review_community_chat_group_request',params:{'p_request_id':id,'p_decision':decision});
-      if(sheet.mounted)Navigator.pop(sheet);
-      _toast(decision=='accepted'?'Demande acceptée.':'Demande refusée.');
-      await _load();
-    }catch(e){_toast('Action impossible : $e');}
-  }
 
   Future<void> _delete() async {
     final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
