@@ -110,6 +110,7 @@ class NotificationService {
   bool _initialized = false;
   Worker? _authWorker;
   String? _activeConversationId;
+  String? _activeSalonId;
   RealtimeChannel? _notificationChannel;
   bool _subscribedOnce = false;
   bool _isProcessingOutbox = false;
@@ -127,6 +128,8 @@ class NotificationService {
 
   void setActiveConversation(String? conversationId) =>
       _activeConversationId = conversationId;
+
+  void setActiveSalon(String? salonId) => _activeSalonId = salonId;
 
   /// Langue à envoyer au serveur (fr, en, es, de ; repli sur fr).
   String _currentLanguageCode() {
@@ -576,7 +579,12 @@ class NotificationService {
     );
 
     // 2. Affichage local si la notification est nouvelle et le corps non vide
-    if (saved && body.isNotEmpty) {
+    final notificationData = rawPayloadData is Map
+        ? Map<String, dynamic>.from(rawPayloadData)
+        : <String, dynamic>{};
+    final isCurrentSalon = type == 'community_salon_message' &&
+        notificationData['salon_id']?.toString() == _activeSalonId;
+    if (saved && body.isNotEmpty && !isCurrentSalon) {
       debugPrint('[FCM] Showing local notification: $title - $body');
       await showNotification(
         id: id.hashCode.abs(),
@@ -665,7 +673,9 @@ class NotificationService {
 
       // Si la notification a déjà été sauvegardée (et donc affichée) par le
       // chemin Realtime, on ne l'affiche pas une deuxième fois.
-      if (saved && body.isNotEmpty) {
+      final isCurrentSalon = type == 'community_salon_message' &&
+          data['salon_id']?.toString() == _activeSalonId;
+      if (saved && body.isNotEmpty && !isCurrentSalon) {
         debugPrint('[FCM] Showing local notification: $title - $body');
         await showNotification(
           id: notifId.hashCode.abs(),
