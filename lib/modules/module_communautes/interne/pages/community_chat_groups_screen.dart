@@ -9,8 +9,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
 import 'package:scrole/app/repository_global/r2_media_repository.dart';
+import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
+import 'package:scrole/modules/module_communautes/centre/persistence/salon_chat_local_cache.dart';
 import 'package:scrole/modules/module_discussion_direct/centre/services/chat_media_cache.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/pages/chat_media_viewer_screen.dart';
+import 'package:scrole/modules/module_discussion_direct/interne/widgets/chat_cached_media.dart';
 import 'package:scrole/app/service_global/notification_service.dart';
 import 'package:scrole/modules/module_discussion_direct/interne/widgets/direct_voice_message_player.dart';
 import 'package:scrole/shared/models/chat_message.dart' as legacy;
@@ -464,6 +467,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   late String _conversationName;
   String? _conversationAvatarUrl;
   final _client = Supabase.instance.client;
+  late final SalonChatLocalCache _localCache;
   final _input = TextEditingController();
   final _scroll = ScrollController();
   List<Map<String, dynamic>> _messages = [];
@@ -489,13 +493,28 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     super.initState();
     _conversationName = widget.name;
     _conversationAvatarUrl = widget.avatarUrl;
+    _localCache = SalonChatLocalCache(Get.find<AppDatabase>());
     NotificationService.instance.setActiveSalon(widget.salonId);
     _loadMessagePermissions();
-    _loadMessages();
+    unawaited(_loadLocalMessages());
+    unawaited(_loadMessages());
     _channel = _client.channel('salon:${widget.salonId}', opts: const RealtimeChannelConfig(private: true))
-      .onBroadcast(event: 'salon_message_sent', callback: (_) { _loadMessages(); })
-      .onBroadcast(event: 'salon_message_edited', callback: (_) { _loadMessages(); })
-      .onBroadcast(event: 'salon_message_deleted', callback: (_) { _loadMessages(); })
+      .onBroadcast(event: 'salon_message_sent', callback: (payload) {
+        final id = payload['message_id']?.toString();
+        if (id != null && id.isNotEmpty) {
+          unawaited(_syncMessageDelta(id));
+        } else {
+          unawaited(_loadMessages());
+        }
+      })
+      .onBroadcast(event: 'salon_message_edited', callback: (payload) {
+        final id = payload['message_id']?.toString();
+        if (id != null && id.isNotEmpty) unawaited(_syncMessageDelta(id));
+      })
+      .onBroadcast(event: 'salon_message_deleted', callback: (payload) {
+        final id = payload['message_id']?.toString();
+        if (id != null && id.isNotEmpty) unawaited(_syncMessageDelta(id));
+      })
       .subscribe();
   }
 
@@ -642,128 +661,219 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     ));
   }
 
-  Future<void> _loadMessages() async {
+  Future<void> _loadLocalMessages() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || !mounted) return;
     try {
-      final data = await _client.rpc('get_salon_messages', params: {'p_salon_id': widget.salonId, 'p_limit': 100});
-      if (!mounted) return;
-      final messages = (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList().reversed.toList();
-      for (final message in messages) {
-        final type = message['type']?.toString();
-        final field = type == 'audio' ? 'audio_url' : 'content';
-        if (type == 'audio' || type == 'image' || type == 'video' || type == 'file') {
-          final rawKeys = message['media_object_keys'];
-          final storedKeys = rawKeys is List
-              ? rawKeys.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
-              : <String>[];
-          final fallbackKey = message[field]?.toString() ?? '';
-          final keys = type == 'image' && storedKeys.isNotEmpty
-              ? storedKeys
-              : (fallbackKey.isNotEmpty ? <String>[fallbackKey] : <String>[]);
-          final signedUrls = <String>[];
-          for (final key in keys) {
-            try {
-              final response = await _client.functions.invoke('r2-media-upload', body: {
-                'action': 'create-download-url',
-                'object_key': key,
-              });
-              if (response.status >= 200 && response.status < 300 && response.data is Map) {
-                final url = (response.data as Map)['url']?.toString();
-                if (url != null && url.isNotEmpty) signedUrls.add(url);
-              }
-            } catch (error) {
-              debugPrint('[SALON_MEDIA] URL resolution failed: $error');
-            }
-          }
-          if (type == 'audio') {
-            if (signedUrls.isNotEmpty) message['audio_signed_url'] = signedUrls.first;
-          } else if (type == 'image') {
-            message['media_signed_urls'] = signedUrls;
-            if (signedUrls.isNotEmpty) message['media_signed_url'] = signedUrls.first;
-          } else if (signedUrls.isNotEmpty) {
-            message['media_signed_url'] = signedUrls.first;
-          }
-        }
-      }
-      final senderIds = messages
-          .map((message) => message['sender_id']?.toString())
-          .whereType<String>()
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList();
-      if (senderIds.isNotEmpty) {
-        try {
-          final profiles = await _client
-              .from('user_profiles')
-              .select('user_id, username, first_name, last_name')
-              .inFilter('user_id', senderIds);
-          final namesById = <String, String>{};
-          for (final rawProfile in profiles) {
-            final profile = Map<String, dynamic>.from(rawProfile as Map);
-            final fullName = [profile['first_name'], profile['last_name']]
-                .where((part) => part != null && part.toString().trim().isNotEmpty)
-                .map((part) => part.toString().trim())
-                .join(' ');
-            final displayName = fullName.isNotEmpty
-                ? fullName
-                : (profile['username'] ?? 'Membre').toString();
-            namesById[profile['user_id'].toString()] = displayName;
-          }
-          for (final message in messages) {
-            final senderId = message['sender_id']?.toString();
-            if (senderId != null) {
-              message['sender_name'] = namesById[senderId] ??
-                  (senderId.length > 8 ? senderId.substring(0, 8) : senderId);
-            }
-          }
-        } catch (_) {
-          for (final message in messages) {
-            final senderId = message['sender_id']?.toString();
-            if (senderId != null) {
-              message['sender_name'] =
-                  senderId.length > 8 ? senderId.substring(0, 8) : senderId;
-            }
-          }
-        }
-      }
-      final newlyReceived = _initialSalonMessagesLoaded
-          ? messages.where((message) {
-              final id = message['id']?.toString() ?? '';
-              return id.isNotEmpty && !_knownSalonMessageIds.contains(id);
-            }).toList()
-          : <Map<String, dynamic>>[];
-      for (final message in messages) {
-        final id = message['id']?.toString() ?? '';
-        if (id.isNotEmpty) _knownSalonMessageIds.add(id);
-      }
-      _initialSalonMessagesLoaded = true;
-      // A refresh triggered by Realtime must not erase local media previews
-      // while their uploads are still running.
-      final serverMessageIds = messages
-          .map((message) => message['id']?.toString())
-          .whereType<String>()
-          .toSet();
-      final pendingLocalMessages = _messages.where((message) =>
-          message['is_uploading'] == true &&
-          !serverMessageIds.contains(message['id']?.toString())).toList();
+      final cached = await _localCache.readMessages(
+        userId: userId,
+        salonId: widget.salonId,
+        limit: 300,
+      );
+      if (!mounted || cached.isEmpty) return;
+      final knownIds = cached.map((message) => message['id']?.toString() ?? '').toSet();
+      final pending = _messages.where((message) => message['is_uploading'] == true).toList();
       setState(() {
-        _messages = [...messages, ...pendingLocalMessages];
+        _messages = [...cached, ...pending]
+          ..sort((a, b) => (DateTime.tryParse((a['sent_at'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(DateTime.tryParse((b['sent_at'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)));
+        _knownSalonMessageIds.addAll(knownIds);
         _loading = false;
       });
-      // Mark every incoming message as read as soon as it is loaded in the
-      // active conversation. This also handles messages received via realtime.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      });
+    } catch (error) {
+      debugPrint('[SALON_CACHE] Local snapshot read failed: $error');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _hydrateSalonMessages(List<dynamic> rawMessages) async {
+    final messages = rawMessages
+        .whereType<Map>()
+        .map((value) => Map<String, dynamic>.from(value))
+        .toList();
+    for (final message in messages) {
+      final type = message['type']?.toString();
+      final rawKeys = message['media_object_keys'];
+      final keys = rawKeys is List
+          ? rawKeys.map((value) => value.toString()).where((value) => value.isNotEmpty).toList()
+          : <String>[];
+      final fallbackKey = (type == 'audio'
+              ? message['audio_url']
+              : message['media_object_key'] ?? message['content'])
+          ?.toString() ?? '';
+      final mediaKeys = keys.isNotEmpty
+          ? keys
+          : (fallbackKey.isNotEmpty ? <String>[fallbackKey] : <String>[]);
+      if (type == 'audio' || type == 'image' || type == 'video' || type == 'file') {
+        final signedUrls = <String>[];
+        for (final key in mediaKeys) {
+          try {
+            final response = await _client.functions.invoke('r2-media-upload', body: {
+              'action': 'create-download-url',
+              'object_key': key,
+            });
+            if (response.status >= 200 && response.status < 300 && response.data is Map) {
+              final url = (response.data as Map)['url']?.toString();
+              if (url != null && url.isNotEmpty) signedUrls.add(url);
+            }
+          } catch (error) {
+            debugPrint('[SALON_MEDIA] URL resolution failed: $error');
+          }
+        }
+        if (type == 'audio') {
+          if (signedUrls.isNotEmpty) message['audio_signed_url'] = signedUrls.first;
+        } else if (type == 'image') {
+          message['media_signed_urls'] = signedUrls;
+          if (signedUrls.isNotEmpty) message['media_signed_url'] = signedUrls.first;
+        } else if (signedUrls.isNotEmpty) {
+          message['media_signed_url'] = signedUrls.first;
+        }
+      }
+    }
+
+    final senderIds = messages.map((message) => message['sender_id']?.toString())
+        .whereType<String>().where((id) => id.isNotEmpty).toSet().toList();
+    if (senderIds.isNotEmpty) {
       try {
-        await _client.rpc('mark_salon_messages_read', params: {'p_salon_id': widget.salonId});
+        final profiles = await _client.from('user_profiles')
+            .select('user_id, username, first_name, last_name')
+            .inFilter('user_id', senderIds);
+        final namesById = <String, String>{};
+        for (final rawProfile in profiles) {
+          final profile = Map<String, dynamic>.from(rawProfile as Map);
+          final fullName = [profile['first_name'], profile['last_name']]
+              .where((part) => part != null && part.toString().trim().isNotEmpty)
+              .map((part) => part.toString().trim()).join(' ');
+          namesById[profile['user_id'].toString()] = fullName.isNotEmpty
+              ? fullName
+              : (profile['username'] ?? 'Membre').toString();
+        }
+        for (final message in messages) {
+          final senderId = message['sender_id']?.toString();
+          if (senderId != null) {
+            message['sender_name'] = namesById[senderId] ??
+                (senderId.length > 8 ? senderId.substring(0, 8) : senderId);
+          }
+        }
       } catch (error) {
-        debugPrint('[SALON_READ] Could not mark salon messages as read: $error');
+        debugPrint('[SALON_CACHE] Sender names refresh failed: $error');
       }
-      if (newlyReceived.isNotEmpty) {
-        unawaited(_autoSaveIncomingMedia(newlyReceived));
+    }
+    return messages;
+  }
+
+  Future<void> _applyRemoteSalonMessages(List<dynamic> rawMessages) async {
+    if (!mounted) return;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    final hydrated = await _hydrateSalonMessages(rawMessages);
+    if (!mounted) return;
+    final newlyReceived = <Map<String, dynamic>>[];
+    final byId = <String, Map<String, dynamic>>{
+      for (final message in _messages)
+        if (message['id'] != null) message['id'].toString(): message,
+    };
+    for (final message in hydrated) {
+      final id = message['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      if (message['is_deleted'] == true) {
+        byId.remove(id);
+        await _localCache.deleteMessage(userId: userId, salonId: widget.salonId, messageId: id);
+        continue;
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) { if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent); });
-    } catch (e) {
+      if (_initialSalonMessagesLoaded && !_knownSalonMessageIds.contains(id)) {
+        newlyReceived.add(message);
+      }
+      _knownSalonMessageIds.add(id);
+      byId[id] = message;
+      final syncAt = DateTime.tryParse(
+        (message['sync_updated_at'] ?? message['sent_at'] ?? message['created_at'] ?? '').toString(),
+      );
+      if (syncAt != null) {
+        await _localCache.advanceCursor(
+          userId: userId,
+          salonId: widget.salonId,
+          sentAt: syncAt,
+          messageId: id,
+        );
+      }
+    }
+    final pending = _messages.where((message) => message['is_uploading'] == true).toList();
+    final merged = byId.values.toList()
+      ..sort((a, b) => (DateTime.tryParse((a['sent_at'] ?? a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(DateTime.tryParse((b['sent_at'] ?? b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)));
+    await _localCache.upsertMessages(userId: userId, salonId: widget.salonId, messages: hydrated);
+    if (!mounted) return;
+    setState(() {
+      _messages = [...merged, ...pending];
+      _loading = false;
+    });
+    _initialSalonMessagesLoaded = true;
+    if (newlyReceived.isNotEmpty) unawaited(_autoSaveIncomingMedia(newlyReceived));
+    try {
+      await _client.rpc('mark_salon_messages_read', params: {'p_salon_id': widget.salonId});
+    } catch (error) {
+      debugPrint('[SALON_READ] Could not mark salon messages as read: $error');
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
+
+  Future<void> _loadMessages() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      final cursor = await _localCache.readCursor(userId: userId, salonId: widget.salonId);
+      dynamic data;
+      if (cursor == null) {
+        // First visit or cache upgrade: seed a bounded recent snapshot.
+        data = await _client.rpc('get_salon_messages', params: {
+          'p_salon_id': widget.salonId,
+          'p_limit': 100,
+        });
+        final ordered = (data as List).reversed.toList();
+        await _applyRemoteSalonMessages(ordered);
+      } else {
+        data = await _client.rpc('get_salon_messages_since', params: {
+          'p_salon_id': widget.salonId,
+          'p_after_sent_at': cursor['sent_at'],
+          'p_after_id': cursor['id'],
+          'p_limit': 300,
+        });
+        await _applyRemoteSalonMessages(data as List);
+      }
+    } catch (error) {
+      debugPrint('[SALON_SYNC] Incremental sync failed: $error');
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${'chat_groups_messages_error'.tr} : $e')));
+      if (_messages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${'chat_groups_messages_error'.tr} : $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _syncMessageDelta(String messageId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || messageId.isEmpty) return;
+    try {
+      final rows = await _client.rpc('get_salon_message_delta', params: {
+        'p_message_id': messageId,
+      }) as List;
+      if (rows.isEmpty) {
+        await _localCache.deleteMessage(userId: userId, salonId: widget.salonId, messageId: messageId);
+        if (!mounted) return;
+        setState(() => _messages.removeWhere((message) => message['id']?.toString() == messageId));
+        return;
+      }
+      await _applyRemoteSalonMessages(rows);
+    } catch (error) {
+      debugPrint('[SALON_SYNC] Realtime delta failed for $messageId: $error');
+      // A missed broadcast is recovered by the next cursor-based sync.
     }
   }
 
