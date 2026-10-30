@@ -45,7 +45,7 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      _toast('Impossible de charger les paramètres : $e');
+      _toast('community_chat_settings_load_error'.trParams({'error': e.toString()}));
     }
   }
 
@@ -78,7 +78,7 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
     } catch (e) {
       if (mounted) {
         setState(() { _notifications = oldN; _media = oldM; });
-        _toast('Impossible d’enregistrer cette préférence : $e');
+        _toast('community_chat_settings_save_error'.trParams({'error': e.toString()}));
       }
     } finally { if (mounted) setState(() => _saving = false); }
   }
@@ -99,26 +99,33 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
 
   Future<void> _leave() async {
     final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Quitter la discussion ?'),
-      content: const Text('Tu ne recevras plus les nouveaux messages de ce groupe. Tu pourras le rejoindre à nouveau si ses règles le permettent.'),
+      title: const Text('community_chat_settings_leave_title'.tr),
+      content: const Text('community_chat_settings_leave_body'.tr),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr)),
         FilledButton(style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-          onPressed: () => Navigator.pop(ctx, true), child: const Text('Quitter')),
+          onPressed: () => Navigator.pop(ctx, true), child: Text('community_chat_settings_leave_confirm'.tr)),
       ],
     ));
     if (yes != true) return;
     try {
       await _client.rpc('leave_community_chat_group', params: {'p_salon_id': widget.salonId});
       if (mounted) Navigator.of(context).pop('left');
-    } catch (e) { _toast('Impossible de quitter cette discussion : $e'); }
+    } catch (e) { _toast('community_chat_settings_leave_error'.trParams({'error': e.toString()})); }
   }
 
   Widget _section(ColorScheme c, List<Widget> children) => Container(
     margin: const EdgeInsets.symmetric(horizontal: 16),
-    decoration: BoxDecoration(color: c.surfaceContainerHighest.withOpacity(.28),
-      borderRadius: BorderRadius.circular(18), border: Border.all(color: c.outline.withOpacity(.08))),
-    clipBehavior: Clip.antiAlias, child: Column(children: children));
+    child: Material(
+      color: c.surfaceContainerHighest.withOpacity(.28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: c.outline.withOpacity(.08)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: children),
+    ),
+  );
 
   Widget _action(ColorScheme c, IconData icon, String title, VoidCallback tap, {String? subtitle, bool danger = false}) =>
     Material(color: Colors.transparent, child: ListTile(
@@ -146,18 +153,25 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
         const SizedBox(height: 12),
         _identity(c),
         const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Text(
+            'community_chat_settings_personal_note'.tr,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: c.onSurfaceVariant),
+          ),
+        ),
         _section(c, [
-          _switch(c, Icons.notifications_none_rounded, 'Notifications',
-            'Recevoir les notifications de cette discussion', _notifications,
+          _switch(c, Icons.notifications_none_rounded, 'community_chat_settings_notifications'.tr,
+            'community_chat_settings_notifications_desc'.tr, _notifications,
             (v) => _preference(notifications: v)),
-          _switch(c, Icons.photo_library_outlined, 'Visibilité des médias',
-            'Afficher les médias de cette discussion dans la galerie', _media,
+          _switch(c, Icons.photo_library_outlined, 'community_chat_settings_media'.tr,
+            'community_chat_settings_media_desc'.tr, _media,
             (v) => _preference(media: v)),
         ]),
         const SizedBox(height: 16),
         if (_isAdmin) ...[
-          _section(c, [_action(c, Icons.settings_outlined, 'Gestion de la discussion',
-            _management, subtitle: 'Informations, membres et paramètres du groupe')]),
+          _section(c, [_action(c, Icons.settings_outlined, 'community_chat_settings_management'.tr,
+            _management, subtitle: 'community_chat_settings_management_desc'.tr)]),
           const SizedBox(height: 16),
         ],
         _section(c, [_action(c, Icons.logout_rounded, 'Quitter la discussion', _leave, danger: true)]),
@@ -205,7 +219,7 @@ class _CommunityChatGroupSettingsScreenState extends State<CommunityChatGroupSet
               if (hasMore)
                 GestureDetector(onTap: () => setState(() => _expanded = !_expanded),
                   child: Padding(padding: const EdgeInsets.only(top: 3),
-                    child: Text(_expanded ? 'Voir moins' : 'Voir plus',
+                    child: Text(_expanded ? 'community_chat_settings_see_less'.tr : 'community_chat_settings_see_more'.tr,
                       style: TextStyle(color: c.primary, fontWeight: FontWeight.w600)))),
             ]);
           }),
