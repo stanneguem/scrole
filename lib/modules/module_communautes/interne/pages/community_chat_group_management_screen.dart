@@ -199,29 +199,29 @@ class _CommunityChatGroupManagementScreenState
     return Material(
       color: Colors.transparent,
       child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 17,
-        vertical: 7,
-      ),
-      leading: Icon(icon, color: color ?? colors.onSurfaceVariant),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: color,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 17,
+          vertical: 7,
         ),
-      ),
-      subtitle: Text(subtitle),
-      trailing: trailing == null
-          ? Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant)
-          : Text(
-              trailing,
-              style: TextStyle(
-                color: colors.primary,
-                fontWeight: FontWeight.w600,
+        leading: Icon(icon, color: color ?? colors.onSurfaceVariant),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+        subtitle: Text(subtitle),
+        trailing: trailing == null
+            ? Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant)
+            : Text(
+                trailing,
+                style: TextStyle(
+                  color: colors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-      onTap: _saving || _deleting ? null : onTap,
+        onTap: _saving || _deleting ? null : onTap,
       ),
     );
   }
