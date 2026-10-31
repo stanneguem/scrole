@@ -268,7 +268,11 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
 
               // --- Barre inférieure (Compteur à gauche, Statistiques & Interactions à droite) ---
               Positioned(
-                bottom: MediaQuery.of(context).padding.bottom + 64,
+                // Images have no playback timeline, so place their statistics
+                // in the bottom slot. Videos keep the statistics above the
+                // timeline, which occupies that bottom slot.
+                bottom: MediaQuery.of(context).padding.bottom +
+                    ((_items.isNotEmpty && _items[_currentPage].isVideo) ? 64 : 10),
                 left: 16,
                 right: 16,
                 child: IgnorePointer(

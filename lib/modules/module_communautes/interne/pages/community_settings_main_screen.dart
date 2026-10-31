@@ -78,42 +78,121 @@ class _CommunityImageEditCard extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onChange;
 
-  const _CommunityImageEditCard({required this.title, required this.imageUrl, required this.isProfile, required this.isLoading, required this.onChange});
+  const _CommunityImageEditCard({
+    required this.title,
+    required this.imageUrl,
+    required this.isProfile,
+    required this.isLoading,
+    required this.onChange,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.35)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.onSurface)),
-        const SizedBox(height: 12),
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+    if (isProfile) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 92,
+              height: 92,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.primary.withValues(alpha: 0.35), width: 1.5),
+              ),
+              child: ClipOval(
+                child: hasImage
+                    ? Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(colors))
+                    : _placeholder(colors),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.onSurface)),
+                  const SizedBox(height: 5),
+                  Text('community_settings_profile_photo'.tr, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : onChange,
+                    icon: const Icon(Icons.photo_camera_back_outlined, size: 17),
+                    label: Text('community_settings_change_photo'.tr),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.onSurface)),
+        const SizedBox(height: 10),
         ClipRRect(
-          borderRadius: BorderRadius.circular(isProfile ? 100 : 14),
-          child: SizedBox(
-            width: isProfile ? 112 : double.infinity,
-            height: isProfile ? 112 : 150,
-            child: hasImage
-                ? Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(colors))
-                : _placeholder(colors),
+          borderRadius: BorderRadius.circular(24),
+          child: AspectRatio(
+            aspectRatio: 1.9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (hasImage)
+                  Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder(colors))
+                else
+                  _placeholder(colors),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black.withValues(alpha: 0.02), Colors.black.withValues(alpha: 0.62)],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hasImage ? 'community_settings_cover_photo'.tr : 'community_banner_label'.tr,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: isLoading ? null : onChange,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black87,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 17),
+                        label: Text('community_settings_change_photo'.tr),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!hasImage)
+                  Center(child: Icon(Icons.add_photo_alternate_outlined, size: 42, color: colors.onSurfaceVariant)),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.tonalIcon(
-            onPressed: isLoading ? null : onChange,
-            icon: const Icon(Icons.photo_library_outlined, size: 18),
-            label: Text('community_settings_change_photo'.tr),
-          ),
-        ),
-      ]),
+      ],
     );
   }
 
@@ -247,68 +326,28 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
         title: Text('community_management_title'.tr),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          // La gestion de la certification appartient exclusivement au propriétaire.
-          // Les outils de modération restent réservés aux administrateurs/modérateurs.
-          if (_isAdmin || _role == 'moderator' || _isCommunityOwner)
-            _buildTile(
-              icon: Icons.admin_panel_settings_outlined,
-              iconColor: Colors.indigo,
-              title: 'community_mgmt_mod'.tr,
-              subtitle: 'community_mgmt_mod_sub'.tr,
-              badgeCount: ((_modCounts['reports'] as num?)?.toInt() ?? (_modCounts['pending_reports'] as num?)?.toInt() ?? 0) +
-                  ((_modCounts['pending_posts'] as num?)?.toInt() ?? 0) +
-                  ((_modCounts['join_requests'] as num?)?.toInt() ?? (_modCounts['pending_join_requests'] as num?)?.toInt() ?? 0) +
-                  ((_modCounts['spam'] as num?)?.toInt() ?? 0),
-              onTap: () => Get.to(() => CommunityModerationCenterScreen(communityId: widget.communityId, communityName: _communityName ?? widget.communityName, communityAvatar: _avatarUrl)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _communityName ?? widget.communityName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: colorScheme.onSurface),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'community_management_title'.tr,
+                  style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                ),
+              ],
             ),
-          if (_isCommunityOwner) ...[
-            _buildTile(
-              icon: Icons.verified_rounded,
-              iconColor: _communityCertified ? Colors.green : Colors.deepPurple,
-              title: 'Certifier la communauté',
-              subtitle: _communityCertified
-                  ? 'Certification active'
-                  : 'Utiliser un droit inclus dans votre abonnement',
-              onTap: () async {
-                await Get.to(() => EntityCertificationManagementScreen(
-                  entityType: 'community',
-                  entityId: widget.communityId,
-                  entityName: _communityName ?? widget.communityName,
-                ));
-                if (mounted) await _loadRoleAndCounts();
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (_communityStatsAvailable) ...[
-            const SizedBox(height: 12),
-            _buildTile(
-              icon: Icons.query_stats_rounded,
-              iconColor: Colors.teal,
-              title: 'community_cert_stats_title'.tr,
-              subtitle: 'community_cert_stats_subtitle'.tr,
-              onTap: () => Get.to(() => CommunityCertificationStatsScreen(
-                communityId: widget.communityId,
-                communityName: _communityName ?? widget.communityName,
-              )),
-            ),
-          ],
-          const SizedBox(height: 12),
-
-          // 2. Accès et règles -> Écran E (Admin only)
-          if (_isAdmin || _isCommunityOwner)
-            _buildTile(
-              icon: Icons.security_outlined,
-              iconColor: Colors.green,
-              title: 'community_mgmt_access'.tr,
-              subtitle: 'community_mgmt_access_sub'.tr,
-              onTap: () => Get.to(() => CommunityAccessRulesHubScreen(communityId: widget.communityId, communityName: _communityName ?? widget.communityName, communityAvatar: _avatarUrl)),
-            ),
-          if (_isAdmin) const SizedBox(height: 12),
-
-          // 3. Informations de la communauté -> Écran H (Admin only)
+          ),
+          // 1. Identity and community information first.
           if (_isAdmin || _isCommunityOwner)
             _buildTile(
               icon: Icons.info_outline_rounded,
@@ -324,9 +363,113 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
                 if (mounted) await _loadRoleAndCounts();
               },
             ),
+          if (_isAdmin || _isCommunityOwner) const SizedBox(height: 12),
+
+          // 2. Membership access and community rules.
+          if (_isAdmin || _isCommunityOwner)
+            _buildTile(
+              icon: Icons.security_outlined,
+              iconColor: Colors.green,
+              title: 'community_mgmt_access'.tr,
+              subtitle: 'community_mgmt_access_sub'.tr,
+              onTap: () => Get.to(() => CommunityAccessRulesHubScreen(
+                communityId: widget.communityId,
+                communityName: _communityName ?? widget.communityName,
+                communityAvatar: _avatarUrl,
+              )),
+            ),
+          if (_isAdmin || _isCommunityOwner) const SizedBox(height: 12),
+
+          // 3. Certification and related statistics.
+          if (_isCommunityOwner)
+            _buildTile(
+              icon: Icons.verified_rounded,
+              iconColor: _communityCertified ? Colors.green : Colors.deepPurple,
+              title: 'entity_cert_community_title'.tr,
+              subtitle: _communityCertified
+                  ? 'entity_cert_status_active'.tr
+                  : 'entity_cert_use_included'.tr,
+              onTap: () async {
+                await Get.to(() => EntityCertificationManagementScreen(
+                  entityType: 'community',
+                  entityId: widget.communityId,
+                  entityName: _communityName ?? widget.communityName,
+                ));
+                if (mounted) await _loadRoleAndCounts();
+              },
+            ),
+          if (_communityStatsAvailable) ...[
+            const SizedBox(height: 12),
+            _buildTile(
+              icon: Icons.query_stats_rounded,
+              iconColor: Colors.teal,
+              title: 'community_cert_stats_title'.tr,
+              subtitle: 'community_cert_stats_subtitle'.tr,
+              onTap: () => Get.to(() => CommunityCertificationStatsScreen(
+                communityId: widget.communityId,
+                communityName: _communityName ?? widget.communityName,
+              )),
+            ),
+          ],
+          if (_isCommunityOwner || _communityStatsAvailable) const SizedBox(height: 12),
+
+          // 4. Moderation and pending actions.
+          if (_isAdmin || _role == 'moderator' || _isCommunityOwner)
+            _buildTile(
+              icon: Icons.admin_panel_settings_outlined,
+              iconColor: Colors.indigo,
+              title: 'community_mgmt_mod'.tr,
+              subtitle: 'community_mgmt_mod_sub'.tr,
+              badgeCount: ((_modCounts['reports'] as num?)?.toInt() ?? (_modCounts['pending_reports'] as num?)?.toInt() ?? 0) +
+                  ((_modCounts['pending_posts'] as num?)?.toInt() ?? 0) +
+                  ((_modCounts['join_requests'] as num?)?.toInt() ?? (_modCounts['pending_join_requests'] as num?)?.toInt() ?? 0) +
+                  ((_modCounts['spam'] as num?)?.toInt() ?? 0),
+              onTap: () => Get.to(() => CommunityModerationCenterScreen(
+                communityId: widget.communityId,
+                communityName: _communityName ?? widget.communityName,
+                communityAvatar: _avatarUrl,
+              )),
+            ),
+          if (_isAdmin || _isCommunityOwner) const SizedBox(height: 18),
+
+          // Destructive action is deliberately isolated at the end.
+          if (_isAdmin || _isCommunityOwner)
+            _buildTile(
+              icon: Icons.delete_forever_outlined,
+              iconColor: Colors.red,
+              title: 'community_delete_action'.tr,
+              subtitle: 'community_delete_subtitle'.tr,
+              onTap: _confirmDeleteCommunity,
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteCommunity() async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('community_delete_confirm_title'.tr),
+        content: Text('community_delete_confirm_message'.tr),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: Text('cancel'.tr)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Get.back(result: true),
+            child: Text('community_delete_action'.tr),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    if (confirmed != true) return;
+    try {
+      await _service.deleteCommunity(widget.communityId);
+      Get.until((route) => route.isFirst);
+      Get.snackbar('community_delete_action'.tr, 'community_deleted_success'.tr);
+    } catch (error) {
+      Get.snackbar('error'.tr, _service.localizedCommunityError(error), snackPosition: SnackPosition.BOTTOM);
+    }
   }
 
   Widget _buildTile({required IconData icon, Color? iconColor, required String title, required String subtitle, int badgeCount = 0, required VoidCallback onTap}) {
@@ -1088,12 +1231,12 @@ class _CommunitySpamQueueScreenState extends State<CommunitySpamQueueScreen> {
                                           style: const TextStyle(fontWeight: FontWeight.bold),
                                         ),
                                       ),
-                                      Text('Score ${item['score'] ?? 0}', style: TextStyle(color: colors.error, fontWeight: FontWeight.w600)),
+                                      Text('${'community_moderation_score'.tr}: ${item['score'] ?? 0}', style: TextStyle(color: colors.error, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                   if (reasons.isNotEmpty) ...[
                                     const SizedBox(height: 6),
-                                    Text('Motifs : $reasons', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                                    Text('${'community_moderation_reasons'.tr}: $reasons', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
                                   ],
                                   if ((item['content']?.toString() ?? '').trim().isNotEmpty) ...[
                                     const SizedBox(height: 10),
@@ -2411,37 +2554,86 @@ class _CommunityImagesScreenState extends State<CommunityImagesScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text('community_info_sub_images'.tr)),
-      body: _isLoading
+      body: _isLoading && _currentAvatarUrl == null && _currentCoverUrl == null
           ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? Center(child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_loadError!, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.error)),
-                    const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _loadImages, child: Text('retry'.tr)),
-                  ]),
-                ))
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                _CommunityImageEditCard(
-                  title: 'community_settings_profile_photo'.tr,
-                  imageUrl: _currentAvatarUrl,
-                  isProfile: true,
-                  isLoading: _isLoading,
-                  onChange: () => _pickAndUploadImage(isProfile: true),
+          : _loadError != null && _currentAvatarUrl == null && _currentCoverUrl == null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_off_outlined, size: 38, color: colorScheme.error),
+                        const SizedBox(height: 12),
+                        Text(_loadError!, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.error)),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(onPressed: _loadImages, icon: const Icon(Icons.refresh), label: Text('retry'.tr)),
+                      ],
+                    ),
+                  ),
+                )
+              : Stack(
+                  children: [
+                    ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'community_info_sub_images'.tr,
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: colorScheme.onSurface),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'community_settings_images_description'.tr,
+                                style: TextStyle(fontSize: 13, height: 1.45, color: colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _CommunityImageEditCard(
+                          title: 'community_settings_cover_photo'.tr,
+                          imageUrl: _currentCoverUrl,
+                          isProfile: false,
+                          isLoading: _isLoading,
+                          onChange: () => _pickAndUploadImage(isProfile: false),
+                        ),
+                        const SizedBox(height: 24),
+                        _CommunityImageEditCard(
+                          title: 'community_settings_profile_photo'.tr,
+                          imageUrl: _currentAvatarUrl,
+                          isProfile: true,
+                          isLoading: _isLoading,
+                          onChange: () => _pickAndUploadImage(isProfile: true),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 17, color: colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'community_settings_images_tip'.tr,
+                                style: TextStyle(fontSize: 12, height: 1.4, color: colorScheme.onSurfaceVariant),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (_isLoading && (_currentAvatarUrl != null || _currentCoverUrl != null))
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearProgressIndicator(minHeight: 2, color: colorScheme.primary),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 18),
-                _CommunityImageEditCard(
-                  title: 'community_settings_cover_photo'.tr,
-                  imageUrl: _currentCoverUrl,
-                  isProfile: false,
-                  isLoading: _isLoading,
-                  onChange: () => _pickAndUploadImage(isProfile: false),
-                ),
-              ],
-            ),
     );
   }
 }
@@ -2461,6 +2653,8 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
   String? _loadError;
   String _visibility = 'public';
   bool _requireManualApproval = false;
+  bool _canManageSalonCreation = false;
+  String _salonAllowedCreators = 'admins_moderators';
   bool _certificationRequired = false;
   bool _membersListVisible = true;
   bool _allowReports = true;
@@ -2595,6 +2789,16 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
           : <String, dynamic>{};
       _visibility = community['visibility']?.toString() ?? 'public';
       _requireManualApproval = community['require_manual_approval'] == true;
+      try {
+        _canManageSalonCreation = (await _service.getCurrentUserRole(widget.communityId)) == 'admin';
+      } catch (_) {
+        _canManageSalonCreation = false;
+      }
+      try {
+        _salonAllowedCreators = (await Supabase.instance.client.rpc('get_community_salon_creation_setting', params: {'p_community_id': widget.communityId})).toString();
+      } catch (_) {
+        _salonAllowedCreators = 'admins_moderators';
+      }
       _membersListVisible = settings['members_list_visible'] != false;
       _allowReports = settings['allow_reports'] != false;
       _allowComments = settings['allow_comments'] != false;
@@ -2675,6 +2879,12 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
         clearAgeMax: _ageMaxController.text.trim().isEmpty,
         clearGender: _genderRestriction == null,
       );
+      if (_canManageSalonCreation) {
+        await Supabase.instance.client.rpc('set_community_salon_creation_setting', params: {
+          'p_community_id': widget.communityId,
+          'p_allowed_creators': _salonAllowedCreators,
+        });
+      }
       Get.snackbar('community_save_success'.tr, '', snackPosition: SnackPosition.BOTTOM);
       Get.back();
     } catch (e) {
@@ -2707,6 +2917,37 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
+                      if (_canManageSalonCreation) _SettingsSectionCard(
+                        title: 'community_chat_group_creation_permissions'.tr,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Text(
+                              'community_chat_group_creation_permissions_help'.tr,
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                            ),
+                          ),
+                          RadioListTile<String>(
+                            value: 'admins_only',
+                            groupValue: _salonAllowedCreators,
+                            onChanged: (value) => setState(() => _salonAllowedCreators = value!),
+                            title: Text('community_chat_group_creators_admins'.tr),
+                          ),
+                          RadioListTile<String>(
+                            value: 'admins_moderators',
+                            groupValue: _salonAllowedCreators,
+                            onChanged: (value) => setState(() => _salonAllowedCreators = value!),
+                            title: Text('community_chat_group_creators_admins_moderators'.tr),
+                          ),
+                          RadioListTile<String>(
+                            value: 'all_members',
+                            groupValue: _salonAllowedCreators,
+                            onChanged: (value) => setState(() => _salonAllowedCreators = value!),
+                            title: Text('community_chat_group_creators_all_members'.tr),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       _SettingsSectionCard(
                         title: 'community_mgmt_access'.tr,
                         children: [
@@ -3161,7 +3402,27 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
 
   bool get _isEvent => widget.entityType == 'event';
   bool get _isCertified => _status['entity_certified'] == true;
-  int _int(String key) => (_entitlements[key] as num?)?.toInt() ?? 0;
+
+  // Normalize JSON values returned by Postgres RPCs. Older deployments may
+  // return numeric counters as strings, and may expose legacy key aliases.
+  int _intFor(List<String> keys) {
+    for (final key in keys) {
+      final value = _entitlements[key];
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value.trim());
+        if (parsed != null) return parsed;
+      }
+    }
+    return 0;
+  }
+
+  String _formatDate(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) return '';
+    final parsed = DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return DateFormat('dd/MM/yyyy HH:mm').format(parsed.toLocal());
+  }
 
   @override
   void initState() {
@@ -3178,8 +3439,8 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
         'p_entity_id': widget.entityId,
       });
       final entitlements = await client.rpc('scrole_get_my_subscription_entitlements');
-      if (status is! Map || entitlements is! Map) throw Exception('Réponse de certification invalide.');
-      if (status['is_owner'] != true) throw Exception('Seul le propriétaire peut certifier ce contenu.');
+      if (status is! Map || entitlements is! Map) throw Exception('entity_cert_error_invalid_response'.tr);
+      if (status['is_owner'] != true) throw Exception('entity_cert_error_owner_only'.tr);
       if (!mounted) return;
       setState(() {
         _status = Map<String, dynamic>.from(status);
@@ -3202,13 +3463,13 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
         'p_entity_id': widget.entityId,
       });
       if (!mounted) return;
-      Get.snackbar('Certification activée', '${widget.entityName} est maintenant certifié.',
+      Get.snackbar('entity_cert_success_title'.tr, 'entity_cert_success_message'.trParams({'name': widget.entityName}),
         snackPosition: SnackPosition.BOTTOM);
       await _load();
     } catch (e) {
       if (!mounted) return;
       final message = e.toString();
-      Get.snackbar('Certification impossible', _friendlyError(message),
+      Get.snackbar('entity_cert_failure_title'.tr, _friendlyError(message),
         snackPosition: SnackPosition.BOTTOM, backgroundColor: Theme.of(context).colorScheme.error,
         colorText: Theme.of(context).colorScheme.onError);
     } finally {
@@ -3217,24 +3478,37 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
   }
 
   String _friendlyError(String message) {
-    if (message.contains('active_profile_certification_required')) return 'Une certification de profil active est nécessaire.';
-    if (message.contains('active_pro_or_premium_profile_certification_required') || message.contains('active_pro_or_premium_subscription_required')) return 'Une certification de profil Pro ou Premium active est nécessaire pour utiliser les certifications incluses.';
-    if (message.contains('quota_exceeded')) return 'Tous vos droits de certification inclus sont déjà utilisés.';
-    if (message.contains('entity_not_owned_by_current_user')) return 'Seul le propriétaire peut certifier ce contenu.';
+    if (message.contains('active_profile_certification_required')) return 'entity_cert_error_profile_required'.tr;
+    if (message.contains('active_pro_or_premium_profile_certification_required') || message.contains('active_pro_or_premium_subscription_required')) return 'entity_cert_error_pro_premium_required'.tr;
+    if (message.contains('quota_exceeded')) return 'entity_cert_error_quota_exceeded'.tr;
+    if (message.contains('entity_not_owned_by_current_user')) return 'entity_cert_error_owner_only'.tr;
     return message.replaceFirst('Exception: ', '');
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final remainingKey = _isEvent ? 'event_remaining' : 'community_remaining';
-    final quotaKey = _isEvent ? 'event_quota' : 'community_quota';
-    final usedKey = _isEvent ? 'event_used' : 'community_used';
-    final remaining = _int(remainingKey);
-    final quota = _int(quotaKey);
-    final used = _int(usedKey);
+    final remaining = _intFor(_isEvent
+        ? const ['event_remaining', 'events_remaining', 'remaining_events']
+        : const ['community_remaining', 'communities_remaining', 'remaining_communities']);
+    final quota = _intFor(_isEvent
+        ? const ['event_quota', 'events_quota', 'quota_events']
+        : const ['community_quota', 'communities_quota', 'quota_communities']);
+    final used = _intFor(_isEvent
+        ? const ['event_used', 'events_used', 'used_events']
+        : const ['community_used', 'communities_used', 'used_communities']);
+    final planCode = (_entitlements['plan_code'] ??
+        _entitlements['plan'] ??
+        _entitlements['subscription_plan'] ??
+        '').toString().trim();
+    final basis = (_entitlements['entitlement_basis'] ??
+        _entitlements['basis'] ??
+        '').toString().trim();
+    final endsAt = _formatDate(_entitlements['ends_at'] ??
+        _entitlements['valid_until'] ??
+        _entitlements['expires_at']);
     return Scaffold(
-      appBar: AppBar(title: Text(_isEvent ? 'Certifier l’événement' : 'Certifier la communauté')),
+      appBar: AppBar(title: Text((_isEvent ? 'entity_cert_event_label' : 'entity_cert_community_title').tr)),
       body: _loading
         ? const Center(child: CircularProgressIndicator())
         : _error != null
@@ -3245,7 +3519,7 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
                 const SizedBox(height: 12),
                 Text(_error!, textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                FilledButton(onPressed: _load, child: const Text('Réessayer')),
+                FilledButton(onPressed: _load, child: Text('retry'.tr)),
               ]),
             ))
           : RefreshIndicator(
@@ -3264,35 +3538,40 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
                     const SizedBox(height: 12),
                     Text(widget.entityName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text(_isCertified ? 'Certification active' : 'Ce contenu n’est pas certifié.',
+                    Text(_isCertified ? 'entity_cert_status_active'.tr : 'entity_cert_status_inactive'.tr,
                       style: Theme.of(context).textTheme.bodyLarge),
                     if (_status['source'] != null) ...[
                       const SizedBox(height: 6),
-                      Text('Origine : ${_status['source']}', style: Theme.of(context).textTheme.bodySmall),
+                      Text('${'entity_cert_source'.tr}: ${_status['source']}', style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ]),
                 ),
                 const SizedBox(height: 18),
-                Text('Vos droits inclus', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text('entity_cert_included_rights'.tr, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text((_entitlements['active'] == true)
-                        ? '${(_entitlements['plan_code'] ?? '').toString().toUpperCase()} actif · ${_entitlements['entitlement_basis'] == 'profile_certification' ? 'certification de profil' : 'abonnement'}'
-                        : 'Aucun droit Pro/Premium actif'),
+                        ? 'entity_cert_plan_active'.trParams({
+                            'plan': planCode.isEmpty ? '—' : planCode.toUpperCase(),
+                            'basis': basis == 'profile_certification'
+                                ? 'entity_cert_basis_profile'.tr
+                                : 'entity_cert_basis_subscription'.tr,
+                          })
+                        : 'entity_cert_no_active_entitlement'.tr),
                       const SizedBox(height: 10),
-                      Text('${used} / ${quota} utilisés · ${remaining} disponible(s)'),
-                      if (_entitlements['ends_at'] != null) ...[
+                      Text('entity_cert_quota_summary'.trParams({'used': '$used', 'quota': '$quota', 'remaining': '$remaining'})),
+                      if (endsAt.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        Text('Fin de l’abonnement : ${_entitlements['ends_at']}', style: Theme.of(context).textTheme.bodySmall),
+                        Text('${'entity_cert_subscription_ends'.tr}: $endsAt', style: Theme.of(context).textTheme.bodySmall),
                       ],
                       const SizedBox(height: 14),
                       SizedBox(width: double.infinity, child: FilledButton.icon(
                         onPressed: (_isCertified || remaining <= 0 || _entitlements['active'] != true || _busy) ? null : _activateIncluded,
                         icon: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.verified_user_outlined),
-                        label: Text(_isCertified ? 'Déjà certifié' : 'Utiliser une certification incluse'),
+                        label: Text(_isCertified ? 'entity_cert_already_certified'.tr : 'entity_cert_use_included'.tr),
                       )),
                     ]),
                   ),
@@ -3304,9 +3583,9 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const Icon(Icons.shopping_bag_outlined, size: 30),
                       const SizedBox(height: 8),
-                      Text('Acheter une certification', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      Text('entity_cert_buy_title'.tr, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      const Text('Les achats de certification individuelle nécessitent encore le branchement du paiement sécurisé. Aucun paiement ne sera lancé depuis cet écran pour le moment.'),
+                      Text('entity_cert_purchase_payment_notice'.tr),
                       const SizedBox(height: 12),
                       SizedBox(width: double.infinity, child: OutlinedButton(
                         onPressed: () => Get.to(() => EntityCertificationPurchaseScreen(
@@ -3314,7 +3593,7 @@ class _EntityCertificationManagementScreenState extends State<EntityCertificatio
                           entityId: widget.entityId,
                           entityName: widget.entityName,
                         )),
-                        child: const Text('Voir les offres pour ce contenu'),
+                        child: Text('entity_cert_view_offers'.tr),
                       )),
                     ]),
                   ),

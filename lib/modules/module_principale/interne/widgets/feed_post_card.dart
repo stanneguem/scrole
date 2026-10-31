@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:scrole/modules/module_communautes/externe/repositories/community_repository.dart';
 import 'package:scrole/shared/utils/number_formatter.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
+import 'package:scrole/shared/widgets/linkified_text.dart';
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import 'package:scrole/modules/module_authentification/centre/services/auth_service.dart';
@@ -19,18 +20,21 @@ import '../../../../modules/module_communautes/interne/widgets/community/poll_ca
 import '../controllers/home_feed_controller.dart';
 import '../../externe/repositories/home_feed_repository.dart';
 import '../pages/create_story_screen.dart';
+import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
 
 /// Composant de texte extensible avec bouton "Voir plus" / "Voir moins"
 class ExpandableTextWidget extends StatefulWidget {
   final String text;
   final int maxLines;
   final TextStyle? style;
+  final ValueChanged<String>? onHashtagTap;
 
   const ExpandableTextWidget({
     super.key,
     required this.text,
     this.maxLines = 2,
     this.style,
+    this.onHashtagTap,
   });
 
   @override
@@ -60,7 +64,7 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
         final isOverflowing = tp.didExceedMaxLines;
 
         if (!isOverflowing) {
-          return Text(widget.text, style: defaultStyle);
+          return LinkifiedText(text: widget.text, style: defaultStyle, onHashtagTap: widget.onHashtagTap);
         }
 
         return Column(
@@ -68,20 +72,19 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
           children: [
             GestureDetector(
               onTap: () => setState(() => _isExpanded = !_isExpanded),
-              child: Text(
-                widget.text,
+              child: LinkifiedText(
+                text: widget.text,
                 maxLines: _isExpanded ? null : widget.maxLines,
-                overflow: _isExpanded
-                    ? TextOverflow.visible
-                    : TextOverflow.ellipsis,
+                overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
                 style: defaultStyle,
+                onHashtagTap: widget.onHashtagTap,
               ),
             ),
             const SizedBox(height: 4),
             GestureDetector(
               onTap: () => setState(() => _isExpanded = !_isExpanded),
               child: Text(
-                _isExpanded ? 'Voir moins' : 'Voir plus',
+                _isExpanded ? 'post_see_less'.tr : 'post_see_more'.tr,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -106,6 +109,8 @@ class FeedPostCard extends StatelessWidget {
   final VoidCallback? onJoinCommunity;
   final VoidCallback? onRetryPublishing;
   final String? currentCommunityId;
+  /// Enables inline video autoplay when this card is embedded in a story.
+  final bool autoplayVideos;
 
   const FeedPostCard({
     super.key,
@@ -118,6 +123,7 @@ class FeedPostCard extends StatelessWidget {
     this.onJoinCommunity,
     this.onRetryPublishing,
     this.currentCommunityId,
+    this.autoplayVideos = false,
   });
 
   @override
@@ -131,6 +137,7 @@ class FeedPostCard extends StatelessWidget {
         onMoreTap: onMoreTap,
         onHidePost: onHidePost,
         currentCommunityId: currentCommunityId,
+        autoplayVideos: autoplayVideos,
       );
     }
 
@@ -156,7 +163,7 @@ class FeedPostCard extends StatelessWidget {
             // Draw the connector below the author avatar, keeping it behind the
             // card content and aligned to the shared avatar center (x = 36).
             Positioned(
-              left: 35,
+              left: cardHorizontalPadding + 20,
               top: showCommunityHeader ? 58 : 64,
               bottom: 0,
               child: IgnorePointer(
@@ -173,12 +180,10 @@ class FeedPostCard extends StatelessWidget {
                 children: [
                   // 1. En-tête de la communauté si présente et hors du fil propre de cette communauté
                   if (showCommunityHeader) ...[
-                    GestureDetector(
-                      onTap: () => _onCommunityTap(post.communityId!),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
                             ClipOval(
                               child:
                                   post.communityLogoUrl != null &&
@@ -215,7 +220,7 @@ class FeedPostCard extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: colorScheme.primary,
+                                        color: colorScheme.onSurface,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -230,17 +235,10 @@ class FeedPostCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
-                    const Divider(height: 1, thickness: 0.5),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                   ],
 
                   // 2. Ligne Auteur + Contenu de la carte
@@ -415,6 +413,7 @@ class FeedPostCard extends StatelessWidget {
                               ExpandableTextWidget(
                                 text: post.content,
                                 maxLines: 2,
+                                onHashtagTap: (tag) => Get.toNamed(AppPages.hashtagFeedPath(tag)),
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontSize: 14.5,
                                   height: 1.45,
@@ -431,12 +430,19 @@ class FeedPostCard extends StatelessWidget {
                                 runSpacing: 4,
                                 children: post.hashtags
                                     .map(
-                                      (h) => Text(
-                                        '#${h.name}',
-                                        style: TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: colorScheme.primary,
+                                      (h) => InkWell(
+                                        onTap: () => Get.toNamed(AppPages.hashtagFeedPath(h.name)),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 2),
+                                          child: Text(
+                                            '#${h.name}',
+                                            style: TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: colorScheme.primary,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     )
@@ -453,6 +459,7 @@ class FeedPostCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(14),
                                     child: PostMediaSlider(
                                       heroTagPrefix: 'post_${post.id}',
+                                      forceAutoplayVideos: autoplayVideos,
                                       media: post.media,
                                       likesCount: post.likeCount,
                                       dislikesCount: post.dislikeCount,
@@ -589,7 +596,7 @@ class FeedPostCard extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.visibility_off_rounded),
-              title: Text('home_feed_hide_post'.tr),
+              title: Text('wall_hide_post'.tr),
               onTap: () {
                 Navigator.of(context).pop();
                 if (onHidePost != null) {
@@ -603,21 +610,10 @@ class FeedPostCard extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.flag_outlined),
-              title: const Text('Signaler la publication'),
+              title: Text('home_feed_report_post'.tr),
               onTap: () {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Merci, votre signalement a été transmis.'),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy_rounded),
-              title: const Text('Copier le texte'),
-              onTap: () {
-                Navigator.of(context).pop();
+                _showReportPostSheet(context, post);
               },
             ),
             if (isAuthor)
@@ -636,6 +632,215 @@ class FeedPostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _reportReasonLabel(Map<String, dynamic> reason) {
+    final code = (reason['code'] ?? '').toString().toLowerCase();
+    final key = switch (code) {
+      'arnaque_fraude' => 'report_post_reason_scam',
+      'dangereux_risqué' || 'dangereux_risque' => 'report_post_reason_dangerous',
+      'copie_contrefacon' => 'report_post_reason_copyright',
+      'harcelement' => 'report_post_reason_harassment',
+      'spam' || 'spam_publicite' => 'report_post_reason_spam',
+      'faux_profil' || 'usurpation' => 'report_post_reason_fake',
+      'contenu_inapproprie' => 'report_post_reason_inappropriate',
+      'autre' => 'report_post_reason_other',
+      _ => '',
+    };
+    return key.isEmpty ? (reason['nom'] ?? '').toString() : key.tr;
+  }
+
+  Future<void> _showReportPostSheet(BuildContext context, CommunityPost post) async {
+    final messenger = ScaffoldMessenger.of(context);
+    List<Map<String, dynamic>> reasons;
+    try {
+      final response = await Supabase.instance.client
+          .from('signalement_raison')
+          .select('id, nom, code, description')
+          .eq('est_actif', true)
+          .order('nom');
+      reasons = (response as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      if (reasons.isEmpty) throw Exception('no_report_reasons');
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('report_post_error'.tr)));
+      debugPrint('[REPORT_POST] Failed to load reasons: $e');
+      return;
+    }
+    if (!context.mounted) return;
+
+    String? selectedReasonId;
+    final detailsController = TextEditingController();
+    bool submitting = false;
+    String? inlineError;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> submit() async {
+            if (submitting) return;
+            if (selectedReasonId == null) {
+              setSheetState(() => inlineError = 'report_post_reason_required'.tr);
+              return;
+            }
+            setSheetState(() {
+              submitting = true;
+              inlineError = null;
+            });
+            try {
+              await Supabase.instance.client.rpc('report_content', params: {
+                'p_target_type': 'post',
+                'p_target_id': post.id,
+                'p_reason_id': selectedReasonId,
+                'p_description': detailsController.text.trim().isEmpty
+                    ? null
+                    : detailsController.text.trim(),
+              });
+              if (!sheetContext.mounted) return;
+              Navigator.of(sheetContext).pop();
+              messenger.showSnackBar(
+                SnackBar(content: Text('report_post_success'.tr)),
+              );
+            } catch (e) {
+              debugPrint('[REPORT_POST] Failed to submit post=${post.id}: $e');
+              if (sheetContext.mounted) {
+                setSheetState(() {
+                  submitting = false;
+                  inlineError = 'report_post_error'.tr;
+                });
+              }
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'report_post_title'.tr,
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: submitting ? null : submit,
+                        child: Text(
+                          'report_post_submit'.tr,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: submitting
+                                ? colorScheme.onSurfaceVariant
+                                : colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'report_post_hint'.tr,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...reasons.map((reason) {
+                    final id = reason['id']?.toString() ?? '';
+                    final selected = selectedReasonId == id;
+                    return RadioListTile<String>(
+                      value: id,
+                      groupValue: selectedReasonId,
+                      onChanged: submitting
+                          ? null
+                          : (value) => setSheetState(() {
+                                selectedReasonId = value;
+                                inlineError = null;
+                              }),
+                      title: Text(
+                        _reportReasonLabel(reason),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurface,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                      activeColor: colorScheme.primary,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: detailsController,
+                    maxLength: 1000,
+                    maxLines: 3,
+                    minLines: 2,
+                    enabled: !submitting,
+                    decoration: InputDecoration(
+                      hintText: 'report_post_description_hint'.tr,
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  if (inlineError != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      inlineError!,
+                      style: TextStyle(color: colorScheme.error, fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    // showModalBottomSheet completes as soon as pop is requested, while its
+    // reverse transition may still rebuild the TextField for a few frames.
+    // Disposing the controller immediately causes "used after being disposed"
+    // during that closing animation. Dispose after the route transition settles.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    detailsController.dispose();
   }
 
   void _confirmDeletePost(BuildContext context, CommunityPost post) {
@@ -990,11 +1195,12 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Left Block: Like, Dislike, Comment
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Expanded(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
           children: [
             // 1. Upvote / Like
             InkWell(
@@ -1104,9 +1310,10 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
               ),
             ),
           ],
+          ),
         ),
 
-        // Right Block: Views, Share
+        // Right Block: Views, Share, pinned to the right edge
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1179,68 +1386,31 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
 
 String _formatShortTime(String raw) {
   if (raw.isEmpty) return '';
-
+  String trCount(String key, int count) => key.trParams({'count': '$count'});
   final dt = DateTime.tryParse(raw);
   if (dt != null) {
-    final now = DateTime.now();
-    final difference = now.difference(dt);
-
-    if (difference.isNegative || difference.inSeconds < 60) {
-      return 'à l\'instant';
-    } else if (difference.inMinutes < 60) {
-      return 'il y a ${difference.inMinutes}min';
-    } else if (difference.inHours < 24) {
-      return 'il y a ${difference.inHours}h';
-    } else if (difference.inDays < 7) {
-      return difference.inDays == 1
-          ? 'il y a 1 jour'
-          : 'il y a ${difference.inDays} jours';
-    } else if (difference.inDays < 30) {
-      final weeks = (difference.inDays / 7).floor();
-      return weeks == 1 ? 'il y a 1 sem' : 'il y a $weeks sem';
-    } else {
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-    }
+    final difference = DateTime.now().difference(dt);
+    if (difference.isNegative || difference.inSeconds < 60) return 'relative_just_now'.tr;
+    if (difference.inMinutes < 60) return trCount('relative_minutes_ago', difference.inMinutes);
+    if (difference.inHours < 24) return trCount('relative_hours_ago', difference.inHours);
+    if (difference.inDays < 7) return difference.inDays == 1 ? 'relative_one_day_ago'.tr : trCount('relative_days_ago', difference.inDays);
+    if (difference.inDays < 30) { final weeks = (difference.inDays / 7).floor(); return weeks == 1 ? 'relative_one_week_ago'.tr : trCount('relative_weeks_ago', weeks); }
+    if (difference.inDays < 365) { final months = (difference.inDays / 30).floor(); return months == 1 ? 'relative_one_month_ago'.tr : trCount('relative_months_ago', months); }
+    final years = (difference.inDays / 365).floor();
+    return years == 1 ? 'relative_one_year_ago'.tr : trCount('relative_years_ago', years);
   }
-
   final lower = raw.toLowerCase().trim();
-  if (lower.contains('instant') ||
-      lower.contains('maintenant') ||
-      lower.contains('now') ||
-      lower.contains('just')) {
-    return 'à l\'instant';
-  }
-
+  if (lower.contains('instant') || lower.contains('maintenant') || lower.contains('now') || lower.contains('just')) return 'relative_just_now'.tr;
   final digits = lower.replaceAll(RegExp(r'[^0-9]'), '');
   if (digits.isNotEmpty) {
     final val = int.tryParse(digits) ?? 1;
-    if (lower.contains('min') ||
-        (lower.contains('m') &&
-            !lower.contains('mo') &&
-            !lower.contains('mai'))) {
-      return 'il y a ${val}min';
-    }
-    if (lower.contains('heure') || lower.contains('h')) {
-      return val == 1 ? 'il y a 1h' : 'il y a ${val}h';
-    }
-    if (lower.contains('jour') ||
-        lower.contains('j') ||
-        lower.contains('day')) {
-      return val == 1 ? 'il y a 1 jour' : 'il y a $val jours';
-    }
-    if (lower.contains('semaine') || lower.contains('week')) {
-      return val == 1 ? 'il y a 1 sem' : 'il y a $val sem';
-    }
-    if (lower.contains('mois') || lower.contains('month')) {
-      return val == 1 ? 'il y a 1 mois' : 'il y a $val mois';
-    }
-    if (lower.contains('an') ||
-        lower.contains('year') ||
-        lower.contains('ans')) {
-      return val == 1 ? 'il y a 1 an' : 'il y a $val ans';
-    }
+    if (lower.contains('min') || (lower.contains('m') && !lower.contains('mo') && !lower.contains('mai'))) return trCount('relative_minutes_ago', val);
+    if (lower.contains('heure') || lower.contains('hour') || lower.contains(' h')) return trCount('relative_hours_ago', val);
+    if (lower.contains('jour') || lower.contains('day') || lower.endsWith('j')) return val == 1 ? 'relative_one_day_ago'.tr : trCount('relative_days_ago', val);
+    if (lower.contains('semaine') || lower.contains('week') || lower.contains('sem')) return val == 1 ? 'relative_one_week_ago'.tr : trCount('relative_weeks_ago', val);
+    if (lower.contains('mois') || lower.contains('month')) return val == 1 ? 'relative_one_month_ago'.tr : trCount('relative_months_ago', val);
+    if (lower.contains('an') || lower.contains('year')) return val == 1 ? 'relative_one_year_ago'.tr : trCount('relative_years_ago', val);
   }
-
   return raw;
 }
 
@@ -1325,7 +1495,7 @@ class _ShareSheetWidget extends StatelessWidget {
                       Text(
                         post.content.isNotEmpty
                             ? post.content
-                            : 'Publication multimédia',
+                            : 'post_media_placeholder'.tr,
                         style: TextStyle(
                           fontSize: 12.5,
                           color: colorScheme.onSurfaceVariant,
@@ -1363,11 +1533,9 @@ class _ShareSheetWidget extends StatelessWidget {
                   label: 'Ma story',
                   onTap: () {
                     Navigator.of(context).pop();
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => _SharePostToStorySheet(post: post),
+                    Get.to(
+                      () => CreateStoryScreen(sharedPost: post),
+                      transition: Transition.cupertino,
                     );
                   },
                 ),
@@ -1380,11 +1548,12 @@ class _ShareSheetWidget extends StatelessWidget {
                   label: 'Republier',
                   onTap: () {
                     Navigator.of(context).pop();
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => _RepublishFeedSheet(post: post),
+                    Get.to(
+                      () => CreateCommunityPostScreen(
+                        communityName: '',
+                        sharedPost: post,
+                      ),
+                      transition: Transition.cupertino,
                     );
                   },
                 ),
@@ -1414,7 +1583,7 @@ class _ShareSheetWidget extends StatelessWidget {
                   label: 'Autres apps',
                   onTap: () async {
                     Navigator.of(context).pop();
-                    final url = 'https://scrole.app/posts/${post.id}';
+                    final url = 'https://scrole.fun/post/${post.id}';
                     await Share.share(
                       'Regardez cette publication sur Scrole : $url',
                     );
@@ -1777,12 +1946,28 @@ class _CommunityShareListSheetState extends State<_CommunityShareListSheet> {
                               ? NetworkImage(avatar)
                               : null,
                           child: avatar == null || avatar.isEmpty
-                              ? Text(name[0].toUpperCase())
+                              ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'C')
                               : null,
                         ),
-                        title: Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            if (communityId.isNotEmpty) ...[
+                              const SizedBox(width: 5),
+                              EntityCertifiedBadge(
+                                entityType: 'community',
+                                entityId: communityId,
+                                size: 15,
+                              ),
+                            ],
+                          ],
                         ),
                         trailing: const Icon(
                           Icons.arrow_forward_ios_rounded,
@@ -1790,16 +1975,16 @@ class _CommunityShareListSheetState extends State<_CommunityShareListSheet> {
                         ),
                         onTap: () {
                           Navigator.of(context).pop();
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => _CommunityPublishSheet(
-                              post: widget.post,
-                              communityId: communityId,
-                              communityName: name,
-                            ),
-                          );
+                          Future.microtask(() {
+                            Get.to(
+                              () => CreateCommunityPostScreen(
+                                communityName: name,
+                                communityId: communityId,
+                                sharedPost: widget.post,
+                              ),
+                              transition: Transition.cupertino,
+                            );
+                          });
                         },
                       );
                     },
@@ -1941,6 +2126,29 @@ class _CommunityPublishSheetState extends State<_CommunityPublishSheet> {
   }
 }
 
+class _SharedPostStat extends StatelessWidget {
+  final IconData icon;
+  final int count;
+
+  const _SharedPostStat({required this.icon, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 3),
+        Text(
+          NumberFormatter.formatCount(count),
+          style: TextStyle(fontSize: 12, color: color),
+        ),
+      ],
+    );
+  }
+}
+
 class _RepublicationPostCard extends StatelessWidget {
   final CommunityPost post;
   final ValueChanged<PostReaction> onReactionTap;
@@ -1949,6 +2157,7 @@ class _RepublicationPostCard extends StatelessWidget {
   final VoidCallback? onMoreTap;
   final VoidCallback? onHidePost;
   final String? currentCommunityId;
+  final bool autoplayVideos;
 
   const _RepublicationPostCard({
     required this.post,
@@ -1958,6 +2167,7 @@ class _RepublicationPostCard extends StatelessWidget {
     this.onMoreTap,
     this.onHidePost,
     this.currentCommunityId,
+    this.autoplayVideos = false,
   });
 
   @override
@@ -1970,16 +2180,19 @@ class _RepublicationPostCard extends StatelessWidget {
     final hasSharedPost = post.sharedPostId != null;
     final username = post.authorObj?.username ?? '';
     final isCertified = post.authorObj?.isCertified == true;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final cardHorizontalPadding =
+        screenWidth < 360 ? 10.0 : (screenWidth < 600 ? 14.0 : 18.0);
 
     return Container(
       width: double.infinity,
       color: colorScheme.surface,
       child: Stack(
         children: [
-          // Keep the repost avatar on the same x-axis as ordinary post avatars.
+          // Align the republisher avatar and connector with regular post cards.
           Positioned(
-            left: 35,
-            top: 52,
+            left: cardHorizontalPadding + 20,
+            top: 64,
             bottom: 0,
             child: IgnorePointer(
               child: Container(
@@ -1988,9 +2201,14 @@ class _RepublicationPostCard extends StatelessWidget {
               ),
             ),
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: cardHorizontalPadding,
+              vertical: 12,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               ClipOval(
                 child:
                     post.authorObj?.photoUrl != null &&
@@ -2237,6 +2455,7 @@ class _RepublicationPostCard extends StatelessWidget {
                                       child: PostMediaSlider(
                                         heroTagPrefix:
                                             'shared_${shared.id}_${post.id}',
+                                        forceAutoplayVideos: autoplayVideos,
                                         media: shared.media,
                                         likesCount: shared.likeCount,
                                         dislikesCount: shared.dislikeCount,
@@ -2255,112 +2474,47 @@ class _RepublicationPostCard extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 8),
                                   ],
-                                  // Read-only stats bar of original post
-                                  Wrap(
-                                    alignment: WrapAlignment.spaceBetween,
-                                    runSpacing: 6,
+                                  // Read-only stats for the original post.
+                                  // Each item wraps independently on narrow screens.
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.north_rounded,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.likeCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.south_rounded,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.dislikeCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.bar_chart_outlined,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                NumberFormatter.formatCount(
-                                                  shared.viewCount,
-                                                ),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      Expanded(
+                                        child: Wrap(
+                                          alignment: WrapAlignment.start,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 12,
+                                          runSpacing: 6,
+                                          children: [
+                                            _SharedPostStat(
+                                              icon: Icons.north_rounded,
+                                              count: shared.likeCount,
+                                            ),
+                                            _SharedPostStat(
+                                              icon: Icons.south_rounded,
+                                              count: shared.dislikeCount,
+                                            ),
+                                            _SharedPostStat(
+                                              icon: Icons.chat_bubble_outline_rounded,
+                                              count: shared.commentCount,
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      Row(
+                                      const SizedBox(width: 8),
+                                      Wrap(
+                                        alignment: WrapAlignment.end,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        spacing: 12,
+                                        runSpacing: 6,
                                         children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons
-                                                    .chat_bubble_outline_rounded,
-                                                size: 15,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.commentCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
+                                          _SharedPostStat(
+                                            icon: Icons.bar_chart_outlined,
+                                            count: shared.viewCount,
                                           ),
-                                          const SizedBox(width: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.ios_share_rounded,
-                                                size: 15,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${shared.shareCount}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
+                                          _SharedPostStat(
+                                            icon: Icons.ios_share_rounded,
+                                            count: shared.shareCount,
                                           ),
                                         ],
                                       ),
@@ -2387,6 +2541,7 @@ class _RepublicationPostCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
         ],
       ),

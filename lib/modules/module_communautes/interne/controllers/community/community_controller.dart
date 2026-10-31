@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../centre/models/community_model.dart';
 import '../../../centre/services/community_service.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
@@ -13,6 +14,7 @@ class CommunityController extends GetxController {
 
   final RxList<CommunityModel> communities = <CommunityModel>[].obs;
   final RxBool isLoading = false.obs;
+  final RxMap<String, int> unreadSalonCounts = <String, int>{}.obs;
 
   final RxList<CommunityPost> globalFeedPosts = <CommunityPost>[].obs;
   final RxBool isFeedLoading = false.obs;
@@ -82,7 +84,26 @@ class CommunityController extends GetxController {
   Future<void> reloadCommunitiesFromCache() async {
     final list = await _service.getJoinedCommunities();
     communities.assignAll(list);
+    await loadUnreadSalonCounts();
     debugPrint('[COMMUNITY_SYNC] Local cache dump updated from cache: ${communities.map((c) => '${c.id}:${c.name}:${c.status}').toList()}');
+  }
+
+  Future<void> loadUnreadSalonCounts() async {
+    try {
+      final response = await Supabase.instance.client.rpc('get_my_community_salon_unread_counts');
+      final counts = <String, int>{};
+      if (response is List) {
+        for (final row in response) {
+          if (row is! Map) continue;
+          final communityId = row['community_id']?.toString() ?? '';
+          final count = (row['unread_count'] as num?)?.toInt() ?? 0;
+          if (communityId.isNotEmpty && count > 0) counts[communityId] = count;
+        }
+      }
+      unreadSalonCounts.assignAll(counts);
+    } catch (error) {
+      debugPrint('[COMMUNITY_UNREAD] Could not load salon unread counts: $error');
+    }
   }
 
   Future<void> loadCommunities({bool forceRemoteSync = true}) async {

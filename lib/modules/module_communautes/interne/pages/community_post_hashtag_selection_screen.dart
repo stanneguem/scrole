@@ -65,8 +65,8 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
     } else {
       if (_selected.length >= 10) {
         Get.snackbar(
-          'Limite atteinte',
-          'Vous ne pouvez pas sélectionner plus de 10 hashtags.',
+          'post_hashtags_limit_title'.tr,
+          'post_hashtags_limit_message'.tr,
           backgroundColor: Colors.black87,
           colorText: Colors.white,
         );
@@ -84,8 +84,8 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
 
     if (_selected.length >= 10) {
       Get.snackbar(
-        'Limite atteinte',
-        'Vous ne pouvez pas sélectionner plus de 10 hashtags.',
+        'post_hashtags_limit_title'.tr,
+        'post_hashtags_limit_message'.tr,
         backgroundColor: Colors.black87,
         colorText: Colors.white,
       );
@@ -110,7 +110,7 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Sélectionner des hashtags'),
+        title: Text('post_hashtags_title'.tr),
         titleTextStyle: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
         actions: [
           Padding(
@@ -118,7 +118,7 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
             child: TextButton(
               onPressed: () => Get.back(result: _selected),
               child: Text(
-                'Enregistrer (${_selected.length}/10)',
+                'post_hashtags_save'.trParams({'count': '${_selected.length}'}),
                 style: AppTextStyles.buttonSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
               ),
             ),
@@ -134,7 +134,7 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Rechercher ou créer un hashtag...',
+                  hintText: 'post_hashtags_search_hint'.tr,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.add_circle_outline),
@@ -181,7 +181,7 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
                   ? const Center(child: CircularProgressIndicator())
                   : _searchResults.isEmpty
                       ? Center(
-                          child: Text('Aucun hashtag trouvé.', style: AppTextStyles.body.copyWith(color: colorScheme.outline)),
+                          child: Text('post_hashtags_empty'.tr, style: AppTextStyles.body.copyWith(color: colorScheme.outline)),
                         )
                       : ListView.builder(
                           itemCount: _searchResults.length,
@@ -191,7 +191,7 @@ class _CommunityPostHashtagSelectionScreenState extends State<CommunityPostHasht
 
                             return CheckboxListTile(
                               title: Text('#${tag.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${tag.postCount} publications'),
+                              subtitle: Text('post_hashtags_publications_count'.trParams({'count': '${tag.postCount}'})),
                               value: isSelected,
                               activeColor: AppColors.primary,
                               onChanged: (_) => _toggleHashtag(tag),

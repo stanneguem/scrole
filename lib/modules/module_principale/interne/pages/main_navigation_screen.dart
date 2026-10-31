@@ -8,9 +8,10 @@ import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/search_screen.dart';
 import 'package:scrole/shared/constantes/image_path.dart';
+import 'package:scrole/shared/widgets/external_web_view_screen.dart';
 import '../../../module_evenement/interne/pages/event_screen.dart';
 import '../../../module_communautes/interne/pages/community_screen.dart';
-import '../../../module_parametre/interne/pages/credits_screen.dart';
+import '../../../module_communautes/interne/controllers/community/community_controller.dart';
 import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
 import '../pages/home_feed_screen.dart';
 import '../../../../app_controller.dart';
@@ -85,6 +86,12 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
 
     if (Get.isRegistered<MainLayoutController>()) {
       Get.find<MainLayoutController>().currentTab.value = index;
+    }
+
+    // The community tab is kept alive in the page stack, so onInit alone
+    // does not run again when the user returns to it.
+    if (stackIndex == 1 && Get.isRegistered<CommunityController>()) {
+      Get.find<CommunityController>().loadCommunities();
     }
   }
 
@@ -170,7 +177,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                     ),
                     NavigationDestination(
                       icon: SvgPicture.asset(
-                        'assets/svg_icons/discussion.svg',
+                        'assets/svg_icons/group-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -179,7 +186,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                         ),
                       ),
                       selectedIcon: SvgPicture.asset(
-                        'assets/svg_icons/discussion.svg',
+                        'assets/svg_icons/group-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -190,51 +197,21 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                       label: 'Communautés',
                     ),
                     NavigationDestination(
-                      icon: Container(
+                      icon: SvgPicture.asset(
+                        'assets/svg_icons/add-circle-1-svgrepo-com.svg',
                         width: 38,
                         height: 38,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), AppColors.primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                       ),
-                      selectedIcon: Container(
+                      selectedIcon: SvgPicture.asset(
+                        'assets/svg_icons/add-circle-1-svgrepo-com.svg',
                         width: 38,
                         height: 38,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), AppColors.primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                       ),
                       label: 'nav_create'.tr,
                     ),
                     NavigationDestination(
                       icon: SvgPicture.asset(
-                        'assets/svg_icons/event-promotion-sale-svgrepo-com.svg',
+                        'assets/svg_icons/event-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -243,7 +220,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                         ),
                       ),
                       selectedIcon: SvgPicture.asset(
-                        'assets/svg_icons/event-promotion-sale-svgrepo-com.svg',
+                        'assets/svg_icons/event-svgrepo-com.svg',
                         width: 24,
                         height: 24,
                         colorFilter: ColorFilter.mode(
@@ -373,7 +350,10 @@ class AppDrawer extends StatelessWidget {
               title: Text('drawer_about'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.of(context).pop();
-                Get.to(() => const CreditsScreen());
+                Get.to(() => ExternalWebViewScreen(
+                  url: 'https://about.scrole.fun',
+                  title: 'webview_about_title'.tr,
+                ));
               },
             ),
             ListTile(
@@ -385,15 +365,6 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             const Spacer(),
-            Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.5), height: 1),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              title: Text('drawer_logout'.tr, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await Get.find<AuthService>().signOut();
-              },
-            ),
             const SizedBox(height: 12),
           ],
         ),

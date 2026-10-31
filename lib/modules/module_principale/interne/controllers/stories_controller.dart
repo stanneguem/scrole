@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
+import 'package:video_player/video_player.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/stories_repository.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 import '../../../../app_controller.dart';
@@ -14,7 +15,7 @@ import '../../../../app/repository_global/r2_media_repository.dart';
 
 class StoryItem {
   final String id;
-  final String kind; // 'text' | 'image'
+  final String kind; // 'text' | 'image' | 'video'
   final String? content;
   final String? imageUrl;
   final String? background;
@@ -105,7 +106,7 @@ class StoryItem {
                map['liked'] == 1,
       sharedPost: shared,
       sharedPostId: map['shared_post_id']?.toString(),
-      sharedPostCanOpenOriginal: map['shared_post_can_open_original'] == true || map['shared_post_can_open_original'] == null,
+      sharedPostCanOpenOriginal: map['shared_post_can_open_original'] == true,
     );
   }
 }
@@ -188,6 +189,7 @@ class StoriesController extends GetxController {
   final RxList<EventStoryGroup> followingGroups = <EventStoryGroup>[].obs;
   final RxList<EventStoryGroup> suggestedGroups = <EventStoryGroup>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool isPublishingStory = false.obs;
 
   List<EventStoryGroup> get storyGroups => [
         if (ownGroup.value != null) ownGroup.value!,
@@ -315,8 +317,38 @@ class StoriesController extends GetxController {
     final fileToUpload = imageFile ?? (imageFiles != null && imageFiles.isNotEmpty ? imageFiles.first : null);
 
     String? imageUrl;
-    if (kind == 'image' && fileToUpload != null) {
+    if ((kind == 'image' || kind == 'video') && fileToUpload != null) {
       try {
+        if (kind == 'video') {
+          final videoController = VideoPlayerController.file(fileToUpload);
+          try {
+            await videoController.initialize().timeout(const Duration(seconds: 30));
+            final duration = videoController.value.duration;
+            if (duration <= Duration.zero) {
+              throw StateError('Impossible de déterminer la durée de la vidéo.');
+            }
+            if (duration > const Duration(seconds: 29)) {
+              Get.snackbar(
+                'post_composer_attention'.tr,
+                'post_composer_video_too_long'.tr,
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.black87,
+                colorText: Colors.white,
+              );
+              return;
+            }
+            debugPrint('[STORY] [Controller] Uploading story video to private Cloudflare R2 duration=${duration.inMilliseconds}ms');
+            final uploaded = await _r2MediaRepo.uploadFile(
+              file: fileToUpload,
+              category: 'story_media',
+              mediaType: 'video',
+              videoDuration: duration,
+            );
+            imageUrl = uploaded.objectKey;
+          } finally {
+            await videoController.dispose();
+          }
+        } else {
         debugPrint('[STORY] [Controller] Compressing story image...');
         final appDir = await getApplicationDocumentsDirectory();
         final targetPath = p.join(appDir.path, 'stories', pId, 'story.jpg');
@@ -340,9 +372,10 @@ class StoriesController extends GetxController {
         // checks story visibility before issuing a short-lived signed URL.
         imageUrl = uploaded.objectKey;
         debugPrint('[STORY] [Controller] Story image uploaded to R2 object key: $imageUrl');
+        }
       } catch (e, st) {
         debugPrint('[STORY] [Controller] Story image compression/upload error: $e\n$st');
-        Get.snackbar('Erreur', 'Échec de l\'upload de l\'image', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar('Erreur', 'Échec de l\'upload du média de la story', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
         return;
       }
     }

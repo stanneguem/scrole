@@ -40,6 +40,15 @@ class R2MediaRepository {
     'gif': 'image/gif',
   };
 
+  static const Map<String, String> _audioTypes = {
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+    'mp3': 'audio/mpeg',
+    'ogg': 'audio/ogg',
+    'wav': 'audio/wav',
+    'webm': 'audio/webm',
+  };
+
   static const Map<String, String> _videoTypes = {
     'mp4': 'video/mp4',
     'mov': 'video/quicktime',
@@ -52,7 +61,7 @@ class R2MediaRepository {
     final uri = Uri.tryParse(previousUrl.trim());
     if (uri == null || !uri.hasAuthority || !["http", "https"].contains(uri.scheme)) return;
     final pathSegments = uri.pathSegments.map(Uri.decodeComponent).toList();
-    final rootIndex = pathSegments.indexWhere((part) => part == "profiles" || part == "communities");
+    final rootIndex = pathSegments.indexWhere((part) => part == "profiles" || part == "communities" || part == "salons");
     if (rootIndex < 0) return;
     final segments = pathSegments.sublist(rootIndex);
     final key = segments.join("/");
@@ -65,11 +74,15 @@ class R2MediaRepository {
         segments[0] == "communities" &&
         ["avatar", "cover"].contains(segments[2]) &&
         segments[1].isNotEmpty;
+    final isSalonAvatar = segments.length == 4 &&
+        segments[0] == "salons" &&
+        segments[1].isNotEmpty &&
+        segments[2] == "avatar";
     final isEventMedia = segments.length == 4 &&
         segments[0] == "events" &&
         segments[1].isNotEmpty &&
         segments[2] == userId;
-    if (!isOwnedProfileMedia && !isCommunityMedia && !isEventMedia) {
+    if (!isOwnedProfileMedia && !isCommunityMedia && !isSalonAvatar && !isEventMedia) {
       // Old Supabase Storage URLs and unrelated URLs are not R2 object keys.
       return;
     }
@@ -131,7 +144,8 @@ class R2MediaRepository {
 
     final extension = p.extension(file.path).replaceFirst('.', '').toLowerCase();
     final isVideo = mediaType == 'video';
-    final contentType = (isVideo ? _videoTypes : _imageTypes)[extension];
+    final isAudio = mediaType == 'audio';
+    final contentType = (isVideo ? _videoTypes : isAudio ? _audioTypes : _imageTypes)[extension];
     if (contentType == null) {
       debugPrint('[R2_UPLOAD][$traceId] ABORT: extension non prise en charge .$extension');
       throw ArgumentError('Format de média non pris en charge : .$extension');
@@ -181,7 +195,7 @@ class R2MediaRepository {
     final objectKey = data['object_key'] as String?;
     final publicUrl = data['public_url'] as String?;
     final isPublic = data['is_public'] == true;
-    final privateKeyPrefixes = ['private/', 'stories/', 'messages/', 'bug-reports/', 'comments/'];
+    final privateKeyPrefixes = ['private/', 'stories/', 'messages/', 'salon-messages/', 'bug-reports/', 'comments/'];
     if (uploadUrl == null || objectKey == null || (isPublic && publicUrl == null) ||
         (!isPublic && !privateKeyPrefixes.any((prefix) => objectKey.startsWith(prefix)))) {
       debugPrint('[R2_UPLOAD][$traceId] ABORT: réponse incomplète uploadUrl=${uploadUrl != null} objectKey=${objectKey != null} publicUrl=${publicUrl != null} isPublic=$isPublic');

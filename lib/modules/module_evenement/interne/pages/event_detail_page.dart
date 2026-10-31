@@ -120,6 +120,17 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
       EventPreviewModel preview;
       try {
         preview = await repo.getEventPreviewPublic(widget.event.id);
+        // La RPC publique renvoie volontairement un aperçu restreint aux membres
+        // de l'équipe. Pour le propriétaire/co-créateur/staff, récupérer le bon
+        // payload afin de ne pas perdre les activités liées à l'événement.
+        if (!preview.canViewPublicPreview) {
+          final role = (preview.viewerRole ?? '').toLowerCase();
+          if (['owner', 'creator', 'fondateur', 'cofounder', 'co_founder', 'co_createur', 'co_creator', 'managed'].contains(role)) {
+            preview = await repo.getEventPreviewOwner(widget.event.id);
+          } else if (role == 'staff') {
+            preview = await repo.getEventPreviewStaff(widget.event.id);
+          }
+        }
       } catch (e) {
         debugPrint('[EventDetailPage] getEventPreviewPublic error: $e. Falling back to getEventPreview...');
         preview = await repo.getEventPreview(widget.event.id);
@@ -140,6 +151,105 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  bool _hasAccessConditions(EventRestrictionsInfo restrictions) {
+    return restrictions.minAge != null ||
+        restrictions.maxAge != null ||
+        restrictions.allowedGenders.isNotEmpty ||
+        restrictions.idRequired ||
+        restrictions.servesAlcohol ||
+        restrictions.overnightEvent ||
+        restrictions.smokingAllowed ||
+        (restrictions.otherRestrictions?.trim().isNotEmpty ?? false);
+  }
+
+  Widget _buildAccessConditions(EventRestrictionsInfo restrictions, ColorScheme colorScheme) {
+    final conditions = <({IconData icon, String label})>[];
+
+    if (restrictions.minAge != null && restrictions.maxAge != null) {
+      conditions.add((icon: Icons.cake_outlined, label: 'Âge autorisé : ${restrictions.minAge}–${restrictions.maxAge} ans'));
+    } else if (restrictions.minAge != null) {
+      conditions.add((icon: Icons.cake_outlined, label: 'Âge minimum : ${restrictions.minAge} ans'));
+    } else if (restrictions.maxAge != null) {
+      conditions.add((icon: Icons.cake_outlined, label: 'Âge maximum : ${restrictions.maxAge} ans'));
+    }
+
+    final genders = restrictions.allowedGenders.map((g) => g.toLowerCase()).toSet();
+    if (genders.isNotEmpty && !(genders.contains('homme') && genders.contains('femme') && genders.length == 2)) {
+      final labels = <String>[];
+      if (genders.contains('homme')) labels.add('Hommes');
+      if (genders.contains('femme')) labels.add('Femmes');
+      if (labels.isNotEmpty) {
+        conditions.add((icon: Icons.people_outline, label: 'Accès réservé : ${labels.join(' et ')}'));
+      }
+    }
+
+    if (restrictions.idRequired) {
+      conditions.add((icon: Icons.badge_outlined, label: 'Pièce d’identité obligatoire'));
+    }
+    if (restrictions.servesAlcohol) {
+      conditions.add((icon: Icons.local_bar_outlined, label: 'Boissons alcoolisées servies'));
+    }
+    if (restrictions.overnightEvent) {
+      conditions.add((icon: Icons.nightlight_outlined, label: 'Événement de nuit'));
+    }
+    if (restrictions.smokingAllowed) {
+      conditions.add((icon: Icons.smoking_rooms_outlined, label: 'Tabac autorisé'));
+    }
+
+    final other = restrictions.otherRestrictions?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Conditions d’accès',
+          style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...conditions.map((condition) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(condition.icon, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        condition.label,
+                        style: AppTextStyles.body.copyWith(color: colorScheme.onSurface),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+              if (other != null && other.isNotEmpty)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(other, style: AppTextStyles.body.copyWith(color: colorScheme.onSurface)),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   void _showTicketsSheet() {
@@ -198,10 +308,16 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         isRecurring: widget.event.isRecurring,
         onConfirm: ({required notifyConnections, required silentAdd, required recurrence}) async {
           Navigator.pop(context);
-          setState(() => _isEventAdded = true);
+          final wasAdded = _isEventAdded;
+          setState(() {
+            _isCalendarLoading = true;
+          });
 
-          final controller = Get.find<EventController>();
-          final suggestedCommunityId = await controller.addToCalendar(widget.event.id);
+          try {
+            final controller = Get.find<EventController>();
+            final suggestedCommunityId = await controller.addToCalendar(widget.event.id);
+            if (!mounted) return;
+            setState(() => _isEventAdded = true);
 
           if (suggestedCommunityId != null && suggestedCommunityId.isNotEmpty) {
             Get.snackbar(
@@ -222,6 +338,21 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
               backgroundColor: Colors.black87,
               colorText: Colors.white,
             );
+          }
+          } catch (e) {
+            debugPrint('[EventDetailPage] add to calendar rejected: $e');
+            if (mounted) {
+              setState(() => _isEventAdded = wasAdded);
+              Get.snackbar(
+                'Calendrier',
+                Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
+                backgroundColor: AppColors.error,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 6),
+              );
+            }
+          } finally {
+            if (mounted) setState(() => _isCalendarLoading = false);
           }
         },
         onCancel: () => Navigator.pop(context),
@@ -339,6 +470,20 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         }
       } catch (e) {
         debugPrint('[EventDetailPage] _handleCalendarAction error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
+                style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+              ),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
       }
     } else {
       // Événement d'un seul jour -> Ajout/Retrait direct SANS aucun modal
@@ -401,7 +546,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Impossible de modifier votre agenda. Veuillez réessayer.',
+                Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
                 style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
               ),
               backgroundColor: AppColors.error,
@@ -579,6 +724,12 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
     final event = preview?.event ?? widget.event;
     final ranking = preview?.ranking ?? const EventRankingInfo();
     final creator = preview?.creator;
+    final currentUserId = Get.find<AppController>().authUser.value?.id;
+    final role = (preview?.viewerRole ?? event.userRole ?? '').toLowerCase();
+    final canManageActivities = preview != null && (
+      ['owner', 'creator', 'fondateur', 'cofounder', 'co_founder', 'co_createur', 'co_creator', 'managed', 'staff'].contains(role) ||
+      (currentUserId != null && currentUserId.isNotEmpty && event.creatorId == currentUserId)
+    );
 
     // Calculs réels pour Billet minimum & Budget total estimé
     final cheapestAmount = preview?.cheapestTicket != null
@@ -714,9 +865,21 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         const SizedBox(height: 16),
 
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(child: Text(event.name, style: AppTextStyles.h2.copyWith(color: colorScheme.onSurface))),
-                            EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 22),
+                            Flexible(
+                              fit: FlexFit.loose,
+                              child: Text(
+                                event.name,
+                                style: AppTextStyles.h2.copyWith(color: colorScheme.onSurface),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            EntityCertifiedBadge(
+                              entityType: 'event',
+                              entityId: event.id,
+                              size: 22,
+                            ),
                           ],
                         ),
                         Text(
@@ -766,6 +929,12 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         ] else if (event.address != null) ...[
                           _InfoRow(icon: Icons.location_on_outlined, label: 'Adresse', value: event.address!),
                         ],
+                        // Conditions d'accès configurées côté backend (event_restrictions).
+                        if (preview != null && _hasAccessConditions(preview.restrictions)) ...[
+                          _buildAccessConditions(preview.restrictions, colorScheme),
+                          const SizedBox(height: 24),
+                        ],
+
                         const SizedBox(height: 24),
 
                         // Bloc Tarification Réel: Prix billet minimum & Budget total estimé
@@ -902,12 +1071,16 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                               return Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: () {
-                                    Get.toNamed(
-                                      AppPages.eventActivities.replaceFirst(':id', widget.event.id),
-                                      arguments: {'activity': act, 'event': widget.event},
-                                    );
-                                  },
+                                  // Les visiteurs consultent uniquement la carte.
+                                  // L'écran de gestion est réservé à l'équipe.
+                                  onTap: canManageActivities
+                                      ? () {
+                                          Get.toNamed(
+                                            AppPages.eventActivities.replaceFirst(':id', widget.event.id),
+                                            arguments: {'activity': act, 'event': widget.event},
+                                          );
+                                        }
+                                      : null,
                                   borderRadius: BorderRadius.circular(16),
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
@@ -1255,7 +1428,25 @@ class _RestrictedPreviewView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [Expanded(child: Text(event.name.isNotEmpty ? event.name : 'Aperçu restreint', maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18)]),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                event.name.isNotEmpty ? event.name : 'Aperçu restreint',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            EntityCertifiedBadge(
+              entityType: 'event',
+              entityId: event.id,
+              size: 18,
+            ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Get.back(),

@@ -4,6 +4,7 @@ import 'package:scrole/modules/module_communautes/centre/services/community_serv
 import 'package:scrole/shared/controllers/search_controller.dart';
 import 'community_members_screen.dart';
 import 'excluded_members_screen.dart';
+import 'community_admin_chat_groups_screen.dart';
 import 'community_settings_main_screen.dart';
 
 class CommunitySettingsScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
   String _role = 'member';
   String _searchQuery = '';
   String? _avatarUrl;
+  String? _coverUrl;
   String? _slogan;
 
   @override
@@ -53,6 +55,7 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
         setState(() {
           _role = role;
           _avatarUrl = comm?.avatarUrl ?? widget.communityAvatar;
+          _coverUrl = comm?.bannerUrl;
           _slogan = widget.communitySlogan ?? comm?.description;
           _isLoadingRole = false;
         });
@@ -130,16 +133,22 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
 
   Future<void> _executeLeave() async {
     try {
-      await _service.leaveCommunity(widget.communityId);
+      final result = await _service.leaveCommunity(widget.communityId);
       try {
         if (Get.isRegistered<AppSearchController>()) {
           Get.find<AppSearchController>().invalidateSearchCache();
         }
       } catch (_) {}
       Get.until((route) => route.isFirst);
+      final action = result['action']?.toString();
+      final successMessage = action == 'deleted'
+          ? 'community_deleted_success'.tr
+          : action == 'transferred'
+              ? 'community_ownership_transferred_success'.tr
+              : 'community_leave_success_msg'.tr;
       Get.snackbar(
         'community_leave_success_title'.tr,
-        'community_leave_success_msg'.tr,
+        successMessage,
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
@@ -164,164 +173,253 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
     String? selectedReasonId;
     String? selectedReasonCode;
     bool isSubmitting = false;
-    final TextEditingController descriptionController = TextEditingController();
+    final descriptionController = TextEditingController();
 
-    Get.dialog(
-      StatefulBuilder(
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
         builder: (context, setStateSB) {
           if (isLoadingReasons) {
             _service.getSignalementRaisons().then((res) {
-              if (mounted) {
-                setStateSB(() {
-                  reasons = res;
-                  isLoadingReasons = false;
-                  if (reasons.isNotEmpty) {
-                    selectedReasonId = reasons.first['id']?.toString();
-                    selectedReasonCode = reasons.first['code']?.toString() ?? reasons.first['nom']?.toString();
-                  }
-                });
-              }
-            }).catchError((err) {
-              if (mounted) {
-                setStateSB(() => isLoadingReasons = false);
-              }
+              if (mounted) setStateSB(() {
+                reasons = res;
+                isLoadingReasons = false;
+                if (reasons.isNotEmpty) {
+                  selectedReasonId = reasons.first['id']?.toString();
+                  selectedReasonCode = reasons.first['code']?.toString() ?? reasons.first['nom']?.toString();
+                }
+              });
+            }).catchError((_) {
+              if (mounted) setStateSB(() => isLoadingReasons = false);
             });
           }
-
-          final colorScheme = Theme.of(context).colorScheme;
-          final isOther = selectedReasonCode?.toLowerCase() == 'autre' || selectedReasonCode?.toLowerCase() == 'other';
-          final descText = descriptionController.text.trim();
-          final isValid = selectedReasonId != null && (!isOther || descText.isNotEmpty);
-
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), shape: BoxShape.circle),
-                  child: const Icon(Icons.flag_rounded, color: Colors.red, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text('community_report_title'.tr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Aidez-nous à maintenir un environnement sûr et respectueux pour tous.',
-                    style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+          final colors = Theme.of(context).colorScheme;
+          final isOther = ['autre', 'other'].contains(selectedReasonCode?.toLowerCase());
+          final desc = descriptionController.text.trim();
+          final valid = selectedReasonId != null && (!isOther || desc.isNotEmpty);
+          return Container(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            decoration: BoxDecoration(color: colors.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
+            child: SafeArea(
+              top: false,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * .86),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const SizedBox(height: 10),
+                  Container(width: 38, height: 4, decoration: BoxDecoration(color: colors.onSurfaceVariant.withValues(alpha: .35), borderRadius: BorderRadius.circular(4))),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+                    child: Row(children: [
+                      Container(width: 40, height: 40, decoration: BoxDecoration(color: colors.errorContainer, borderRadius: BorderRadius.circular(14)), child: Icon(Icons.flag_rounded, color: colors.onErrorContainer)),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text('community_report_title'.tr, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                      TextButton(onPressed: isSubmitting ? null : () => Navigator.of(sheetContext).pop(), child: Text('cancel'.tr)),
+                      TextButton(
+                        onPressed: isSubmitting || !valid || isLoadingReasons ? null : () async {
+                          setStateSB(() => isSubmitting = true);
+                          try {
+                            await _service.reportCommunity(communityId: widget.communityId, reasonId: selectedReasonId!, description: descriptionController.text.trim());
+                            if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                            Get.snackbar('community_report_success_title'.tr, 'community_report_success_msg'.tr, snackPosition: SnackPosition.BOTTOM);
+                            onReportSuccess?.call();
+                          } catch (e) {
+                            setStateSB(() => isSubmitting = false);
+                            Get.snackbar('community_report_title'.tr, e.toString().replaceFirst('Exception: ', '').tr, snackPosition: SnackPosition.BOTTOM, backgroundColor: colors.error, colorText: colors.onError);
+                          }
+                        },
+                        child: isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : Text('community_report_submit'.tr, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ]),
                   ),
-                  const SizedBox(height: 16),
-                  Text('community_report_reason_label'.tr, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  isLoadingReasons
-                      ? const Center(child: Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator(strokeWidth: 2)))
-                      : Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: colorScheme.outlineVariant),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              value: selectedReasonId,
-                              hint: Text('community_report_reason_hint'.tr),
-                              items: reasons.map((r) {
-                                final id = r['id']?.toString() ?? '';
-                                final code = r['code']?.toString() ?? r['nom']?.toString() ?? 'Motif';
-                                String label = code;
-                                if (code == 'harcelement') label = 'community_report_reason_harassment'.tr;
-                                else if (code == 'dangereux_risqué' || code == 'dangereux_riske') label = 'community_report_reason_dangerous'.tr;
-                                else if (code == 'copie_contrefacon') label = 'community_report_reason_copy'.tr;
-                                else if (code == 'autre') label = 'community_report_reason_other'.tr;
-
-                                return DropdownMenuItem<String>(
-                                  value: id,
-                                  child: Text(label, style: const TextStyle(fontSize: 14)),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                setStateSB(() {
-                                  selectedReasonId = val;
-                                  final match = reasons.firstWhereOrNull((r) => r['id']?.toString() == val);
-                                  selectedReasonCode = match?['code']?.toString() ?? match?['nom']?.toString();
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                  const SizedBox(height: 16),
-                  Text('community_report_description_label'.tr, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    maxLength: 1000,
-                    maxLines: 4,
-                    onChanged: (_) => setStateSB(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'community_report_description_hint'.tr,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  ),
-                  if (isOther && descText.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text('community_report_other_desc_required'.tr, style: TextStyle(color: colorScheme.error, fontSize: 12)),
-                    ),
-                ],
+                  Flexible(child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('community_report_safety_intro'.tr, style: TextStyle(fontSize: 13, height: 1.4, color: colors.onSurfaceVariant)),
+                      const SizedBox(height: 20),
+                      Text('community_report_reason_label'.tr, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      if (isLoadingReasons) const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2)))
+                      else if (reasons.isEmpty) Text('community_report_reasons_unavailable'.tr, style: TextStyle(color: colors.error, fontSize: 13))
+                      else DropdownButtonFormField<String>(
+                        isExpanded: true, value: selectedReasonId,
+                        decoration: InputDecoration(hintText: 'community_report_reason_hint'.tr, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
+                        items: reasons.map((r) {
+                          final id = r['id']?.toString() ?? '';
+                          final code = r['code']?.toString() ?? r['nom']?.toString() ?? 'Motif';
+                          String label = code;
+                          if (code == 'harcelement') label = 'community_report_reason_harassment'.tr;
+                          else if (code == 'dangereux_risqué' || code == 'dangereux_riske') label = 'community_report_reason_dangerous'.tr;
+                          else if (code == 'copie_contrefacon') label = 'community_report_reason_copy'.tr;
+                          else if (['autre', 'other'].contains(code.toLowerCase())) label = 'community_report_reason_other'.tr;
+                          return DropdownMenuItem<String>(value: id, child: Text(label, style: const TextStyle(fontSize: 14)));
+                        }).toList(),
+                        onChanged: isSubmitting ? null : (value) => setStateSB(() {
+                          selectedReasonId = value;
+                          final match = reasons.firstWhereOrNull((r) => r['id']?.toString() == value);
+                          selectedReasonCode = match?['code']?.toString() ?? match?['nom']?.toString();
+                        }),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('community_report_description_label'.tr, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      TextField(controller: descriptionController, maxLength: 1000, minLines: 3, maxLines: 5, onChanged: (_) => setStateSB(() {}), decoration: InputDecoration(hintText: 'community_report_description_hint'.tr, alignLabelWithHint: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)))),
+                      if (isOther && desc.isEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text('community_report_other_desc_required'.tr, style: TextStyle(color: colors.error, fontSize: 12))),
+                    ]),
+                  )),
+                ]),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: isSubmitting ? null : () => Get.back(),
-                child: Text('cancel'.tr, style: TextStyle(color: colorScheme.onSurfaceVariant)),
-              ),
-              ElevatedButton(
-                onPressed: (isSubmitting || !isValid)
-                    ? null
-                    : () async {
-                        setStateSB(() => isSubmitting = true);
-                        try {
-                          await _service.reportCommunity(
-                            communityId: widget.communityId,
-                            reasonId: selectedReasonId!,
-                            description: descriptionController.text,
-                          );
-                          Get.back();
-                          Get.snackbar(
-                            'community_report_success_title'.tr,
-                            'community_report_success_msg'.tr,
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                          onReportSuccess?.call();
-                        } catch (e) {
-                          setStateSB(() => isSubmitting = false);
-                          String msg = e.toString().replaceFirst('Exception: ', '').tr;
-                          Get.snackbar(
-                            'community_report_title'.tr,
-                            msg,
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: Colors.red,
-                            colorText: Colors.white,
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(backgroundColor: colorScheme.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: isSubmitting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text('community_report_submit'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
           );
         },
       ),
     );
+    descriptionController.dispose();
   }
+
+
+  Future<void> _openCommunityImages() async {
+    if (!_isAdmin) return;
+    await Get.to(() => CommunityImagesScreen(communityId: widget.communityId));
+    if (!mounted) return;
+    try {
+      final comm = await _service.getCommunityById(widget.communityId);
+      if (mounted && comm != null) {
+        setState(() {
+          _avatarUrl = comm.avatarUrl ?? _avatarUrl;
+          _coverUrl = comm.bannerUrl ?? _coverUrl;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Widget _communityHero(ColorScheme colors) {
+    final hasCover = _coverUrl != null && _coverUrl!.trim().isNotEmpty;
+    final hasAvatar = _avatarUrl != null && _avatarUrl!.trim().isNotEmpty;
+    return SizedBox(
+      height: 258,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            bottom: 34,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(26)),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (hasCover)
+                    Image.network(_coverUrl!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _coverPlaceholder(colors))
+                  else
+                    _coverPlaceholder(colors),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(.28),
+                          Colors.transparent,
+                          Colors.black.withOpacity(.78),
+                        ],
+                        stops: const [0, .38, 1],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    left: 12,
+                    child: _heroButton(Icons.arrow_back_rounded, () => Navigator.of(context).pop()),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 48,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.communityName,
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 23,
+                            fontWeight: FontWeight.w800, letterSpacing: -.4)),
+                        if ((_slogan ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Text(_slogan!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white.withOpacity(.9), fontSize: 13, height: 1.3)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            bottom: 0,
+            child: Stack(
+              children: [
+                Container(
+                  width: 82,
+                  height: 82,
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(.16), blurRadius: 12, offset: const Offset(0, 3))],
+                  ),
+                  child: ClipOval(
+                    child: hasAvatar
+                      ? Image.network(_avatarUrl!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _avatarPlaceholder(colors))
+                      : _avatarPlaceholder(colors),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 20,
+            bottom: 9,
+            child: Row(
+              children: [
+                Icon(Icons.groups_rounded, size: 16, color: colors.onSurfaceVariant),
+                const SizedBox(width: 5),
+                Text('community_members_title'.tr,
+                  style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroButton(IconData icon, VoidCallback onTap) => Material(
+    color: Colors.black.withOpacity(.42),
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: SizedBox(width: 42, height: 42,
+        child: Icon(icon, color: Colors.white, size: 20)),
+    ),
+  );
+
+  Widget _coverPlaceholder(ColorScheme colors) => Container(
+    color: colors.primaryContainer,
+    child: Center(child: Icon(Icons.groups_rounded, size: 54, color: colors.onPrimaryContainer.withOpacity(.55))),
+  );
+
+  Widget _avatarPlaceholder(ColorScheme colors) => Container(
+    color: colors.primaryContainer,
+    alignment: Alignment.center,
+    child: Text(widget.communityName.isNotEmpty ? widget.communityName[0].toUpperCase() : 'C',
+      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: colors.onPrimaryContainer)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -329,64 +427,17 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, size: 24),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Paramètres',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ),
       body: _isLoadingRole
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.zero,
               children: [
-                // --- En-tête Communauté (comme sur la maquette 1) ---
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
+                // La couverture occupe toute la largeur de l'écran.
+                _communityHero(colorScheme),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                  child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty ? NetworkImage(_avatarUrl!) : null,
-                        child: _avatarUrl == null || _avatarUrl!.isEmpty
-                            ? Text(widget.communityName.isNotEmpty ? widget.communityName[0].toUpperCase() : 'C', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
-                            : null,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.communityName,
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _slogan ?? 'Vivre la technologie ensemble',
-                              style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 // --- Section A : GESTION (Admins / Modérateurs) ---
                 if (_isAdminOrModerator) ...[
                   _SettingsCard(
@@ -406,6 +457,19 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                         },
                       ),
                       if (_isAdmin) ...[
+                        const Divider(height: 1, indent: 68, endIndent: 16),
+                        _SettingsMenuTile(
+                          icon: Icons.forum_outlined,
+                          iconColor: colorScheme.primary,
+                          title: 'community_admin_salons_title'.tr,
+                          subtitle: 'community_admin_salons_subtitle'.tr,
+                          onTap: () {
+                            Get.to(() => CommunityAdminChatGroupsScreen(
+                              communityId: widget.communityId,
+                              communityName: widget.communityName,
+                            ));
+                          },
+                        ),
                         const Divider(height: 1, indent: 68, endIndent: 16),
                         _SettingsMenuTile(
                           icon: Icons.block_outlined,
@@ -468,6 +532,9 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ],
             ),
     );

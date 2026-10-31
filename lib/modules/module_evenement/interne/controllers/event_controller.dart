@@ -52,6 +52,7 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxBool isLoadingSuggestions = false.obs;
   final RxBool isLoadingCalendar = false.obs;
   final RxBool isLoadingMyEvents = false.obs;
+  bool _myEventsRefreshRequested = false;
 
   // Checkpoint pour le préchargement du calendrier
   DateTime? _lastMonthLoaded;
@@ -374,30 +375,37 @@ class EventController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  bool _isVisibleInMyEvents(EventModel event) =>
+      event.status != EventStatus.deleted &&
+      event.status != EventStatus.pendingDeletion;
+
   Future<void> fetchMyEvents() async {
+    if (isLoadingMyEvents.value) {
+      _myEventsRefreshRequested = true;
+      return;
+    }
     isLoadingMyEvents.value = true;
     try {
+      // Afficher le cache immédiatement, mais sans événements supprimés.
       final localManaged = await _repository.getManagedEventsLocal();
-      if (localManaged.isNotEmpty) {
-        managedEvents.assignAll(localManaged);
-      }
+      managedEvents.assignAll(localManaged.where(_isVisibleInMyEvents));
       final localStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(localStaff);
+      staffEvents.assignAll(localStaff.where(_isVisibleInMyEvents));
+
+      // Le résultat distant fait autorité, même s'il est vide : ne jamais
+      // conserver des cartes obsolètes en cas de suppression côté serveur.
+      final remoteManaged = await _repository.syncManagedEventsRemote();
+      managedEvents.assignAll(remoteManaged.where(_isVisibleInMyEvents));
+      final remoteStaff = await _repository.getStaffEvents();
+      staffEvents.assignAll(remoteStaff.where(_isVisibleInMyEvents));
     } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents local: $e');
+      debugPrint('[Error] EventController.fetchMyEvents: $e');
     } finally {
       isLoadingMyEvents.value = false;
-    }
-
-    try {
-      final remoteManaged = await _repository.syncManagedEventsRemote();
-      if (remoteManaged.isNotEmpty) {
-        managedEvents.assignAll(remoteManaged);
+      if (_myEventsRefreshRequested) {
+        _myEventsRefreshRequested = false;
+        unawaited(fetchMyEvents());
       }
-      final remoteStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(remoteStaff);
-    } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents remote: $e');
     }
   }
 

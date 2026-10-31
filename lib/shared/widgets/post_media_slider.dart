@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
@@ -10,6 +11,8 @@ import 'media_full_screen_page.dart';
 class PostMediaSlider extends StatefulWidget {
   /// Parent feed post ID; autoplay requires at least half of that card to be visible.
   final String? autoplayPostId;
+  /// Forces inline playback for contexts such as a shared-post story card.
+  final bool forceAutoplayVideos;
   final List<PostMedia> media;
   final String? heroTagPrefix;
   final int likesCount;
@@ -21,6 +24,7 @@ class PostMediaSlider extends StatefulWidget {
   const PostMediaSlider({
     super.key,
     this.autoplayPostId,
+    this.forceAutoplayVideos = false,
     required this.media,
     this.heroTagPrefix,
     this.likesCount = 0,
@@ -36,6 +40,7 @@ class PostMediaSlider extends StatefulWidget {
 
 class _PostMediaSliderState extends State<PostMediaSlider> {
   int _currentIndex = 0;
+  double _videoOverlayOpacity = 1;
   late final PageController _pageController;
 
   @override
@@ -110,6 +115,12 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                     child: item.isVideo
                         ? _InlineFeedVideo(
                             key: ValueKey('feed_video_${_getHeroTag(index)}'),
+                            autoplayPostId: widget.autoplayPostId,
+                            forceAutoplay: widget.forceAutoplayVideos,
+                            onPlaybackOverlayOpacityChanged: (opacity) {
+                              if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
+                              setState(() => _videoOverlayOpacity = opacity);
+                            },
                             url: item.url ?? '',
                             thumbnailUrl: item.thumbnailUrl,
                             onOpenFullScreen: () => _openFullScreen(context, index),
@@ -127,12 +138,18 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
             Positioned(
               right: 12,
               top: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                child: Text(
-                  '${_currentIndex + 1}/$len',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: _videoOverlayOpacity,
+                  duration: const Duration(milliseconds: 180),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                    child: Text(
+                      '${_currentIndex + 1}/$len',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -360,6 +377,8 @@ class FeedVideoAutoplayGate {
 
 class _InlineFeedVideo extends StatefulWidget {
   final String? autoplayPostId;
+  final bool forceAutoplay;
+  final ValueChanged<double>? onPlaybackOverlayOpacityChanged;
   final String url;
   final String? thumbnailUrl;
   final VoidCallback onOpenFullScreen;
@@ -367,6 +386,8 @@ class _InlineFeedVideo extends StatefulWidget {
   const _InlineFeedVideo({
     super.key,
     this.autoplayPostId,
+    this.forceAutoplay = false,
+    this.onPlaybackOverlayOpacityChanged,
     required this.url,
     required this.thumbnailUrl,
     required this.onOpenFullScreen,
@@ -384,6 +405,8 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   bool _cardEligible = false;
   bool _failed = false;
   bool _isMuted = false;
+  bool _playbackOverlaysDismissed = false;
+  double _playbackOverlayOpacity = 1;
   Worker? _preferencesWorker;
 
   @override
@@ -396,12 +419,13 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     } else {
       _cardEligible = true;
     }
+    _autoPlay = widget.forceAutoplay;
     try {
       if (Get.isRegistered<PreferencesService>()) {
         final service = Get.find<PreferencesService>();
-        _autoPlay = service.preferences.value.autoPlayVideos;
+        _autoPlay = widget.forceAutoplay || service.preferences.value.autoPlayVideos;
         _preferencesWorker = ever(service.preferences, (prefs) {
-          if (!mounted || _autoPlay == prefs.autoPlayVideos) return;
+          if (!mounted || widget.forceAutoplay || _autoPlay == prefs.autoPlayVideos) return;
           setState(() => _autoPlay = prefs.autoPlayVideos);
           if (!_autoPlay) {
             _controller?.pause();
@@ -430,6 +454,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
       // the viewer mute/unmute without opening the fullscreen player.
       await controller.setVolume(_isMuted ? 0 : 1);
       _controller = controller;
+      controller.addListener(_updatePlaybackOverlayOpacity);
       setState(() {});
       await controller.play();
     } catch (error) {
@@ -441,7 +466,31 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     }
   }
 
+  void _updatePlaybackOverlayOpacity() {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized ||
+        !controller.value.isPlaying || _playbackOverlaysDismissed) {
+      return;
+    }
+
+    // Fade the media counter and speaker control away during the first
+    // 2.5 seconds of playback, then keep them hidden for the rest of the clip.
+    final elapsedMs = controller.value.position.inMilliseconds;
+    const fadeDurationMs = 2500;
+    final opacity = (1 - (elapsedMs / fadeDurationMs)).clamp(0.0, 1.0);
+    if ((_playbackOverlayOpacity - opacity).abs() >= 0.03 || elapsedMs >= fadeDurationMs) {
+      _playbackOverlayOpacity = opacity;
+      widget.onPlaybackOverlayOpacityChanged?.call(opacity);
+      if (mounted) setState(() {});
+    }
+    if (elapsedMs >= fadeDurationMs) {
+      _playbackOverlaysDismissed = true;
+      widget.onPlaybackOverlayOpacityChanged?.call(0);
+    }
+  }
+
   void _onCardVisibilityChanged() {
+    if (!mounted) return;
     final postId = widget.autoplayPostId;
     if (postId == null) return;
     final eligible = FeedVideoAutoplayGate.isEligible(postId);
@@ -458,6 +507,9 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
+    // VisibilityDetector may deliver a queued callback after this widget starts
+    // disposing. Never touch a controller once the State is no longer mounted.
+    if (!mounted) return;
     final visible = info.visibleFraction >= 0.50;
     if (_visible == visible) return;
     _visible = visible;
@@ -475,7 +527,12 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     _preferencesWorker?.dispose();
     final postId = widget.autoplayPostId;
     if (postId != null) FeedVideoAutoplayGate.unregister(postId, _onCardVisibilityChanged);
-    _controller?.dispose();
+    // Clear the field before disposing so any queued visibility callback sees
+    // no controller to pause or play.
+    final controller = _controller;
+    _controller = null;
+    controller?.removeListener(_updatePlaybackOverlayOpacity);
+    if (controller != null) unawaited(controller.dispose());
     super.dispose();
   }
 
@@ -534,29 +591,36 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
             Positioned(
               right: 10,
               bottom: 10,
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.62),
-                shape: const CircleBorder(),
-                child: IconButton(
-                  tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
-                  padding: const EdgeInsets.all(9),
-                  onPressed: () async {
-                    final controller = _controller;
-                    if (controller == null || !controller.value.isInitialized) return;
-                    final mute = !_isMuted;
-                    try {
-                      await controller.setVolume(mute ? 0 : 1);
-                      if (mounted) setState(() => _isMuted = mute);
-                    } catch (error) {
-                      debugPrint('[POST_MEDIA] unable to change inline video volume: $error');
-                    }
-                  },
-                  icon: Icon(
-                    _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    color: Colors.white,
-                    size: 22,
+              child: IgnorePointer(
+                ignoring: _playbackOverlaysDismissed,
+                child: AnimatedOpacity(
+                  opacity: _playbackOverlayOpacity,
+                  duration: const Duration(milliseconds: 180),
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.62),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+                      padding: const EdgeInsets.all(9),
+                      onPressed: () async {
+                        final controller = _controller;
+                        if (controller == null || !controller.value.isInitialized) return;
+                        final mute = !_isMuted;
+                        try {
+                          await controller.setVolume(mute ? 0 : 1);
+                          if (mounted) setState(() => _isMuted = mute);
+                        } catch (error) {
+                          debugPrint('[POST_MEDIA] unable to change inline video volume: $error');
+                        }
+                      },
+                      icon: Icon(
+                        _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
                   ),
                 ),
               ),

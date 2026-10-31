@@ -14,6 +14,7 @@ class RelationButtonWidget extends StatefulWidget {
   final String? senderId;
   final DateTime? nextRetryAt;
   final VoidCallback? onRelationChanged;
+  final bool compact;
 
   const RelationButtonWidget({
     super.key,
@@ -22,6 +23,7 @@ class RelationButtonWidget extends StatefulWidget {
     this.senderId,
     this.nextRetryAt,
     this.onRelationChanged,
+    this.compact = false,
   });
 
   @override
@@ -148,7 +150,7 @@ class _RelationButtonWidgetState extends State<RelationButtonWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2));
+      return SizedBox(width: widget.compact ? 20 : 24, height: widget.compact ? 20 : 24, child: const CircularProgressIndicator(strokeWidth: 2));
     }
     if (_state == 'self' || _state == 'blocked') return const SizedBox.shrink();
 
@@ -198,7 +200,7 @@ class _RelationButtonWidgetState extends State<RelationButtonWidget> {
       onPressed: _isSaving ? null : requested
           ? () => _run(() => _socialRepo.cancelFollowRequest(widget.targetUserId), optimisticState: 'none')
           : () => _run(() => _socialRepo.followUser(widget.targetUserId), optimisticState: _relationship['follows_me'] == true ? 'friends' : (_relationship['is_private'] == true ? 'requested' : 'following')),
-      icon: Icon(requested ? Icons.hourglass_top_rounded : Icons.person_add_alt_1_rounded, size: 16),
+      icon: Icon(requested ? Icons.hourglass_top_rounded : Icons.person_add_alt_1_rounded, size: widget.compact ? 14 : 16),
       label: Text(
         requested
             ? 'follow_state_requested'.tr
@@ -209,8 +211,15 @@ class _RelationButtonWidgetState extends State<RelationButtonWidget> {
       style: ElevatedButton.styleFrom(
         backgroundColor: requested ? Theme.of(context).colorScheme.surfaceContainerHigh : AppColors.primary,
         foregroundColor: requested ? Theme.of(context).colorScheme.onSurface : Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        textStyle: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold),
+        elevation: widget.compact ? 0 : 1,
+        minimumSize: widget.compact ? const Size(0, 34) : null,
+        tapTargetSize: widget.compact ? MaterialTapTargetSize.shrinkWrap : MaterialTapTargetSize.padded,
+        visualDensity: widget.compact ? VisualDensity.compact : VisualDensity.standard,
+        padding: widget.compact
+            ? const EdgeInsets.symmetric(horizontal: 9, vertical: 4)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(widget.compact ? 12 : 20)),
+        textStyle: AppTextStyles.bodySmall.copyWith(fontSize: widget.compact ? 11 : null, fontWeight: FontWeight.bold),
       ),
     );
   }

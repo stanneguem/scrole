@@ -34,10 +34,74 @@ class HomeFeedController extends GetxController {
   final RxBool isLoadingMore = false.obs;
   final RxString nextCursor = ''.obs;
 
+  final Map<String, DateTime> _activeDwellStartedAt = {};
+  final List<Map<String, dynamic>> _pendingDwellItems = [];
+  Timer? _dwellBatchTimer;
+
   final Set<String> _sentViewIds = {};
   final List<String> _pendingViewIds = [];
   Timer? _viewBatchTimer;
   Timer? _counterRefreshTimer;
+  bool _refreshingVisibleCounters = false;
+
+  // Protect against duplicate HomeFeedController instances issuing the same
+  // periodic counters RPC at the same time.
+  static bool _postCountersRequestInFlight = false;
+  static DateTime? _lastPostCountersRequestAt;
+
+  Future<List<Map<String, dynamic>>> _requestPostCounters(List<String> ids) async {
+    if (ids.isEmpty || _postCountersRequestInFlight) return const [];
+    final now = DateTime.now();
+    final lastRequest = _lastPostCountersRequestAt;
+    // Multiple feed controllers can exist briefly during route transitions.
+    // Coalesce their identical refreshes instead of flooding Supabase.
+    if (lastRequest != null && now.difference(lastRequest) < const Duration(seconds: 8)) {
+      return const [];
+    }
+    _postCountersRequestInFlight = true;
+    _lastPostCountersRequestAt = now;
+    try {
+      return await _feedRepo.getPostCounters(ids);
+    } finally {
+      _postCountersRequestInFlight = false;
+    }
+  }
+
+  void startPostDwell(CommunityPost post) {
+    if (post.isPublishing || post.id.isEmpty) return;
+    final myId = _authService.userId;
+    if (myId != null && post.authorId == myId) return;
+    _activeDwellStartedAt.putIfAbsent(post.id, DateTime.now);
+  }
+
+  void stopPostDwell(String postId) {
+    final startedAt = _activeDwellStartedAt.remove(postId);
+    if (startedAt == null) return;
+    final dwellMs = DateTime.now().difference(startedAt).inMilliseconds;
+    if (dwellMs <= 0) return;
+    _pendingDwellItems.add({'post_id': postId, 'dwell_ms': dwellMs});
+    if (_pendingDwellItems.length >= 100) {
+      unawaited(_flushPostDwell());
+    } else {
+      _dwellBatchTimer ??= Timer(const Duration(seconds: 5), _flushPostDwell);
+    }
+  }
+
+  Future<void> _flushPostDwell() async {
+    _dwellBatchTimer?.cancel();
+    _dwellBatchTimer = null;
+    while (_pendingDwellItems.isNotEmpty) {
+      final count = _pendingDwellItems.length > 100 ? 100 : _pendingDwellItems.length;
+      final batch = _pendingDwellItems.take(count).toList();
+      _pendingDwellItems.removeRange(0, count);
+      try {
+        final recorded = await _feedRepo.recordPostDwell(batch);
+        debugPrint('[POST_DWELL] Recorded dwell for $recorded/${batch.length} posts');
+      } catch (e) {
+        debugPrint('[POST_DWELL] Batch failed and was dropped: $e');
+      }
+    }
+  }
 
   void queuePostView(CommunityPost post) {
     if (post.isPublishing) return;
@@ -68,7 +132,7 @@ class HomeFeedController extends GetxController {
       debugPrint('[POST_ACTIONS] Sending view batch of ${batch.length} posts');
       await _feedRepo.recordPostViews(batch);
 
-      final counters = await _feedRepo.getPostCounters(batch);
+      final counters = await _requestPostCounters(batch);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -93,10 +157,12 @@ class HomeFeedController extends GetxController {
   }
 
   Future<void> _refreshVisibleCounters() async {
-    if (posts.isEmpty) return;
-    final ids = posts.take(50).map((p) => p.id).toList();
+    if (_refreshingVisibleCounters || posts.isEmpty || state.value != HomeFeedState.loaded) return;
+    final ids = posts.take(50).map((p) => p.id).toSet().toList();
+    if (ids.isEmpty) return;
+    _refreshingVisibleCounters = true;
     try {
-      final counters = await _feedRepo.getPostCounters(ids);
+      final counters = await _requestPostCounters(ids);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -115,7 +181,11 @@ class HomeFeedController extends GetxController {
         }
         posts.refresh();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[POST_ACTIONS] Counter refresh failed; will retry on next interval: $e');
+    } finally {
+      _refreshingVisibleCounters = false;
+    }
   }
 
   @override
@@ -133,6 +203,11 @@ class HomeFeedController extends GetxController {
 
   @override
   void onClose() {
+    _dwellBatchTimer?.cancel();
+    for (final postId in _activeDwellStartedAt.keys.toList()) {
+      stopPostDwell(postId);
+    }
+    unawaited(_flushPostDwell());
     _viewBatchTimer?.cancel();
     _counterRefreshTimer?.cancel();
     _flushViewBatch();

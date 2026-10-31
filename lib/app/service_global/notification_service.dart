@@ -110,6 +110,7 @@ class NotificationService {
   bool _initialized = false;
   Worker? _authWorker;
   String? _activeConversationId;
+  String? _activeSalonId;
   RealtimeChannel? _notificationChannel;
   bool _subscribedOnce = false;
   bool _isProcessingOutbox = false;
@@ -128,13 +129,15 @@ class NotificationService {
   void setActiveConversation(String? conversationId) =>
       _activeConversationId = conversationId;
 
+  void setActiveSalon(String? salonId) => _activeSalonId = salonId;
+
   /// Langue à envoyer au serveur (fr, en, es, de ; repli sur fr).
   String _currentLanguageCode() {
     final locale =
         Get.locale ??
         Get.deviceLocale ??
         WidgetsBinding.instance.platformDispatcher.locale;
-    const supported = ['fr', 'en', 'es', 'de'];
+    const supported = ['fr', 'en', 'es', 'de', 'it', 'pt', 'zh', 'ja', 'ru'];
     return supported.contains(locale.languageCode) ? locale.languageCode : 'fr';
   }
 
@@ -468,27 +471,35 @@ class NotificationService {
             );
             final lastSeen = await db.getLatestNotificationTimestamp(userId);
 
-            // On récupère tout ce qui est arrivé depuis le dernier checkpoint local
-            final query = client
-                .from('notifications')
-                .select()
-                .eq('user_id', userId);
-            if (lastSeen != null) {
-              // Inclure l'égalité : plusieurs notifications peuvent partager
-              // le même timestamp. L'insert local est idempotent par ID.
-              query.gte('created_at', lastSeen.toUtc().toIso8601String());
-            }
-
-            try {
-              final missed = await query.order('created_at');
-              for (final n in missed) {
-                await _processIncomingNotification(n);
-              }
+            // Sans checkpoint local, ne jamais relire tout l'historique :
+            // cela ferait réapparaître d'anciennes notifications après une
+            // première installation ou un cache vidé. Le rattrapage des
+            // notifications réellement manquées est géré par
+            // register_user_device_token à partir du checkpoint serveur.
+            if (lastSeen == null) {
               debugPrint(
-                '[Sync] Notification catch-up completed: ${missed.length} missed notifications processed.',
+                '[Sync] No local notification checkpoint; skipping historical catch-up.',
               );
-            } catch (e) {
-              debugPrint('[Error] Notification catch-up failed: $e');
+            } else {
+              final query = client
+                  .from('notifications')
+                  .select()
+                  .eq('user_id', userId)
+                  // Inclure l'égalité : plusieurs notifications peuvent partager
+                  // le même timestamp. L'insert local est idempotent par ID.
+                  .gte('created_at', lastSeen.toUtc().toIso8601String());
+
+              try {
+                final missed = await query.order('created_at');
+                for (final n in missed) {
+                  await _processIncomingNotification(n);
+                }
+                debugPrint(
+                  '[Sync] Notification catch-up completed: ${missed.length} missed notifications processed.',
+                );
+              } catch (e) {
+                debugPrint('[Error] Notification catch-up failed: $e');
+              }
             }
           }
           _subscribedOnce = true;
@@ -545,6 +556,19 @@ class NotificationService {
       if (data['actor_id'] != null) 'actor_id': data['actor_id'],
     });
 
+    // A live salon message is already visible in the open conversation.
+    // Do not persist it locally or let it enter the Notifications screen.
+    final notificationData = rawPayloadData is Map
+        ? Map<String, dynamic>.from(rawPayloadData)
+        : <String, dynamic>{};
+    final incomingSalonId = (type == 'community_salon_message' || type == 'community_salon_reply')
+        ? (notificationData['salon_id']?.toString() ?? data['salon_id']?.toString())
+        : null;
+    if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
+      debugPrint('[FCM] Live salon message ignored by notification history');
+      return;
+    }
+
     final dbService = Get.find<NotificationDbService>();
 
     // Récupération de l'horodatage réel du serveur si disponible
@@ -599,6 +623,16 @@ class NotificationService {
 
       final data = Map<String, dynamic>.from(message.data);
       final type = data['type']?.toString() ?? 'info';
+      final incomingSalonId = (type == 'community_salon_message' || type == 'community_salon_reply')
+          ? (data['salon_id']?.toString() ??
+              (data['data'] is Map
+                  ? (data['data'] as Map)['salon_id']?.toString()
+                  : null))
+          : null;
+      if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
+        debugPrint('[FCM] Live salon FCM ignored before local persistence');
+        return;
+      }
       final title =
           message.notification?.title ??
           data['title']?.toString() ??
@@ -657,7 +691,13 @@ class NotificationService {
 
       // Si la notification a déjà été sauvegardée (et donc affichée) par le
       // chemin Realtime, on ne l'affiche pas une deuxième fois.
-      if (saved && body.isNotEmpty) {
+      final isCurrentSalon = type == 'community_salon_message' &&
+          (data['salon_id']?.toString() ??
+                  (data['data'] is Map
+                      ? (data['data'] as Map)['salon_id']?.toString()
+                      : null)) ==
+              _activeSalonId;
+      if (saved && body.isNotEmpty && !isCurrentSalon) {
         debugPrint('[FCM] Showing local notification: $title - $body');
         await showNotification(
           id: notifId.hashCode.abs(),

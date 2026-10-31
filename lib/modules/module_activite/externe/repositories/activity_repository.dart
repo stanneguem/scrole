@@ -65,6 +65,34 @@ class ActivityRepository {
     return Activity.fromJson(row);
   }
 
+  /// Creates an event-only activity already active and links it atomically to its event.
+  Future<Activity> createEventActivityRpc({
+    required String id,
+    required String eventId,
+    required String name,
+    String? description,
+    double basePrice = 0.0,
+    String currencyCode = 'XAF',
+  }) async {
+    final response = await client.rpc(
+      'create_event_activity',
+      params: {
+        'p_id': id,
+        'p_event_id': eventId,
+        'p_name': name,
+        'p_description': description,
+        'p_base_price': basePrice,
+        'p_currency_code': currencyCode,
+        'p_event_price': basePrice,
+      },
+    );
+    if (response == null) {
+      throw Exception('Erreur serveur lors de la création de l’activité dans l’événement');
+    }
+    final row = Map<String, dynamic>.from(response is List ? response.first : response);
+    return Activity.fromJson(row);
+  }
+
   /// RPC get_my_activities
   Future<List<Activity>> getMyActivitiesRpc() async {
     final user = client.auth.currentUser;

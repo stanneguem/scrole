@@ -692,6 +692,9 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     final isOwnerOrCoFounder = (_contextRole == 'owner' || _contextRole == 'managed' ||
         event.userRole == 'fondateur' || event.userRole == 'co_createur' ||
         (currentUserId != null && currentUserId.isNotEmpty && event.creatorId == currentUserId));
+    final canManageActivities = isOwnerOrCoFounder || _contextRole == 'staff' ||
+        event.userRole == 'staff' || preview.viewerRole == 'owner' ||
+        preview.viewerRole == 'cofounder' || preview.viewerRole == 'staff';
 
     final canScan = isOwnerOrCoFounder || _contextRole == 'staff' || event.userRole == 'staff';
 
@@ -767,11 +770,15 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   child: Center(
                     child: _HeaderActionButton(
                       icon: Icons.settings_outlined,
-                      tooltip: 'Paramètres',
-                      onPressed: () => Get.toNamed(
-                        AppPages.eventSettings.replaceFirst(':id', event.id),
-                        arguments: event,
-                      ),
+                      tooltip: event.status == EventStatus.draft
+                          ? 'Paramètres indisponibles pendant la validation'
+                          : 'Paramètres',
+                      onPressed: event.status == EventStatus.draft
+                          ? null
+                          : () => Get.toNamed(
+                              AppPages.eventSettings.replaceFirst(':id', event.id),
+                              arguments: event,
+                            ),
                     ),
                   ),
                 ),
@@ -869,13 +876,19 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
+                      Flexible(
+                        fit: FlexFit.loose,
                         child: Text(
                           event.name,
                           style: GoogleFonts.spaceGrotesk(fontSize: 26, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 22),
+                      const SizedBox(width: 5),
+                      EntityCertifiedBadge(
+                        entityType: 'event',
+                        entityId: event.id,
+                        size: 22,
+                      ),
                     ],
                   ),
                   Text(
@@ -1069,12 +1082,15 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                         return Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            onTap: () {
-                              Get.toNamed(
-                                AppPages.eventActivities.replaceFirst(':id', _eventId ?? ''),
-                                arguments: {'activity': act, 'event': preview.event},
-                              );
-                            },
+                            // Les visiteurs consultent la carte sans ouvrir les outils de gestion.
+                            onTap: canManageActivities
+                                ? () {
+                                    Get.toNamed(
+                                      AppPages.eventActivities.replaceFirst(':id', _eventId ?? ''),
+                                      arguments: {'activity': act, 'event': preview.event},
+                                    );
+                                  }
+                                : null,
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
                               padding: const EdgeInsets.all(16),
@@ -1268,7 +1284,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           ),
         ],
       ),
-      bottomNavigationBar: !preview.canAddToCalendar
+      bottomNavigationBar: (!preview.canAddToCalendar || isOwnerOrCoFounder)
           ? null
           : Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -1481,7 +1497,25 @@ class _RestrictedPreviewView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [Expanded(child: Text(event.name.isNotEmpty ? event.name : 'Aperçu restreint', maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18)]),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                event.name.isNotEmpty ? event.name : 'Aperçu restreint',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            EntityCertifiedBadge(
+              entityType: 'event',
+              entityId: event.id,
+              size: 18,
+            ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Get.back(),

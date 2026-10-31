@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -17,6 +19,7 @@ import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
+import 'package:scrole/shared/utils/number_formatter.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -28,6 +31,51 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   final ScrollController _scrollController = ScrollController();
   final RxBool _showScrollToTop = false.obs;
+  bool _notificationTargetHandled = false;
+
+  Future<void> _openNotificationTarget() async {
+    if (_notificationTargetHandled) return;
+    final args = Get.arguments;
+    if (args is! Map) return;
+    final postId = (args['targetPostId'] ?? args['postId'] ?? args['post_id'])?.toString();
+    if (postId == null || postId.isEmpty) return;
+    _notificationTargetHandled = true;
+    final commentId = (args['targetCommentId'] ?? args['commentId'] ?? args['comment_id'])?.toString();
+
+    try {
+      final post = await HomeFeedRepository().getPost(postId);
+      if (!mounted) return;
+      final feed = Get.find<HomeFeedController>();
+      feed.posts.removeWhere((item) => item.id == post.id);
+      feed.posts.insert(0, post);
+      feed.posts.refresh();
+      if (commentId != null && commentId.isNotEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        if (!mounted) return;
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => CommunityCommentsSheet(
+            post: post,
+            controller: Get.isRegistered<CommunityFeedController>()
+                ? Get.find<CommunityFeedController>()
+                : Get.put(CommunityFeedController(null, post.eventId)),
+            targetCommentId: commentId,
+          ),
+        );
+      }
+    } catch (e, st) {
+      debugPrint('[HomeFeedScreen] Failed to open notification post target: $e\\n$st');
+      if (mounted) {
+        Get.snackbar(
+          'Contenu indisponible',
+          'Cette publication ou ce commentaire n’est plus accessible.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -56,15 +104,19 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<HomeFeedController>()) {
-      Get.put(HomeFeedController());
-    }
+    // Keep the feed controller owned by this screen's lifetime. A parent route
+    // closing must not dispose the controller while this screen is still mounted.
+    final feedController = Get.isRegistered<HomeFeedController>()
+        ? Get.find<HomeFeedController>()
+        : Get.put(HomeFeedController(), permanent: true);
     if (!Get.isRegistered<StoriesController>()) {
-      Get.put(StoriesController());
+      Get.put(StoriesController(), permanent: true);
     }
 
-    final feedController = Get.find<HomeFeedController>();
     final storiesController = Get.find<StoriesController>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openNotificationTarget();
+    });
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -116,8 +168,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     const _StoriesRow(),
-                    const _SuggestedProfilesCarousel(),
-                    const _SuggestedEventsCarousel(),
+                    const _TrendingHashtagsStrip(),
+                    _SuggestedProfilesCarousel(controller: feedController),
+                    _SuggestedEventsCarousel(controller: feedController),
                     SizedBox(
                       height: MediaQuery.of(context).size.height * 0.4,
                       child: Center(
@@ -154,6 +207,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const _StoriesRow(),
+                        const _TrendingHashtagsStrip(),
                         // Preserve the layout boundary while making the separator
                         // visually imperceptible, as requested.
                         Container(
@@ -168,10 +222,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   final insertIndex = feedController.posts.length >= 2 ? 3 : (feedController.posts.length == 1 ? 2 : 1);
 
                   if (index == insertIndex) {
-                    return const _SuggestedProfilesCarousel();
+                    return _SuggestedProfilesCarousel(controller: feedController);
                   }
                   if (index == insertIndex + 1) {
-                    return const _SuggestedEventsCarousel();
+                    return _SuggestedEventsCarousel(controller: feedController);
                   }
 
                   int postIndex;
@@ -194,6 +248,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       FeedVideoAutoplayGate.updatePostVisibility(post.id, eligible);
                       if (eligible) {
                         feedController.queuePostView(post);
+                        feedController.startPostDwell(post);
+                      } else {
+                        feedController.stopPostDwell(post.id);
                       }
                     },
                     child: Center(
@@ -262,6 +319,93 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   }
 }
 
+class _StoryPublishingRing extends StatefulWidget {
+  const _StoryPublishingRing();
+
+  @override
+  State<_StoryPublishingRing> createState() => _StoryPublishingRingState();
+}
+
+class _StoryPublishingRingState extends State<_StoryPublishingRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _rotationController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 66,
+      height: 66,
+      child: AnimatedBuilder(
+        animation: _rotationController,
+        builder: (context, child) => Transform.rotate(
+          angle: _rotationController.value * 2 * 3.141592653589793,
+          child: CustomPaint(
+            painter: _StoryPublishingRingPainter(
+              trackColor: colorScheme.surface.withValues(alpha: 0.95),
+              colors: [
+                colorScheme.primary.withValues(alpha: 0.18),
+                colorScheme.primary,
+                colorScheme.tertiary,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StoryPublishingRingPainter extends CustomPainter {
+  const _StoryPublishingRingPainter({
+    required this.trackColor,
+    required this.colors,
+  });
+
+  final Color trackColor;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 3.5;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = trackColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth,
+    );
+
+    final progressPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: colors,
+        stops: const [0.0, 0.62, 1.0],
+      ).createShader(rect);
+    canvas.drawArc(rect, -1.5707963267948966, 4.55, false, progressPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StoryPublishingRingPainter oldDelegate) =>
+      oldDelegate.trackColor != trackColor || oldDelegate.colors != colors;
+}
+
 class _StoriesRow extends GetView<StoriesController> {
   const _StoriesRow();
 
@@ -309,12 +453,17 @@ class _StoriesRow extends GetView<StoriesController> {
                       Stack(
                         children: [
                           Container(
-                            padding: EdgeInsets.all(hasOwnStory ? 2.5 : 0),
+                            // Keep the same outer diameter whether or not the
+                            // current user has an active story.
+                            padding: const EdgeInsets.all(2.5),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: hasOwnStory
-                                  ? Border.all(color: own.hasUnseen ? Colors.blue : Colors.grey.shade500, width: 2.5)
-                                  : null,
+                              border: Border.all(
+                                color: hasOwnStory
+                                    ? (own.hasUnseen ? Colors.blue : Colors.grey.shade500)
+                                    : Colors.transparent,
+                                width: 2.5,
+                              ),
                             ),
                             child: CircleAvatar(
                               radius: 28,
@@ -326,6 +475,14 @@ class _StoriesRow extends GetView<StoriesController> {
                                   : null,
                             ),
                           ),
+                          if (controller.isPublishingStory.value)
+                            const Positioned.fill(
+                              child: IgnorePointer(
+                                child: Center(
+                                  child: _StoryPublishingRing(),
+                                ),
+                              ),
+                            ),
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -345,7 +502,18 @@ class _StoriesRow extends GetView<StoriesController> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      const Text('Ma story', style: TextStyle(fontSize: 11)),
+                      Text(
+                        controller.isPublishingStory.value ? 'Publication…' : 'Ma story',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: controller.isPublishingStory.value
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                          fontWeight: controller.isPublishingStory.value
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -422,8 +590,10 @@ class _StoriesRow extends GetView<StoriesController> {
   }
 }
 
-class _SuggestedProfilesCarousel extends GetView<HomeFeedController> {
-  const _SuggestedProfilesCarousel();
+class _SuggestedProfilesCarousel extends StatelessWidget {
+  const _SuggestedProfilesCarousel({required this.controller});
+
+  final HomeFeedController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -530,8 +700,10 @@ class _SuggestedProfilesCarousel extends GetView<HomeFeedController> {
   }
 }
 
-class _SuggestedEventsCarousel extends GetView<HomeFeedController> {
-  const _SuggestedEventsCarousel();
+class _SuggestedEventsCarousel extends StatelessWidget {
+  const _SuggestedEventsCarousel({required this.controller});
+
+  final HomeFeedController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -638,5 +810,159 @@ class _SuggestedEventsCarousel extends GetView<HomeFeedController> {
         ],
       );
     });
+  }
+}
+
+
+/// Compact live trends row shown directly below Stories in the home feed.
+class _TrendingHashtagsStrip extends StatefulWidget {
+  const _TrendingHashtagsStrip();
+
+  @override
+  State<_TrendingHashtagsStrip> createState() => _TrendingHashtagsStripState();
+}
+
+class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
+  late Future<List<Map<String, dynamic>>> _trendsFuture;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrends();
+    // Trends update periodically without forcing a full feed refresh.
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) _loadTrends();
+    });
+  }
+
+  void _loadTrends() {
+    setState(() {
+      _trendsFuture = HomeFeedRepository().getTrendingHashtags(limit: 10);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _trendsFuture,
+      builder: (context, snapshot) {
+        final trends = snapshot.data;
+        if (trends == null || trends.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 0, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 14, bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.trending_up_rounded, size: 18, color: colors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'hashtag_trending_title'.tr,
+                      style: TextStyle(
+                        color: colors.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 58,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: trends.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final trend = trends[index];
+                    final name = (trend['name'] ?? trend['normalized_name'] ?? '')
+                        .toString()
+                        .replaceFirst(RegExp(r'^#+'), '');
+                    if (name.isEmpty) return const SizedBox.shrink();
+                    final recent = (trend['posts_30m'] as num?)?.toInt() ?? 0;
+                    final postCount = (trend['posts_total'] as num?)?.toInt() ?? (trend['posts_24h'] as num?)?.toInt() ?? 0;
+                    return Material(
+                      color: colors.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Get.toNamed(AppPages.hashtagFeedPath(name)),
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 112, maxWidth: 156),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: colors.outlineVariant.withValues(alpha: 0.55),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SvgPicture.asset(
+                                    'assets/svg_icons/fire-svgrepo-com.svg',
+                                    width: 16,
+                                    height: 16,
+                                    colorFilter: ColorFilter.mode(
+                                      colors.primary,
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      '#$name',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: colors.onSurface,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'hashtag_posts_count'.trParams({'count': NumberFormatter.formatCount(postCount)}),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

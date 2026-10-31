@@ -438,9 +438,8 @@ class _ProfileActions extends GetView<ExternalProfileController> {
       final p = controller.profile.value!;
       final relationState = p.relationshipState;
       final pending = relationState == 'requested';
-      final connected = relationState == 'friends';
+      final connected = p.isConnected || relationState == 'friends';
       final busy = controller.isSendingRequest.value;
-      if (relationState == 'blocked') return const SizedBox.shrink();
       if (relationState == 'self') {
         return OutlinedButton(
           onPressed: () => Get.toNamed(AppPages.editmyprofil),
@@ -459,7 +458,7 @@ class _ProfileActions extends GetView<ExternalProfileController> {
                   pending: pending,
                   busy: busy,
                   colors: colors,
-                  onTap: busy || (p.retryAt != null && p.retryAt!.isAfter(DateTime.now())) ? null : controller.handleConnectionTap,
+                  onTap: relationState == 'blocked' || busy || (p.retryAt != null && p.retryAt!.isAfter(DateTime.now())) ? null : controller.handleConnectionTap,
                 ),
               ),
               if (p.canMessage) ...[
@@ -476,7 +475,7 @@ class _ProfileActions extends GetView<ExternalProfileController> {
                           colorFilter: ColorFilter.mode(colors.onSurface, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 6),
-                        Text('Message', style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                        Text('profile_action_message'.tr, style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w600, fontSize: 13.5)),
                       ],
                     ),
                     foreground: colors.onSurface,
@@ -526,7 +525,7 @@ class _ConnectionButton extends StatelessWidget {
       'follow_back' => 'follow_state_follow_back'.tr,
       'requested' => 'follow_state_requested'.tr,
       'request_received' => 'follow_state_request_received'.tr,
-      'blocked' => 'follow_state_blocked'.tr,
+      'blocked' => connected ? 'follow_state_friends'.tr : 'follow_state_blocked'.tr,
       'self' => 'follow_state_self'.tr,
       _ => 'follow_state_follow'.tr,
     };
@@ -536,13 +535,13 @@ class _ConnectionButton extends StatelessWidget {
             ? Icons.check_rounded
             : (pending || isIncoming)
                 ? Icons.hourglass_top_rounded
-                : isBlocked
+                : isBlocked && !connected
                     ? Icons.block_rounded
                     : Icons.person_add_alt_1_rounded;
     return Material(
       color: (connected || isFollowed)
           ? colors.primary.withValues(alpha: .15)
-          : (pending || isIncoming || isBlocked)
+          : (pending || isIncoming || (isBlocked && !connected))
               ? colors.surfaceContainerHigh
               : colors.primary,
       borderRadius: BorderRadius.circular(10),
@@ -563,7 +562,7 @@ class _ConnectionButton extends StatelessWidget {
                 icon,
                 color: (connected || isFollowed)
                     ? colors.primary
-                    : (pending || isIncoming || isBlocked)
+                    : (pending || isIncoming || (isBlocked && !connected))
                         ? colors.onSurfaceVariant
                         : colors.onPrimary,
                 size: 16,
@@ -573,7 +572,7 @@ class _ConnectionButton extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: (connected || isFollowed) ? colors.primary : ((pending || isIncoming || isBlocked) ? colors.onSurfaceVariant : colors.onPrimary),
+                    color: (connected || isFollowed) ? colors.primary : ((pending || isIncoming || (isBlocked && !connected)) ? colors.onSurfaceVariant : colors.onPrimary),
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -629,11 +628,11 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PrivateProfile(message: 'profile_private_msg'.tr),
-          const SizedBox(height: 14),
-          // Keep relationship/message actions available according to the
-          // recipient's server-calculated privacy settings.
+          // Keep relationship/message actions first; explain profile privacy
+          // directly underneath the follow/message controls.
           _ProfileActions(controller: controller),
+          const SizedBox(height: 10),
+          _PrivateProfile(message: 'profile_private_msg'.tr),
         ],
       );
     }
@@ -671,9 +670,9 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildTabButton(0, Icons.grid_on_rounded, 'Publications', tab == 0, colorScheme),
-              _buildTabButton(1, Icons.event_rounded, 'Événements', tab == 1, colorScheme),
-              _buildTabButton(2, Icons.favorite_border_rounded, 'J’aime récents', tab == 2, colorScheme),
+              _buildTabButton(0, Icons.grid_on_rounded, 'profile_tab_posts'.tr, tab == 0, colorScheme),
+              _buildTabButton(1, Icons.event_rounded, 'profile_tab_events'.tr, tab == 1, colorScheme),
+              _buildTabButton(2, Icons.favorite_border_rounded, 'profile_tab_liked_posts'.tr, tab == 2, colorScheme),
             ],
           );
         }),
@@ -709,10 +708,27 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
               ),
             ),
           ),
-          child: Icon(
-            icon,
-            size: 24,
-            color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -741,7 +757,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
@@ -750,7 +766,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           padding: const EdgeInsets.all(32),
           child: Center(
             child: Text(
-              tabIndex == 0 ? 'Aucune publication pour le moment' : 'Aucun J’aime récent',
+              tabIndex == 0 ? 'profile_tab_posts_empty'.tr : 'profile_tab_liked_empty'.tr,
               textAlign: TextAlign.center,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
@@ -876,14 +892,14 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.loadProfileTab(tabIndex, forceRefresh: true), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
       if (events.isEmpty) {
         return Padding(
           padding: const EdgeInsets.all(32),
-          child: Center(child: Text('Aucun événement à afficher', textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant))),
+          child: Center(child: Text('profile_tab_events_empty'.tr, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant))),
         );
       }
 
@@ -896,9 +912,14 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           final event = events[index];
           final photo = (event['photo'] ?? '').toString();
           final start = DateTime.tryParse((event['starts_at'] ?? '').toString());
-          final date = start == null ? '' : '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+          final date = start == null ? '' : DateFormat('EEE d MMM yyyy', Get.locale?.languageCode ?? 'fr').format(start);
           final location = [event['city'], event['country']].where((value) => value != null && value.toString().trim().isNotEmpty).join(', ');
-          final role = (event['role'] ?? '').toString().replaceAll('_', ' ');
+          final rawRole = (event['role'] ?? '').toString().toLowerCase();
+          final role = ['organizer', 'event_organizer', 'creator', 'host'].contains(rawRole)
+              ? 'external_profile_event_role_organizer'.tr
+              : ['participant', 'attendee', 'registered'].contains(rawRole)
+                  ? 'external_profile_event_role_participant'.tr
+                  : rawRole.replaceAll('_', ' ');
           return GestureDetector(
             onTap: () {
               final eventId = (event['id'] ?? '').toString();
@@ -918,20 +939,26 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Expanded(
-                      child: Text((event['name'] ?? 'Événement').toString(),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        (event['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    ),
-                    EntityCertifiedBadge(entityType: 'event', entityId: (event['id'] ?? '').toString(), size: 16),
-                    if (role.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(20)),
-                        child: Text(role, style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                  ]),
+                      EntityCertifiedBadge(entityType: 'event', entityId: (event['id'] ?? '').toString(), size: 16),
+                      if (role.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(20)),
+                          child: Text(role, style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer)),
+                        ),
+                    ],
+                  ),
                   if (date.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Row(children: [
@@ -958,7 +985,11 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
                         Get.to(() => ExternalEventItineraryScreen(
                           userId: controller.userId,
                           eventId: eventId,
-                          eventName: (event['name'] ?? 'Événement').toString(),
+                          eventName: (event['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
+                          eventPhoto: (event['photo'] ?? '').toString(),
+                          eventLocation: [event['city'], event['country']]
+                              .where((value) => value != null && value.toString().trim().isNotEmpty)
+                              .join(', '),
                         ));
                       },
                       icon: const Icon(Icons.route_rounded, size: 17),
@@ -1258,7 +1289,7 @@ class _PrivateProfile extends StatelessWidget {
                 ),
                 const SizedBox(height: 22),
                 Text(
-                  'Profil indisponible',
+                  'profile_unavailable_title'.tr,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colors.onSurface,
@@ -1376,7 +1407,7 @@ class _ProfileMenuSheet extends StatelessWidget {
               onTap: () async {
                 Navigator.pop(context);
                 if (profile == null) return;
-                final link = 'scrole://user-profile/${profile.userId}';
+                final link = 'https://scrole.fun/user-profile/${profile.userId}';
                 await SharePlus.instance.share(ShareParams(
                   text: 'profile_share_message'.trParams({'name': profile.displayName, 'link': link}),
                   subject: 'profile_share_subject'.trParams({'name': profile.displayName}),
@@ -1390,17 +1421,20 @@ class _ProfileMenuSheet extends StatelessWidget {
               subtitle: 'profile_report_description'.tr,
               color: colors.error,
               onTap: () {
-                Navigator.pop(context);
-                if (profile != null) {
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    backgroundColor: Colors.transparent,
-                    barrierColor: Colors.black.withValues(alpha: .48),
-                    builder: (_) => _ProfileReportSheet(profile: profile),
-                  );
-                }
+                // Use the root navigator's stable context because this menu
+                // route is dismissed before the report sheet is presented.
+                final navigator = Navigator.of(context, rootNavigator: true);
+                navigator.pop();
+                if (profile == null) return;
+                showModalBottomSheet<void>(
+                  context: navigator.context,
+                  useRootNavigator: true,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: Colors.transparent,
+                  barrierColor: Colors.black.withValues(alpha: .48),
+                  builder: (_) => _ProfileReportSheet(profile: profile),
+                );
               },
             ),
           ],

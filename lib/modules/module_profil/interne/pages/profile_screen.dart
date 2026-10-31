@@ -426,9 +426,9 @@ class ProfileScreen extends GetView<ProfileController> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildTabButton(0, Icons.grid_on_rounded, 'Publications', tab == 0, colorScheme),
-              _buildTabButton(1, Icons.event_rounded, 'Événements', tab == 1, colorScheme),
-              _buildTabButton(2, Icons.favorite_border_rounded, 'J’aime récents', tab == 2, colorScheme),
+              _buildTabButton(0, Icons.grid_on_rounded, 'profile_tab_posts'.tr, tab == 0, colorScheme),
+              _buildTabButton(1, Icons.event_rounded, 'profile_tab_events'.tr, tab == 1, colorScheme),
+              _buildTabButton(2, Icons.favorite_border_rounded, 'profile_tab_liked_posts'.tr, tab == 2, colorScheme),
             ],
           );
         }),
@@ -464,10 +464,27 @@ class ProfileScreen extends GetView<ProfileController> {
               ),
             ),
           ),
-          child: Icon(
-            icon,
-            size: 24,
-            color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -494,7 +511,7 @@ class ProfileScreen extends GetView<ProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
@@ -503,7 +520,7 @@ class ProfileScreen extends GetView<ProfileController> {
           padding: const EdgeInsets.all(40),
           child: Center(
             child: Text(
-              tabIndex == 0 ? 'Aucune publication pour le moment' : 'Aucun J’aime récent',
+              tabIndex == 0 ? 'profile_tab_posts_empty'.tr : 'profile_tab_liked_empty'.tr,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
           ),
@@ -585,14 +602,14 @@ class ProfileScreen extends GetView<ProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
       if (events.isEmpty) {
         return Padding(
           padding: const EdgeInsets.all(40),
-          child: Center(child: Text('Aucun événement à afficher', style: TextStyle(color: colorScheme.onSurfaceVariant))),
+          child: Center(child: Text('profile_tab_events_empty'.tr, style: TextStyle(color: colorScheme.onSurfaceVariant))),
         );
       }
       return ListView.builder(
@@ -625,12 +642,22 @@ class ProfileScreen extends GetView<ProfileController> {
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Expanded(child: Text((ev['name'] ?? 'Événement').toString(), maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.onSurface))),
-                    EntityCertifiedBadge(entityType: 'event', entityId: (ev['id'] ?? '').toString(), size: 16),
-                    if (role.isNotEmpty) Text(role, style: TextStyle(fontSize: 11, color: colorScheme.primary)),
-                  ]),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 5,
+                    runSpacing: 3,
+                    children: [
+                      Text(
+                        (ev['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                      ),
+                      EntityCertifiedBadge(entityType: 'event', entityId: (ev['id'] ?? '').toString(), size: 16),
+                      if (role.isNotEmpty)
+                        Text(role, style: TextStyle(fontSize: 11, color: colorScheme.primary)),
+                    ],
+                  ),
                   if (date.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Row(children: [Icon(Icons.calendar_month_outlined, size: 15, color: colorScheme.primary), const SizedBox(width: 6),

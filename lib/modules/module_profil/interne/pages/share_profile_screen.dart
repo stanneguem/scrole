@@ -52,7 +52,7 @@ class _ShareProfileScreenState extends State<ShareProfileScreen> {
     }
   }
 
-  String get _profileLink => 'scrole://user-profile/${_profile.userId.value}';
+  String get _profileLink => 'https://scrole.fun/user-profile/${_profile.userId.value}';
 
   Future<void> _shareLink() async {
     await SharePlus.instance.share(ShareParams(

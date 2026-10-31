@@ -18,17 +18,19 @@ import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:scrole/shared/constants/post_media_limits.dart';
 import 'package:scrole/modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 import 'package:scrole/modules/module_principale/interne/controllers/home_feed_controller.dart';
+import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
+import 'package:scrole/modules/module_principale/interne/widgets/feed_post_card.dart';
 import 'package:scrole/modules/module_communautes/centre/services/community_service.dart';
 import 'package:scrole/modules/module_communautes/centre/models/news/community_hashtag.dart';
 import 'community_poll_composer_screen.dart';
 import 'community_post_hashtag_selection_screen.dart';
-import 'community_post_settings_screen.dart';
 
 class CreateCommunityPostScreen extends StatefulWidget {
   final String communityName;
   final String? communityId;
   final String? prefilledText;
   final String? prefilledMediaUrl;
+  final CommunityPost? sharedPost;
 
   const CreateCommunityPostScreen({
     super.key,
@@ -36,6 +38,7 @@ class CreateCommunityPostScreen extends StatefulWidget {
     this.communityId,
     this.prefilledText,
     this.prefilledMediaUrl,
+    this.sharedPost,
   });
 
   @override
@@ -103,6 +106,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
   bool get _canPublish =>
+      widget.sharedPost != null ||
       _textController.text.trim().isNotEmpty ||
       _selectedMedia.isNotEmpty ||
       (_prefilledUrl != null && _prefilledUrl!.isNotEmpty) ||
@@ -142,7 +146,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final cursor = _textController.selection.baseOffset;
     if (cursor >= 0 && cursor <= value.length) {
       final prefix = value.substring(0, cursor);
-      final match = RegExp(r'(^|\\s)([@*~])([^\\s@*~]*)$').firstMatch(prefix);
+      final match = RegExp(r'(^|\s)([@*~])([^\s@*~]*)$').firstMatch(prefix);
       if (match != null) {
         _hideLiveSuggestions();
         final trigger = match.group(2)!;
@@ -234,8 +238,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         width: MediaQuery.of(context).size.width - 32,
         child: CompositedTransformFollower(
           link: _mentionLayerLink, showWhenUnlinked: false,
-          targetAnchor: Alignment.topLeft, followerAnchor: Alignment.bottomLeft,
-          offset: const Offset(0, -8),
+          targetAnchor: Alignment.bottomLeft, followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 8),
           child: Material(
             elevation: 12, color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(14), clipBehavior: Clip.antiAlias,
@@ -259,7 +263,22 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       backgroundImage: image.startsWith('http') ? NetworkImage(image) : null,
                       child: image.startsWith('http') ? null : Icon(isUser ? Icons.person_outline : type == 'event' ? Icons.event_outlined : Icons.groups_outlined, size: 19),
                     ),
-                    title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        ),
+                        if (isUser && (item['user_id'] ?? item['id']) != null) ...[
+                          const SizedBox(width: 4),
+                          UserCertifiedBadge(
+                            userId: (item['user_id'] ?? item['id']).toString(),
+                            size: 15,
+                            showTooltip: true,
+                          ),
+                        ],
+                      ],
+                    ),
                     subtitle: subtitle.isEmpty ? null : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
                     onTap: () => _insertPostMention(type!, item),
                   );
@@ -442,7 +461,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             ? const Padding(padding: EdgeInsets.all(16), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))))
             : _liveSuggestions.isEmpty
                 ? Padding(padding: const EdgeInsets.all(14), child: Text(
-                    trigger == '#' ? 'Aucun hashtag trouvé pour le moment.' : 'Aucun compte correspondant dans ${scope}.',
+                    trigger == '#' ? 'post_hashtags_autocomplete_empty'.tr : 'Aucun compte correspondant dans ${scope}.',
                     style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant)))
                 : ListView.separated(
                     shrinkWrap: true, padding: const EdgeInsets.symmetric(vertical: 5),
@@ -453,7 +472,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       final isTag = trigger == '#';
                       final displayName = isTag ? (item['name'] ?? '').toString()
                           : '${item['first_name'] ?? ''} ${item['last_name'] ?? ''}'.trim();
-                      final handle = isTag ? '${item['post_count'] ?? 0} publication(s)' : '${item['username'] ?? ''}';
+                      final handle = isTag ? 'post_hashtags_publications_count'.trParams({'count': '${item['post_count'] ?? 0}'}) : '${item['username'] ?? ''}';
                       final photo = (item['photo_url'] ?? '').toString();
                       return ListTile(
                         dense: true,
@@ -477,7 +496,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _openPollCreator() async {
     if (_selectedMedia.isNotEmpty || (_prefilledUrl != null && _prefilledUrl!.isNotEmpty)) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de photos.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_photos'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     final pollMap = await Get.to<Map<String, dynamic>>(() => const CommunityPollComposerScreen(), transition: Transition.rightToLeft);
@@ -489,7 +508,61 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
   Future<void> _publish() async {
-    if (!_canPublish) return;
+    if (!_canPublish || _isPublishing) return;
+
+    final sharedPost = widget.sharedPost;
+    if (sharedPost != null) {
+      setState(() => _isPublishing = true);
+      try {
+        final feedController = Get.find<HomeFeedController>();
+        await feedController.sharePost(
+          originalPostId: sharedPost.sharedPostId ?? sharedPost.id,
+          communityId: widget.communityId,
+          audience: _audience,
+          comment: _textController.text.trim().isNotEmpty
+              ? _textController.text.trim()
+              : null,
+        );
+        if (!mounted) return;
+        FocusManager.instance.primaryFocus?.unfocus();
+        Get.back(closeOverlays: true);
+        if (widget.communityId != null && widget.communityId!.isNotEmpty) {
+          try {
+            final communityFeed = Get.find<CommunityFeedController>(
+              tag: widget.communityId,
+            );
+            unawaited(communityFeed.fetchCommunityFeed(isRefresh: true));
+          } catch (e) {
+            debugPrint('[POST_ACTIONS] Community feed refresh skipped: $e');
+          }
+          Get.snackbar(
+            'Succès',
+            'Publication repartagée dans ${widget.communityName}.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          unawaited(feedController.fetchFeed(refresh: true));
+          Get.snackbar(
+            'Succès',
+            'Publication repartagée sur votre fil.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (e) {
+        debugPrint('[POST_ACTIONS] Republish from composer error: $e');
+        if (mounted) {
+          setState(() => _isPublishing = false);
+          Get.snackbar(
+            'Erreur',
+            e.toString().replaceFirst('Exception: ', ''),
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      }
+      return;
+    }
 
     final orderedMedia = List<_SelectedPostMedia>.from(_selectedMedia);
     List<File> filesToPublish = orderedMedia.where((m) => !m.isVideo).map((m) => m.file).toList();
@@ -505,17 +578,17 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final content = _textController.text.trim();
 
     if (content.isEmpty && filesToPublish.isEmpty && videosToPublish.isEmpty && _pollData == null) {
-      Get.snackbar('Publication vide', 'Une publication doit contenir du texte, un média ou un sondage.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_empty_title'.tr, 'post_composer_empty_message'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
     if (_pollData != null && content.isEmpty) {
-      Get.snackbar('Question manquante', 'Écris la question du sondage ou du quiz avant de publier.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_question_missing'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
     if (filesToPublish.length + videosToPublish.length > maxPostMedia) {
-      Get.snackbar('Limite dépassée', 'Maximum $maxPostMedia médias autorisés (photos et vidéos confondues).', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_limit_title'.tr, 'post_composer_media_limit'.trParams({'max': '$maxPostMedia'}), backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
@@ -591,7 +664,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         }));
       }
       if (!mounted) return;
-      Get.back();
+      FocusManager.instance.primaryFocus?.unfocus();
+      Get.back(closeOverlays: true);
       if (isCommunity) {
         if (feedController != null) {
           unawaited(feedController.fetchCommunityFeed(isRefresh: true));
@@ -622,7 +696,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _openGallery() async {
     if (_pollData != null) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de photos.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_photos'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
@@ -658,7 +732,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       final isVideo = const {'mp4', 'mov'}.contains(extension);
       if (!isVideo) {
         if (_selectedPhotoCount >= maxPostPhotos) {
-          Get.snackbar('Limite de photos atteinte', 'Vous pouvez ajouter au maximum $maxPostPhotos photos par publication.');
+          Get.snackbar('post_composer_photo_limit_title'.tr, 'post_composer_photo_limit_message'.trParams({'max': '$maxPostPhotos'}));
           continue;
         }
         setState(() {
@@ -685,7 +759,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           try {
             await verify.initialize();
             if (verify.value.duration > const Duration(seconds: 29)) {
-              Get.snackbar('Découpage insuffisant', 'La vidéo doit durer 29 secondes maximum.');
+              Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
               continue;
             }
           } finally {
@@ -698,7 +772,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           _prefilledUrl = null;
         });
       } catch (e) {
-        if (mounted) Get.snackbar('Vidéo incompatible', 'Cette vidéo ne peut pas être lue par Scrole. Choisissez un MP4 ou MOV compatible.');
+        if (mounted) Get.snackbar('post_composer_video_invalid_title'.tr, 'post_composer_video_invalid_message'.tr);
         debugPrint('[POST_COMPOSER] incompatible gallery video: $e');
       }
     }
@@ -706,11 +780,11 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _pickVideo() async {
     if (_pollData != null) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de vidéo.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_video'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     if (_selectedMediaCount >= maxPostMedia) {
-      Get.snackbar('Limite atteinte', 'Une publication peut contenir au maximum $maxPostMedia médias.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_media_limit_title'.tr, 'post_composer_media_limit_message'.trParams({'max': '$maxPostMedia'}), backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     try {
@@ -733,7 +807,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         try {
           await verify.initialize();
           if (verify.value.duration > const Duration(seconds: 29)) {
-            Get.snackbar('Découpage insuffisant', 'La vidéo découpée doit durer 29 secondes maximum. Recommence le découpage.', backgroundColor: Colors.black87, colorText: Colors.white);
+            Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
             return;
           }
         } finally {
@@ -746,7 +820,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         _prefilledUrl = null;
       });
     } catch (e) {
-      if (mounted) Get.snackbar('Vidéo impossible à sélectionner', e.toString(), backgroundColor: Colors.black87, colorText: Colors.white);
+      if (mounted) Get.snackbar('post_composer_video_select_error'.tr, e.toString(), backgroundColor: Colors.black87, colorText: Colors.white);
     }
   }
 
@@ -765,6 +839,9 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final displayName = fullName.isEmpty ? (username.isEmpty ? 'profile_default_username'.tr : username) : fullName;
     final avatarUrl = profile['photo_url']?.toString() ?? '';
     final isCertified = profile['is_certified'] == true || profile['is_verified'] == true || profile['is_certified'] == 1 || profile['is_verified'] == 1;
+    final certificationUserId = Supabase.instance.client.auth.currentUser?.id
+        ?? profile['user_id']?.toString()
+        ?? profile['id']?.toString();
 
     final isCommunity = widget.communityId != null && widget.communityId!.isNotEmpty;
 
@@ -772,7 +849,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Créer une publication'),
+        title: Text('post_composer_title'.tr),
         titleTextStyle: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
         leading: IconButton(
           onPressed: () => Get.back(),
@@ -792,7 +869,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               child: _isPublishing
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(
-                      'Publier',
+                      'post_composer_publish'.tr,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -856,7 +933,10 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                     if (isCertified) ...[
                                       const SizedBox(width: 4),
-                                      const UserCertifiedBadge(size: 15),
+                                      UserCertifiedBadge(
+                                        size: 15,
+                                        userId: certificationUserId,
+                                      ),
                                     ],
                                   ],
                                 ),
@@ -869,7 +949,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      'Dans ${widget.communityName}',
+                                      'post_composer_community_label'.trParams({'name': widget.communityName}),
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
@@ -878,19 +958,13 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                   )
                                 else
-                                  // Audience Selector for general posts
-                                  DropdownButton<String>(
-                                    value: _audience,
-                                    isDense: true,
-                                    underline: const SizedBox.shrink(),
-                                    items: const [
-                                      DropdownMenuItem(value: 'public', child: Text('Public')),
-                                      DropdownMenuItem(value: 'followers', child: Text('Followers')),
-                                      DropdownMenuItem(value: 'friends', child: Text('Amis')),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) setState(() => _audience = val);
-                                    },
+                                  Text(
+                                    'post_composer_feed_label'.tr,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                               ],
                             ),
@@ -911,7 +985,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         maxLength: 5000,
                         style: AppTextStyles.bodyXL.copyWith(fontSize: 18, height: 1.4, color: colorScheme.onSurface),
                         decoration: InputDecoration(
-                          hintText: _pollData != null ? 'Posez votre question pour le sondage...' : 'Quoi de neuf ? (max 5000 chars)',
+                          hintText: _pollData != null ? 'post_composer_poll_question'.tr : 'post_composer_whats_new'.tr,
                           hintStyle: AppTextStyles.bodyXL.copyWith(fontSize: 18, color: colorScheme.outline.withValues(alpha: 0.5)),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -927,6 +1001,21 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       ),
                     ),
                     _buildLiveSuggestions(colorScheme),
+
+                    if (widget.sharedPost != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: IgnorePointer(
+                            child: FeedPostCard(
+                              post: widget.sharedPost!,
+                              onReactionTap: (_) {},
+                              onCommentTap: () {},
+                            ),
+                          ),
+                        ),
+                      ),
 
                     if (_selectedHashtags.isNotEmpty)
                       Padding(
@@ -1001,28 +1090,47 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                       children: [
                                         Text(
                                           switch (_pollData!['kind']) {
-                                            'quiz' => 'Quiz',
-                                            'multiple' => 'Sondage à choix multiples',
-                                            'this_or_that' => 'Tu préfères…',
-                                            _ => 'Sondage classique',
+                                            'quiz' => 'poll_kind_quiz'.tr,
+                                            'multiple' => 'poll_kind_multiple'.tr,
+                                            'this_or_that' => 'poll_kind_this_or_that'.tr,
+                                            _ => 'poll_kind_single'.tr,
                                           },
                                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: colorScheme.onSurface),
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          '${(_pollData!['options'] as List).length} options · prêt à publier',
+                                          'poll_preview_ready'.trParams({'count': '${(_pollData!['options'] as List).length}'}),
                                           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                                         ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
-                                    tooltip: 'Supprimer le sondage',
+                                    tooltip: 'post_composer_delete_poll'.tr,
                                     onPressed: () => setState(() => _pollData = null),
                                     icon: const Icon(Icons.close_rounded),
                                   ),
                                 ],
                               ),
+                              if ((_pollData!['question'] ?? '').toString().trim().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _pollData!['question'].toString(),
+                                  style: TextStyle(fontSize: 18, height: 1.3, fontWeight: FontWeight.w800, color: colorScheme.onSurface),
+                                ),
+                              ],
+                              if ((_pollData!['image_file_path'] ?? '').toString().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.file(
+                                    File(_pollData!['image_file_path'].toString()),
+                                    width: double.infinity,
+                                    height: 170,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               ...((_pollData!['options'] as List).asMap().entries.map((entry) {
                                 final rawOption = entry.value;
@@ -1050,9 +1158,26 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                           color: isCorrect ? Colors.green : colorScheme.outline,
                                         ),
                                         const SizedBox(width: 9),
-                                        Expanded(child: Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface))),
+                                        Expanded(child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface)),
+                                            if (rawOption is Map && (rawOption['image_file_path'] ?? '').toString().isNotEmpty) ...[
+                                              const SizedBox(height: 7),
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(9),
+                                                child: Image.file(
+                                                  File(rawOption['image_file_path'].toString()),
+                                                  width: double.infinity,
+                                                  height: 76,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        )),
                                         if (isCorrect)
-                                          const Text('Bonne réponse', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
+                                          Text('post_composer_correct_answer'.tr, style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
                                       ],
                                     ),
                                   ),
@@ -1140,24 +1265,48 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
             // Bottom action bar
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
-              ),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openGallery,
                     icon: Icon(Icons.camera_alt_rounded, color: colorScheme.onSurface, size: 24),
-                    tooltip: 'Galerie photos et vidéos (max $maxPostMedia médias)',
+                    tooltip: 'post_composer_media_tooltip'.trParams({'max': '$maxPostMedia'}),
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openPollCreator,
                     icon: Icon(Icons.poll_rounded, color: _pollData != null ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Sondage',
+                    tooltip: 'post_composer_poll_tooltip'.tr,
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    onPressed: () {
+                      final value = _textController.value;
+                      final text = value.text;
+                      final cursor = value.selection.isValid
+                          ? value.selection.baseOffset.clamp(0, text.length)
+                          : text.length;
+                      final before = cursor > 0 ? text[cursor - 1] : '';
+                      final insertion = before.isEmpty || RegExp(r'\\s').hasMatch(before) ? '@' : ' @';
+                      final nextText = text.replaceRange(cursor, cursor, insertion);
+                      _textController.value = TextEditingValue(
+                        text: nextText,
+                        selection: TextSelection.collapsed(offset: cursor + insertion.length),
+                      );
+                      _onPostTextChanged(nextText);
+                    },
+                    icon: Icon(Icons.alternate_email_rounded, color: colorScheme.onSurface, size: 24),
+                    tooltip: 'Mentionner une personne (@)',
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: () async {
                       final result = await Get.to<List<CommunityHashtag>>(() => CommunityPostHashtagSelectionScreen(
                         initialSelected: _selectedHashtags,
@@ -1170,28 +1319,9 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       }
                     },
                     icon: Icon(Icons.tag_rounded, color: _selectedHashtags.isNotEmpty ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Hashtags',
+                    tooltip: 'post_composer_hashtags_tooltip'.tr,
                   ),
 
-                  IconButton(
-                    onPressed: () async {
-                      final result = await Get.to<Map<String, dynamic>>(() => CommunityPostSettingsScreen(
-                        initialCommentsEnabled: _commentsEnabled,
-                        initialSharingEnabled: _sharingEnabled,
-                        isCommunityPost: isCommunity,
-                        initialAllowPromotion: _allowPromotion,
-                      ));
-                      if (result != null) {
-                        setState(() {
-                          _commentsEnabled = result['commentsEnabled'] ?? true;
-                          _sharingEnabled = result['sharingEnabled'] ?? true;
-                          _allowPromotion = result['allowPromotion'] ?? _allowPromotion;
-                        });
-                      }
-                    },
-                    icon: Icon(Icons.settings_outlined, color: colorScheme.onSurface, size: 24),
-                    tooltip: 'Paramètres',
-                  ),
                 ],
               ),
             ),

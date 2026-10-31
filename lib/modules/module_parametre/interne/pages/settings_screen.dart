@@ -58,11 +58,6 @@ class SettingsScreen extends StatelessWidget {
                             onTap: controller.openPremium,
                           ),
                           _SettingsTile(
-                            icon: Icons.person_rounded,
-                            label: 'settings_my_account'.tr,
-                            onTap: controller.openMyAccount,
-                          ),
-                          _SettingsTile(
                             icon: Icons.privacy_tip_rounded,
                             label: 'settings_privacy_data'.tr,
                             onTap: controller.openPrivacyData,
@@ -74,11 +69,6 @@ class SettingsScreen extends StatelessWidget {
                             onTap: controller.openConnectedDevices,
                           ),
 
-                          _SettingsTile(
-                            icon: Icons.qr_code_scanner_rounded,
-                            label: 'settings_scan_qr'.tr,
-                            onTap: controller.openScanQr,
-                          ),
                         ],
                             (t) => t.label,
                       ),
@@ -103,29 +93,12 @@ class SettingsScreen extends StatelessWidget {
                             onTap: controller.openPreferences,
                           ),
                           _SettingsTile(
-                            icon: Icons.chat_bubble_rounded,
-                            label: 'settings_chats'.tr,
-                            onTap: controller.openChats,
-                          ),
-
-                          _SettingsTile(
-                            icon: Icons.notifications_rounded,
-                            label: 'settings_notifications'.tr,
-                            onTap: controller.openNotifications,
-                          ),
-                          _SettingsTile(
                             icon: Icons.dark_mode_rounded,
                             label: 'settings_theme'.tr,
                             trailingText: controller.isDarkMode
                                 ? 'settings_theme_dark'.tr
                                 : 'settings_theme_light'.tr,
                             onTap: controller.toggleTheme,
-                          ),
-                          _SettingsTile(
-                            icon: Icons.apps_rounded,
-                            label: 'settings_app_icon'.tr,
-                            // badge: 'NOUVEAU',
-                            onTap: controller.openAppIcon,
                           ),
                         ],
                             (t) => t.label,

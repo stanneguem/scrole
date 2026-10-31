@@ -172,21 +172,33 @@ class ExternalProfileController extends GetxController {
             final relation = await _repository.getRelationship(userId, forceRefresh: true);
             final relationState = (relation['state'] ?? 'none').toString();
 
-            // A blocked profile must not trigger protected tab/stat RPCs. Those
-            // RPCs correctly reject the request, but doing them anyway creates
-            // noisy stack traces and leaves the profile screen in a partial error.
+            // A block restricts interactions and protected content, but it does
+            // not erase the underlying follow/friendship relationship or hide
+            // social counters. Keep the real relationship flags while retaining
+            // the 'blocked' state so action buttons remain unavailable.
             if (relationState == 'blocked' || relation['is_blocked'] == true) {
+              Map<String, dynamic> blockedStats = <String, dynamic>{};
+              try {
+                blockedStats = await _repository.getFollowStats(userId: userId);
+              } catch (e) {
+                debugPrint('[ExternalProfileController] blocked profile follow stats unavailable: $e');
+              }
+
               final blockedProfile = result.profile!.copyWith(
-                isFollowing: false,
-                isConnected: false,
+                isFollowing: relation['is_following'] == true,
+                isConnected: relation['is_friend'] == true,
                 connectionRequestSent: false,
-                followsMe: false,
+                followsMe: relation['follows_me'] == true,
                 relationshipState: 'blocked',
                 clearRequestId: true,
                 clearRetryAt: true,
+                friendCount: (blockedStats['friends_count'] as num?)?.toInt() ?? result.profile!.friendCount,
+                followersCount: (blockedStats['followers_count'] as num?)?.toInt() ?? result.profile!.followersCount,
+                followingCount: (blockedStats['following_count'] as num?)?.toInt() ?? result.profile!.followingCount,
+                friendsCount: (blockedStats['friends_count'] as num?)?.toInt() ?? result.profile!.friendsCount,
               );
               profile.value = blockedProfile;
-              isFollowing.value = false;
+              isFollowing.value = blockedProfile.isFollowing;
               profileTabItems.clear();
               profileTabErrors.clear();
               loadedProfileTabs.addAll([0, 1, 2]);

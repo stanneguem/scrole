@@ -5,6 +5,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../centre/models/event_model.dart';
 import '../../centre/repositories/event_repository.dart';
+import '../../../../shared/widgets/entity_certified_badge.dart';
 import 'event_itinerary_screen.dart';
 
 /// Read-only view of the user's itinerary. Editing belongs to EventItineraryScreen.
@@ -52,7 +53,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
     } catch (error) {
       debugPrint('[EventItineraryOverviewScreen] load failed: $error');
       if (mounted) setState(() {
-        _error = 'Impossible de charger votre planning.';
+        _error = 'event_itinerary_load_error'.tr;
         _loading = false;
       });
     }
@@ -73,21 +74,29 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
     final days = _plans.keys.where((key) => key.isNotEmpty).toList()..sort();
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mon planning', style: AppTextStyles.h4.copyWith(fontSize: 18)),
+        title: Text('event_itinerary_title'.tr, style: AppTextStyles.h4.copyWith(fontSize: 18)),
         actions: [
-          IconButton(
-            tooltip: 'Organiser mon planning',
-            onPressed: () async {
-              await Get.to(() => EventItineraryScreen(event: widget.event));
-              if (mounted) {
-                setState(() { _loading = true; _error = null; });
-                await _load();
-              }
-            },
-            icon: const Icon(Icons.edit_calendar_rounded),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton.filled(
+              tooltip: 'event_itinerary_edit'.tr,
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                await Get.to(() => EventItineraryScreen(event: widget.event));
+                if (mounted) {
+                  setState(() { _loading = true; _error = null; });
+                  await _load();
+                }
+              },
+              icon: const Icon(Icons.edit_calendar_rounded),
+            ),
           ),
           IconButton(
-            tooltip: 'Actualiser',
+            tooltip: 'event_itinerary_refresh'.tr,
             onPressed: () {
               setState(() {
                 _loading = true;
@@ -110,9 +119,9 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                       children: [
                         const Icon(Icons.cloud_off_rounded, size: 44),
                         const SizedBox(height: 12),
-                        Text(_error ?? 'Une erreur inattendue est survenue.', textAlign: TextAlign.center),
+                        Text(_error ?? 'event_itinerary_unknown_error'.tr, textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        FilledButton(onPressed: _load, child: const Text('Réessayer')),
+                        FilledButton(onPressed: _load, child: Text('event_itinerary_retry'.tr)),
                       ],
                     ),
                   ),
@@ -126,10 +135,10 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                           children: [
                             const Icon(Icons.route_outlined, size: 52, color: AppColors.primary),
                             const SizedBox(height: 14),
-                            Text('Votre planning est encore vide', style: AppTextStyles.h4, textAlign: TextAlign.center),
+                            Text('event_itinerary_empty_title'.tr, style: AppTextStyles.h4, textAlign: TextAlign.center),
                             const SizedBox(height: 8),
                             Text(
-                              'Ouvrez « Organiser mon parcours » pour choisir vos activités et définir vos horaires.',
+                              'event_itinerary_empty_hint'.tr,
                               style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant),
                               textAlign: TextAlign.center,
                             ),
@@ -154,7 +163,26 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                               ),
                             ),
                           const SizedBox(height: 12),
-                          Text(widget.event.name, style: AppTextStyles.h3),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.event.name,
+                                  style: AppTextStyles.h3,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              EntityCertifiedBadge(
+                                entityType: 'event',
+                                entityId: widget.event.id,
+                                size: 19,
+                              ),
+                            ],
+                          ),
                           if (widget.event.address?.isNotEmpty == true) ...[
                             const SizedBox(height: 4),
                             Row(
@@ -212,7 +240,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                     children: [
                       Text(DateFormat('EEEE d MMMM', Get.locale?.languageCode ?? 'fr').format(date), style: AppTextStyles.h4),
                       const SizedBox(height: 4),
-                      Text('Arrivée $dayStart  ·  Départ $dayEnd', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
+                      Text('event_itinerary_arrival_departure'.trParams({'start': dayStart, 'end': dayEnd}), style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -223,13 +251,13 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
           if (activities.isEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 60),
-              child: Text('Aucune activité prévue ce jour-là.', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
+              child: Text('event_itinerary_no_activities'.tr, style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
             )
           else
             ...List.generate(activities.length, (index) {
               final item = activities[index];
               final id = (item['activity_id'] ?? '').toString();
-              final name = _activityNames[id] ?? 'Activité';
+              final name = _activityNames[id] ?? 'event_itinerary_activity'.tr;
               final start = (item['start_time'] ?? '09:00').toString();
               final end = (item['end_time'] ?? '10:00').toString();
               final now = DateTime.now();
@@ -289,7 +317,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                               Text('$start – $end', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
                               const Spacer(),
                               Text(
-                                isPast ? 'Non confirmée' : isFuture ? 'À venir' : 'En cours',
+                                isPast ? 'event_itinerary_not_confirmed'.tr : isFuture ? 'event_itinerary_upcoming'.tr : 'event_itinerary_in_progress'.tr,
                                 style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600),
                               ),
                             ],

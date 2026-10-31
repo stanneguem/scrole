@@ -52,7 +52,7 @@ class _PollCardWidgetState extends State<PollCardWidget> {
   Future<void> _vote() async {
     if (!_canVote) return;
     if (_selected.isEmpty) {
-      Get.snackbar('Choisis une réponse', 'Sélectionne au moins une option avant de voter.');
+      Get.snackbar('poll_vote_choose_answer'.tr, 'poll_vote_select_option'.tr);
       return;
     }
     setState(() => _saving = true);
@@ -65,7 +65,7 @@ class _PollCardWidgetState extends State<PollCardWidget> {
         setState(() { _poll = Map<String, dynamic>.from(response); _sync(); });
       }
     } catch (error) {
-      Get.snackbar('Vote non envoyé', 'Impossible d’enregistrer ta réponse. Réessaie.');
+      Get.snackbar('poll_vote_failed_title'.tr, 'poll_vote_failed_message'.tr);
       debugPrint('[PollCardWidget] vote error: $error');
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -74,23 +74,23 @@ class _PollCardWidgetState extends State<PollCardWidget> {
 
   String _kindLabel() {
     switch (_kind) {
-      case 'multiple': return 'Choix multiples';
-      case 'quiz': return 'Quiz';
-      case 'this_or_that': return 'Tu préfères…';
-      default: return 'Sondage';
+      case 'multiple': return 'poll_kind_multiple'.tr;
+      case 'quiz': return 'poll_kind_quiz'.tr;
+      case 'this_or_that': return 'poll_kind_this_or_that'.tr;
+      default: return 'poll_kind_single_short'.tr;
     }
   }
 
   String _endLabel() {
     final raw = _poll['ends_at'];
-    if (raw == null || raw.toString().isEmpty) return _quiz ? 'Quiz' : 'À toi de jouer';
+    if (raw == null || raw.toString().isEmpty) return _quiz ? 'poll_kind_quiz'.tr : 'poll_play_now'.tr;
     final end = DateTime.tryParse(raw.toString())?.toLocal();
-    if (end == null) return 'À toi de jouer';
+    if (end == null) return 'poll_play_now'.tr;
     final d = end.difference(DateTime.now());
-    if (d.isNegative) return 'Terminé';
-    if (d.inDays > 0) return 'Se termine dans ${d.inDays} j';
-    if (d.inHours > 0) return 'Se termine dans ${d.inHours} h';
-    return 'Se termine dans ${d.inMinutes.clamp(1, 59)} min';
+    if (d.isNegative) return 'poll_ended'.tr;
+    if (d.inDays > 0) return 'poll_ends_in_days'.trParams({'count': '${d.inDays}'});
+    if (d.inHours > 0) return 'poll_ends_in_hours'.trParams({'count': '${d.inHours}'});
+    return 'poll_ends_in_minutes'.trParams({'count': '${d.inMinutes.clamp(1, 59)}'});
   }
 
   @override
@@ -122,14 +122,48 @@ class _PollCardWidgetState extends State<PollCardWidget> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(_kindLabel(), style: TextStyle(fontSize: 15, letterSpacing: -.2, fontWeight: FontWeight.w800, color: colors.onSurface)),
             const SizedBox(height: 4),
-            Row(children: [Icon(_closed ? Icons.lock_clock_rounded : Icons.schedule_rounded, size: 13, color: colors.onSurfaceVariant), const SizedBox(width: 4), Flexible(child: Text(_closed ? 'Interaction terminée' : _endLabel(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colors.onSurfaceVariant)))]),
+            Row(children: [Icon(_closed ? Icons.lock_clock_rounded : Icons.schedule_rounded, size: 13, color: colors.onSurfaceVariant), const SizedBox(width: 4), Flexible(child: Text(_closed ? 'poll_interaction_ended'.tr : _endLabel(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colors.onSurfaceVariant)))]),
           ])),
           if (voters > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: colors.surfaceContainerHighest.withValues(alpha: .75), borderRadius: BorderRadius.circular(30)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.people_alt_outlined, size: 13, color: colors.onSurfaceVariant), const SizedBox(width: 5), Text('$voters vote${voters > 1 ? 's' : ''}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.onSurfaceVariant))])),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+                decoration: BoxDecoration(color: colors.surfaceContainerHighest.withValues(alpha: .75), borderRadius: BorderRadius.circular(30)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.people_alt_outlined, size: 13, color: colors.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      'poll_votes_count'.trParams({'count': '$voters'}),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
         ]),
+        if ((_poll['question'] ?? '').toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            _poll['question'].toString(),
+            style: TextStyle(fontSize: 17, height: 1.35, fontWeight: FontWeight.w800, letterSpacing: -.25, color: colors.onSurface),
+          ),
+        ],
+        if ((_poll['image_url'] ?? '').toString().trim().isNotEmpty) ...[
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              _poll['image_url'].toString(),
+              width: double.infinity,
+              height: 210,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ],
         const SizedBox(height: 15),
         ...options.map((option) {
           final id = option['id']?.toString() ?? '';
@@ -171,7 +205,25 @@ class _PollCardWidgetState extends State<PollCardWidget> {
                         : (_multiple ? Icons.check_box_outline_blank_rounded : Icons.radio_button_off_rounded),
                         size: 21, color: correct ? Colors.green : selected ? colors.primary : colors.outline),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(label, style: TextStyle(fontSize: 14, height: 1.35, letterSpacing: -.1, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: colors.onSurface))),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(label, style: TextStyle(fontSize: 14, height: 1.35, letterSpacing: -.1, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: colors.onSurface)),
+                          if ((option['image_url'] ?? '').toString().trim().isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                option['image_url'].toString(),
+                                width: double.infinity,
+                                height: 130,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )),
                       if (showResult) ...[
                         const SizedBox(width: 8),
                         Text('${percent.round()}%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: colors.onSurface)),
@@ -201,13 +253,13 @@ class _PollCardWidgetState extends State<PollCardWidget> {
             onPressed: _saving ? null : _vote,
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50), elevation: 0, shape: const StadiumBorder(), textStyle: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: -.1)),
             child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(_quiz ? 'Valider ma réponse' : 'Voter'))),
+              : Text(_quiz ? 'poll_submit_answer'.tr : 'poll_vote'.tr))),
         ],
         if (_voted && !_closed)
           Padding(padding: const EdgeInsets.only(top: 6), child: Row(children: [
             Icon(Icons.check_circle_rounded, size: 16, color: colors.primary),
             const SizedBox(width: 6),
-            Text('Ta réponse a été enregistrée', style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+            Text('poll_vote_recorded'.tr, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
           ])),
       ]),
     );

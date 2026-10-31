@@ -654,6 +654,58 @@ class CommunityOutboxProcessor extends GetxService {
           final sharingEnabled = payload['p_sharing_enabled'] == true;
           final reactionsEnabled = payload['p_reactions_enabled'] == true;
           final poll = payload['p_poll'] is Map ? Map<String, dynamic>.from(payload['p_poll']) : null;
+          if (poll != null) {
+            final r2MediaRepository = R2MediaRepository(client: supabaseClient);
+
+            Future<void> uploadPollImage(Map<String, dynamic> target, String localPathKey, String urlKey) async {
+              final localPath = target.remove(localPathKey)?.toString();
+              final existingUrl = target[urlKey]?.toString();
+              if ((existingUrl ?? '').startsWith('http://') || (existingUrl ?? '').startsWith('https://')) {
+                return;
+              }
+              if (localPath == null || localPath.isEmpty) return;
+              final imageFile = File(localPath);
+              if (!await imageFile.exists()) {
+                throw FileSystemException('Une image du sondage est introuvable.', localPath);
+              }
+              final uploaded = await r2MediaRepository.uploadFile(
+                file: imageFile,
+                category: 'post_media',
+                mediaType: 'image',
+                entityId: pId,
+                communityId: communityId,
+              );
+              final publicUrl = uploaded.publicUrl;
+              if (publicUrl == null || publicUrl.isEmpty || !uploaded.isPublic) {
+                throw StateError('R2 n’a pas retourné d’URL publique pour une image de sondage.');
+              }
+              target[urlKey] = publicUrl;
+              target['${urlKey}_storage'] = 'r2';
+              target['${urlKey}_object_key'] = uploaded.objectKey;
+            }
+
+            await uploadPollImage(poll, 'image_file_path', 'image_url');
+            final rawOptions = poll['options'];
+            if (rawOptions is List) {
+              final updatedOptions = <Map<String, dynamic>>[];
+              for (final rawOption in rawOptions) {
+                if (rawOption is! Map) continue;
+                final option = Map<String, dynamic>.from(rawOption);
+                await uploadPollImage(option, 'image_file_path', 'image_url');
+                updatedOptions.add(option);
+              }
+              poll['options'] = updatedOptions;
+            }
+            // Save uploaded R2 URLs in the durable outbox before the RPC. A retry
+            // after a transient database error reuses them instead of uploading again.
+            payload['p_poll'] = poll;
+            await db.update(
+              'post_outbox',
+              {'payload': jsonEncode(payload), 'updated_at': DateTime.now().toIso8601String()},
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+          }
           final allowPromotion = payload['p_allow_promotion'] ?? true;
 
           debugPrint('[POST_CREATE][$postKind] RPC_START operationId=$operationId postId=$pId communityId=$communityId audience=$audience contentLength=${content.length} mediaCount=${uploadedMedia.length} hashtagCount=${hashtags.length} mentionCount=${mentions.length} pollPresent=${poll != null}');

@@ -1335,6 +1335,7 @@ class SupabaseEventService {
       }
     } catch (e) {
       debugPrint('[Error] addEventToCalendar RPC: $e');
+      rethrow;
     }
     return null;
   }

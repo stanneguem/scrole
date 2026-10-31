@@ -438,10 +438,11 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
     return res;
   }
 
-  Future<void> leaveCommunity(String communityId) async {
-    await _repo.leaveCommunityRpc(communityId);
+  Future<Map<String, dynamic>> leaveCommunity(String communityId) async {
+    final result = await _repo.leaveCommunityRpc(communityId);
     await _dao.deleteCommunity(communityId);
     await reconcileMyCommunities();
+    return result;
   }
 
   Future<CommunityModel> createCommunity({
@@ -777,8 +778,10 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<void> deleteCommunity(String communityId) async {
-    await _dao.deleteCommunity(communityId);
+    // Delete on the server first; preserve local data if the RPC fails.
     await _repo.deleteCommunity(communityId);
+    await _dao.deleteCommunity(communityId);
+    await reconcileMyCommunities();
   }
 
   Future<void> leaveCommunityAndReport({
@@ -945,6 +948,45 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
 
     debugPrint('[POST_CREATE][COMPOSER] MEDIA_PREPARED postId=$postId communityId=$communityId mediaCount=${localMediaPaths.length} types=${localMediaPaths.map((m) => m['type']).toList()} elapsedMs=${DateTime.now().difference(startedAt).inMilliseconds}');
 
+    Map<String, dynamic>? pollPayload = poll == null ? null : Map<String, dynamic>.from(poll);
+    if (pollPayload != null) {
+      final appDir = await getApplicationDocumentsDirectory();
+      Future<String?> persistPollImage(dynamic rawPath, String filename) async {
+        final localPath = rawPath?.toString();
+        if (localPath == null || localPath.isEmpty) return null;
+        final source = File(localPath);
+        if (!await source.exists()) throw FileSystemException('Image de sondage introuvable.', localPath);
+        final targetPath = p.join(appDir.path, 'posts', postId, 'poll', filename + (p.extension(localPath).isEmpty ? '.jpg' : p.extension(localPath)));
+        await Directory(p.dirname(targetPath)).create(recursive: true);
+        final stableFile = await source.copy(targetPath);
+        if (await stableFile.length() <= 0) throw StateError('Une image du sondage est vide.');
+        return stableFile.path;
+      }
+
+      final questionImagePath = await persistPollImage(pollPayload['image_file_path'], 'question');
+      if (questionImagePath != null) {
+        pollPayload['image_file_path'] = questionImagePath;
+      } else {
+        pollPayload.remove('image_file_path');
+      }
+      final rawOptions = pollPayload['options'];
+      if (rawOptions is List) {
+        final options = <Map<String, dynamic>>[];
+        for (var i = 0; i < rawOptions.length; i++) {
+          if (rawOptions[i] is! Map) continue;
+          final option = Map<String, dynamic>.from(rawOptions[i] as Map);
+          final imagePath = await persistPollImage(option['image_file_path'], 'option_${i + 1}');
+          if (imagePath != null) {
+            option['image_file_path'] = imagePath;
+          } else {
+            option.remove('image_file_path');
+          }
+          options.add(option);
+        }
+        pollPayload['options'] = options;
+      }
+    }
+
     final payload = {
       'p_id': postId,
       'p_content': content ?? '',
@@ -958,7 +1000,7 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
       'p_comments_enabled': commentsEnabled,
       'p_sharing_enabled': sharingEnabled,
       'p_reactions_enabled': reactionsEnabled,
-      'p_poll': poll,
+      'p_poll': pollPayload,
       'p_allow_promotion': allowPromotion,
     };
 

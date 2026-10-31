@@ -121,6 +121,23 @@ class HomeFeedRepository {
     }
   }
 
+  Future<int> recordPostDwell(List<Map<String, dynamic>> items) async {
+    if (items.isEmpty) return 0;
+    if (items.length > 100) {
+      throw ArgumentError('record_post_dwell accepts at most 100 items');
+    }
+    try {
+      final response = await client.rpc(
+        'record_post_dwell',
+        params: {'p_items': items},
+      );
+      return response is num ? response.toInt() : 0;
+    } catch (e, st) {
+      debugPrint('[POST_DWELL] Error recording dwell batch: $e\\n$st');
+      rethrow;
+    }
+  }
+
   Future<void> recordPostViews(List<String> postIds) async {
     if (postIds.isEmpty) return;
     try {
@@ -238,6 +255,64 @@ class HomeFeedRepository {
     }
   }
 
+  /// Returns live hashtag trends calculated from visible posts in the last 30 minutes and 24 hours.
+  Future<List<Map<String, dynamic>>> getTrendingHashtags({int limit = 20}) async {
+    final response = await client.rpc('get_trending_hashtags', params: {
+      'p_limit': limit,
+    });
+    if (response is! List) return <Map<String, dynamic>>[];
+    return response
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> getPostsByHashtag(
+    String hashtag, {
+    int limit = 20,
+    String? cursor,
+  }) async {
+    final normalized = hashtag.trim().replaceFirst(RegExp(r'^#+'), '').toLowerCase();
+    if (normalized.isEmpty) {
+      return {'items': <CommunityPost>[], 'next_cursor': null, 'has_more': false};
+    }
+
+    final params = <String, dynamic>{
+      'p_hashtag': normalized,
+      'p_limit': limit,
+      if (cursor != null && cursor.isNotEmpty) 'p_cursor': cursor,
+    };
+    final response = await client.rpc('get_posts_by_hashtag', params: params);
+    List rawItems = [];
+    String? nextCursor;
+    bool hasMore = false;
+    if (response is Map) {
+      rawItems = response['items'] as List? ?? [];
+      nextCursor = response['next_cursor']?.toString();
+      hasMore = response['has_more'] == true || nextCursor != null;
+    } else if (response is List) {
+      rawItems = response;
+    }
+
+    final items = <CommunityPost>[];
+    final seen = <String>{};
+    for (final row in rawItems) {
+      if (row is! Map) continue;
+      final map = Map<String, dynamic>.from(row);
+      final id = (map['id'] ?? map['post_id'] ?? '').toString();
+      if (id.isEmpty || !seen.add(id)) continue;
+      items.add(_parsePost(map));
+    }
+    return {
+      'items': items,
+      'next_cursor': nextCursor,
+      'has_more': hasMore,
+      'total_posts': response is Map ? (response['total_posts'] as num?)?.toInt() ?? items.length : items.length,
+      'total_views': response is Map ? (response['total_views'] as num?)?.toInt() ?? 0 : 0,
+      'total_likes': response is Map ? (response['total_likes'] as num?)?.toInt() ?? 0 : 0,
+    };
+  }
+
   CommunityPost _parsePost(Map<String, dynamic> map) {
     return CommunityPost.fromMap(map);
   }
@@ -344,8 +419,9 @@ class HomeFeedRepository {
         return response.map((e) => Map<String, dynamic>.from(e)).toList();
       }
       return [];
-    } catch (e, st) {
-      debugPrint('[POST_ACTIONS] Error in get_post_counters (ignored): $e\n$st');
+    } catch (e) {
+      // Counter refresh is best-effort; keep transient network failures concise.
+      debugPrint('[POST_ACTIONS] get_post_counters failed (will retry later): $e');
       return [];
     }
   }

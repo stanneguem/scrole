@@ -36,14 +36,14 @@ class AccountListTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-              blurRadius: 8,
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
@@ -55,8 +55,8 @@ class AccountListTile extends StatelessWidget {
               child: account.avatarUrl != null && account.avatarUrl!.isNotEmpty
                   ? AppCachedImage(
                       imageUrl: account.avatarUrl!,
-                      width: 52,
-                      height: 52,
+                      width: 48,
+                      height: 48,
                       fit: BoxFit.cover,
                     )
                   : Container(
@@ -66,11 +66,11 @@ class AccountListTile extends StatelessWidget {
                       child: Icon(
                         Icons.person_rounded,
                         color: colorScheme.onSurfaceVariant,
-                        size: 28,
+                        size: 25,
                       ),
                     ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,8 +143,8 @@ class AccountListTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            RelationButtonWidget(targetUserId: account.id),
-            const SizedBox(width: 4),
+            RelationButtonWidget(targetUserId: account.id, compact: true),
+            const SizedBox(width: 2),
             Icon(
               Icons.chevron_right_rounded,
               color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),

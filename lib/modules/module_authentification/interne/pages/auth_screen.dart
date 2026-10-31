@@ -5,6 +5,7 @@ import '../../../../app/theme/text_styles.dart';
 import '../../../../shared/constantes/image_path.dart';
 import '../../../../shared/widgets/auth_button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../../shared/widgets/external_web_view_screen.dart';
 
 import '../../interne/controllers/auth_controller.dart';
 
@@ -101,7 +102,7 @@ class AuthScreen extends GetView<AuthController> {
                             decoration: TextDecoration.underline,
                           ),
                           recognizer: TapGestureRecognizer()
-                            ..onTap = () => Get.toNamed('/terms'),
+                            ..onTap = () => _openLegalUrl('https://legal.scrole.fun', 'terms'.tr),
                         ),
                         TextSpan(text: ' ${'and'.tr} '),
                         TextSpan(
@@ -112,7 +113,7 @@ class AuthScreen extends GetView<AuthController> {
                             decoration: TextDecoration.underline,
                           ),
                           recognizer: TapGestureRecognizer()
-                            ..onTap = () => Get.toNamed('/privacy-policy'),
+                            ..onTap = () => _openLegalUrl('https://police.scrole.fun', 'privacy_policy'.tr),
                         ),
                       ],
                     ),
@@ -127,6 +128,10 @@ class AuthScreen extends GetView<AuthController> {
       ),
     );
   }
+}
+
+Future<void> _openLegalUrl(String url, String title) async {
+  await Get.to(() => ExternalWebViewScreen(url: url, title: title));
 }
 
 class _AmbientBlob extends StatelessWidget {

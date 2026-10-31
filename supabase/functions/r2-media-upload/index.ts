@@ -27,7 +27,7 @@ const AUDIO_TYPES: Record<string, string> = {
 };
 const CATEGORIES = new Set([
   "profile_avatar", "profile_cover", "community_avatar", "community_cover",
-  "post_media", "story_media", "comment_media", "message_media", "event_media", "bug_report",
+  "post_media", "story_media", "comment_media", "message_media", "event_media", "bug_report", "salon_avatar", "salon_message_media",
 ]);
 
 Deno.serve(async (req: Request) => {
@@ -132,10 +132,83 @@ Deno.serve(async (req: Request) => {
     return reply(failed.length ? 502 : 200, { success: failed.length === 0, deleted_count: deleted.length, retained_referenced_count: retained.length, failed });
   }
 
+  if (body.action === "resolve-delete-bug-report") {
+    const reportId = typeof body.report_id === "string" ? body.report_id.trim() : "";
+    if (!reportId || reportId.length > 80) return reply(400, { error: "invalid_report_id" });
+
+    const { data: permissions, error: permissionError } =
+      await userClient.rpc("admin_permissions_for_current_user");
+    if (permissionError) return reply(500, { error: "admin_permission_check_failed" });
+    const permissionList = Array.isArray(permissions) ? permissions : [];
+    const canResolve = permissionList.some((row: { permission?: string }) =>
+      ["reports.resolve", "bug_reports.manage"].includes(String(row?.permission ?? ""))
+    );
+    if (!canResolve) return reply(403, { error: "bug_report_resolution_denied" });
+
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: report, error: reportError } = await admin
+      .from("bug_reports")
+      .select("id,user_id,screenshot_object_key")
+      .eq("id", reportId)
+      .maybeSingle();
+    if (reportError) return reply(500, { error: "bug_report_lookup_failed" });
+    if (!report) return reply(404, { error: "bug_report_not_found" });
+
+    const objectKey = typeof report.screenshot_object_key === "string"
+      ? report.screenshot_object_key.trim()
+      : "";
+    if (objectKey) {
+      const parts = objectKey.split("/");
+      const validKey = !!report.user_id &&
+        parts.length === 3 &&
+        parts[0] === "bug-reports" &&
+        parts[1] === report.user_id &&
+        /^[a-f0-9-]+\.(jpg|jpeg|png|webp|avif|gif)$/i.test(parts[2]);
+      if (!validKey) return reply(409, { error: "bug_report_media_key_invalid" });
+      if (!privateBucket || !privateAccessKeyId || !privateSecretAccessKey || !privateEndpoint) {
+        return reply(503, { error: "private_media_bucket_not_configured" });
+      }
+      try {
+        const privateS3 = new S3Client({
+          region: "auto",
+          endpoint: privateEndpoint,
+          credentials: { accessKeyId: privateAccessKeyId, secretAccessKey: privateSecretAccessKey },
+        });
+        await privateS3.send(new DeleteObjectCommand({ Bucket: privateBucket, Key: objectKey }));
+      } catch (error) {
+        console.error("[r2-media-upload] bug report screenshot deletion failed", {
+          reportId, error: error instanceof Error ? error.message : String(error),
+        });
+        return reply(502, { error: "bug_report_media_delete_failed" });
+      }
+    }
+
+    const { data: deletedRows, error: deleteError } = await admin
+      .from("bug_reports")
+      .delete()
+      .eq("id", reportId)
+      .select("id");
+    if (deleteError) return reply(500, {
+      error: "bug_report_delete_failed",
+      media_deleted: !!objectKey,
+    });
+    if (!deletedRows || deletedRows.length === 0) return reply(404, {
+      error: "bug_report_not_found",
+      media_deleted: !!objectKey,
+    });
+    return reply(200, {
+      success: true,
+      deleted_report_id: reportId,
+      screenshot_deleted: !!objectKey,
+    });
+  }
+
   if (body.action === "create-download-url") {
     const key = typeof body.object_key === "string" ? body.object_key.trim() : "";
     if (!key || key.includes("..") || key.startsWith("/") || key.includes("\\\\")) return reply(400, { error: "invalid_object_key" });
-    const privatePrefixes = ["private/", "stories/", "messages/", "bug-reports/", "comments/"];
+    const privatePrefixes = ["private/", "stories/", "messages/", "salon-messages/", "bug-reports/", "comments/"];
     const isPrivate = privatePrefixes.some((prefix) => key.startsWith(prefix));
     if (!isPrivate) {
       const encoded = key.split("/").map(encodeURIComponent).join("/");
@@ -149,7 +222,12 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
     let allowed = false;
     const parts = key.split("/");
-    if (parts[0] === "messages" && parts.length >= 3) {
+    if (parts[0] === "salon-messages" && parts.length >= 4) {
+      const salonId = parts[1];
+      const { data: salon } = await admin.from("community_salons").select("id,created_by").eq("id", salonId).maybeSingle();
+      const { data: member } = await admin.from("community_salon_members").select("user_id").eq("salon_id", salonId).eq("user_id", user.id).maybeSingle();
+      allowed = !!salon && (salon.created_by === user.id || !!member);
+    } else if (parts[0] === "messages" && parts.length >= 3) {
       const conversationId = parts[1];
       const { data } = await admin.from("direct_conversations").select("user_one_id,user_two_id").eq("id", conversationId).maybeSingle();
       allowed = !!data && (data.user_one_id === user.id || data.user_two_id === user.id);
@@ -169,8 +247,17 @@ Deno.serve(async (req: Request) => {
           allowed = !!mutual || !!follow;
         }
       }
-    } else if (parts[0] === "bug-reports" && parts.length >= 3) {
+    } else if (parts[0] === "bug-reports" && parts.length === 3) {
+      // Screenshots are private. The reporter may access their own object;
+      // authorized Scrole admins may access them from the bug-report queue.
       allowed = parts[1] === user.id;
+      if (!allowed) {
+        const { data: permissions, error: permissionError } = await userClient.rpc("admin_permissions_for_current_user");
+        if (permissionError) return reply(500, { error: "admin_permission_check_failed" });
+        allowed = Array.isArray(permissions) && permissions.some((row: { permission?: string }) =>
+          ["reports.view", "bug_reports.view"].includes(String(row?.permission ?? ""))
+        );
+      }
     }
     if (!allowed) return reply(403, { error: "media_access_denied" });
     const privateS3 = new S3Client({ region: "auto", endpoint: privateEndpoint, credentials: { accessKeyId: privateAccessKeyId, secretAccessKey: privateSecretAccessKey } });
@@ -209,6 +296,19 @@ Deno.serve(async (req: Request) => {
       }
       referencedUrl = parts[2] === "avatar" ? community.photo_profile : community.photo_cover;
       authorized = true;
+    } else if (parts[0] === "salons" && parts.length === 4 && parts[2] === "avatar") {
+      const salonId = parts[1];
+      const { data: salon, error } = await admin.from("community_salons")
+        .select("avatar_url").eq("id", salonId).maybeSingle();
+      if (error) return reply(500, { error: "salon_check_failed" });
+      const { data: membership, error: membershipError } = await admin.from("community_salon_members")
+        .select("role").eq("salon_id", salonId).eq("user_id", user.id).maybeSingle();
+      if (membershipError) return reply(500, { error: "salon_membership_check_failed" });
+      if (!salon || !["owner", "moderator"].includes(String(membership?.role ?? "").toLowerCase())) {
+        return reply(403, { error: "salon_manager_required" });
+      }
+      referencedUrl = salon.avatar_url;
+      authorized = true;
     } else if (parts[0] === "events" && parts.length === 4 && parts[2] === user.id) {
       const eventId = parts[1];
       const { data: event, error } = await admin.from("events")
@@ -225,7 +325,7 @@ Deno.serve(async (req: Request) => {
         const referenced = new URL(referencedUrl.trim());
         const pathParts = referenced.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
         const stillReferenced = pathParts.some((part, index) =>
-          (part === "profiles" || part === "communities" || part === "events") &&
+          (part === "profiles" || part === "communities" || part === "events" || part === "salons") &&
           pathParts.slice(index).join("/") === objectKey
         );
         if (stillReferenced) return reply(409, { error: "media_still_referenced" });
@@ -278,6 +378,33 @@ Deno.serve(async (req: Request) => {
     const { data: community } = await admin.from("communities").select("creator_id").eq("id", entityId).maybeSingle();
     const { data: membership } = await admin.from("community_members").select("role").eq("community_id", entityId).eq("user_id", user.id).maybeSingle();
     if (!community || (community.creator_id !== user.id && !["owner","admin","moderator"].includes(String(membership?.role ?? "").toLowerCase()))) return reply(403, { error: "community_manager_required" });
+  } else if (category === "salon_message_media") {
+    if (!entityId) return reply(400, { error: "salon_id_required" });
+    const { data: salon, error: salonError } = await admin
+      .from("community_salons").select("id,created_by").eq("id", entityId).maybeSingle();
+    if (salonError) return reply(500, { error: "salon_check_failed" });
+    if (!salon) return reply(404, { error: "salon_not_found" });
+    const { data: membership, error: memberError } = await admin
+      .from("community_salon_members").select("user_id").eq("salon_id", entityId).eq("user_id", user.id).maybeSingle();
+    if (memberError) return reply(500, { error: "salon_membership_check_failed" });
+    if (salon.created_by !== user.id && !membership) return reply(403, { error: "salon_membership_required" });
+    if (!privateBucket) return reply(503, { error: "private_media_bucket_not_configured" });
+  } else if (category === "salon_avatar") {
+    if (!entityId) return reply(400, { error: "salon_id_required" });
+    const { data: salon, error: salonError } = await admin
+      .from("community_salons").select("id,community_id,created_by").eq("id", entityId).maybeSingle();
+    if (salonError) return reply(500, { error: "salon_check_failed" });
+    if (!salon) return reply(404, { error: "salon_not_found" });
+    let canManage = salon.created_by === user.id;
+    if (!canManage) {
+      const { data: allowed, error: permissionError } = await userClient.rpc("community_can", {
+        p_community_id: salon.community_id,
+        p_permission: "can_create_salon",
+      });
+      if (permissionError) return reply(500, { error: "salon_permission_check_failed" });
+      canManage = allowed === true;
+    }
+    if (!canManage) return reply(403, { error: "salon_manager_required" });
   } else if (category === "event_media") {
     if (!entityId) return reply(400, { error: "event_id_required" });
     const { data: event } = await admin.from("events").select("creator_id").eq("id", entityId).maybeSingle();
@@ -347,6 +474,8 @@ Deno.serve(async (req: Request) => {
     }
     case "community_avatar": key = `communities/${entityId}/avatar/${uploadId}.${expectedExtension}`; break;
     case "community_cover": key = `communities/${entityId}/cover/${uploadId}.${expectedExtension}`; break;
+    case "salon_avatar": key = `salons/${entityId}/avatar/${uploadId}.${expectedExtension}`; break;
+    case "salon_message_media": key = `salon-messages/${entityId}/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "event_media": key = `events/${entityId}/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "message_media": key = `messages/${entityId}/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "story_media": key = `stories/${user.id}/${uploadId}.${expectedExtension}`; break;
@@ -358,7 +487,7 @@ Deno.serve(async (req: Request) => {
     // Keep the signed request minimal. Content-Type is sent by Flutter and must
     // match this value; omit ContentLength to avoid signing a transport header
     // that HTTP clients/proxies may normalize differently.
-    const isPrivateObject = key.startsWith("private/") || key.startsWith("messages/") || key.startsWith("stories/") || key.startsWith("bug-reports/");
+    const isPrivateObject = key.startsWith("private/") || key.startsWith("messages/") || key.startsWith("salon-messages/") || key.startsWith("stories/") || key.startsWith("bug-reports/");
     const targetBucket = isPrivateObject ? privateBucket : bucket;
     if (!targetBucket) return reply(503, { error: "private_media_bucket_not_configured" });
     if (isPrivateObject && (!privateAccessKeyId || !privateSecretAccessKey || !privateEndpoint)) {
