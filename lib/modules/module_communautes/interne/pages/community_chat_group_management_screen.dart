@@ -222,6 +222,7 @@ class _CommunityChatGroupManagementScreenState
               ),
             ),
       onTap: _saving || _deleting ? null : onTap,
+      ),
     );
   }
 
