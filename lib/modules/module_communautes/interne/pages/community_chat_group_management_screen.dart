@@ -196,7 +196,9 @@ class _CommunityChatGroupManagementScreenState
     Color? color,
     String? trailing,
   }) {
-    return ListTile(
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 17,
         vertical: 7,
