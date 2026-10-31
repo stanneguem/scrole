@@ -523,6 +523,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
   DateTime? _recordingStartedAt;
   String? _recordingFilePath;
   RealtimeChannel? _channel;
+  RealtimeChannel? _permissionsChannel;
   StreamSubscription<bool>? _connectivitySubscription;
 
   @override
@@ -543,7 +544,10 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     if (Get.isRegistered<ConnectivityService>()) {
       var wasConnected = Get.find<ConnectivityService>().isConnected.value;
       _connectivitySubscription = Get.find<ConnectivityService>().isConnected.listen((connected) {
-        if (connected && !wasConnected) unawaited(_loadMessages());
+        if (connected && !wasConnected) {
+          unawaited(_loadMessages());
+          unawaited(_loadMessagePermissions());
+        }
         wasConnected = connected;
       });
     }
@@ -567,6 +571,30 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         if (id != null && id.isNotEmpty) unawaited(_syncMessageDelta(id));
       })
       .subscribe();
+
+    // Les permissions du salon sont publiées par Postgres Changes : toute
+    // modification faite par un administrateur arrive sans quitter le chat.
+    _permissionsChannel = _client
+        .channel('salon-permissions:${widget.salonId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'community_salons',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.salonId,
+          ),
+          callback: (payload) {
+            final record = payload.newRecord;
+            if (record.isEmpty) {
+              unawaited(_loadMessagePermissions());
+            } else {
+              _applyMessagePermissionRecord(record);
+            }
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _openGroupSettings() async {
@@ -699,6 +727,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     if (state == AppLifecycleState.resumed) {
       NotificationService.instance.setActiveSalon(widget.salonId);
       unawaited(_setSalonPresence(true));
+      // Rattrape les changements de permissions survenus pendant la suspension.
+      unawaited(_loadMessagePermissions());
       _salonPresenceHeartbeat ??= Timer.periodic(
         const Duration(seconds: 45),
         (_) => unawaited(_setSalonPresence(true)),
@@ -731,21 +761,42 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     }
   }
 
+  void _applyMessagePermissionRecord(Map<String, dynamic> settings) {
+    if (!mounted) return;
+    final audioAllowed = settings['audio_messages_allowed'] == true;
+    setState(() {
+      _textMessagesAllowed = settings['text_messages_allowed'] != false;
+      _audioMessagesAllowed = audioAllowed;
+      _imageMessagesAllowed = settings['image_messages_allowed'] != false;
+      _videoMessagesAllowed = settings['video_messages_allowed'] != false;
+    });
+    // Une révocation pendant un enregistrement ou sa prévisualisation
+    // interrompt immédiatement le flux audio en cours.
+    if (!audioAllowed && (_recording || _reviewingRecording)) {
+      unawaited(_cancelRecording());
+    }
+  }
+
   Future<void> _loadMessagePermissions() async {
     try {
       final raw = await _client.rpc('get_community_chat_group_settings', params: {'p_salon_id': widget.salonId});
       final settings = Map<String, dynamic>.from(raw as Map);
-      if (!mounted) return;
-      setState(() {
-        _textMessagesAllowed = settings['text_messages_allowed'] != false;
-        _audioMessagesAllowed = settings['audio_messages_allowed'] == true;
-        _imageMessagesAllowed = settings['image_messages_allowed'] != false;
-        _videoMessagesAllowed = settings['video_messages_allowed'] != false;
-        _autoDownloadIncomingMedia = settings['media_visibility_enabled'] != false;
-      });
+      _applyMessagePermissionRecord(settings);
+      if (mounted) setState(() => _autoDownloadIncomingMedia = settings['media_visibility_enabled'] != false);
     } catch (e) {
       debugPrint('[SALON_PERMISSIONS] Could not load message permissions: $e');
     }
+  }
+
+  String _messageSendError(Object error) {
+    final raw = error.toString();
+    final normalized = raw.toLowerCase();
+    if (normalized.contains('salon_permission_') ||
+        normalized.contains('pas autorisés dans ce salon') ||
+        normalized.contains('not allowed in this salon')) {
+      return 'chat_groups_permission_revoked'.tr;
+    }
+    return raw;
   }
 
   void _openSalonMediaViewer({
@@ -1419,7 +1470,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
           (message) => pendingIds.contains(message['id']?.toString()),
         ));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : $e')),
+          SnackBar(content: Text('${'chat_groups_media_send_error'.tr} : ${_messageSendError(e)}')),
         );
         await _loadMessages();
       }
@@ -1627,6 +1678,13 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _sendVoiceRecording() async {
     if (!_reviewingRecording || _uploadingMedia) return;
+    if (!_audioMessagesAllowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('chat_groups_permission_revoked'.tr)),
+      );
+      await _cancelRecording();
+      return;
+    }
     // AudioPlayer's source is not used as a filesystem contract; the recorder
     // output path is retained explicitly by the preview state.
     final filePath = _recordingFilePath;
@@ -1689,7 +1747,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
       if (mounted) {
         setState(() => _messages.removeWhere((message) => message['id']?.toString() == id));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'chat_groups_audio_send_error'.tr} : $e')),
+          SnackBar(content: Text('${'chat_groups_audio_send_error'.tr} : ${_messageSendError(e)}')),
         );
       }
     } finally {
@@ -1706,7 +1764,13 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
 
   Future<void> _send() async {
     final content = _input.text.trim();
-    if (content.isEmpty || _sending || !_textMessagesAllowed) return;
+    if (content.isEmpty || _sending) return;
+    if (!_textMessagesAllowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('chat_groups_permission_revoked'.tr)),
+      );
+      return;
+    }
     final id = _newUuid();
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -1755,7 +1819,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
         _input.text = content;
         if (replySnapshot != null) setState(() => _replyToMessage = replySnapshot);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'chat_groups_send_error'.tr} : $e')),
+          SnackBar(content: Text('${'chat_groups_send_error'.tr} : ${_messageSendError(e)}')),
         );
       }
     } finally {
@@ -1785,6 +1849,7 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
     _messageKeys.clear();
     _recorder.dispose();
     if (_channel != null) _client.removeChannel(_channel!);
+    if (_permissionsChannel != null) _client.removeChannel(_permissionsChannel!);
     super.dispose();
   }
 
@@ -2100,7 +2165,8 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                         IconButton(visualDensity: VisualDensity.compact, onPressed: () => setState(() => _replyToMessage = null), icon: const Icon(Icons.close_rounded, size: 18)),
                       ]),
                     ),
-                  Row(
+                  if (_textMessagesAllowed || _audioMessagesAllowed || _imageMessagesAllowed || _videoMessagesAllowed)
+                    Row(
                     children: [
                   _SalonCircleAction(
                     icon: Icons.photo_library_outlined,
@@ -2161,7 +2227,16 @@ class _CommunityChatGroupConversationState extends State<CommunityChatGroupConve
                       size: 42,
                     ),
                     ],
-                  ),
+                  )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                      child: Text(
+                        'chat_groups_all_messages_disabled'.tr,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+                      ),
+                    ),
                 ],
               ),
             ),
