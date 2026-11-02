@@ -502,6 +502,22 @@ class EventTrendPoint {
   }
 }
 
+class EventStatsExtended {
+  final Map<String, dynamic> demographics;
+  final Map<String, dynamic> calendarDays;
+  final Map<String, dynamic> simulation;
+  final Map<String, dynamic> engagementDetails;
+
+  const EventStatsExtended({this.demographics = const {}, this.calendarDays = const {}, this.simulation = const {}, this.engagementDetails = const {}});
+
+  factory EventStatsExtended.fromJson(Map<String, dynamic> json) => EventStatsExtended(
+    demographics: json['audience_demographics'] is Map ? Map<String, dynamic>.from(json['audience_demographics'] as Map) : const {},
+    calendarDays: json['calendar_days'] is Map ? Map<String, dynamic>.from(json['calendar_days'] as Map) : const {},
+    simulation: json['simulation'] is Map ? Map<String, dynamic>.from(json['simulation'] as Map) : const {},
+    engagementDetails: json['engagement_details'] is Map ? Map<String, dynamic>.from(json['engagement_details'] as Map) : const {},
+  );
+}
+
 class EventStatisticsModel {
   final EventStatsInfo event;
   final EventStatsOverview overview;
@@ -518,6 +534,7 @@ class EventStatisticsModel {
   final EventStatsDiscovery discovery;
   final List<EventTrendPoint> trends;
   final DateTime calculatedAt;
+  final EventStatsExtended extended;
 
   EventStatisticsModel({
     required this.event,
@@ -535,6 +552,7 @@ class EventStatisticsModel {
     required this.discovery,
     required this.trends,
     required this.calculatedAt,
+    this.extended = const EventStatsExtended(),
   });
 
   factory EventStatisticsModel.fromJson(Map<String, dynamic> json) {
@@ -574,6 +592,7 @@ class EventStatisticsModel {
       discovery: EventStatsDiscovery.fromJson(json['discovery'] is Map ? Map<String, dynamic>.from(json['discovery'] as Map) : {}),
       trends: trList,
       calculatedAt: metaMap['calculated_at'] != null ? DateTime.tryParse(metaMap['calculated_at'].toString()) ?? DateTime.now() : DateTime.now(),
+      extended: EventStatsExtended.fromJson(json),
     );
   }
 
