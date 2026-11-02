@@ -163,6 +163,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
         _contextRole = 'staff';
       }
 
+      // Comptabilise une ouverture réelle de la fiche, indépendamment des actions.
+      unawaited(repo.recordEventAnalytics(_eventId!, 'detail_open'));
       if (mounted) {
         setState(() {
           _preview = preview;
