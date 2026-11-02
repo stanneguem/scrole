@@ -1,7 +1,10 @@
 import 'package:get/get.dart';
+import '../../centre/repositories/event_repository.dart';
 import '../../centre/models/event_preview_model.dart';
 
 class EventBudgetController extends GetxController {
+  String? _eventId;
+  bool _simulationOpened = false;
   final List<EventPreviewTicket> tickets = <EventPreviewTicket>[];
   final List<EventPreviewActivity> activities = <EventPreviewActivity>[];
 
@@ -13,6 +16,7 @@ class EventBudgetController extends GetxController {
     super.onInit();
     final args = Get.arguments;
     if (args is Map) {
+      _eventId = (args['eventId'] ?? args['event_id'])?.toString();
       if (args['tickets'] is List) {
         tickets.clear();
         tickets.addAll((args['tickets'] as List).whereType<EventPreviewTicket>());
@@ -29,6 +33,17 @@ class EventBudgetController extends GetxController {
     if (selectedTicket.value == null && tickets.isNotEmpty) {
       selectedTicket.value = tickets.first;
     }
+    if (_eventId != null && _eventId!.isNotEmpty) {
+      _simulationOpened = true;
+      Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_open');
+    }
+  }
+
+  void selectTicket(EventPreviewTicket ticket) {
+    selectedTicket.value = ticket;
+    if (_eventId != null) {
+      Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_ticket_selected', metadata: {'ticket_id': ticket.id});
+    }
   }
 
   void toggleActivity(String activityId) {
@@ -36,7 +51,20 @@ class EventBudgetController extends GetxController {
       selectedActivityIds.remove(activityId);
     } else {
       selectedActivityIds.add(activityId);
+      if (_eventId != null) {
+        Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_activity_selected', metadata: {'activity_ids': [activityId]});
+      }
     }
+  }
+
+  void completeSimulation() {
+    if (_eventId == null || _eventId!.isEmpty) return;
+    Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_completed', metadata: {
+      'ticket_id': selectedTicket.value?.id,
+      'activity_ids': selectedActivityIds.toList(),
+      'estimated_total': totalBudget,
+      'currency': currency,
+    });
   }
 
   double get totalBudget {
