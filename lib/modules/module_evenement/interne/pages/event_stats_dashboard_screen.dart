@@ -395,6 +395,95 @@ class EventStatsDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
+              // COMPLÉTUDE DES DONNÉES EXISTANTES
+              _sectionHeader(colors, Icons.fact_check_outlined, 'Audience & présence détaillées'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('Personnes dans l’agenda', audience.calendarPeopleCount),
+                  _metricRow('Participants réguliers', audience.regularAttendeesCount),
+                  _metricRow('Invités d’honneur', audience.guestsOfHonorCount),
+                  _metricRow('Sponsors', audience.sponsorsCount),
+                  _metricRow('Staff', audience.staffCount),
+                  _metricRow('Co-organisateurs', audience.cofoundersCount),
+                  _metricRow('Fondateur', audience.founderCount),
+                  const Divider(height: 20),
+                  _metricRow('Scans valides', attendance.totalValidCheckins),
+                  _metricRow('Scans invalidés', attendance.invalidatedCheckins),
+                  _metricRow('Participants aux activités', attendance.activityParticipants),
+                  _metricRow('Taux de non-présentation', '${attendance.noShowRate.toStringAsFixed(1)} %'),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
+              _sectionHeader(colors, Icons.travel_explore_rounded, 'Découverte & intérêt'),
+              const SizedBox(height: 10),
+              GridView.count(
+                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.55,
+                children: [
+                  _statCard(colors, Icons.visibility_outlined, 'Sessions aperçu', NumberFormatter.formatCount(stats.discovery.previewSessions), AppColors.primary),
+                  _statCard(colors, Icons.person_search_outlined, 'Visiteurs uniques', NumberFormatter.formatCount(stats.discovery.uniquePreviewUsers), Colors.blue),
+                  _statCard(colors, Icons.confirmation_number_outlined, 'Billets simulés', NumberFormatter.formatCount(stats.discovery.ticketSelectionsCount), Colors.purple),
+                  _statCard(colors, Icons.local_activity_outlined, 'Activités simulées', NumberFormatter.formatCount(stats.discovery.activitySelectionsCount), Colors.orange),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              _sectionHeader(colors, Icons.stacked_bar_chart_rounded, 'Participation aux activités'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('Aucune activité', stats.activityDepth.attendeesWith0Activities),
+                  _metricRow('Une activité', stats.activityDepth.attendeesWith1Activity),
+                  _metricRow('Deux activités', stats.activityDepth.attendeesWith2Activities),
+                  _metricRow('Trois activités ou plus', stats.activityDepth.attendeesWith3PlusActivities),
+                  _metricRow('Moyenne d’activités par participant', stats.activityDepth.averageActivitiesPerAttendee.toStringAsFixed(1)),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
+              _sectionHeader(colors, Icons.badge_outlined, 'Performance du staff'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('Membres du staff', stats.staff.totalStaff),
+                  _metricRow('Staff ayant effectué des scans', stats.staff.staffMembersWithScans),
+                  _metricRow('Scans validés par le staff', stats.staff.totalStaffScans),
+                  _metricRow('Moyenne de scans par membre actif', stats.staff.averageScansPerActiveStaff.toStringAsFixed(1)),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
+              _sectionHeader(colors, Icons.mail_outline_rounded, 'Suivi des invitations'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  Text('Invitations d’honneur', style: AppTextStyles.labelLarge),
+                  _metricRow('Envoyées', stats.invitations.guestInvitations.sent),
+                  _metricRow('Acceptées', stats.invitations.guestInvitations.accepted),
+                  _metricRow('Refusées', stats.invitations.guestInvitations.declined),
+                  _metricRow('En attente', stats.invitations.guestInvitations.pending),
+                  _metricRow('Taux d’acceptation', '${stats.invitations.guestInvitations.acceptanceRate.toStringAsFixed(1)} %'),
+                  const Divider(height: 20),
+                  Text('Invitations sponsors', style: AppTextStyles.labelLarge),
+                  _metricRow('Envoyées', stats.invitations.sponsorInvitations.sent),
+                  _metricRow('Acceptées', stats.invitations.sponsorInvitations.accepted),
+                  _metricRow('Refusées', stats.invitations.sponsorInvitations.declined),
+                  _metricRow('En attente', stats.invitations.sponsorInvitations.pending),
+                  _metricRow('Taux d’acceptation', '${stats.invitations.sponsorInvitations.acceptanceRate.toStringAsFixed(1)} %'),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
               // BILLETS ET ACTIVITÉS
               if (stats.activities.isNotEmpty) ...[
                 _sectionHeader(colors, Icons.local_activity_rounded, 'Activités Événement'),
