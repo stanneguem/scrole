@@ -316,9 +316,9 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
                 child: Column(children: [
                   Row(children: [
-                    Expanded(child: _statCard(colors, Icons.male_rounded, 'Hommes', NumberFormatter.formatCount(_metric(demographics, 'men')), Colors.blue)),
+                    Expanded(child: _statCard(colors, Icons.male, 'Hommes', NumberFormatter.formatCount(_metric(demographics, 'men')), Colors.blue)),
                     const SizedBox(width: 10),
-                    Expanded(child: _statCard(colors, Icons.female_rounded, 'Femmes', NumberFormatter.formatCount(_metric(demographics, 'women')), Colors.pink)),
+                    Expanded(child: _statCard(colors, Icons.female, 'Femmes', NumberFormatter.formatCount(_metric(demographics, 'women')), Colors.pink)),
                   ]),
                   const SizedBox(height: 12),
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -374,8 +374,8 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
                 child: Column(children: [
-                  _metricRow('Budget moyen simulé', _metricDouble(simulation, 'average_estimated_budget').toStringAsFixed(0)),
-                  _metricRow('Budget cumulé simulé', _metricDouble(simulation, 'total_estimated_budget').toStringAsFixed(0)),
+                  _metricRow('Budget moyen simulé', '${_metricDouble(simulation, 'average_estimated_budget').toStringAsFixed(0)} ${financial.currency}'),
+                  _metricRow('Budget cumulé simulé', '${_metricDouble(simulation, 'total_estimated_budget').toStringAsFixed(0)} ${financial.currency}'),
                 ]),
               ),
               const SizedBox(height: 20),
