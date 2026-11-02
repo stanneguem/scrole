@@ -374,11 +374,36 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
                 child: Column(children: [
-                  _metricRow('Budget moyen simulé', '${_metricDouble(simulation, 'average_estimated_budget').toStringAsFixed(0)} ${financial.currency}'),
-                  _metricRow('Budget cumulé simulé', '${_metricDouble(simulation, 'total_estimated_budget').toStringAsFixed(0)} ${financial.currency}'),
+                  if (simulation['budget_by_currency'] is List && (simulation['budget_by_currency'] as List).isNotEmpty) ...[
+                    ...(simulation['budget_by_currency'] as List).whereType<Map>().map((item) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Devise : ${item['currency'] ?? '—'}', style: AppTextStyles.labelLarge),
+                        _metricRow('Simulations terminées', _metric(item.cast<String, dynamic>(), 'simulations')),
+                        _metricRow('Budget moyen', '${_metricDouble(item.cast<String, dynamic>(), 'average_budget').toStringAsFixed(0)} ${item['currency'] ?? ''}'),
+                        _metricRow('Budget cumulé', '${_metricDouble(item.cast<String, dynamic>(), 'total_budget').toStringAsFixed(0)} ${item['currency'] ?? ''}'),
+                      ]),
+                    )),
+                  ] else
+                    Text('Les montants simulés apparaîtront ici après les premières simulations terminées.', style: AppTextStyles.caption),
                 ]),
               ),
-              const SizedBox(height: 20),
+              if (simulation['ticket_breakdown'] is List && (simulation['ticket_breakdown'] as List).isNotEmpty) ...[
+                _sectionHeader(colors, Icons.confirmation_number_outlined, 'Billets les plus simulés'),
+                const SizedBox(height: 8),
+                Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)), child: Column(children: [
+                  ...(simulation['ticket_breakdown'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Billet'}', _metric(item.cast<String, dynamic>(), 'selections'))),
+                ])),
+                const SizedBox(height: 16),
+              ],
+              if (simulation['activity_breakdown'] is List && (simulation['activity_breakdown'] as List).isNotEmpty) ...[
+                _sectionHeader(colors, Icons.local_activity_outlined, 'Activités les plus simulées'),
+                const SizedBox(height: 8),
+                Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)), child: Column(children: [
+                  ...(simulation['activity_breakdown'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Activité'}', _metric(item.cast<String, dynamic>(), 'selections'))),
+                ])),
+                const SizedBox(height: 16),
+              ],
 
               // DÉTAIL DES INTERACTIONS
               _sectionHeader(colors, Icons.touch_app_rounded, 'Détail des interactions'),
