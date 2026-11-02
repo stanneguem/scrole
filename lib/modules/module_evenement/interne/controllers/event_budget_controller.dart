@@ -4,7 +4,6 @@ import '../../centre/models/event_preview_model.dart';
 
 class EventBudgetController extends GetxController {
   String? _eventId;
-  bool _simulationOpened = false;
   final List<EventPreviewTicket> tickets = <EventPreviewTicket>[];
   final List<EventPreviewActivity> activities = <EventPreviewActivity>[];
 
@@ -34,7 +33,6 @@ class EventBudgetController extends GetxController {
       selectedTicket.value = tickets.first;
     }
     if (_eventId != null && _eventId!.isNotEmpty) {
-      _simulationOpened = true;
       Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_open');
     }
   }
