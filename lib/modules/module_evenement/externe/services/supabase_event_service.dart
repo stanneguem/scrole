@@ -1143,9 +1143,22 @@ class SupabaseEventService {
     }
   }
 
+  Future<void> recordEventAnalytics({required String eventId, required String action, Map<String, dynamic> metadata = const {}}) async {
+    try {
+      await _client.from('event_analytics_events').insert({
+        'event_id': eventId,
+        'user_id': _client.auth.currentUser?.id,
+        'action': action,
+        'metadata': metadata,
+      });
+    } catch (e) {
+      debugPrint('[SupabaseEventService] recordEventAnalytics($action) failed: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> getEventStatistics({required String eventId}) async {
     try {
-      final response = await _client.rpc('get_event_statistics', params: {'p_event_id': eventId});
+      final response = await _client.rpc('get_event_analytics_extended', params: {'p_event_id': eventId});
       if (response is Map) {
         return Map<String, dynamic>.from(response);
       }
