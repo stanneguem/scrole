@@ -971,6 +971,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                                 'tickets': preview.tickets,
                                 'activities': preview.activitiesLiees,
                                 'cheapestTicket': preview.cheapestTicket,
+                                'eventId': event.id,
                               },
                             );
                           },
