@@ -1145,11 +1145,10 @@ class SupabaseEventService {
 
   Future<void> recordEventAnalytics({required String eventId, required String action, Map<String, dynamic> metadata = const {}}) async {
     try {
-      await _client.from('event_analytics_events').insert({
-        'event_id': eventId,
-        'user_id': _client.auth.currentUser?.id,
-        'action': action,
-        'metadata': metadata,
+      await _client.rpc('record_event_analytics_event', params: {
+        'p_event_id': eventId,
+        'p_action': action,
+        'p_metadata': metadata,
       });
     } catch (e) {
       debugPrint('[SupabaseEventService] recordEventAnalytics($action) failed: $e');
