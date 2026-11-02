@@ -8,14 +8,12 @@ class EventBudgetController extends GetxController {
 
   Future<void> _recordAnalytics(String action, {Map<String, dynamic> metadata = const {}}) async {
     final client = Supabase.instance.client;
-    final userId = client.auth.currentUser?.id;
-    if (_eventId == null || _eventId!.isEmpty || userId == null) return;
+    if (_eventId == null || _eventId!.isEmpty || client.auth.currentUser == null) return;
     try {
-      await client.from('event_analytics_events').insert({
-        'event_id': _eventId,
-        'user_id': userId,
-        'action': action,
-        'metadata': metadata,
+      await client.rpc('record_event_analytics_event', params: {
+        'p_event_id': _eventId,
+        'p_action': action,
+        'p_metadata': metadata,
       });
     } catch (error) {
       debugPrint('[EventBudgetController] analytics $action failed: $error');
