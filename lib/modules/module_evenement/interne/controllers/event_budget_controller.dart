@@ -1,9 +1,26 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import '../../centre/repositories/event_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../centre/models/event_preview_model.dart';
 
 class EventBudgetController extends GetxController {
   String? _eventId;
+
+  Future<void> _recordAnalytics(String action, {Map<String, dynamic> metadata = const {}}) async {
+    final client = Supabase.instance.client;
+    final userId = client.auth.currentUser?.id;
+    if (_eventId == null || _eventId!.isEmpty || userId == null) return;
+    try {
+      await client.from('event_analytics_events').insert({
+        'event_id': _eventId,
+        'user_id': userId,
+        'action': action,
+        'metadata': metadata,
+      });
+    } catch (error) {
+      debugPrint('[EventBudgetController] analytics $action failed: $error');
+    }
+  }
   final List<EventPreviewTicket> tickets = <EventPreviewTicket>[];
   final List<EventPreviewActivity> activities = <EventPreviewActivity>[];
 
@@ -33,14 +50,14 @@ class EventBudgetController extends GetxController {
       selectedTicket.value = tickets.first;
     }
     if (_eventId != null && _eventId!.isNotEmpty) {
-      Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_open');
+      _recordAnalytics('simulation_open');
     }
   }
 
   void selectTicket(EventPreviewTicket ticket) {
     selectedTicket.value = ticket;
     if (_eventId != null) {
-      Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_ticket_selected', metadata: {'ticket_id': ticket.id});
+      _recordAnalytics('simulation_ticket_selected', metadata: {'ticket_id': ticket.id});
     }
   }
 
@@ -50,14 +67,14 @@ class EventBudgetController extends GetxController {
     } else {
       selectedActivityIds.add(activityId);
       if (_eventId != null) {
-        Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_activity_selected', metadata: {'activity_ids': [activityId]});
+        _recordAnalytics('simulation_activity_selected', metadata: {'activity_ids': [activityId]});
       }
     }
   }
 
   void completeSimulation() {
     if (_eventId == null || _eventId!.isEmpty) return;
-    Get.find<EventRepository>().recordEventAnalytics(_eventId!, 'simulation_completed', metadata: {
+    _recordAnalytics('simulation_completed', metadata: {
       'ticket_id': selectedTicket.value?.id,
       'activity_ids': selectedActivityIds.toList(),
       'estimated_total': totalBudget,
