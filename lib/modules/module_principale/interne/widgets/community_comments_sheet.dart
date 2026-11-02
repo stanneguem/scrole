@@ -613,8 +613,15 @@ class _CommunityCommentsSheetState extends State<CommunityCommentsSheet> {
           style: TextStyle(fontSize: 13.5, color: colorScheme.onSurface, height: 1.35),
         ));
       }
+      final rawMention = match.group(0)!;
+      // Entity markers are an internal storage format, not part of the text
+      // users should see. Keep the raw token in the stored comment so entity
+      // references can still be resolved, but render only the entity name.
+      final displayMention = (rawMention.startsWith('*{') || rawMention.startsWith('~{'))
+          ? rawMention.substring(2, rawMention.length - 1)
+          : rawMention;
       spans.add(TextSpan(
-        text: match.group(0),
+        text: displayMention,
         style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: colorScheme.primary, height: 1.35),
       ));
       lastEnd = match.end;

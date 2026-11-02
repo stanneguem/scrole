@@ -383,6 +383,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   bool _visible = false;
   bool _cardEligible = false;
   bool _failed = false;
+  bool _isMuted = false;
   Worker? _preferencesWorker;
 
   @override
@@ -425,8 +426,9 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
         return;
       }
       await controller.setLooping(true);
-      // Keep inline feed playback silent; fullscreen playback uses normal volume.
-      await controller.setVolume(0);
+      // Feed autoplay starts with sound enabled. The in-card control lets
+      // the viewer mute/unmute without opening the fullscreen player.
+      await controller.setVolume(_isMuted ? 0 : 1);
       _controller = controller;
       setState(() {});
       await controller.play();
@@ -522,9 +524,40 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
                   border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 1.5),
                 ),
                 child: Icon(
-                  _autoPlay && !_failed ? Icons.play_arrow_rounded : Icons.play_arrow_rounded,
+                  Icons.play_arrow_rounded,
                   color: Colors.white,
                   size: 46,
+                ),
+              ),
+            ),
+          if (_controller != null && _controller!.value.isInitialized)
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.62),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+                  padding: const EdgeInsets.all(9),
+                  onPressed: () async {
+                    final controller = _controller;
+                    if (controller == null || !controller.value.isInitialized) return;
+                    final mute = !_isMuted;
+                    try {
+                      await controller.setVolume(mute ? 0 : 1);
+                      if (mounted) setState(() => _isMuted = mute);
+                    } catch (error) {
+                      debugPrint('[POST_MEDIA] unable to change inline video volume: $error');
+                    }
+                  },
+                  icon: Icon(
+                    _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ),
             ),
