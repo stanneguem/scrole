@@ -12,8 +12,6 @@ import '../enums/event_enum.dart';
 import 'event_pricing_screen.dart';
 import 'event_stats_dashboard_screen.dart';
 import 'event_interests_screen.dart';
-import 'event_guest_invitations_screen.dart';
-import 'event_sponsors_screen.dart';
 import 'event_open_days_screen.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_settings_main_screen.dart';
 
@@ -259,24 +257,6 @@ class EventSettingsScreen extends StatelessWidget {
                   arguments: {'event': event, 'initialTab': 0},
                 ),
               ));
-              if (eventCertified) {
-                actions.addAll([
-                  const ScroleBottomSheetDivider(),
-                  ScroleBottomSheetAction(
-                    icon: Icons.mark_email_read_outlined,
-                    label: 'Invitations d\'honneur',
-                    subtitle: 'Inviter des personnalités ou profils publics',
-                    onTap: () => Get.to(() => EventGuestInvitationsScreen(event: event)),
-                  ),
-                  const ScroleBottomSheetDivider(),
-                  ScroleBottomSheetAction(
-                    icon: Icons.workspace_premium_outlined,
-                    label: 'Sponsors',
-                    subtitle: 'Inviter et gérer les sponsors de l\'événement',
-                    onTap: () => Get.to(() => EventSponsorsScreen(event: event)),
-                  ),
-                ]);
-              }
               if (eventCertified || communityCertified) {
                 actions.addAll([
                   const ScroleBottomSheetDivider(),
