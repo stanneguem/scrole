@@ -1810,6 +1810,9 @@ class EventRepository {
     return await _remote.proposeTransfer(eventId: eventId, targetUserId: targetUserId);
   }
 
+  Future<void> recordEventAnalytics(String eventId, String action, {Map<String, dynamic> metadata = const {}}) =>
+      _remote.recordEventAnalytics(eventId: eventId, action: action, metadata: metadata);
+
   Future<EventStatisticsModel> getEventStatistics(String eventId, {bool forceRefresh = false}) async {
     // Les statistiques sont une fonctionnalité protégée par la certification active.
     // Ne jamais servir un cache local avant la validation serveur : la certification
