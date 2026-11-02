@@ -95,6 +95,11 @@ class EventStatsDashboardScreen extends StatelessWidget {
         final funnel = stats.funnel;
         final financial = stats.financial;
         final prestige = stats.prestige;
+        final extended = stats.extended;
+        final demographics = extended.demographics;
+        final calendarDays = extended.calendarDays;
+        final simulation = extended.simulation;
+        final engagementDetails = extended.engagementDetails;
 
         return RefreshIndicator(
           onRefresh: () => controller.refreshStatistics(),
@@ -303,6 +308,93 @@ class EventStatsDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
+              // PROFIL DU PUBLIC : données renseignées dans les profils, sans identifier les participants.
+              _sectionHeader(colors, Icons.groups_rounded, 'Profil du public'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  Row(children: [
+                    Expanded(child: _statCard(colors, Icons.male_rounded, 'Hommes', NumberFormatter.formatCount(_metric(demographics, 'men')), Colors.blue)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _statCard(colors, Icons.female_rounded, 'Femmes', NumberFormatter.formatCount(_metric(demographics, 'women')), Colors.pink)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text('Âge moyen', style: AppTextStyles.bodySmall),
+                    Text(demographics['average_age'] == null ? 'Données insuffisantes' : '${_metricDouble(demographics, 'average_age').toStringAsFixed(1)} ans', style: AppTextStyles.labelLarge),
+                  ]),
+                  const SizedBox(height: 10),
+                  ...[
+                    ('Moins de 18 ans', 'age_under_18'), ('18–24 ans', 'age_18_24'), ('25–34 ans', 'age_25_34'),
+                    ('35–44 ans', 'age_35_44'), ('45–54 ans', 'age_45_54'), ('55 ans et plus', 'age_55_plus'),
+                  ].map((entry) => Padding(
+                    padding: const EdgeInsets.only(top: 7),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text(entry.$1, style: AppTextStyles.caption),
+                      Text(NumberFormatter.formatCount(_metric(demographics, entry.$2)), style: AppTextStyles.labelMedium),
+                    ]),
+                  )),
+                  const SizedBox(height: 8),
+                  Text('Profils avec âge renseigné : ${NumberFormatter.formatCount(_metric(demographics, 'age_known'))} · Genre non renseigné : ${NumberFormatter.formatCount(_metric(demographics, 'gender_unknown'))}', style: AppTextStyles.caption),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
+              // JOURS CHOISIS DANS L’AGENDA
+              _sectionHeader(colors, Icons.date_range_rounded, 'Jours de participation prévus'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('Jours sélectionnés au total', _metric(calendarDays, 'selected_days')),
+                  _metricRow('Personnes ayant choisi des jours', _metric(calendarDays, 'users_with_days')),
+                  _metricRow('Moyenne de jours par personne', _metricDouble(calendarDays, 'average_days_per_person').toStringAsFixed(1)),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
+              // SIMULATIONS DE BUDGET
+              _sectionHeader(colors, Icons.calculate_outlined, 'Simulations de budget'),
+              const SizedBox(height: 10),
+              GridView.count(
+                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.55,
+                children: [
+                  _statCard(colors, Icons.open_in_new_rounded, 'Ouvertures', NumberFormatter.formatCount(_metric(simulation, 'opens')), AppColors.primary),
+                  _statCard(colors, Icons.people_alt_outlined, 'Simulateurs uniques', NumberFormatter.formatCount(_metric(simulation, 'unique_users')), Colors.blue),
+                  _statCard(colors, Icons.check_circle_outline, 'Simulations terminées', NumberFormatter.formatCount(_metric(simulation, 'completed')), AppColors.success),
+                  _statCard(colors, Icons.confirmation_number_outlined, 'Choix de billets', NumberFormatter.formatCount(_metric(simulation, 'ticket_selections')), Colors.purple),
+                  _statCard(colors, Icons.local_activity_outlined, 'Choix d’activités', NumberFormatter.formatCount(_metric(simulation, 'activity_selections')), Colors.orange),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('Budget moyen simulé', _metricDouble(simulation, 'average_estimated_budget').toStringAsFixed(0)),
+                  _metricRow('Budget cumulé simulé', _metricDouble(simulation, 'total_estimated_budget').toStringAsFixed(0)),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
+              // DÉTAIL DES INTERACTIONS
+              _sectionHeader(colors, Icons.touch_app_rounded, 'Détail des interactions'),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('Ouvertures de la fiche', _metric(engagementDetails, 'detail_views')),
+                  _metricRow('Commentaires', _metric(engagementDetails, 'comments')),
+                  _metricRow('Réponses aux commentaires', _metric(engagementDetails, 'replies')),
+                  _metricRow('J’aime sur les commentaires', _metric(engagementDetails, 'comment_likes')),
+                ]),
+              ),
+              const SizedBox(height: 20),
+
               // BILLETS ET ACTIVITÉS
               if (stats.activities.isNotEmpty) ...[
                 _sectionHeader(colors, Icons.local_activity_rounded, 'Activités Événement'),
@@ -432,6 +524,19 @@ class EventStatsDashboardScreen extends StatelessWidget {
       }),
     );
   }
+
+  int _metric(Map<String, dynamic> values, String key) => int.tryParse('${values[key] ?? 0}') ?? 0;
+
+  double _metricDouble(Map<String, dynamic> values, String key) => double.tryParse('${values[key] ?? 0}') ?? 0;
+
+  Widget _metricRow(String label, Object value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Expanded(child: Text(label, style: AppTextStyles.bodySmall)),
+      const SizedBox(width: 12),
+      Text('$value', style: AppTextStyles.labelLarge),
+    ]),
+  );
 
   Widget _sectionHeader(ColorScheme colors, IconData icon, String title) {
     return Row(
