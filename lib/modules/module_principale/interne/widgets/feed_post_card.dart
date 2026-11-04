@@ -156,24 +156,26 @@ class FeedPostCard extends StatelessWidget {
       opacity: post.isPublishing ? 0.65 : 1.0,
       child: Container(
         width: double.infinity,
-        margin: EdgeInsets.zero,
-        color: colorScheme.surface,
-        child: Stack(
-          children: [
-            // Draw the connector below the author avatar, keeping it behind the
-            // card content and aligned to the shared avatar center (x = 36).
-            Positioned(
-              left: cardHorizontalPadding + 20,
-              top: showCommunityHeader ? 58 : 64,
-              bottom: 0,
-              child: IgnorePointer(
-                child: Container(
-                  width: 2,
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.18),
-                ),
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.32),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.035,
               ),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
             ),
-            Padding(
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
               padding: EdgeInsets.symmetric(horizontal: cardHorizontalPadding, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,9 +570,6 @@ class FeedPostCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
