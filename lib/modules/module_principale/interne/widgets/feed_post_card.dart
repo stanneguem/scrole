@@ -570,6 +570,8 @@ class FeedPostCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+        ),
       ),
     );
   }
