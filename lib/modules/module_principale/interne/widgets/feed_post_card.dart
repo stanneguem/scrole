@@ -145,7 +145,7 @@ class FeedPostCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final username = post.authorObj?.username ?? '';
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final cardHorizontalPadding = screenWidth < 360 ? 10.0 : (screenWidth < 600 ? 14.0 : 18.0);
+    final cardHorizontalPadding = screenWidth < 360 ? 12.0 : (screenWidth < 600 ? 15.0 : 18.0);
     final hasCommunity =
         post.communityId != null && post.communityId!.isNotEmpty;
     final isInsideOwnCommunityFeed =
@@ -156,21 +156,21 @@ class FeedPostCard extends StatelessWidget {
       opacity: post.isPublishing ? 0.65 : 1.0,
       child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.18),
-            width: 0.8,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.16),
+            width: 0.7,
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.035,
+                alpha: Theme.of(context).brightness == Brightness.dark ? 0.10 : 0.025,
               ),
-              blurRadius: 0,
-              offset: Offset.zero,
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -458,7 +458,7 @@ class FeedPostCard extends StatelessWidget {
                           Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(10),
                                 child: PostMediaSlider(
                                   heroTagPrefix: 'post_${post.id}',
                                   forceAutoplayVideos: autoplayVideos,
