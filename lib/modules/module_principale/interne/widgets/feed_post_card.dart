@@ -151,6 +151,7 @@ class FeedPostCard extends StatelessWidget {
     final isInsideOwnCommunityFeed =
         currentCommunityId != null && currentCommunityId == post.communityId;
     final showCommunityHeader = hasCommunity && !isInsideOwnCommunityFeed;
+    final isSingleVideoPost = post.media.length == 1 && post.media.first.isVideo;
 
     return Opacity(
       opacity: post.isPublishing ? 0.65 : 1.0,
@@ -247,6 +248,7 @@ class FeedPostCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                        if (!isSingleVideoPost) ...[
                         // --- En-tête : Auteur, Pseudo, Badge & Temps ---
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -344,6 +346,8 @@ class FeedPostCard extends StatelessWidget {
                           ],
                         ),
 
+                        ],
+
                         // --- Suggéré badge & Rejoindre button si isSuggested ---
                         if (post.isSuggested) ...[
                           const SizedBox(height: 6),
@@ -400,7 +404,7 @@ class FeedPostCard extends StatelessWidget {
                         ],
 
                         // --- Texte de la publication ---
-                        if (post.content.isNotEmpty) ...[
+                        if (!isSingleVideoPost && post.content.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           ExpandableTextWidget(
                             text: post.content,
@@ -415,7 +419,7 @@ class FeedPostCard extends StatelessWidget {
                         ],
 
                         // --- Hashtags en bleu ---
-                        if (post.hashtags.isNotEmpty) ...[
+                        if (!isSingleVideoPost && post.hashtags.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Wrap(
                             spacing: 6,
