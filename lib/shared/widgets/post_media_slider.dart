@@ -42,15 +42,85 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
   int _currentIndex = 0;
   double _videoOverlayOpacity = 1;
   late final PageController _pageController;
+  final Map<int, double> _mediaAspectRatios = {};
+  int _ratioLoadGeneration = 0;
+
+  // Load intrinsic dimensions from photos and video thumbnails. The feed
+  // uses one shared viewport ratio for a carousel, so swiping never changes
+  // the card height.
+  void _loadMediaAspectRatios() {
+    final generation = ++_ratioLoadGeneration;
+    _mediaAspectRatios.clear();
+
+    for (var index = 0; index < widget.media.length; index++) {
+      final media = widget.media[index];
+      final source = media.isVideo &&
+              media.thumbnailUrl != null &&
+              media.thumbnailUrl!.trim().isNotEmpty
+          ? media.thumbnailUrl!
+          : media.url;
+      if (source.trim().isEmpty) continue;
+
+      final provider = NetworkImage(source);
+      final stream = provider.resolve(ImageConfiguration.empty);
+      late final ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (ImageInfo info, bool synchronousCall) {
+          stream.removeListener(listener);
+          final image = info.image;
+          final ratio = image.width / image.height;
+          image.dispose();
+          if (!mounted || generation != _ratioLoadGeneration ||
+              !ratio.isFinite || ratio <= 0) return;
+          setState(() => _mediaAspectRatios[index] = ratio);
+        },
+        onError: (Object error, StackTrace? stackTrace) {
+          stream.removeListener(listener);
+        },
+      );
+      stream.addListener(listener);
+    }
+  }
+
+  double _getSharedAspectRatio() {
+    if (widget.media.isEmpty) return 1;
+    final ratios = List<double>.generate(
+      widget.media.length,
+      (index) => _mediaAspectRatios[index] ??
+          (widget.media[index].isVideo ? 0.8 : 1.0),
+    )..sort();
+
+    // Median is robust against one extremely tall or wide item. For an even
+    // number of items, the geometric mean balances portrait and landscape.
+    final middle = ratios.length ~/ 2;
+    final ratio = ratios.length.isOdd
+        ? ratios[middle]
+        : (ratios[middle - 1] + ratios[middle]) / 2;
+    return ratio.clamp(0.45, 1.91).toDouble();
+  }
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    _loadMediaAspectRatios();
+  }
+
+  @override
+  void didUpdateWidget(covariant PostMediaSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.media != widget.media) {
+      _currentIndex = 0;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+      _loadMediaAspectRatios();
+    }
   }
 
   @override
   void dispose() {
+    _ratioLoadGeneration++;
     _pageController.dispose();
     super.dispose();
   }
@@ -101,9 +171,15 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
     if (widget.media.isEmpty) return const SizedBox.shrink();
 
     final len = widget.media.length;
-    // Derive the media height from the card's actual content width, not the
-    // device width, so embedded/nested cards remain correctly proportioned.
-    final mediaHeight = (availableWidth * 1.25).clamp(320.0, 560.0);
+    // Use the actual media dimensions instead of a fixed card height.
+    // Portrait posts become taller, landscape posts shorter, and mixed
+    // carousels use one median ratio as a balanced shared viewport. The
+    // 4:5 cap prevents extremely tall assets from dominating the feed while
+    // BoxFit.contain keeps the complete media visible without distortion.
+    final sharedAspectRatio = _getSharedAspectRatio();
+    final mediaHeight = (availableWidth / sharedAspectRatio)
+        .clamp(availableWidth / 1.91, availableWidth * 1.25)
+        .toDouble();
 
     // Mixed-media posts use one consistent horizontal viewer so video items
     // render as playable tiles instead of being passed to the image cache.
