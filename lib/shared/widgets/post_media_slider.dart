@@ -186,31 +186,40 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
       return ClipRRect(
         borderRadius: radius,
         child: SizedBox.expand(
-          child: item.isVideo
-              ? _InlineFeedVideo(
-                  key: ValueKey('feed_video_${_getHeroTag(index)}'),
-                  autoplayPostId: widget.autoplayPostId,
-                  forceAutoplay: widget.forceAutoplayVideos,
-                  onPlaybackOverlayOpacityChanged: (opacity) {
-                    if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
-                    setState(() => _videoOverlayOpacity = opacity);
-                  },
-                  url: item.url,
-                  thumbnailUrl: item.thumbnailUrl,
-                  onOpenFullScreen: () => _openFullScreen(context, index),
-                )
-              : GestureDetector(
-                  onTap: () => _openFullScreen(context, index),
-                  child: Hero(
-                    tag: _getHeroTag(index),
-                    child: AppCachedImage(
-                      imageUrl: item.url,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  ),
-                ),
+          child: LayoutBuilder(
+            builder: (context, tileConstraints) {
+              // Pass finite tile dimensions to the image widget. Infinite
+              // dimensions can make cached-image layouts fall back to their
+              // intrinsic size, leaving visible gutters inside a grid tile.
+              final tileWidth = tileConstraints.maxWidth;
+              final tileHeight = tileConstraints.maxHeight;
+              return item.isVideo
+                  ? _InlineFeedVideo(
+                      key: ValueKey('feed_video_${_getHeroTag(index)}'),
+                      autoplayPostId: widget.autoplayPostId,
+                      forceAutoplay: widget.forceAutoplayVideos,
+                      onPlaybackOverlayOpacityChanged: (opacity) {
+                        if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
+                        setState(() => _videoOverlayOpacity = opacity);
+                      },
+                      url: item.url,
+                      thumbnailUrl: item.thumbnailUrl,
+                      onOpenFullScreen: () => _openFullScreen(context, index),
+                    )
+                  : GestureDetector(
+                      onTap: () => _openFullScreen(context, index),
+                      child: Hero(
+                        tag: _getHeroTag(index),
+                        child: AppCachedImage(
+                          imageUrl: item.url,
+                          fit: BoxFit.cover,
+                          width: tileWidth,
+                          height: tileHeight,
+                        ),
+                      ),
+                    );
+            },
+          ),
         ),
       );
     }
@@ -529,7 +538,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
           children: [
           if (_controller != null && _controller!.value.isInitialized)
             FittedBox(
-              fit: BoxFit.contain,
+              fit: BoxFit.cover,
               child: SizedBox(
                 width: _controller!.value.size.width,
                 height: _controller!.value.size.height,
@@ -539,7 +548,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
           else if (widget.thumbnailUrl != null && widget.thumbnailUrl!.trim().isNotEmpty)
             AppCachedImage(
               imageUrl: widget.thumbnailUrl!,
-              fit: BoxFit.contain,
+              fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
               progressive: true,
