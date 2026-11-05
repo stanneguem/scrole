@@ -555,7 +555,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
           children: [
           if (_controller != null && _controller!.value.isInitialized)
             FittedBox(
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               child: SizedBox(
                 width: _controller!.value.size.width,
                 height: _controller!.value.size.height,
