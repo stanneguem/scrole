@@ -200,19 +200,9 @@ class _Header extends StatelessWidget {
           Positioned(
             top: 12,
             right: 16,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HeaderButton(
-                  icon: Icons.calendar_month_rounded,
-                  onTap: () => Get.to(() => ExternalProfileAgendaScreen(userId: profile.userId)),
-                ),
-                const SizedBox(width: 8),
-                _HeaderButton(
-                  icon: Icons.more_horiz_rounded,
-                  onTap: () => _showProfileMenu(context),
-                ),
-              ],
+            child: _HeaderButton(
+              icon: Icons.calendar_month_rounded,
+              onTap: () => Get.to(() => ExternalProfileAgendaScreen(userId: profile.userId)),
             ),
           ),
           Positioned(
