@@ -169,216 +169,113 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
   }
 
   Widget _buildForWidth(BuildContext context, double availableWidth) {
-    if (widget.media.isEmpty) return const SizedBox.shrink();
+    if (widget.media.isEmpty || availableWidth <= 0) {
+      return const SizedBox.shrink();
+    }
 
     final len = widget.media.length;
-    // Use the actual media dimensions instead of a fixed card height.
-    // Portrait posts become taller, landscape posts shorter, and mixed
-    // carousels use one median ratio as a balanced shared viewport. The
-    // 4:5 cap prevents extremely tall assets from dominating the feed while
-    // BoxFit.contain keeps the complete media visible without distortion.
     final sharedAspectRatio = _getSharedAspectRatio();
+    // Keep a consistent viewport for every item in a carousel. The media
+    // itself fills this viewport; only excess edges are cropped.
     final mediaHeight = (availableWidth / sharedAspectRatio)
         .clamp(availableWidth / 1.91, availableWidth * 1.25)
         .toDouble();
 
-    // Mixed-media posts use one consistent horizontal viewer so video items
-    // render as playable tiles instead of being passed to the image cache.
-    if (widget.media.any((item) => item.isVideo)) {
-      return SizedBox(
-        height: mediaHeight,
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: _pageController,
-              itemCount: len,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              itemBuilder: (context, index) {
-                final item = widget.media[index];
-                return GestureDetector(
-                  onTap: item.isVideo ? null : () => _openFullScreen(context, index),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: item.isVideo
-                        ? _InlineFeedVideo(
-                            key: ValueKey('feed_video_${_getHeroTag(index)}'),
-                            autoplayPostId: widget.autoplayPostId,
-                            forceAutoplay: widget.forceAutoplayVideos,
-                            onPlaybackOverlayOpacityChanged: (opacity) {
-                              if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
-                              setState(() => _videoOverlayOpacity = opacity);
-                            },
-                            url: item.url ?? '',
-                            thumbnailUrl: item.thumbnailUrl,
-                            onOpenFullScreen: () => _openFullScreen(context, index),
-                          )
-                        : AppCachedImage(
-                            imageUrl: item.url,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            height: mediaHeight,
-                          ),
-                  ),
-                );
-              },
-            ),
-            Positioned(
-              right: 12,
-              top: 12,
-              child: IgnorePointer(
-                child: AnimatedOpacity(
-                  opacity: _videoOverlayOpacity,
-                  duration: const Duration(milliseconds: 180),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                    child: Text(
-                      '${_currentIndex + 1}/$len',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // --- Cas 1 : Une seule image ---
-    if (len == 1) {
-      return GestureDetector(
-        onTap: () => _openFullScreen(context, 0),
-        child: Hero(
-          tag: _getHeroTag(0),
-          child: Container(
-            height: mediaHeight,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: Colors.black12,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: AppCachedImage(
-              imageUrl: widget.media[0].url ?? '',
-              fit: BoxFit.contain,
-              progressive: true,
-              lowResolutionWidth: 400,
-              highResolutionWidth: 1080,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // --- Cas 2 : Deux images (50% / 50% côte à côte, ratio 1:1) ---
-    if (len == 2) {
-      return SizedBox(
-        height: mediaHeight,
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => _openFullScreen(context, 0),
-                child: Hero(
-                  tag: _getHeroTag(0),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
+    Widget buildMedia(int index, {required BorderRadius radius}) {
+      final item = widget.media[index];
+      return ClipRRect(
+        borderRadius: radius,
+        child: SizedBox.expand(
+          child: item.isVideo
+              ? _InlineFeedVideo(
+                  key: ValueKey('feed_video_${_getHeroTag(index)}'),
+                  autoplayPostId: widget.autoplayPostId,
+                  forceAutoplay: widget.forceAutoplayVideos,
+                  onPlaybackOverlayOpacityChanged: (opacity) {
+                    if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
+                    setState(() => _videoOverlayOpacity = opacity);
+                  },
+                  url: item.url,
+                  thumbnailUrl: item.thumbnailUrl,
+                  onOpenFullScreen: () => _openFullScreen(context, index),
+                )
+              : GestureDetector(
+                  onTap: () => _openFullScreen(context, index),
+                  child: Hero(
+                    tag: _getHeroTag(index),
                     child: AppCachedImage(
-                      imageUrl: widget.media[0].url ?? '',
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      height: mediaHeight,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 2),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => _openFullScreen(context, 1),
-                child: Hero(
-                  tag: _getHeroTag(1),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(14)),
-                    child: AppCachedImage(
-                      imageUrl: widget.media[1].url ?? '',
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      height: mediaHeight,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // --- Cas 3 : Trois images (asymétrique : 50% gauche, 2x 25% empilées droite) ---
-    if (len == 3) {
-      return SizedBox(
-        height: mediaHeight,
-        child: Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: GestureDetector(
-                onTap: () => _openFullScreen(context, 0),
-                child: Hero(
-                  tag: _getHeroTag(0),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
-                    child: AppCachedImage(
-                      imageUrl: widget.media[0].url ?? '',
-                      fit: BoxFit.contain,
+                      imageUrl: item.url,
+                      fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
                     ),
                   ),
                 ),
+        ),
+      );
+    }
+
+    if (len == 1) {
+      return SizedBox(
+        width: double.infinity,
+        height: mediaHeight,
+        child: buildMedia(0, radius: BorderRadius.circular(14)),
+      );
+    }
+
+    // Two items share the full media area side by side.
+    if (len == 2) {
+      return SizedBox(
+        width: double.infinity,
+        height: mediaHeight,
+        child: Row(
+          children: [
+            Expanded(
+              child: buildMedia(
+                0,
+                radius: const BorderRadius.horizontal(left: Radius.circular(14)),
               ),
             ),
             const SizedBox(width: 2),
             Expanded(
-              flex: 1,
+              child: buildMedia(
+                1,
+                radius: const BorderRadius.horizontal(right: Radius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Three items: one large tile and two stacked tiles.
+    if (len == 3) {
+      return SizedBox(
+        width: double.infinity,
+        height: mediaHeight,
+        child: Row(
+          children: [
+            Expanded(
+              child: buildMedia(
+                0,
+                radius: const BorderRadius.horizontal(left: Radius.circular(14)),
+              ),
+            ),
+            const SizedBox(width: 2),
+            Expanded(
               child: Column(
                 children: [
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => _openFullScreen(context, 1),
-                      child: Hero(
-                        tag: _getHeroTag(1),
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.only(topRight: Radius.circular(14)),
-                          child: AppCachedImage(
-                            imageUrl: widget.media[1].url ?? '',
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            height: double.infinity,
-                          ),
-                        ),
-                      ),
+                    child: buildMedia(
+                      1,
+                      radius: const BorderRadius.only(topRight: Radius.circular(14)),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => _openFullScreen(context, 2),
-                      child: Hero(
-                        tag: _getHeroTag(2),
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.only(bottomRight: Radius.circular(14)),
-                          child: AppCachedImage(
-                            imageUrl: widget.media[2].url ?? '',
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            height: double.infinity,
-                          ),
-                        ),
-                      ),
+                    child: buildMedia(
+                      2,
+                      radius: const BorderRadius.only(bottomRight: Radius.circular(14)),
                     ),
                   ),
                 ],
@@ -389,48 +286,42 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
       );
     }
 
-    // --- Cas 4 : Plus de trois images (> 3) -> Slider horizontal avec indicateur 1/N ---
+    // Four or more items use a swipeable full-bleed carousel.
     return SizedBox(
+      width: double.infinity,
       height: mediaHeight,
       child: Stack(
         children: [
           PageView.builder(
             controller: _pageController,
             itemCount: len,
-            onPageChanged: (idx) => setState(() => _currentIndex = idx),
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () => _openFullScreen(context, index),
-                child: Hero(
-                  tag: _getHeroTag(index),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: AppCachedImage(
-                      imageUrl: widget.media[index].url ?? '',
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  ),
-                ),
-              );
-            },
+            onPageChanged: (index) => setState(() => _currentIndex = index),
+            itemBuilder: (context, index) => buildMedia(
+              index,
+              radius: BorderRadius.circular(14),
+            ),
           ),
           Positioned(
             top: 12,
             right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${_currentIndex + 1} / $len',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _videoOverlayOpacity,
+                duration: const Duration(milliseconds: 180),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '${_currentIndex + 1} / $len',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ),
