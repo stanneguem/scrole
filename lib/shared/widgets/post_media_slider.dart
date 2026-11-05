@@ -94,12 +94,16 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
     if (widget.media.isEmpty) return const SizedBox.shrink();
 
     final len = widget.media.length;
+    // Give media a taller, responsive viewport so portrait photos and videos
+    // are not squeezed into the old 220–280 px strip.
+    final mediaHeight = (MediaQuery.sizeOf(context).width * 1.25)
+        .clamp(360.0, 560.0);
 
     // Mixed-media posts use one consistent horizontal viewer so video items
     // render as playable tiles instead of being passed to the image cache.
     if (widget.media.any((item) => item.isVideo)) {
       return SizedBox(
-        height: 280,
+        height: mediaHeight,
         child: Stack(
           children: [
             PageView.builder(
@@ -127,9 +131,9 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                           )
                         : AppCachedImage(
                             imageUrl: item.url,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             width: double.infinity,
-                            height: 280,
+                            height: mediaHeight,
                           ),
                   ),
                 );
@@ -165,7 +169,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
         child: Hero(
           tag: _getHeroTag(0),
           child: Container(
-            height: 280,
+            height: mediaHeight,
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
@@ -174,7 +178,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
             clipBehavior: Clip.antiAlias,
             child: AppCachedImage(
               imageUrl: widget.media[0].url ?? '',
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               progressive: true,
               lowResolutionWidth: 400,
               highResolutionWidth: 1080,
@@ -187,7 +191,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
     // --- Cas 2 : Deux images (50% / 50% côte à côte, ratio 1:1) ---
     if (len == 2) {
       return SizedBox(
-        height: 220,
+        height: mediaHeight,
         child: Row(
           children: [
             Expanded(
@@ -199,9 +203,9 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                     borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
                     child: AppCachedImage(
                       imageUrl: widget.media[0].url ?? '',
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       width: double.infinity,
-                      height: 220,
+                      height: mediaHeight,
                     ),
                   ),
                 ),
@@ -233,7 +237,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
     // --- Cas 3 : Trois images (asymétrique : 50% gauche, 2x 25% empilées droite) ---
     if (len == 3) {
       return SizedBox(
-        height: 260,
+        height: mediaHeight,
         child: Row(
           children: [
             Expanded(
@@ -246,7 +250,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                     borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
                     child: AppCachedImage(
                       imageUrl: widget.media[0].url ?? '',
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       width: double.infinity,
                       height: double.infinity,
                     ),
@@ -268,7 +272,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                           borderRadius: const BorderRadius.only(topRight: Radius.circular(14)),
                           child: AppCachedImage(
                             imageUrl: widget.media[1].url ?? '',
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             width: double.infinity,
                             height: double.infinity,
                           ),
@@ -304,7 +308,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
 
     // --- Cas 4 : Plus de trois images (> 3) -> Slider horizontal avec indicateur 1/N ---
     return SizedBox(
-      height: 280,
+      height: mediaHeight,
       child: Stack(
         children: [
           PageView.builder(
@@ -320,7 +324,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                     borderRadius: BorderRadius.circular(14),
                     child: AppCachedImage(
                       imageUrl: widget.media[index].url ?? '',
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       width: double.infinity,
                       height: double.infinity,
                     ),
@@ -561,9 +565,9 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
           else if (widget.thumbnailUrl != null && widget.thumbnailUrl!.trim().isNotEmpty)
             AppCachedImage(
               imageUrl: widget.thumbnailUrl!,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               width: double.infinity,
-              height: 280,
+              height: double.infinity,
               progressive: true,
               lowResolutionWidth: 400,
               highResolutionWidth: 1080,
