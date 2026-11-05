@@ -233,9 +233,19 @@ DECLARE
   v_connected boolean := false;
   v_following boolean := false;
   v_items jsonb := '[]'::jsonb;
+  v_account_status text;
+  v_deleted_at timestamptz;
 BEGIN
   IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
   IF p_user_id IS NULL THEN RAISE EXCEPTION 'invalid_profile_user'; END IF;
+
+  SELECT lower(coalesce(up.account_status, 'active')), up.deleted_at
+    INTO v_account_status, v_deleted_at
+  FROM public.user_profiles up
+  WHERE up.user_id = p_user_id;
+  IF NOT FOUND OR v_deleted_at IS NOT NULL OR v_account_status <> 'active' THEN
+    RAISE EXCEPTION 'profile_unavailable';
+  END IF;
 
   SELECT lower(coalesce(upv.profile_visibility, 'public'))
     INTO v_visibility
