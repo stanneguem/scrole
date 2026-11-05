@@ -243,54 +243,44 @@ class FeedPostCard extends StatelessWidget {
                 const SizedBox(height: 6),
               ],
 
-              // 2. Ligne Auteur + Contenu de la carte
-              Row(
+              // 2. En-tête et contenu de la publication
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar de l'auteur
-                  GestureDetector(
-                    onTap: () => _onAuthorTap(post),
-                    child: ClipOval(
-                      child:
-                      (post.authorObj?.photoUrl != null &&
-                          post.authorObj!.photoUrl!.isNotEmpty)
-                          ? AppCachedImage(
-                        imageUrl: post.authorObj!.photoUrl!,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                      )
-                          : Container(
-                        width: 40,
-                        height: 40,
-                        color: post.authorColor.withValues(
-                          alpha: 0.2,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          post.authorName.isNotEmpty
-                              ? post.authorName[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                            color: post.authorColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Colonne de droite
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         // --- En-tête : Auteur, Pseudo, Badge & Temps ---
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
+                            GestureDetector(
+                              onTap: () => _onAuthorTap(post),
+                              child: ClipOval(
+                                child: (post.authorObj?.photoUrl != null &&
+                                        post.authorObj!.photoUrl!.isNotEmpty)
+                                    ? AppCachedImage(
+                                        imageUrl: post.authorObj!.photoUrl!,
+                                        width: 42,
+                                        height: 42,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Container(
+                                        width: 42,
+                                        height: 42,
+                                        color: post.authorColor.withValues(alpha: 0.2),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          post.authorName.isNotEmpty
+                                              ? post.authorName[0].toUpperCase()
+                                              : '?',
+                                          style: TextStyle(
+                                            color: post.authorColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: GestureDetector(
                                 onTap: () => _onAuthorTap(post),
@@ -565,9 +555,6 @@ class FeedPostCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
