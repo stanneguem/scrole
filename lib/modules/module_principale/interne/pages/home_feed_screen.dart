@@ -253,7 +253,13 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                         feedController.stopPostDwell(post.id);
                       }
                     },
-                    child: Center(
+                    // A ListView gives each item an unbounded height.
+                    // Center expands to the available height in that situation,
+                    // producing an infinite-height feed item. Align with a
+                    // height factor shrink-wraps to the card's natural height.
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      heightFactor: 1,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 760),
                         child: FeedPostCard(
