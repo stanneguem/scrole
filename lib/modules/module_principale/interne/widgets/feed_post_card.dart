@@ -246,6 +246,10 @@ class FeedPostCard extends StatelessWidget {
 
               // 2. En-tête et contenu de la publication
               Column(
+                // FeedPostCard is laid out inside a vertical ListView, where
+                // the incoming height is unbounded. Use the content's natural
+                // height instead of expanding this Column to infinity.
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                         if (!isSingleVideoPost) ...[
