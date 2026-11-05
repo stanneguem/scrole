@@ -23,11 +23,11 @@ class _ExternalProfileAgendaScreenState extends State<ExternalProfileAgendaScree
   @override
   void initState() {
     super.initState();
-    _agendaFuture = _repository.fetchExternalUserAgenda(widget.userId);
+    _agendaFuture = _repository.fetchExternalUserAttendedEvents(widget.userId);
   }
 
   Future<void> _refresh() async {
-    final future = _repository.fetchExternalUserAgenda(widget.userId);
+    final future = _repository.fetchExternalUserAttendedEvents(widget.userId);
     setState(() => _agendaFuture = future);
     await future;
   }
@@ -36,7 +36,7 @@ class _ExternalProfileAgendaScreenState extends State<ExternalProfileAgendaScree
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text('my_agenda_title'.tr)),
+      appBar: AppBar(title: Text('profile_tab_events'.tr)),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _agendaFuture,
         builder: (context, snapshot) {
@@ -52,7 +52,7 @@ class _ExternalProfileAgendaScreenState extends State<ExternalProfileAgendaScree
                   children: [
                     Icon(Icons.cloud_off_rounded, size: 42, color: colors.onSurfaceVariant),
                     const SizedBox(height: 12),
-                    Text('Impossible de charger cet agenda.', textAlign: TextAlign.center,
+                    Text('Impossible de charger les événements auxquels cette personne a participé.', textAlign: TextAlign.center,
                         style: TextStyle(color: colors.onSurfaceVariant)),
                     TextButton(onPressed: _refresh, child: Text('profile_action_retry'.tr)),
                   ],
@@ -71,7 +71,7 @@ class _ExternalProfileAgendaScreenState extends State<ExternalProfileAgendaScree
                   SizedBox(height: MediaQuery.sizeOf(context).height * .25),
                   Icon(Icons.calendar_today_outlined, size: 56, color: colors.outline),
                   const SizedBox(height: 14),
-                  Center(child: Text('my_agenda_empty'.tr, style: TextStyle(color: colors.onSurfaceVariant))),
+                  Center(child: Text('profile_tab_events_empty'.tr, style: TextStyle(color: colors.onSurfaceVariant))),
                 ],
               ),
             );
