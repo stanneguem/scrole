@@ -249,8 +249,7 @@ class FeedPostCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
               ],
-              ),
-              
+
               // 2. En-tête et contenu de la publication
               Column(
                 // FeedPostCard is laid out inside a vertical ListView, where
