@@ -28,8 +28,15 @@ class _ExternalProfileAgendaScreenState extends State<ExternalProfileAgendaScree
 
   Future<void> _refresh() async {
     final future = _repository.fetchExternalUserAgenda(widget.userId);
-    setState(() => _agendaFuture = future);
-    await future;
+    if (!mounted) return;
+    setState(() {
+      _agendaFuture = future;
+    });
+    try {
+      await future;
+    } catch (_) {
+      // FutureBuilder displays the error state; refresh should not leak it.
+    }
   }
 
   @override
