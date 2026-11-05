@@ -184,24 +184,15 @@ BEGIN
       LEFT JOIN public.cities c ON c.id = e.city_id
       LEFT JOIN public.countries co ON co.id = e.country_id
       WHERE e.status = 'active'
-        AND (
-          e.creator_id = p_user_id
-          OR EXISTS (
-            SELECT 1 FROM public.event_co_creators cc
-            WHERE cc.event_id = e.id AND cc.user_id = p_user_id AND cc.status = 'acceptee'
-          )
-          OR EXISTS (
-            SELECT 1 FROM public.event_staff es
-            WHERE es.event_id = e.id AND es.user_id = p_user_id AND es.status = 'acceptee'
-          )
-          OR EXISTS (
-            SELECT 1 FROM public.event_checkins ci
-            WHERE ci.event_id = e.id AND ci.user_id = p_user_id AND ci.status = 'valid'
-          )
-          OR EXISTS (
-            SELECT 1 FROM public.event_guest_invitations gi
-            WHERE gi.event_id = e.id AND gi.user_id = p_user_id AND gi.status = 'acceptee'
-          )
+        -- Strictly events the user physically attended: a validated check-in.
+        -- Creating, organizing, staffing, being invited, or saving to agenda
+        -- must never qualify as participation.
+        AND EXISTS (
+          SELECT 1
+          FROM public.event_checkins ci
+          WHERE ci.event_id = e.id
+            AND ci.user_id = p_user_id
+            AND ci.status = 'valid'
         )
         AND public.can_view_event(e.id)
       ORDER BY e.starts_at DESC NULLS LAST, e.created_at DESC, e.id DESC
