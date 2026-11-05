@@ -2278,40 +2278,26 @@ class _RepublicationPostCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.zero,
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.18),
-          width: 0.8,
+          color: colorScheme.outlineVariant.withValues(alpha: 0.16),
+          width: 0.7,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.035,
+              alpha: Theme.of(context).brightness == Brightness.dark ? 0.10 : 0.025,
             ),
-            blurRadius: 0,
-            offset: Offset.zero,
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Align the republisher avatar and connector with regular post cards.
-          Positioned(
-            left: cardHorizontalPadding + 20,
-            top: 64,
-            bottom: 0,
-            child: IgnorePointer(
-              child: Container(
-                width: 2,
-                color: colorScheme.outlineVariant.withValues(alpha: 0.18),
-              ),
-            ),
-          ),
-          Padding(
+      child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: cardHorizontalPadding,
               vertical: 12,
@@ -2432,10 +2418,12 @@ class _RepublicationPostCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest.withValues(
-                              alpha: 0.22,
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(alpha: 0.55),
+                              width: 0.8,
                             ),
-                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: (!hasSharedPost || shared == null)
                               ? Padding(
@@ -2561,7 +2549,7 @@ class _RepublicationPostCard extends StatelessWidget {
                               ],
                               if (shared.media.isNotEmpty) ...[
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(0),
                                   child: PostMediaSlider(
                                     heroTagPrefix:
                                     'shared_${shared.id}_${post.id}',
@@ -2653,8 +2641,6 @@ class _RepublicationPostCard extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
     );
   }
 
