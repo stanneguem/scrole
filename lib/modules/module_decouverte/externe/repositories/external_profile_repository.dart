@@ -155,6 +155,20 @@ class ExternalProfileRepository {
     return res.profile;
   }
 
+  Future<List<Map<String, dynamic>>> fetchExternalUserAgenda(String userId) async {
+    final response = await _client.rpc(
+      'get_external_user_agenda',
+      params: {'p_user_id': userId},
+    );
+    if (response is List) {
+      return response
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
   /// Updates local cached profile map when a relationship action is performed.
   Future<void> updateCachedProfile(ExternalProfileModel model) async {
     final cacheKey = FastCacheKey.externalProfile(model.userId);
