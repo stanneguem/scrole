@@ -185,8 +185,8 @@ class ExternalProfileRepository {
     try {
       final response = await _client
           .from('activities')
-          .select('id, name, base_price, currency_code, photo_url')
-          .eq('user_id', userId)
+          .select('id, name, base_price, currency_code, description')
+          .eq('creator_id', userId)
           .limit(10);
 
       if (response is List) {
