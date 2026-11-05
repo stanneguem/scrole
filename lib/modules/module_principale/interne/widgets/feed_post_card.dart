@@ -157,10 +157,10 @@ class FeedPostCard extends StatelessWidget {
       opacity: post.isPublishing ? 0.65 : 1.0,
       child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: colorScheme.outlineVariant.withValues(alpha: 0.16),
             width: 0.7,
@@ -451,9 +451,7 @@ class FeedPostCard extends StatelessWidget {
                           const SizedBox(height: 10),
                           Stack(
                             children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: PostMediaSlider(
+                              PostMediaSlider(
                                   heroTagPrefix: 'post_${post.id}',
                                   forceAutoplayVideos: autoplayVideos,
                                   media: post.media,
@@ -463,7 +461,6 @@ class FeedPostCard extends StatelessWidget {
                                   commentsCount: post.commentCount,
                                   sharesCount: post.shareCount,
                                 ),
-                              ),
                               if (isSingleVideoPost)
                                 Positioned(
                                   top: 0, left: 0, right: 0,
