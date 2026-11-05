@@ -238,7 +238,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
       return SizedBox(
         width: double.infinity,
         height: mediaHeight,
-        child: buildMedia(0, radius: BorderRadius.circular(14)),
+        child: buildMedia(0, radius: BorderRadius.zero),
       );
     }
 
@@ -252,14 +252,14 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
             Expanded(
               child: buildMedia(
                 0,
-                radius: const BorderRadius.horizontal(left: Radius.circular(14)),
+                radius: BorderRadius.zero,
               ),
             ),
             const SizedBox(width: 2),
             Expanded(
               child: buildMedia(
                 1,
-                radius: const BorderRadius.horizontal(right: Radius.circular(14)),
+                radius: BorderRadius.zero,
               ),
             ),
           ],
@@ -277,7 +277,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
             Expanded(
               child: buildMedia(
                 0,
-                radius: const BorderRadius.horizontal(left: Radius.circular(14)),
+                radius: BorderRadius.zero,
               ),
             ),
             const SizedBox(width: 2),
@@ -287,14 +287,14 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                   Expanded(
                     child: buildMedia(
                       1,
-                      radius: const BorderRadius.only(topRight: Radius.circular(14)),
+                      radius: BorderRadius.zero,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Expanded(
                     child: buildMedia(
                       2,
-                      radius: const BorderRadius.only(bottomRight: Radius.circular(14)),
+                      radius: BorderRadius.zero,
                     ),
                   ),
                 ],
@@ -317,7 +317,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
             onPageChanged: (index) => setState(() => _currentIndex = index),
             itemBuilder: (context, index) => buildMedia(
               index,
-              radius: BorderRadius.circular(14),
+              radius: BorderRadius.zero,
             ),
           ),
           Positioned(
