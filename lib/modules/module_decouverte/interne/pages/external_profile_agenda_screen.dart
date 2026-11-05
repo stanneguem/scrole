@@ -71,7 +71,7 @@ class _ExternalProfileAgendaScreenState extends State<ExternalProfileAgendaScree
                   SizedBox(height: MediaQuery.sizeOf(context).height * .25),
                   Icon(Icons.calendar_today_outlined, size: 56, color: colors.outline),
                   const SizedBox(height: 14),
-                  Center(child: Text('profile_external_agenda_empty'.tr, style: TextStyle(color: colors.onSurfaceVariant))),
+                  Center(child: Text('Aucun événement dans l’agenda.', style: TextStyle(color: colors.onSurfaceVariant))),
                 ],
               ),
             );
