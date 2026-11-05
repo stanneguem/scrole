@@ -648,10 +648,6 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           _ProfileActions(controller: controller),
           const SizedBox(height: 16),
         ],
-        if (p.activities.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _ProfileActivitiesSection(activities: p.activities),
-        ],
         if ((p.slogan ?? '').isNotEmpty) ...[
           const SizedBox(height: 14),
           Text(p.slogan!, style: const TextStyle(fontStyle: FontStyle.italic)),
