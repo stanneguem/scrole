@@ -177,7 +177,7 @@ class FeedPostCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: cardHorizontalPadding, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -449,9 +449,13 @@ class FeedPostCard extends StatelessWidget {
                         // --- Zone Médias avec indicateur 1/3 et badge influenceurs ---
                         if (post.media.isNotEmpty) ...[
                           const SizedBox(height: 10),
-                          Stack(
-                            children: [
-                              PostMediaSlider(
+                          OverflowBox(
+                            alignment: Alignment.centerLeft,
+                            minWidth: screenWidth,
+                            maxWidth: screenWidth,
+                            child: Stack(
+                              children: [
+                                PostMediaSlider(
                                   heroTagPrefix: 'post_${post.id}',
                                   forceAutoplayVideos: autoplayVideos,
                                   media: post.media,
