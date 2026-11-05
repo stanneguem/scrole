@@ -91,13 +91,19 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _buildForWidth(context, constraints.maxWidth),
+    );
+  }
+
+  Widget _buildForWidth(BuildContext context, double availableWidth) {
     if (widget.media.isEmpty) return const SizedBox.shrink();
 
     final len = widget.media.length;
-    // Give media a taller, responsive viewport so portrait photos and videos
-    // are not squeezed into the old 220–280 px strip.
-    final mediaHeight = (MediaQuery.sizeOf(context).width * 1.25)
-        .clamp(360.0, 560.0);
+    // Derive the media height from the card's actual content width, not the
+    // device width, so embedded/nested cards remain correctly proportioned.
+    final mediaHeight = (availableWidth * 1.25).clamp(320.0, 560.0);
 
     // Mixed-media posts use one consistent horizontal viewer so video items
     // render as playable tiles instead of being passed to the image cache.
@@ -221,9 +227,9 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                     borderRadius: const BorderRadius.horizontal(right: Radius.circular(14)),
                     child: AppCachedImage(
                       imageUrl: widget.media[1].url ?? '',
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       width: double.infinity,
-                      height: 220,
+                      height: mediaHeight,
                     ),
                   ),
                 ),
@@ -290,7 +296,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                           borderRadius: const BorderRadius.only(bottomRight: Radius.circular(14)),
                           child: AppCachedImage(
                             imageUrl: widget.media[2].url ?? '',
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             width: double.infinity,
                             height: double.infinity,
                           ),
