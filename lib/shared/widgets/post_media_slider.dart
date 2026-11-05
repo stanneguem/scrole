@@ -54,11 +54,13 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
 
     for (var index = 0; index < widget.media.length; index++) {
       final media = widget.media[index];
-      final source = media.isVideo &&
-              media.thumbnailUrl != null &&
-              media.thumbnailUrl!.trim().isNotEmpty
-          ? media.thumbnailUrl!
-          : media.url;
+      // A video URL is not an image stream. Use its poster only; when no
+      // poster exists, the conservative video fallback ratio is used below.
+      if (media.isVideo &&
+          (media.thumbnailUrl == null || media.thumbnailUrl!.trim().isEmpty)) {
+        continue;
+      }
+      final source = media.isVideo ? media.thumbnailUrl! : media.url;
       if (source.trim().isEmpty) continue;
 
       final provider = NetworkImage(source);
@@ -67,9 +69,8 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
       listener = ImageStreamListener(
         (ImageInfo info, bool synchronousCall) {
           stream.removeListener(listener);
-          final image = info.image;
-          final ratio = image.width / image.height;
-          image.dispose();
+          final ratio = info.image.width / info.image.height;
+          info.dispose();
           if (!mounted || generation != _ratioLoadGeneration ||
               !ratio.isFinite || ratio <= 0) return;
           setState(() => _mediaAspectRatios[index] = ratio);
@@ -91,7 +92,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
     )..sort();
 
     // Median is robust against one extremely tall or wide item. For an even
-    // number of items, the geometric mean balances portrait and landscape.
+    // number of items, the arithmetic mean balances portrait and landscape.
     final middle = ratios.length ~/ 2;
     final ratio = ratios.length.isOdd
         ? ratios[middle]
