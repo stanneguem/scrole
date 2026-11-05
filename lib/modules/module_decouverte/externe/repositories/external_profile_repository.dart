@@ -155,18 +155,10 @@ class ExternalProfileRepository {
     return res.profile;
   }
 
-  Future<List<Map<String, dynamic>>> fetchExternalUserAgenda(String userId) async {
-    final response = await _client.rpc(
-      'get_external_user_agenda',
-      params: {'p_user_id': userId},
-    );
-    if (response is List) {
-      return response
-          .whereType<Map>()
-          .map((row) => Map<String, dynamic>.from(row))
-          .toList();
-    }
-    return const <Map<String, dynamic>>[];
+  /// Events actually attended by an external profile (validated check-in).
+  /// Keep this list identical to the profile's Events tab.
+  Future<List<Map<String, dynamic>>> fetchExternalUserAttendedEvents(String userId) {
+    return fetchProfileTab(userId: userId, tab: 'events', limit: 60, offset: 0);
   }
 
   /// Updates local cached profile map when a relationship action is performed.
