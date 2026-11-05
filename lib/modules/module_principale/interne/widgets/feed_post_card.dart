@@ -464,6 +464,65 @@ class FeedPostCard extends StatelessWidget {
                                   sharesCount: post.shareCount,
                                 ),
                               ),
+                              if (isSingleVideoPost)
+                                Positioned(
+                                  top: 0, left: 0, right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.fromLTRB(12, 12, 8, 22),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [Colors.black.withValues(alpha: 0.70), Colors.transparent],
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () => _onAuthorTap(post),
+                                          child: ClipOval(
+                                            child: post.authorObj?.photoUrl != null && post.authorObj!.photoUrl!.isNotEmpty
+                                                ? AppCachedImage(imageUrl: post.authorObj!.photoUrl!, width: 38, height: 38, fit: BoxFit.cover)
+                                                : Container(
+                                                    width: 38, height: 38, color: post.authorColor,
+                                                    alignment: Alignment.center,
+                                                    child: Text(post.authorName.isNotEmpty ? post.authorName[0].toUpperCase() : '?', style: const TextStyle(color: Colors.white)),
+                                                  ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => _onAuthorTap(post),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Wrap(
+                                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                                  spacing: 5,
+                                                  children: [
+                                                    Text(post.authorName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                                    if (post.authorObj?.isCertified == true)
+                                                      UserCertifiedBadge(size: 14, userId: post.authorObj?.userId),
+                                                  ],
+                                                ),
+                                                Text('${username.isNotEmpty ? '@$username · ' : ''}${_formatShortTime(post.timeAgo)}',
+                                                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11.5)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: post.isPublishing ? null : (onMoreTap ?? () => _showPostOptions(context, post)),
+                                          child: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               if (post.influencerReactions != null &&
                                   post.influencerReactions!.isNotEmpty)
                                 Positioned(
@@ -495,6 +554,30 @@ class FeedPostCard extends StatelessWidget {
                                   ),
                                 ),
                             ],
+                          ),
+                        ],
+
+                        if (isSingleVideoPost && post.content.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ExpandableTextWidget(
+                            text: post.content,
+                            maxLines: 3,
+                            onHashtagTap: (tag) => Get.toNamed(AppPages.hashtagFeedPath(tag)),
+                            style: textTheme.bodyMedium?.copyWith(fontSize: 14.5, height: 1.45, color: colorScheme.onSurface),
+                          ),
+                        ],
+                        if (isSingleVideoPost && post.hashtags.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6, runSpacing: 4,
+                            children: post.hashtags.map((h) => InkWell(
+                              onTap: () => Get.toNamed(AppPages.hashtagFeedPath(h.name)),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text('#${h.name}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: colorScheme.primary)),
+                              ),
+                            )).toList(),
                           ),
                         ],
 
