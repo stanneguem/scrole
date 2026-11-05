@@ -176,11 +176,17 @@ class FeedPostCard extends StatelessWidget {
           ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: cardHorizontalPadding, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: cardHorizontalPadding),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // 1. En-tête de la communauté si présente et hors du fil propre de cette communauté
               if (showCommunityHeader) ...[
                 Padding(
@@ -243,7 +249,8 @@ class FeedPostCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
               ],
-
+              ),
+              
               // 2. En-tête et contenu de la publication
               Column(
                 // FeedPostCard is laid out inside a vertical ListView, where
@@ -452,12 +459,17 @@ class FeedPostCard extends StatelessWidget {
 
                         // --- Zone Médias avec indicateur 1/3 et badge influenceurs ---
                         if (post.media.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          OverflowBox(
-                            alignment: Alignment.centerLeft,
-                            minWidth: screenWidth,
-                            maxWidth: screenWidth,
-                            child: Stack(
+                          // Full-bleed media: remove the content inset without
+                          // changing the width/height constraints of the slider.
+                          Transform.translate(
+                            offset: Offset(-cardHorizontalPadding, 0),
+                            child: OverflowBox(
+                              alignment: Alignment.centerLeft,
+                              minWidth: screenWidth,
+                              maxWidth: screenWidth,
+                              child: SizedBox(
+                                width: screenWidth,
+                                child: Stack(
                               children: [
                                 PostMediaSlider(
                                   heroTagPrefix: 'post_${post.id}',
@@ -559,6 +571,8 @@ class FeedPostCard extends StatelessWidget {
                                   ),
                                 ),
                               ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -648,8 +662,9 @@ class FeedPostCard extends StatelessWidget {
                         ),
                       ],
                     ),
+              ),
+              const SizedBox(height: 12),
             ],
-          ),
         ),
       ),
     );
