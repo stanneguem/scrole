@@ -186,40 +186,33 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
       return ClipRRect(
         borderRadius: radius,
         child: SizedBox.expand(
-          child: LayoutBuilder(
-            builder: (context, tileConstraints) {
-              // Pass finite tile dimensions to the image widget. Infinite
-              // dimensions can make cached-image layouts fall back to their
-              // intrinsic size, leaving visible gutters inside a grid tile.
-              final tileWidth = tileConstraints.maxWidth;
-              final tileHeight = tileConstraints.maxHeight;
-              return item.isVideo
-                  ? _InlineFeedVideo(
-                      key: ValueKey('feed_video_${_getHeroTag(index)}'),
-                      autoplayPostId: widget.autoplayPostId,
-                      forceAutoplay: widget.forceAutoplayVideos,
-                      onPlaybackOverlayOpacityChanged: (opacity) {
-                        if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
-                        setState(() => _videoOverlayOpacity = opacity);
-                      },
-                      url: item.url,
-                      thumbnailUrl: item.thumbnailUrl,
-                      onOpenFullScreen: () => _openFullScreen(context, index),
-                    )
-                  : GestureDetector(
-                      onTap: () => _openFullScreen(context, index),
-                      child: Hero(
-                        tag: _getHeroTag(index),
+          child: item.isVideo
+              ? _InlineFeedVideo(
+                  key: ValueKey('feed_video_${_getHeroTag(index)}'),
+                  autoplayPostId: widget.autoplayPostId,
+                  forceAutoplay: widget.forceAutoplayVideos,
+                  onPlaybackOverlayOpacityChanged: (opacity) {
+                    if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
+                    setState(() => _videoOverlayOpacity = opacity);
+                  },
+                  url: item.url,
+                  thumbnailUrl: item.thumbnailUrl,
+                  onOpenFullScreen: () => _openFullScreen(context, index),
+                )
+              : GestureDetector(
+                  onTap: () => _openFullScreen(context, index),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Positioned.fill(
                         child: AppCachedImage(
                           imageUrl: item.url,
                           fit: BoxFit.cover,
-                          width: tileWidth,
-                          height: tileHeight,
                         ),
                       ),
-                    );
-            },
-          ),
+                    ],
+                  ),
+                ),
         ),
       );
     }
