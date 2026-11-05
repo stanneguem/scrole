@@ -15,6 +15,7 @@ import 'package:scrole/modules/module_principale/centre/models/community_post.da
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import '../../../module_evenement/interne/pages/external_event_itinerary_screen.dart';
+import 'external_profile_agenda_screen.dart';
 import '../controllers/external_profile_controller.dart';
 
 
@@ -199,9 +200,19 @@ class _Header extends StatelessWidget {
           Positioned(
             top: 12,
             right: 16,
-            child: _HeaderButton(
-              icon: Icons.more_horiz_rounded,
-              onTap: () => _showProfileMenu(context),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _HeaderButton(
+                  icon: Icons.calendar_month_rounded,
+                  onTap: () => Get.to(() => ExternalProfileAgendaScreen(userId: profile.userId)),
+                ),
+                const SizedBox(width: 8),
+                _HeaderButton(
+                  icon: Icons.more_horiz_rounded,
+                  onTap: () => _showProfileMenu(context),
+                ),
+              ],
             ),
           ),
           Positioned(
