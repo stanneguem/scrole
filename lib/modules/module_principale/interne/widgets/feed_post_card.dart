@@ -156,12 +156,12 @@ class FeedPostCard extends StatelessWidget {
       opacity: post.isPublishing ? 0.65 : 1.0,
       child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.32),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.18),
             width: 0.8,
           ),
           boxShadow: [
@@ -169,8 +169,8 @@ class FeedPostCard extends StatelessWidget {
               color: Colors.black.withValues(
                 alpha: Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.035,
               ),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              blurRadius: 0,
+              offset: Offset.zero,
             ),
           ],
         ),
@@ -2184,12 +2184,12 @@ class _RepublicationPostCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.32),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.18),
           width: 0.8,
         ),
         boxShadow: [
@@ -2197,8 +2197,8 @@ class _RepublicationPostCard extends StatelessWidget {
             color: Colors.black.withValues(
               alpha: Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.035,
             ),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            blurRadius: 0,
+            offset: Offset.zero,
           ),
         ],
       ),
