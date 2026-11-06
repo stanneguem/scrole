@@ -81,6 +81,8 @@ class EventModel {
   final bool isRecurring;           // event annuel/récurrent
   final List<BadgeModel> badges;    // badges possibles
   final String? category;          // catégorie sémantique backend (pour_vous, populaires, etc.)
+  final String? seriesId;
+  final int editionNumber;
 
   EventModel({
     required this.id,
@@ -124,6 +126,8 @@ class EventModel {
     this.isRecurring = false,
     this.badges = const [],
     this.category,
+    this.seriesId,
+    this.editionNumber = 1,
   });
 
   DateTime get dateOnly => DateTime(startsAt.year, startsAt.month, startsAt.day);
@@ -278,6 +282,8 @@ class EventModel {
         countryRank: toNum(json['country_rank'])?.toInt(),
         isRecurring: (json['est_recurrent'] ?? json['is_recurring']) == true,
         category: (json['category'] ?? json['categorie'])?.toString(),
+        seriesId: json['series_id']?.toString(),
+        editionNumber: toNum(json['edition_number'])?.toInt() ?? 1,
       );
     } catch (e, stack) {
       debugPrint('[Error] EventModel.fromJson failed: $e');
@@ -306,6 +312,8 @@ class EventModel {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'user_role': userRole,
+      'series_id': seriesId,
+      'edition_number': editionNumber,
     };
   }
 
@@ -345,6 +353,8 @@ class EventModel {
     int? countryRank,
     bool? isRecurring,
     List<BadgeModel>? badges,
+    String? seriesId,
+    int? editionNumber,
   }) {
     return EventModel(
       id: id ?? this.id,
@@ -382,6 +392,8 @@ class EventModel {
       countryRank: countryRank ?? this.countryRank,
       isRecurring: isRecurring ?? this.isRecurring,
       badges: badges ?? this.badges,
+      seriesId: seriesId ?? this.seriesId,
+      editionNumber: editionNumber ?? this.editionNumber,
     );
   }
 }
