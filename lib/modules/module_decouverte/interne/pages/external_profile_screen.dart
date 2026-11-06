@@ -921,7 +921,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           return GestureDetector(
             onTap: () {
               final eventId = (event['id'] ?? '').toString();
-              if (eventId.isNotEmpty) openProfileEventSeries(context, event);
+              if (eventId.isNotEmpty) openProfileEventSeries(context, event, profileUserId: controller.userId);
             },
             child: Container(
             margin: const EdgeInsets.only(bottom: 12),
