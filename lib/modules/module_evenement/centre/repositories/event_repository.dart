@@ -795,6 +795,19 @@ class EventRepository {
     return result;
   }
 
+  Future<EventModel> createNextEventEdition({
+    required String sourceEventId,
+    required DateTime startsAt,
+  }) async {
+    final data = await _remote.createNextEventEdition(
+      sourceEventId: sourceEventId,
+      startsAt: startsAt,
+    );
+    await _dao.saveEventStructured(data, syncStatus: 'synced');
+    await _dao.upsertEvent(data);
+    return EventModel.fromJson(data);
+  }
+
   Future<EventModel> getEventById(String id) async {
     try {
       final data = await _remote.fetchEventById(id);
