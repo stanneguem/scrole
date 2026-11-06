@@ -209,12 +209,18 @@ class ExternalProfileRepository {
     int limit = 24,
     int offset = 0,
   }) async {
-    final response = await _client.rpc('get_external_profile_tab', params: {
-      'p_user_id': userId,
-      'p_tab': tab,
-      'p_limit': limit,
-      'p_offset': offset,
-    });
+    final response = tab == 'events'
+        ? await _client.rpc('get_profile_attended_event_series', params: {
+            'p_user_id': userId,
+            'p_limit': limit,
+            'p_offset': offset,
+          })
+        : await _client.rpc('get_external_profile_tab', params: {
+            'p_user_id': userId,
+            'p_tab': tab,
+            'p_limit': limit,
+            'p_offset': offset,
+          });
     if (response is List) {
       return response
           .whereType<Map>()
