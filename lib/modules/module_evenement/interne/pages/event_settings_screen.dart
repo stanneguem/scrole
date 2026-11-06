@@ -125,42 +125,6 @@ class EventSettingsScreen extends StatelessWidget {
             return const SizedBox.shrink();
           }),
 
-          // --- CERTIFICATION (source de vérité : backend) ---
-          FutureBuilder<dynamic>(
-            future: Supabase.instance.client.rpc(
-              'scrole_get_entity_certification_status',
-              params: {'p_entity_type': 'event', 'p_entity_id': event.id},
-            ),
-            builder: (context, snapshot) {
-              final status = snapshot.data is Map
-                  ? Map<String, dynamic>.from(snapshot.data as Map)
-                  : <String, dynamic>{};
-              if (snapshot.connectionState == ConnectionState.waiting ||
-                  status['is_owner'] != true) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: ScroleBottomSheetGroup(
-                  children: [
-                    ScroleBottomSheetAction(
-                      icon: Icons.verified_user_outlined,
-                      label: 'Certifier l’événement',
-                      subtitle: status['entity_certified'] == true
-                          ? 'Certification active · gérer les droits'
-                          : 'Consulter vos droits inclus ou acheter une certification',
-                      onTap: () => Get.to(() => EntityCertificationManagementScreen(
-                        entityType: 'event',
-                        entityId: event.id,
-                        entityName: event.name,
-                      )),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-
           // --- SECTION ÉVÉNEMENT ---
           Text(
             'Événement',
@@ -228,72 +192,52 @@ class EventSettingsScreen extends StatelessWidget {
             style: AppTextStyles.labelSmall.copyWith(color: Theme.of(context).colorScheme.primary, letterSpacing: 1.2),
           ),
           const SizedBox(height: 8),
-          FutureBuilder<dynamic>(
-            future: Supabase.instance.client.rpc(
-              'scrole_get_entity_certification_status',
-              params: {'p_entity_type': 'event', 'p_entity_id': event.id},
-            ),
-            builder: (context, snapshot) {
-              final cert = snapshot.data is Map
-                  ? Map<String, dynamic>.from(snapshot.data as Map)
-                  : <String, dynamic>{};
-              final eventCertified = cert['entity_certified'] == true;
-              final communityCertified = cert['community_certified'] == true;
-              final actions = <Widget>[];
-              if (eventCertified) {
-                actions.add(ScroleBottomSheetAction(
-                  icon: Icons.insights_rounded,
-                  label: 'Statistiques de l\'événement',
-                  subtitle: 'Tableau de bord et indicateurs de performance',
-                  onTap: () => Get.to(() => EventStatsDashboardScreen(event: event)),
-                ));
-                actions.add(const ScroleBottomSheetDivider());
-              }
-              actions.add(ScroleBottomSheetAction(
+          ScroleBottomSheetGroup(
+            children: [
+              ScroleBottomSheetAction(
+                icon: Icons.insights_rounded,
+                label: 'Statistiques de l'événement',
+                subtitle: 'Tableau de bord et indicateurs de performance',
+                onTap: () => Get.to(() => EventStatsDashboardScreen(event: event)),
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
                 icon: Icons.stars_outlined,
                 label: 'Gérer les co-fondateurs',
-                subtitle: 'Limites applicables aux événements non certifiés',
                 onTap: () => Get.toNamed(
                   AppPages.eventCoCreators.replaceFirst(':id', event.id),
                   arguments: event,
                 ),
-              ));
-              actions.add(const ScroleBottomSheetDivider());
-              actions.add(ScroleBottomSheetAction(
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
                 icon: Icons.people_outline,
                 label: 'Gérer le staff',
-                subtitle: eventCertified ? 'Gérer l’équipe et attribuer les activités' : 'Plafond du staff applicable aux événements non certifiés',
+                subtitle: 'Gérer l’équipe et attribuer les activités',
                 onTap: () => Get.toNamed(
                   AppPages.eventStaff.replaceFirst(':id', event.id),
                   arguments: {'event': event, 'initialTab': 0},
                 ),
-              ));
-              if (eventCertified || communityCertified) {
-                actions.addAll([
-                  const ScroleBottomSheetDivider(),
-                  ScroleBottomSheetAction(
-                    icon: Icons.confirmation_number_outlined,
-                    label: 'Gérer la billetterie',
-                    onTap: () => Get.toNamed(
-                      AppPages.eventTickets.replaceFirst(':id', event.id),
-                      arguments: event,
-                    ),
-                  ),
-                ]);
-              }
-              actions.addAll([
-                const ScroleBottomSheetDivider(),
-                ScroleBottomSheetAction(
-                  icon: Icons.assignment_outlined,
-                  label: 'Gérer les activités',
-                  onTap: () => Get.toNamed(
-                    AppPages.eventActivities.replaceFirst(':id', event.id),
-                    arguments: event,
-                  ),
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
+                icon: Icons.confirmation_number_outlined,
+                label: 'Gérer la billetterie',
+                onTap: () => Get.toNamed(
+                  AppPages.eventTickets.replaceFirst(':id', event.id),
+                  arguments: event,
                 ),
-              ]);
-              return ScroleBottomSheetGroup(children: actions);
-            },
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
+                icon: Icons.assignment_outlined,
+                label: 'Gérer les activités',
+                onTap: () => Get.toNamed(
+                  AppPages.eventActivities.replaceFirst(':id', event.id),
+                  arguments: event,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
 
