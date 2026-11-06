@@ -512,15 +512,12 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
-      final rows = await Supabase.instance.client.from('event_checkins')
-          .select('event_id, events!inner(id, name, photo, starts_at)')
-          .eq('user_id', userId).eq('status', 'valid')
-          .isFilter('activity_id', null).order('created_at', ascending: false);
+      final rows = await Supabase.instance.client.rpc('get_my_valid_checked_in_events');
       final unique = <String, Map<String, dynamic>>{};
-      for (final row in rows) {
-        final raw = row['events'];
-        if (raw is Map) {
-          final event = Map<String, dynamic>.from(raw);
+      if (rows is List) {
+        for (final row in rows) {
+          if (row is! Map) continue;
+          final event = Map<String, dynamic>.from(row);
           final id = event['id']?.toString() ?? '';
           if (id.isNotEmpty) unique.putIfAbsent(id, () => event);
         }
