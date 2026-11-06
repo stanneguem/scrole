@@ -385,25 +385,46 @@ class EventController extends GetxController with WidgetsBindingObserver {
       _myEventsRefreshRequested = true;
       return;
     }
-    isLoadingMyEvents.value = true;
-    try {
-      // Afficher le cache immédiatement, mais sans événements supprimés.
-      final localManaged = await _repository.getManagedEventsLocal();
-      managedEvents.assignAll(localManaged.where(_isVisibleInMyEvents));
-      final localStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(localStaff.where(_isVisibleInMyEvents));
 
-      // Le résultat distant fait autorité, même s'il est vide : ne jamais
-      // conserver des cartes obsolètes en cas de suppression côté serveur.
-      final remoteManaged = await _repository.syncManagedEventsRemote();
-      managedEvents.assignAll(remoteManaged.where(_isVisibleInMyEvents));
-      final remoteStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(remoteStaff.where(_isVisibleInMyEvents));
+    final isFirstLoad = !hasLoadedMyEvents.value;
+    isLoadingMyEvents.value = true;
+
+    List<EventModel> localManaged = const [];
+    List<EventModel> localStaff = const [];
+
+    try {
+      // Le cache sert de solution de secours au premier chargement seulement.
+      // Lors des actualisations suivantes, on conserve la liste déjà affichée
+      // jusqu'à réception des deux listes distantes complètes.
+      if (isFirstLoad) {
+        localManaged = (await _repository.getManagedEventsLocal())
+            .where(_isVisibleInMyEvents)
+            .toList();
+        localStaff = (await _repository.getStaffEvents())
+            .where(_isVisibleInMyEvents)
+            .toList();
+      }
+
+      final remoteManaged = (await _repository.syncManagedEventsRemote())
+          .where(_isVisibleInMyEvents)
+          .toList();
+      final remoteStaff = (await _repository.getStaffEvents())
+          .where(_isVisibleInMyEvents)
+          .toList();
+
+      // Publier les résultats ensemble évite un état intermédiaire où une
+      // partie des éditions serait visible avant l'autre.
+      managedEvents.assignAll(remoteManaged);
+      staffEvents.assignAll(remoteStaff);
     } catch (e) {
       debugPrint('[Error] EventController.fetchMyEvents: $e');
+      // En cas d'échec réseau au premier lancement, afficher le cache en
+      // secours. L'écran applique toujours le regroupement avant le rendu.
+      if (isFirstLoad) {
+        managedEvents.assignAll(localManaged);
+        staffEvents.assignAll(localStaff);
+      }
     } finally {
-      // Ne rendre la liste visible qu'après la première synchronisation :
-      // le cache local peut ne pas encore contenir les métadonnées de série.
       hasLoadedMyEvents.value = true;
       isLoadingMyEvents.value = false;
       if (_myEventsRefreshRequested) {
