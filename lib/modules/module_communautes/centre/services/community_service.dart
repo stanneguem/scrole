@@ -866,6 +866,7 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
   Future<void> createCommunityPost({
     required String communityId,
     String? requestedPostId,
+    String? eventId,
     String? content,
     List<File>? imageFiles,
     List<File>? videoFiles,
@@ -989,6 +990,7 @@ class CommunityService extends GetxService with WidgetsBindingObserver {
 
     final payload = {
       'p_id': postId,
+      'p_event_id': eventId,
       'p_content': content ?? '',
       'p_community_id': communityId.isEmpty ? null : communityId,
       'p_audience': audience ?? 'public',
