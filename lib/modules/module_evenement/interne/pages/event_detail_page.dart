@@ -17,7 +17,6 @@ import '../../../../../shared/widgets/app_cached_image.dart';
 import '../../centre/models/event_model.dart';
 import '../../centre/models/event_preview_model.dart';
 import '../../centre/repositories/event_repository.dart';
-import '../controllers/edit_event_controller.dart';
 import '../../centre/services/event_share_poster_service.dart';
 import '../controllers/event_controller.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -728,6 +727,9 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
         snackPosition: SnackPosition.BOTTOM,
       );
+      // Replace the archived detail with the new edition's detail before
+      // opening its editor, so leaving the editor returns to the correct edition.
+      Get.off(() => EventDetailPage(event: created));
       Get.toNamed(
         AppPages.eventEdit.replaceFirst(':id', created.id),
         arguments: created,
