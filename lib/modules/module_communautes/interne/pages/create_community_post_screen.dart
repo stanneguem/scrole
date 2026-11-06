@@ -63,6 +63,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   String? _prefilledUrl;
   Map<String, dynamic>? _pollData;
   bool _isPublishing = false;
+  Map<String, dynamic>? _selectedEvent;
 
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
@@ -507,6 +508,56 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     }
   }
 
+  Future<void> _chooseCheckedInEvent() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      final rows = await Supabase.instance.client.from('event_checkins')
+          .select('event_id, events!inner(id, name, photo, starts_at)')
+          .eq('user_id', userId).eq('status', 'valid')
+          .isFilter('activity_id', null).order('created_at', ascending: false);
+      final unique = <String, Map<String, dynamic>>{};
+      for (final row in rows) {
+        final raw = row['events'];
+        if (raw is Map) {
+          final event = Map<String, dynamic>.from(raw);
+          final id = event['id']?.toString() ?? '';
+          if (id.isNotEmpty) unique.putIfAbsent(id, () => event);
+        }
+      }
+      if (!mounted) return;
+      if (unique.isEmpty) {
+        Get.snackbar('Aucun événement disponible', "Tu dois avoir un check-in validé pour associer une publication à un événement.");
+        return;
+      }
+      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context, isScrollControlled: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        builder: (ctx) => SafeArea(child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * .65,
+          child: Column(children: [
+            Padding(padding: const EdgeInsets.all(18), child: Row(children: [
+              const Icon(Icons.event_available_rounded), const SizedBox(width: 10),
+              Text('Choisir un événement', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            ])),
+            Expanded(child: ListView(children: unique.values.map((event) => ListTile(
+              leading: (event['photo'] ?? '').toString().startsWith('http')
+                ? AppCachedImage(imageUrl: event['photo'].toString(), width: 48, height: 48, fit: BoxFit.cover)
+                : const SizedBox(width: 48, height: 48, child: Icon(Icons.event)),
+              title: Text((event['name'] ?? 'Événement').toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text((event['starts_at'] ?? '').toString().replaceFirst('T', ' ')),
+              onTap: () => Navigator.of(ctx).pop(event),
+            )).toList())),
+          ]),
+        )),
+      );
+      if (selected != null && mounted) setState(() => _selectedEvent = selected);
+    } catch (e) {
+      debugPrint('[POST_COMPOSER] checked-in event loading failed: $e');
+      Get.snackbar('Erreur', "Impossible de charger tes événements avec présence validée.");
+    }
+  }
+
   Future<void> _publish() async {
     if (!_canPublish || _isPublishing) return;
 
@@ -634,6 +685,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     try {
       await service.createCommunityPost(
         requestedPostId: postId,
+        eventId: _selectedEvent?['id']?.toString(),
         communityId: cId,
         content: postContent,
         imageFiles: filesToPublish,
@@ -1017,6 +1069,17 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         ),
                       ),
 
+                    if (_selectedEvent != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Card(child: ListTile(
+                          leading: const Icon(Icons.event_available_rounded),
+                          title: Text((_selectedEvent!['name'] ?? 'Événement').toString()),
+                          subtitle: const Text('Publication associée à cet événement'),
+                          trailing: IconButton(icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(() => _selectedEvent = null)),
+                        )),
+                      ),
                     if (_selectedHashtags.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1321,7 +1384,14 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     icon: Icon(Icons.tag_rounded, color: _selectedHashtags.isNotEmpty ? colorScheme.primary : colorScheme.onSurface, size: 24),
                     tooltip: 'post_composer_hashtags_tooltip'.tr,
                   ),
-
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    onPressed: _chooseCheckedInEvent,
+                    icon: Icon(Icons.event_available_rounded,
+                      color: _selectedEvent != null ? colorScheme.primary : colorScheme.onSurface, size: 24),
+                    tooltip: 'Publier depuis un événement',
+                  ),
                 ],
               ),
             ),
