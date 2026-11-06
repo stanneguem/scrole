@@ -685,7 +685,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
     if (userId.isEmpty) return;
     final currentUserId = Get.find<AppController>().authUser.value?.id ?? '';
     if (userId == currentUserId) {
-      Get.to(() => EventItineraryOverviewScreen(event: widget.event));
+      Get.to(() => EventItineraryOverviewScreen(event: widget.event, readOnly: true));
     } else {
       Get.to(() => ExternalEventItineraryScreen(
         userId: userId,
