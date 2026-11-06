@@ -11,8 +11,9 @@ import 'event_itinerary_screen.dart';
 /// Read-only view of the user's itinerary. Editing belongs to EventItineraryScreen.
 class EventItineraryOverviewScreen extends StatefulWidget {
   final EventModel event;
+  final bool readOnly;
 
-  const EventItineraryOverviewScreen({super.key, required this.event});
+  const EventItineraryOverviewScreen({super.key, required this.event, this.readOnly = false});
 
   @override
   State<EventItineraryOverviewScreen> createState() => _EventItineraryOverviewScreenState();
@@ -76,7 +77,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
       appBar: AppBar(
         title: Text('event_itinerary_title'.tr, style: AppTextStyles.h4.copyWith(fontSize: 18)),
         actions: [
-          Padding(
+          if (!widget.readOnly) Padding(
             padding: const EdgeInsets.only(right: 8),
             child: IconButton.filled(
               tooltip: 'event_itinerary_edit'.tr,
