@@ -370,7 +370,7 @@ class _ArchivedEventGalleryState extends State<_ArchivedEventGallery> {
           onRefresh: _refresh,
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.zero,
             itemCount: posts.length,
             itemBuilder: (context, index) {
               final post = posts[index];
@@ -382,6 +382,7 @@ class _ArchivedEventGalleryState extends State<_ArchivedEventGallery> {
                   arguments: {'postId': post.id},
                 ),
                 onShareTap: null,
+                margin: EdgeInsets.zero,
               );
             },
           ),
