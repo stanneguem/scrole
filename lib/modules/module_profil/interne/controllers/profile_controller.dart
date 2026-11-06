@@ -127,15 +127,20 @@ class ProfileController extends GetxController {
         2 => 'liked',
         _ => throw ArgumentError.value(index, 'index', 'Onglet de profil invalide'),
       };
-      final response = await Supabase.instance.client.rpc(
-        'get_external_profile_tab',
-        params: {
-          'p_user_id': uid,
-          'p_tab': tab,
-          'p_limit': 24,
-          'p_offset': 0,
-        },
-      );
+      final response = index == 1
+          ? await Supabase.instance.client.rpc(
+              'get_profile_attended_event_series',
+              params: {'p_user_id': uid, 'p_limit': 60, 'p_offset': 0},
+            )
+          : await Supabase.instance.client.rpc(
+              'get_external_profile_tab',
+              params: {
+                'p_user_id': uid,
+                'p_tab': tab,
+                'p_limit': 24,
+                'p_offset': 0,
+              },
+            );
       final rows = response is List
           ? response.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
           : <Map<String, dynamic>>[];
