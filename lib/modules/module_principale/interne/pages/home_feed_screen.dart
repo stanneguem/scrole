@@ -424,6 +424,19 @@ class _StoriesRow extends GetView<StoriesController> {
       child: Obx(() {
         final own = controller.ownGroup.value;
         final hasOwnStory = own != null && own.stories.isNotEmpty;
+        final appController = Get.isRegistered<AppController>() ? Get.find<AppController>() : null;
+        final profile = appController?.profile.value ?? const <String, dynamic>{};
+        final ownProfilePhoto = (profile['photo_url'] ??
+                profile['avatar_url'] ??
+                profile['profile_photo_url'] ??
+                appController?.authUser.value?.userMetadata?['photo_url'] ??
+                appController?.authUser.value?.userMetadata?['avatar_url'])
+            ?.toString();
+        final ownLatestStory = hasOwnStory
+            ? (own.stories.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt))).first
+            : null;
+        final ownStoryPreviewUrl = ownLatestStory?.imageUrl ??
+            ownLatestStory?.sharedPost?.media.firstOrNull?.url;
         // Unseen stories first, then most recently active authors.
         final otherGroups = <EventStoryGroup>[
           ...controller.followingGroups,
@@ -473,12 +486,21 @@ class _StoriesRow extends GetView<StoriesController> {
                             ),
                             child: CircleAvatar(
                               radius: 28,
-                              backgroundImage: own?.author.photoUrl != null && own!.author.photoUrl!.isNotEmpty
-                                  ? NetworkImage(own.author.photoUrl!)
-                                  : null,
-                              child: own?.author.photoUrl == null || own!.author.photoUrl!.isEmpty
-                                  ? Icon(Icons.person, color: colorScheme.onSurfaceVariant)
-                                  : null,
+                              backgroundImage: hasOwnStory &&
+                                      ownStoryPreviewUrl != null &&
+                                      ownStoryPreviewUrl.isNotEmpty
+                                  ? NetworkImage(ownStoryPreviewUrl)
+                                  : (own?.author.photoUrl ?? ownProfilePhoto) != null &&
+                                          (own?.author.photoUrl ?? ownProfilePhoto)!.isNotEmpty
+                                      ? NetworkImage(own?.author.photoUrl ?? ownProfilePhoto!)
+                                      : null,
+                              child: (hasOwnStory &&
+                                          ownStoryPreviewUrl != null &&
+                                          ownStoryPreviewUrl.isNotEmpty) ||
+                                      ((own?.author.photoUrl ?? ownProfilePhoto) != null &&
+                                          (own?.author.photoUrl ?? ownProfilePhoto)!.isNotEmpty)
+                                  ? null
+                                  : Icon(Icons.person, color: colorScheme.onSurfaceVariant),
                             ),
                           ),
                           if (controller.isPublishingStory.value)
