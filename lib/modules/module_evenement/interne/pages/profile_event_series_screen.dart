@@ -168,7 +168,7 @@ Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> s
     if (id.isEmpty) return;
     try {
       final event = await Get.find<EventRepository>().getEventById(id);
-      if (context.mounted) Get.to(() => EventDetailPage(event: event, profileUserId: profileUserId));
+      if (context.mounted) Get.to(() => ArchivedEventEditionScreen(event: event, profileUserId: profileUserId));
     } catch (_) {
       Get.snackbar('Événement', 'Impossible de charger cette édition.');
     }
