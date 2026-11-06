@@ -428,7 +428,6 @@ class FeedPostCard extends StatelessWidget {
   Widget _buildEventHeader(ColorScheme colorScheme) {
     final logo = post.eventLogoUrl;
     return InkWell(
-      onTap: () => Get.toNamed(AppPages.eventDetail.replaceFirst(':id', post.eventId!)),
       child: Row(children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(7),
