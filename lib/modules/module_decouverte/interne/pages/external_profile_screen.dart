@@ -908,6 +908,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
         itemCount: events.length,
         itemBuilder: (context, index) {
           final event = events[index];
+          final editionCount = (event['edition_count'] as num?)?.toInt() ?? 1;
           final photo = (event['photo'] ?? '').toString();
           final start = DateTime.tryParse((event['starts_at'] ?? '').toString());
           final date = start == null ? '' : DateFormat('EEE d MMM yyyy', Get.locale?.languageCode ?? 'fr').format(start);
@@ -955,8 +956,8 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
                           decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(20)),
                           child: Text(role, style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer)),
                         ),
-                      if ((event['edition_count'] as num?)?.toInt() case final count? when count > 1)
-                        Text('$count éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
+                      if (editionCount > 1)
+                        Text('$editionCount éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
                     ],
                   ),
                   if (date.isNotEmpty) ...[
@@ -979,21 +980,9 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        final eventId = (event['id'] ?? '').toString();
-                        if (eventId.isEmpty) return;
-                        Get.to(() => ExternalEventItineraryScreen(
-                          userId: controller.userId,
-                          eventId: eventId,
-                          eventName: (event['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
-                          eventPhoto: (event['photo'] ?? '').toString(),
-                          eventLocation: [event['city'], event['country']]
-                              .where((value) => value != null && value.toString().trim().isNotEmpty)
-                              .join(', '),
-                        ));
-                      },
-                      icon: const Icon(Icons.route_rounded, size: 17),
-                      label: Text('external_event_itinerary_button'.tr),
+                      onPressed: () => openProfileEventSeries(context, event, profileUserId: controller.userId),
+                      icon: const Icon(Icons.collections_bookmark_outlined, size: 17),
+                      label: Text(editionCount > 1 ? 'Voir les éditions' : 'Voir l’événement'),
                     ),
                   ),
                 ]),
