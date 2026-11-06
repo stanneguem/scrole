@@ -17,6 +17,7 @@ import '../../../../../shared/widgets/app_cached_image.dart';
 import '../../centre/models/event_model.dart';
 import '../../centre/models/event_preview_model.dart';
 import '../../centre/repositories/event_repository.dart';
+import '../controllers/edit_event_controller.dart';
 import '../../centre/services/event_share_poster_service.dart';
 import '../controllers/event_controller.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -681,6 +682,64 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
       ),
     );
   }
+  Future<void> _createNextEdition() async {
+    if (widget.event.status != EventStatus.completed ||
+        Get.find<AppController>().authUser.value?.id != widget.event.creatorId) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final initial = widget.event.startsAt.isAfter(now)
+        ? widget.event.startsAt.add(const Duration(days: 1))
+        : now.add(const Duration(days: 1));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(initial.year, initial.month, initial.day),
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de la nouvelle édition',
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(widget.event.startsAt),
+      helpText: 'Heure de début',
+    );
+    if (pickedTime == null || !mounted) return;
+
+    final startsAt = DateTime(
+      pickedDate.year, pickedDate.month, pickedDate.day,
+      pickedTime.hour, pickedTime.minute,
+    );
+    if (!startsAt.isAfter(DateTime.now())) {
+      Get.snackbar('Date invalide', 'La nouvelle édition doit commencer dans le futur.');
+      return;
+    }
+
+    try {
+      final created = await Get.find<EventRepository>().createNextEventEdition(
+        sourceEventId: widget.event.id,
+        startsAt: startsAt,
+      );
+      if (!mounted) return;
+      Get.snackbar(
+        'Nouvelle édition créée',
+        'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      Get.toNamed(
+        AppPages.eventEdit.replaceFirst(':id', created.id),
+        arguments: created,
+      );
+    } catch (error) {
+      if (mounted) {
+        Get.snackbar('Création impossible', error.toString(),
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    }
+  }
+
   void _openArchivedItinerary() {
     final userId = widget.profileUserId ?? Get.find<AppController>().authUser.value?.id ?? '';
     if (userId.isEmpty) return;
@@ -829,6 +888,14 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         ),
                       ),
                     ),
+                    if (event.status == EventStatus.completed &&
+                        currentUserId != null &&
+                        currentUserId == event.creatorId)
+                      IconButton(
+                        tooltip: 'Créer une nouvelle édition',
+                        onPressed: _createNextEdition,
+                        icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+                      ),
                     if (event.status == EventStatus.completed)
                       IconButton(
                         tooltip: 'Revoir mon programme',
