@@ -55,8 +55,13 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           onRefresh: controller.fetchMyEvents,
           color: AppColors.primary,
           child: Obx(() {
-            // Le cache local reste visible pendant la synchronisation distante.
-            // On évite un écran de chargement qui masquerait les événements déjà disponibles.
+            // Ne jamais afficher les éditions brutes du cache avant la fin
+            // de la première synchronisation distante et du regroupement.
+            if (!controller.hasLoadedMyEvents.value) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
+            }
             return TabBarView(
               children: [
                 _buildEventList(context, controller.managedEvents, 'my_events_empty_creations'.tr, contextRole: 'owner'),
