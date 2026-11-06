@@ -436,8 +436,20 @@ class _StoriesRow extends GetView<StoriesController> {
         final ownLatestStory = hasOwnStory
             ? (own.stories.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt))).first
             : null;
-        final ownStoryPreviewUrl = ownLatestStory?.imageUrl ??
-            ownLatestStory?.sharedPost?.media.firstOrNull?.url;
+        // For a story that shares a post, use the post's actual visual
+        // preview (video thumbnail when available), not the profile avatar.
+        final ownSharedMedia = ownLatestStory?.sharedPost?.media
+            .where((media) => media.url.trim().isNotEmpty)
+            .toList() ?? const [];
+        final ownSharedPreviewUrl = ownSharedMedia.isEmpty
+            ? null
+            : (ownSharedMedia.first.isVideo &&
+                    (ownSharedMedia.first.thumbnailUrl?.isNotEmpty ?? false)
+                ? ownSharedMedia.first.thumbnailUrl
+                : ownSharedMedia.first.url);
+        final ownStoryPreviewUrl = ownLatestStory?.imageUrl?.isNotEmpty == true
+            ? ownLatestStory!.imageUrl
+            : ownSharedPreviewUrl;
         // Unseen stories first, then most recently active authors.
         final otherGroups = <EventStoryGroup>[
           ...controller.followingGroups,
