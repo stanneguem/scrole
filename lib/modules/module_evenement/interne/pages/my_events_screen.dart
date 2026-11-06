@@ -9,6 +9,7 @@ import '../../../../shared/widgets/entity_certified_badge.dart';
 import '../../centre/models/event_model.dart';
 import '../controllers/event_controller.dart';
 import '../enums/event_enum.dart';
+import 'profile_event_series_screen.dart';
 
 class MyEventsScreen extends StatefulWidget {
   const MyEventsScreen({super.key});
@@ -92,11 +93,26 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       );
     }
 
+    final groupsByKey = <String, List<EventModel>>{};
+    for (final event in events) {
+      final seriesId = event.seriesId?.trim();
+      final key = seriesId != null && seriesId.isNotEmpty
+          ? 'series:$seriesId'
+          : 'event:${event.id}';
+      groupsByKey.putIfAbsent(key, () => <EventModel>[]).add(event);
+    }
+    final groups = groupsByKey.values.map((items) {
+      items.sort((a, b) => b.editionNumber.compareTo(a.editionNumber));
+      return _MyEventGroup(items);
+    }).toList()
+      ..sort((a, b) => b.latest.createdAt.compareTo(a.latest.createdAt));
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: events.length,
+      itemCount: groups.length,
       itemBuilder: (context, index) {
-        final event = events[index];
+        final group = groups[index];
+        final event = group.latest;
         final creationDateStr = _formatDisplayDate(event.createdAt);
 
         return Card(
@@ -142,6 +158,16 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 2),
+                if (group.editions.length > 1) ...[
+                  Text(
+                    '${group.editions.length} éditions',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                ],
                 Text(
                   'Créé le $creationDateStr',
                   style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant),
@@ -152,14 +178,30 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
-              await Get.toNamed(
-                AppPages.eventPreview.replaceFirst(':id', event.id),
-                arguments: {
-                  'id': event.id,
-                  'event': event,
-                  'context': contextRole,
-                },
-              );
+              if (group.editions.length > 1) {
+                await Get.to(() => ProfileEventSeriesScreen(
+                  series: {
+                    'name': event.name,
+                    'editions': group.editions.map((edition) => {
+                      ...edition.toJson(),
+                      'photo': edition.coverImageUrl,
+                      'starts_at': edition.startsAt.toIso8601String(),
+                      'city': edition.city?.name ?? edition.address ?? '',
+                    }).toList(),
+                  },
+                  profileUserId: event.creatorId,
+                  ownerMode: true,
+                ));
+              } else {
+                await Get.toNamed(
+                  AppPages.eventPreview.replaceFirst(':id', event.id),
+                  arguments: {
+                    'id': event.id,
+                    'event': event,
+                    'context': contextRole,
+                  },
+                );
+              }
               if (mounted) await controller.fetchMyEvents();
             },
           ),
@@ -234,4 +276,12 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       ),
     );
   }
+}
+
+
+class _MyEventGroup {
+  final List<EventModel> editions;
+  _MyEventGroup(this.editions);
+
+  EventModel get latest => editions.first;
 }
