@@ -111,7 +111,6 @@ class ActivityService extends GetxService {
       _replaceInList(entity.toActivity());
       return entity.toActivity();
     }
-    final userId = _authService.userId ?? '';
     final activityId = _repository.generateLocalId();
     final operationId = _repository.generateLocalId();
     final now = DateTime.now();
@@ -124,8 +123,8 @@ class ActivityService extends GetxService {
       description: data.description,
       displayPrice: data.priceGeneral,
       displayCurrency: data.currencyCode,
-      status: isCreatedForEvent ? 'active' : 'en_attente',
-      eventOnly: eventOnly || isCreatedForEvent,
+      status: 'en_attente',
+      eventOnly: eventOnly,
       createdAt: now,
       updatedAt: now,
       cachedAt: now.millisecondsSinceEpoch,
