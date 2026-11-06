@@ -12,6 +12,7 @@ import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 import 'package:scrole/shared/widgets/profile_post_detail_screen.dart';
 import 'package:scrole/modules/module_profil/interne/controllers/profile_controller.dart';
+import 'package:scrole/modules/module_evenement/interne/pages/profile_event_series_screen.dart';
 import 'package:scrole/modules/module_profil/interne/widgets/circle_button_widget.dart';
 
 String _formatReputation(num value) {
@@ -627,7 +628,7 @@ class ProfileScreen extends GetView<ProfileController> {
           return GestureDetector(
             onTap: () {
               final eventId = (ev['id'] ?? '').toString();
-              if (eventId.isNotEmpty) Get.toNamed(AppPages.eventPreviewPath(eventId));
+              if (eventId.isNotEmpty) openProfileEventSeries(context, ev);
             },
             child: Container(
             margin: const EdgeInsets.only(bottom: 14),
