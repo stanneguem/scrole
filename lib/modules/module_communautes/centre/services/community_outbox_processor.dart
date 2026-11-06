@@ -725,6 +725,13 @@ class CommunityOutboxProcessor extends GetxService {
             p_poll: poll,
             p_allow_promotion: allowPromotion,
           );
+          final linkedEventId = payload['p_event_id']?.toString();
+          if (linkedEventId != null && linkedEventId.isNotEmpty) {
+            await Supabase.instance.client.rpc('link_post_to_checked_in_event', params: {
+              'p_post_id': pId,
+              'p_event_id': linkedEventId,
+            });
+          }
 
           debugPrint('[POST_CREATE][$postKind] RPC_SUCCESS operationId=$operationId postId=$pId elapsedMs=${DateTime.now().difference(rpcStartedAt).inMilliseconds}');
           debugPrint('[POST_CREATE][$postKind] OUTBOX_COMPLETE operationId=$operationId postId=$pId');
