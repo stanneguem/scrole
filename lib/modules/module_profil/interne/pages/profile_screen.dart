@@ -628,7 +628,7 @@ class ProfileScreen extends GetView<ProfileController> {
           return GestureDetector(
             onTap: () {
               final eventId = (ev['id'] ?? '').toString();
-              if (eventId.isNotEmpty) openProfileEventSeries(context, ev);
+              if (eventId.isNotEmpty) openProfileEventSeries(context, ev, profileUserId: controller.userId.value);
             },
             child: Container(
             margin: const EdgeInsets.only(bottom: 14),
