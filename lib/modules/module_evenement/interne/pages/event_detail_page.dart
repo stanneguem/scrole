@@ -37,8 +37,9 @@ import '../../../module_communautes/interne/pages/create_community_post_screen.d
 class EventDetailPage extends StatefulWidget {
   final EventModel event;
   final String? profileUserId;
+  final bool archiveTabMode;
 
-  const EventDetailPage({super.key, required this.event, this.profileUserId});
+  const EventDetailPage({super.key, required this.event, this.profileUserId, this.archiveTabMode = false});
 
   @override
   State<EventDetailPage> createState() => _EventDetailPageState();
@@ -776,7 +777,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
           Expanded(
             child: CustomScrollView(
               slivers: [
-                SliverAppBar(
+                if (!widget.archiveTabMode) SliverAppBar(
                   expandedHeight: 260,
                   pinned: true,
                   backgroundColor: colorScheme.surface,
