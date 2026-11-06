@@ -52,12 +52,6 @@ class SettingsScreen extends StatelessWidget {
                       children: controller.filterTiles<_SettingsTile>(
                         [
                           _SettingsTile(
-                            icon: Icons.workspace_premium_rounded,
-                            iconBg: AppColors.primary,
-                            label: 'settings_go_premium'.tr,
-                            onTap: controller.openPremium,
-                          ),
-                          _SettingsTile(
                             icon: Icons.privacy_tip_rounded,
                             label: 'settings_privacy_data'.tr,
                             onTap: controller.openPrivacyData,
