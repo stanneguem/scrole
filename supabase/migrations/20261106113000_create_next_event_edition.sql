@@ -113,5 +113,5 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.create_next_event_edition(uuid, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_next_event_edition(uuid, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_next_event_edition(uuid, timestamptz) TO authenticated;
