@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../centre/repositories/event_repository.dart';
+import '../../../../app/routes/app_pages.dart';
 import '../../interne/pages/event_detail_page.dart';
 import '../../interne/pages/event_comments_screen.dart';
 import '../../interne/pages/event_itinerary_overview_screen.dart';
@@ -15,14 +16,27 @@ import '../../../module_principale/externe/repositories/home_feed_repository.dar
 class ProfileEventSeriesScreen extends StatelessWidget {
   final Map<String, dynamic> series;
   final String profileUserId;
-  const ProfileEventSeriesScreen({super.key, required this.series, required this.profileUserId});
+  final bool ownerMode;
+  const ProfileEventSeriesScreen({
+    super.key,
+    required this.series,
+    required this.profileUserId,
+    this.ownerMode = false,
+  });
 
   Future<void> _openEdition(BuildContext context, Map<String, dynamic> edition) async {
     final id = (edition['id'] ?? '').toString();
     if (id.isEmpty) return;
     try {
-      final event = await Get.find<EventRepository>().getEventById(id);
-      if (context.mounted) Get.to(() => ArchivedEventEditionScreen(event: event, profileUserId: profileUserId));
+      if (ownerMode) {
+        Get.toNamed(
+          AppPages.eventPreview.replaceFirst(':id', id),
+          arguments: {'id': id, 'context': 'owner'},
+        );
+      } else {
+        final event = await Get.find<EventRepository>().getEventById(id);
+        if (context.mounted) Get.to(() => ArchivedEventEditionScreen(event: event, profileUserId: profileUserId));
+      }
     } catch (_) {
       Get.snackbar('Événement', 'Impossible de charger cette édition.');
     }
@@ -53,13 +67,13 @@ class ProfileEventSeriesScreen extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final edition = editions[index];
-                final image = (edition['photo'] ?? '').toString();
+                final image = (edition['photo'] ?? edition['photo_url'] ?? edition['cover_image_url'] ?? '').toString();
                 final number = (edition['edition_number'] as num?)?.toInt() ?? 1;
-                final start = DateTime.tryParse((edition['starts_at'] ?? '').toString());
+                final start = DateTime.tryParse((edition['starts_at'] ?? edition['date_debut'] ?? '').toString());
                 final date = start == null
                     ? ''
                     : '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
-                final city = (edition['city'] ?? '').toString();
+                final city = (edition['city'] ?? edition['address'] ?? edition['adresse'] ?? '').toString();
                 return Material(
                   color: colors.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(16),
