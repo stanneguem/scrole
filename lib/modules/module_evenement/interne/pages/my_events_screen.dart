@@ -95,10 +95,14 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
     final groupsByKey = <String, List<EventModel>>{};
     for (final event in events) {
+      // La première édition conserve series_id à NULL ; les éditions suivantes
+      // pointent vers son id. Normaliser les deux formes sur la racine permet
+      // de réunir l'édition initiale et toutes ses éditions suivantes.
       final seriesId = event.seriesId?.trim();
-      final key = seriesId != null && seriesId.isNotEmpty
-          ? 'series:$seriesId'
-          : 'event:${event.id}';
+      final rootId = seriesId != null && seriesId.isNotEmpty
+          ? seriesId
+          : event.id;
+      final key = 'series:$rootId';
       groupsByKey.putIfAbsent(key, () => <EventModel>[]).add(event);
     }
     final groups = groupsByKey.values.map((items) {
