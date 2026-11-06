@@ -8,6 +8,9 @@ import '../../interne/pages/external_event_itinerary_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../centre/models/event_model.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../module_principale/centre/models/community_post.dart';
+import '../../../module_principale/interne/widgets/feed_post_card.dart';
+import '../../../module_principale/externe/repositories/home_feed_repository.dart';
 
 class ProfileEventSeriesScreen extends StatelessWidget {
   final Map<String, dynamic> series;
@@ -201,23 +204,7 @@ class ArchivedEventEditionScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.photo_library_outlined, size: 42, color: colors.onSurfaceVariant),
-                    const SizedBox(height: 12),
-                    Text(
-                      'La galerie des publications liées à cette édition sera disponible ici.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _ArchivedEventGallery(eventId: event.id),
             EventDetailPage(event: event, profileUserId: profileUserId, archiveTabMode: true),
           ],
         ),
@@ -243,4 +230,163 @@ Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> s
     return;
   }
   if (context.mounted) Get.to(() => ProfileEventSeriesScreen(series: series, profileUserId: profileUserId));
+}
+
+
+/// Charge uniquement les publications explicitement associées à cette édition.
+/// get_post fournit le même payload enrichi que celui utilisé par le fil d'actualité
+/// (auteur, médias, réactions et compteurs) tout en respectant les règles d'accès.
+class _ArchivedEventGallery extends StatefulWidget {
+  final String eventId;
+  const _ArchivedEventGallery({required this.eventId});
+
+  @override
+  State<_ArchivedEventGallery> createState() => _ArchivedEventGalleryState();
+}
+
+class _ArchivedEventGalleryState extends State<_ArchivedEventGallery> {
+  late Future<List<CommunityPost>> _postsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _postsFuture = _loadPosts();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ArchivedEventGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.eventId != widget.eventId) {
+      _postsFuture = _loadPosts();
+    }
+  }
+
+  Future<List<CommunityPost>> _loadPosts() async {
+    final client = Supabase.instance.client;
+    final links = await client
+        .from('event_post_links')
+        .select('post_id, created_at')
+        .eq('event_id', widget.eventId)
+        .order('created_at', ascending: false);
+
+    final postIds = links
+        .whereType<Map>()
+        .map((row) => row['post_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+
+    if (postIds.isEmpty) return [];
+
+    final repository = HomeFeedRepository(client);
+    final results = await Future.wait(
+      postIds.map((id) async {
+        try {
+          return await repository.getPost(id);
+        } catch (error) {
+          debugPrint('[ArchivedEventGallery] post $id unavailable: $error');
+          return null;
+        }
+      }),
+    );
+
+    return results.whereType<CommunityPost>().toList();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _postsFuture = _loadPosts());
+    await _postsFuture;
+  }
+
+  Future<void> _react(CommunityPost post, PostReaction reaction) async {
+    final repository = HomeFeedRepository();
+    try {
+      if (reaction == PostReaction.none) {
+        await repository.removeCommunityPostReaction(post.id);
+      } else {
+        await repository.reactToCommunityPost(
+          post.id,
+          reaction == PostReaction.like ? 'like' : 'dislike',
+        );
+      }
+      await _refresh();
+    } catch (error) {
+      Get.snackbar('Publication', 'Impossible d’enregistrer cette réaction.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return FutureBuilder<List<CommunityPost>>(
+      future: _postsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cloud_off_outlined, size: 40, color: colors.onSurfaceVariant),
+                  const SizedBox(height: 12),
+                  const Text('Impossible de charger les publications de cette édition.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final posts = snapshot.data ?? const <CommunityPost>[];
+        if (posts.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                const SizedBox(height: 110),
+                Icon(Icons.photo_library_outlined, size: 46, color: colors.onSurfaceVariant),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    'Aucune publication pour cette édition',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final post = posts[index];
+              return FeedPostCard(
+                post: post,
+                onReactionTap: (reaction) => _react(post, reaction),
+                onCommentTap: () => Get.toNamed(
+                  '/post-comments',
+                  arguments: {'postId': post.id},
+                ),
+                onShareTap: null,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 }
