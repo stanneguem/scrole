@@ -1092,6 +1092,24 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         ),
                       ),
 
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: _chooseCheckedInEvent,
+                          icon: const Icon(Icons.event_available_rounded, size: 18),
+                          label: Text(_selectedEvent == null
+                              ? 'Publier depuis un événement'
+                              : 'Événement : ${_selectedEvent!['name'] ?? ''}'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _selectedEvent != null ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                            side: BorderSide(color: colorScheme.outlineVariant),
+                          ),
+                        ),
+                      ),
+                    ),
+
                     if (_selectedMentions.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -1380,14 +1398,6 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     },
                     icon: Icon(Icons.tag_rounded, color: _selectedHashtags.isNotEmpty ? colorScheme.primary : colorScheme.onSurface, size: 24),
                     tooltip: 'post_composer_hashtags_tooltip'.tr,
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                    onPressed: _chooseCheckedInEvent,
-                    icon: Icon(Icons.event_available_rounded,
-                      color: _selectedEvent != null ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Publier depuis un événement',
                   ),
                 ],
               ),
