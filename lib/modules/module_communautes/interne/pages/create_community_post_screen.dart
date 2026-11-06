@@ -510,48 +510,104 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _chooseCheckedInEvent() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-      final rows = await Supabase.instance.client.rpc('get_my_valid_checked_in_events');
-      final unique = <String, Map<String, dynamic>>{};
-      if (rows is List) {
-        for (final row in rows) {
-          if (row is! Map) continue;
-          final event = Map<String, dynamic>.from(row);
-          final id = event['id']?.toString() ?? '';
-          if (id.isNotEmpty) unique.putIfAbsent(id, () => event);
+      final client = Supabase.instance.client;
+      if (client.auth.currentUser == null) return;
+
+      // Un événement doit satisfaire les trois conditions :
+      // présence validée, événement dans l'agenda personnel et événement en cours.
+      final checkedInRows = await client.rpc('get_my_valid_checked_in_events');
+      dynamic agendaRows;
+      try {
+        agendaRows = await client.rpc('get_my_agenda');
+      } catch (_) {
+        agendaRows = await client.rpc('get_mon_agenda');
+      }
+
+      final checkedInById = <String, Map<String, dynamic>>{};
+      if (checkedInRows is List) {
+        for (final row in checkedInRows) {
+          if (row is Map) {
+            final event = Map<String, dynamic>.from(row);
+            final id = (event['id'] ?? event['event_id'] ?? '').toString();
+            if (id.isNotEmpty) checkedInById[id] = event;
+          }
         }
       }
+
+      final now = DateTime.now();
+      final eligible = <String, Map<String, dynamic>>{};
+      if (agendaRows is List) {
+        for (final row in agendaRows) {
+          if (row is! Map) continue;
+          final agendaEvent = Map<String, dynamic>.from(row);
+          final id = (agendaEvent['id'] ?? agendaEvent['event_id'] ?? agendaEvent['evenement_id'] ?? '').toString();
+          final checkedEvent = checkedInById[id];
+          if (id.isEmpty || checkedEvent == null) continue;
+
+          final event = <String, dynamic>{...checkedEvent, ...agendaEvent};
+          final startsRaw = event['starts_at'] ?? event['date_debut'];
+          final endsRaw = event['ends_at'] ?? event['date_fin'];
+          final startsAt = startsRaw == null ? null : DateTime.tryParse(startsRaw.toString())?.toLocal();
+          final endsAt = endsRaw == null ? null : DateTime.tryParse(endsRaw.toString())?.toLocal();
+          final isOngoing = startsAt != null &&
+              !startsAt.isAfter(now) &&
+              (endsAt == null || !endsAt.isBefore(now));
+          if (isOngoing) eligible[id] = event;
+        }
+      }
+
       if (!mounted) return;
-      if (unique.isEmpty) {
-        Get.snackbar('Aucun événement disponible', "Tu dois avoir un check-in validé pour associer une publication à un événement.");
+      if (eligible.isEmpty) {
+        Get.snackbar(
+          'Aucun événement disponible',
+          "Seuls les événements en cours, présents dans ton agenda et avec un check-in validé sont proposés.",
+        );
         return;
       }
+
+      final events = eligible.values.toList()
+        ..sort((a, b) => (a['starts_at'] ?? a['date_debut'] ?? '')
+            .toString().compareTo((b['starts_at'] ?? b['date_debut'] ?? '').toString()));
       final selected = await showModalBottomSheet<Map<String, dynamic>>(
-        context: context, isScrollControlled: true,
+        context: context,
+        isScrollControlled: true,
         backgroundColor: Theme.of(context).colorScheme.surface,
-        builder: (ctx) => SafeArea(child: SizedBox(
-          height: MediaQuery.of(ctx).size.height * .65,
-          child: Column(children: [
-            Padding(padding: const EdgeInsets.all(18), child: Row(children: [
-              const Icon(Icons.event_available_rounded), const SizedBox(width: 10),
-              Text('Choisir un événement', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            ])),
-            Expanded(child: ListView(children: unique.values.map((event) => ListTile(
-              leading: (event['photo'] ?? '').toString().startsWith('http')
-                ? AppCachedImage(imageUrl: event['photo'].toString(), width: 48, height: 48, fit: BoxFit.cover)
-                : const SizedBox(width: 48, height: 48, child: Icon(Icons.event)),
-              title: Text((event['name'] ?? 'Événement').toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text((event['starts_at'] ?? '').toString().replaceFirst('T', ' ')),
-              onTap: () => Navigator.of(ctx).pop(event),
-            )).toList())),
-          ]),
-        )),
+        builder: (ctx) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * .65,
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Row(children: [
+                  const Icon(Icons.event_available_rounded),
+                  const SizedBox(width: 10),
+                  Text('Choisir un événement en cours',
+                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                ]),
+              ),
+              Expanded(
+                child: ListView(
+                  children: events.map((event) => ListTile(
+                    leading: (event['photo'] ?? event['photo_url'] ?? '').toString().startsWith('http')
+                        ? AppCachedImage(
+                            imageUrl: (event['photo'] ?? event['photo_url']).toString(),
+                            width: 48, height: 48, fit: BoxFit.cover)
+                        : const SizedBox(width: 48, height: 48, child: Icon(Icons.event)),
+                    title: Text((event['name'] ?? event['nom'] ?? 'Événement').toString(),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text((event['starts_at'] ?? event['date_debut'] ?? '').toString().replaceFirst('T', ' ')),
+                    onTap: () => Navigator.of(ctx).pop(event),
+                  )).toList(),
+                ),
+              ),
+            ]),
+          ),
+        ),
       );
       if (selected != null && mounted) setState(() => _selectedEvent = selected);
     } catch (e) {
-      debugPrint('[POST_COMPOSER] checked-in event loading failed: $e');
-      Get.snackbar('Erreur', "Impossible de charger tes événements avec présence validée.");
+      debugPrint('[POST_COMPOSER] eligible event loading failed: $e');
+      Get.snackbar('Erreur', "Impossible de charger tes événements en cours.");
     }
   }
 
@@ -1092,23 +1148,6 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         ),
                       ),
 
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed: _chooseCheckedInEvent,
-                          icon: const Icon(Icons.event_available_rounded, size: 18),
-                          label: Text(_selectedEvent == null
-                              ? 'Publier depuis un événement'
-                              : 'Événement : ${_selectedEvent!['name'] ?? ''}'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _selectedEvent != null ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                            side: BorderSide(color: colorScheme.outlineVariant),
-                          ),
-                        ),
-                      ),
-                    ),
 
                     if (_selectedMentions.isNotEmpty)
                       Padding(
@@ -1398,6 +1437,17 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     },
                     icon: Icon(Icons.tag_rounded, color: _selectedHashtags.isNotEmpty ? colorScheme.primary : colorScheme.onSurface, size: 24),
                     tooltip: 'post_composer_hashtags_tooltip'.tr,
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    onPressed: _chooseCheckedInEvent,
+                    icon: Icon(
+                      Icons.event_available_rounded,
+                      color: _selectedEvent != null ? colorScheme.primary : colorScheme.onSurface,
+                      size: 24,
+                    ),
+                    tooltip: 'Publier depuis un événement',
                   ),
                 ],
               ),
