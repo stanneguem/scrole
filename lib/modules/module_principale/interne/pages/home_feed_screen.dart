@@ -10,6 +10,7 @@ import '../controllers/main_layout_controller.dart';
 import '../controllers/stories_controller.dart';
 import '../widgets/feed_post_card.dart';
 import '../../../../shared/widgets/post_media_slider.dart';
+import '../../../../shared/widgets/app_cached_image.dart';
 import '../widgets/community_comments_sheet.dart';
 import 'package:scrole/modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 import 'package:scrole/modules/module_evenement/centre/models/event_model.dart';
@@ -497,23 +498,42 @@ class _StoriesRow extends GetView<StoriesController> {
                                 width: 2.5,
                               ),
                             ),
-                            child: CircleAvatar(
-                              radius: 28,
-                              backgroundImage: hasOwnStory &&
-                                      ownStoryPreviewUrl != null &&
-                                      ownStoryPreviewUrl.isNotEmpty
-                                  ? NetworkImage(ownStoryPreviewUrl)
-                                  : (own?.author.photoUrl ?? ownProfilePhoto) != null &&
-                                          (own?.author.photoUrl ?? ownProfilePhoto)!.isNotEmpty
-                                      ? NetworkImage(own?.author.photoUrl ?? ownProfilePhoto!)
-                                      : null,
-                              child: (hasOwnStory &&
-                                          ownStoryPreviewUrl != null &&
-                                          ownStoryPreviewUrl.isNotEmpty) ||
-                                      ((own?.author.photoUrl ?? ownProfilePhoto) != null &&
-                                          (own?.author.photoUrl ?? ownProfilePhoto)!.isNotEmpty)
-                                  ? null
-                                  : Icon(Icons.person, color: colorScheme.onSurfaceVariant),
+                            ClipOval(
+                              child: SizedBox(
+                                width: 56,
+                                height: 56,
+                                child: (hasOwnStory &&
+                                        ownStoryPreviewUrl != null &&
+                                        ownStoryPreviewUrl.isNotEmpty)
+                                    ? AppCachedImage(
+                                        imageUrl: ownStoryPreviewUrl,
+                                        width: 56,
+                                        height: 56,
+                                        fit: BoxFit.cover,
+                                        errorWidget: Container(
+                                          color: colorScheme.surfaceContainerHighest,
+                                          alignment: Alignment.center,
+                                          child: Icon(Icons.play_circle_outline,
+                                              color: colorScheme.onSurfaceVariant, size: 25),
+                                        ),
+                                      )
+                                    : ((own?.author.photoUrl ?? ownProfilePhoto) != null &&
+                                            (own?.author.photoUrl ?? ownProfilePhoto)!.isNotEmpty)
+                                        ? AppCachedImage(
+                                            imageUrl: own?.author.photoUrl ?? ownProfilePhoto!,
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                            errorWidget: Icon(Icons.person,
+                                                color: colorScheme.onSurfaceVariant),
+                                          )
+                                        : Container(
+                                            color: colorScheme.surfaceContainerHighest,
+                                            alignment: Alignment.center,
+                                            child: Icon(Icons.person,
+                                                color: colorScheme.onSurfaceVariant),
+                                          ),
+                              ),
                             ),
                           ),
                           if (controller.isPublishingStory.value)
