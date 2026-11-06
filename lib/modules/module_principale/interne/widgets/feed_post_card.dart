@@ -115,6 +115,7 @@ class FeedPostCard extends StatelessWidget {
 
   /// Enables inline video autoplay when this card is embedded in a story.
   final bool autoplayVideos;
+  final EdgeInsetsGeometry margin;
 
   const FeedPostCard({
     super.key,
@@ -128,6 +129,7 @@ class FeedPostCard extends StatelessWidget {
     this.onRetryPublishing,
     this.currentCommunityId,
     this.autoplayVideos = false,
+    this.margin = const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
   });
 
   @override
@@ -142,6 +144,7 @@ class FeedPostCard extends StatelessWidget {
         onHidePost: onHidePost,
         currentCommunityId: currentCommunityId,
         autoplayVideos: autoplayVideos,
+        margin: margin,
       );
     }
 
@@ -165,7 +168,7 @@ class FeedPostCard extends StatelessWidget {
       opacity: post.isPublishing ? 0.65 : 1.0,
       child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+        margin: margin,
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.zero,
@@ -2400,6 +2403,7 @@ class _RepublicationPostCard extends StatelessWidget {
   final VoidCallback? onHidePost;
   final String? currentCommunityId;
   final bool autoplayVideos;
+  final EdgeInsetsGeometry margin;
 
   const _RepublicationPostCard({
     required this.post,
@@ -2410,6 +2414,7 @@ class _RepublicationPostCard extends StatelessWidget {
     this.onHidePost,
     this.currentCommunityId,
     this.autoplayVideos = false,
+    this.margin = const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
   });
 
   /// Carte "classique" équivalente, utilisée pour réutiliser les menus
@@ -2419,6 +2424,7 @@ class _RepublicationPostCard extends StatelessWidget {
     onReactionTap: onReactionTap,
     onCommentTap: onCommentTap,
     onHidePost: onHidePost,
+    margin: margin,
   );
 
   void _openHashtag(String tag) => Get.toNamed(AppPages.hashtagFeedPath(tag));
@@ -2436,7 +2442,7 @@ class _RepublicationPostCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      margin: margin,
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.zero,
