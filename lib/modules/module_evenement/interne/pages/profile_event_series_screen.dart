@@ -43,7 +43,7 @@ class ProfileEventSeriesScreen extends StatelessWidget {
                 final image = (edition['photo'] ?? '').toString();
                 final number = (edition['edition_number'] as num?)?.toInt() ?? 1;
                 final start = DateTime.tryParse((edition['starts_at'] ?? '').toString());
-                final date = start == null ? '' : '\${start.day.toString().padLeft(2,'0')}/\${start.month.toString().padLeft(2,'0')}/\${start.year}';
+                final date = start == null ? '' : '${start.day.toString().padLeft(2,'0')}/${start.month.toString().padLeft(2,'0')}/${start.year}';
                 return Material(
                   color: colors.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(16),
@@ -88,7 +88,7 @@ Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> s
     if (id.isEmpty) return;
     try {
       final event = await Get.find<EventRepository>().getEventById(id);
-      if (context.mounted) Get.to(() => EventDetailPage(event: event));
+      if (context.mounted) Get.to(() => EventDetailPage(event: event, profileUserId: profileUserId));
     } catch (_) {
       Get.snackbar('Événement', 'Impossible de charger cette édition.');
     }
