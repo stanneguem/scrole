@@ -620,6 +620,7 @@ class ProfileScreen extends GetView<ProfileController> {
         itemCount: events.length,
         itemBuilder: (context, index) {
           final ev = Map<String, dynamic>.from(events[index] as Map);
+          final editionCount = (ev['edition_count'] as num?)?.toInt() ?? 1;
           final image = (ev['photo'] ?? '').toString();
           final start = DateTime.tryParse((ev['starts_at'] ?? '').toString());
           final date = start == null ? '' : '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
@@ -657,8 +658,8 @@ class ProfileScreen extends GetView<ProfileController> {
                       EntityCertifiedBadge(entityType: 'event', entityId: (ev['id'] ?? '').toString(), size: 16),
                       if (role.isNotEmpty)
                         Text(role, style: TextStyle(fontSize: 11, color: colorScheme.primary)),
-                      if ((ev['edition_count'] as num?)?.toInt() case final count? when count > 1)
-                        Text('$count éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
+                      if (editionCount > 1)
+                        Text('$editionCount éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
                     ],
                   ),
                   if (date.isNotEmpty) ...[
