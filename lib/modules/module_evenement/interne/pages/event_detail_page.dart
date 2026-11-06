@@ -26,6 +26,8 @@ import '../widgets/add_to_calendar_dialog.dart';
 import 'event_days_selector_screen.dart';
 import 'event_itinerary_screen.dart';
 import 'event_comments_screen.dart';
+import 'external_event_itinerary_screen.dart';
+import 'event_itinerary_overview_screen.dart';
 import 'event_rating_screen.dart';
 import '../widgets/event_share_options_sheet.dart';
 import '../widgets/event_share_card_design_picker.dart';
@@ -34,8 +36,9 @@ import '../../../module_communautes/interne/pages/create_community_post_screen.d
 
 class EventDetailPage extends StatefulWidget {
   final EventModel event;
+  final String? profileUserId;
 
-  const EventDetailPage({super.key, required this.event});
+  const EventDetailPage({super.key, required this.event, this.profileUserId});
 
   @override
   State<EventDetailPage> createState() => _EventDetailPageState();
@@ -677,6 +680,23 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
       ),
     );
   }
+  void _openArchivedItinerary() {
+    final userId = widget.profileUserId ?? Get.find<AppController>().authUser.value?.id ?? '';
+    if (userId.isEmpty) return;
+    final currentUserId = Get.find<AppController>().authUser.value?.id ?? '';
+    if (userId == currentUserId) {
+      Get.to(() => EventItineraryOverviewScreen(event: widget.event));
+    } else {
+      Get.to(() => ExternalEventItineraryScreen(
+        userId: userId,
+        eventId: widget.event.id,
+        eventName: widget.event.name,
+        eventPhoto: widget.event.coverImageUrl ?? '',
+        eventLocation: widget.event.locationLabel,
+      ));
+    }
+  }
+
   void _openCommentSheet() {
     Get.to(() => EventCommentsScreen(
       eventId: widget.event.id,
@@ -808,6 +828,12 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         ),
                       ),
                     ),
+                    if (event.status == EventStatus.completed)
+                      IconButton(
+                        tooltip: 'Revoir mon programme',
+                        onPressed: _openArchivedItinerary,
+                        icon: const Icon(Icons.route_rounded, color: Colors.white),
+                      ),
                     GestureDetector(
                       onTap: _showReportSheet,
                       child: Container(
@@ -1181,8 +1207,8 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
             ),
           ),
 
-          // Bottom Action Bar
-          Container(
+          // Bottom Action Bar: archived editions are read-only except comments and itinerary.
+          if (event.status != EventStatus.completed) Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             decoration: BoxDecoration(
               color: colorScheme.surface,
