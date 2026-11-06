@@ -955,6 +955,8 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
                           decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(20)),
                           child: Text(role, style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer)),
                         ),
+                      if ((event['edition_count'] as num?)?.toInt() case final count? when count > 1)
+                        Text('$count éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
                     ],
                   ),
                   if (date.isNotEmpty) ...[
