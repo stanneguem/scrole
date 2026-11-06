@@ -39,46 +39,114 @@ class ProfileEventSeriesScreen extends StatelessWidget {
         maxLines: 1, overflow: TextOverflow.ellipsis)),
       body: editions.isEmpty
           ? Center(child: Text('Aucune édition disponible', style: TextStyle(color: colors.onSurfaceVariant)))
-          : ListView.separated(
+          : GridView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: editions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.78,
+              ),
               itemBuilder: (context, index) {
                 final edition = editions[index];
                 final image = (edition['photo'] ?? '').toString();
                 final number = (edition['edition_number'] as num?)?.toInt() ?? 1;
                 final start = DateTime.tryParse((edition['starts_at'] ?? '').toString());
-                final date = start == null ? '' : '${start.day.toString().padLeft(2,'0')}/${start.month.toString().padLeft(2,'0')}/${start.year}';
+                final date = start == null
+                    ? ''
+                    : '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+                final city = (edition['city'] ?? '').toString();
                 return Material(
                   color: colors.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(16),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: () => _openEdition(context, edition),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      if (image.isNotEmpty)
-                        SizedBox(height: 145, width: double.infinity,
-                          child: AppCachedImage(imageUrl: image, fit: BoxFit.cover)),
-                      Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(children: [
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Édition $number', style: TextStyle(fontWeight: FontWeight.w700, color: colors.onSurface)),
-                            if (date.isNotEmpty) ...[
-                              const SizedBox(height: 5),
-                              Text(date, style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (image.isNotEmpty)
+                                AppCachedImage(imageUrl: image, fit: BoxFit.cover)
+                              else
+                                Container(
+                                  color: colors.surfaceContainerHighest,
+                                  child: Icon(Icons.event_rounded,
+                                      size: 42, color: colors.onSurfaceVariant),
+                                ),
+                              Positioned(
+                                top: 10,
+                                left: 10,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.68),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    child: Text(
+                                      'Édition $number',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
-                            Text((edition['city'] ?? '').toString(),
-                              style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant)),
-                          ])),
-                          Icon(Icons.chevron_right_rounded, color: colors.primary),
-                        ]),
-                      ),
-                    ]),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (date.isNotEmpty)
+                                Text(
+                                  date,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.onSurface,
+                                  ),
+                                ),
+                              if (city.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.location_on_outlined,
+                                        size: 13, color: colors.onSurfaceVariant),
+                                    const SizedBox(width: 3),
+                                    Expanded(
+                                      child: Text(
+                                        city,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
-            ),
+            )
     );
   }
 }
