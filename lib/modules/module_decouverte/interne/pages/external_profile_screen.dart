@@ -15,6 +15,7 @@ import 'package:scrole/modules/module_principale/centre/models/community_post.da
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import '../../../module_evenement/interne/pages/external_event_itinerary_screen.dart';
+import '../../../module_evenement/interne/pages/profile_event_series_screen.dart';
 import 'external_profile_agenda_screen.dart';
 import '../controllers/external_profile_controller.dart';
 
@@ -920,7 +921,7 @@ class _ReactiveProfileBody extends GetView<ExternalProfileController> {
           return GestureDetector(
             onTap: () {
               final eventId = (event['id'] ?? '').toString();
-              if (eventId.isNotEmpty) Get.toNamed(AppPages.eventPreviewPath(eventId));
+              if (eventId.isNotEmpty) openProfileEventSeries(context, event);
             },
             child: Container(
             margin: const EdgeInsets.only(bottom: 12),
