@@ -72,7 +72,7 @@ class CreateActivityController extends GetxController {
         eventId: eventId,
       );
 
-      Get.back();
+      Get.back(result: eventId != null && eventId!.isNotEmpty);
       Get.snackbar(
         'Activité créée',
         'Votre activité "${activity.name}" a été créée avec succès.',
