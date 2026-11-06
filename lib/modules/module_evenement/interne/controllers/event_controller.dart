@@ -52,6 +52,7 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxBool isLoadingSuggestions = false.obs;
   final RxBool isLoadingCalendar = false.obs;
   final RxBool isLoadingMyEvents = false.obs;
+  final RxBool hasLoadedMyEvents = false.obs;
   bool _myEventsRefreshRequested = false;
 
   // Checkpoint pour le préchargement du calendrier
@@ -401,6 +402,9 @@ class EventController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('[Error] EventController.fetchMyEvents: $e');
     } finally {
+      // Ne rendre la liste visible qu'après la première synchronisation :
+      // le cache local peut ne pas encore contenir les métadonnées de série.
+      hasLoadedMyEvents.value = true;
       isLoadingMyEvents.value = false;
       if (_myEventsRefreshRequested) {
         _myEventsRefreshRequested = false;
