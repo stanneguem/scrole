@@ -1055,6 +1055,21 @@ class SupabaseEventService {
     return Map<String, dynamic>.from(response as Map);
   }
 
+  Future<Map<String, dynamic>> createNextEventEdition({
+    required String sourceEventId,
+    required DateTime startsAt,
+  }) async {
+    final response = await _client.rpc('create_next_event_edition', params: {
+      'p_source_event_id': sourceEventId,
+      'p_starts_at': startsAt.toUtc().toIso8601String(),
+    });
+    if (response is List && response.isNotEmpty) {
+      return Map<String, dynamic>.from(response.first as Map);
+    }
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw StateError('Le serveur n’a pas retourné la nouvelle édition.');
+  }
+
   Future<Map<String, dynamic>> createEvent(Map<String, dynamic> params) async {
     final response = await _client.rpc('create_event', params: params);
     if (response == null) throw Exception('Erreur lors de la création de l\'événement');
