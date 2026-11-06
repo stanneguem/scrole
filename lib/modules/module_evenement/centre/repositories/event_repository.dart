@@ -1640,39 +1640,31 @@ class EventRepository {
     required String eventId,
     String? activityId,
   }) async {
-    debugPrint('[ActivityEventPrice] start update eventId=$eventId, activityId=$activityId, eventActivityId=$eventActivityId, newPrice=$newPrice');
-    try {
-      if (eventActivityId.isNotEmpty) {
-        await _remote.client
-            .from('event_activities')
-            .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
-            .eq('id', eventActivityId);
-        debugPrint('[ActivityEventPrice] backend update success for id=$eventActivityId');
-      } else if (activityId != null && activityId.isNotEmpty) {
-        await _remote.client
-            .from('event_activities')
-            .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
-            .eq('event_id', eventId)
-            .eq('activity_id', activityId);
-        debugPrint('[ActivityEventPrice] backend update success for eventId=$eventId, activityId=$activityId');
-      }
-    } catch (e) {
-      debugPrint('[ActivityEventPrice] update failed: $e');
-      if (activityId != null && activityId.isNotEmpty) {
-        try {
-          await _remote.client
-              .from('event_activities')
-              .update({'price': newPrice})
-              .eq('event_id', eventId)
-              .eq('activity_id', activityId);
-          debugPrint('[ActivityEventPrice] fallback update by event_id & activity_id success');
-          return;
-        } catch (err) {
-          debugPrint('[ActivityEventPrice] fallback update failed: $err');
-        }
-      }
-      rethrow;
+    debugPrint('[ActivityEventPrice] update eventId=$eventId activityId=$activityId rowId=$eventActivityId price=$newPrice');
+
+    // Toujours borner la modification à l'édition courante : le prix d'une
+    // édition ne doit jamais modifier celui d'une autre édition.
+    if (activityId != null && activityId.isNotEmpty) {
+      final updated = await _remote.client
+          .from('event_activities')
+          .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('event_id', eventId)
+          .eq('activity_id', activityId)
+          .select('id');
+      if (updated.isNotEmpty) return;
     }
+
+    if (eventActivityId.isNotEmpty) {
+      final updated = await _remote.client
+          .from('event_activities')
+          .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('event_id', eventId)
+          .eq('id', eventActivityId)
+          .select('id');
+      if (updated.isNotEmpty) return;
+    }
+
+    throw Exception("Aucune activité liée à cette édition n'a été mise à jour. Vérifie que l'activité appartient bien à cette édition et que tu en es propriétaire.");
   }
 
   Future<List<StaffMemberModel>> getEventActivityStaff({
