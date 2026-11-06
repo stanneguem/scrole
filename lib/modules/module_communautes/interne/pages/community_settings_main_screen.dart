@@ -260,16 +260,6 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
         return;
       }
       try {
-        final stats = await Supabase.instance.client.rpc(
-          'get_community_certification_stats',
-          params: {'p_community_id': widget.communityId},
-        );
-        _communityStatsAvailable = stats is Map;
-      } catch (_) {
-        // L'API n'autorise les statistiques qu'au propriétaire d'une communauté certifiée.
-        _communityStatsAvailable = false;
-      }
-      try {
         _modCounts = await _service.getCommunityModerationCounts(widget.communityId);
       } catch (e) {
         debugPrint('[CommunitySettingsMainScreen] Moderation counts unavailable: $e');
@@ -380,40 +370,7 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
             ),
           if (_isAdmin || _isCommunityOwner) const SizedBox(height: 12),
 
-          // 3. Certification and related statistics.
-          if (_isCommunityOwner)
-            _buildTile(
-              icon: Icons.verified_rounded,
-              iconColor: _communityCertified ? Colors.green : Colors.deepPurple,
-              title: 'entity_cert_community_title'.tr,
-              subtitle: _communityCertified
-                  ? 'entity_cert_status_active'.tr
-                  : 'entity_cert_use_included'.tr,
-              onTap: () async {
-                await Get.to(() => EntityCertificationManagementScreen(
-                  entityType: 'community',
-                  entityId: widget.communityId,
-                  entityName: _communityName ?? widget.communityName,
-                ));
-                if (mounted) await _loadRoleAndCounts();
-              },
-            ),
-          if (_communityStatsAvailable) ...[
-            const SizedBox(height: 12),
-            _buildTile(
-              icon: Icons.query_stats_rounded,
-              iconColor: Colors.teal,
-              title: 'community_cert_stats_title'.tr,
-              subtitle: 'community_cert_stats_subtitle'.tr,
-              onTap: () => Get.to(() => CommunityCertificationStatsScreen(
-                communityId: widget.communityId,
-                communityName: _communityName ?? widget.communityName,
-              )),
-            ),
-          ],
-          if (_isCommunityOwner || _communityStatsAvailable) const SizedBox(height: 12),
-
-          // 4. Moderation and pending actions.
+          // 3. Moderation and pending actions.
           if (_isAdmin || _role == 'moderator' || _isCommunityOwner)
             _buildTile(
               icon: Icons.admin_panel_settings_outlined,
@@ -2955,11 +2912,6 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
                             title: Text('community_settings_manual_approval'.tr),
                             value: _requireManualApproval,
                             onChanged: (val) => setState(() => _requireManualApproval = val),
-                          ),
-                          _IosSwitchTile(
-                            title: Text('community_settings_certification'.tr),
-                            value: _certificationRequired,
-                            onChanged: (val) => setState(() => _certificationRequired = val),
                           ),
                           _IosSwitchTile(
                             title: Text('community_settings_members_visible'.tr),
