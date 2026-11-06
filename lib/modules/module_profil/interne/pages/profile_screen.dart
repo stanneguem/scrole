@@ -657,6 +657,8 @@ class ProfileScreen extends GetView<ProfileController> {
                       EntityCertifiedBadge(entityType: 'event', entityId: (ev['id'] ?? '').toString(), size: 16),
                       if (role.isNotEmpty)
                         Text(role, style: TextStyle(fontSize: 11, color: colorScheme.primary)),
+                      if ((ev['edition_count'] as num?)?.toInt() case final count? when count > 1)
+                        Text('$count éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
                     ],
                   ),
                   if (date.isNotEmpty) ...[
