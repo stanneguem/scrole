@@ -13,6 +13,8 @@ import 'event_pricing_screen.dart';
 import 'event_stats_dashboard_screen.dart';
 import 'event_interests_screen.dart';
 import 'event_open_days_screen.dart';
+import 'event_detail_page.dart';
+import '../../centre/repositories/event_repository.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_settings_main_screen.dart';
 
 class EventSettingsScreen extends StatelessWidget {
@@ -175,6 +177,15 @@ class EventSettingsScreen extends StatelessWidget {
                   arguments: event,
                 ),
               ),
+              if (isCreator && event.status == EventStatus.completed) ...[
+                const ScroleBottomSheetDivider(),
+                ScroleBottomSheetAction(
+                  icon: Icons.add_circle_outline_rounded,
+                  label: 'Créer une nouvelle édition',
+                  subtitle: 'Ajouter une date à cette série d’événements',
+                  onTap: () => _createNextEdition(context, event),
+                ),
+              ],
               const ScroleBottomSheetDivider(),
               ScroleBottomSheetAction(
                 icon: Icons.security_outlined,
@@ -330,6 +341,74 @@ class EventSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+
+  Future<void> _createNextEdition(BuildContext context, EventModel event) async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (event.status != EventStatus.completed ||
+        currentUserId == null ||
+        currentUserId != event.creatorId) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final initial = event.startsAt.isAfter(now)
+        ? event.startsAt.add(const Duration(days: 1))
+        : now.add(const Duration(days: 1));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(initial.year, initial.month, initial.day),
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de la nouvelle édition',
+    );
+    if (pickedDate == null || !context.mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(event.startsAt),
+      helpText: 'Heure de début',
+    );
+    if (pickedTime == null || !context.mounted) return;
+
+    final startsAt = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    if (!startsAt.isAfter(DateTime.now())) {
+      Get.snackbar('Date invalide', 'La nouvelle édition doit commencer dans le futur.');
+      return;
+    }
+
+    try {
+      final created = await Get.find<EventRepository>().createNextEventEdition(
+        sourceEventId: event.id,
+        startsAt: startsAt,
+      );
+      if (!context.mounted) return;
+      Get.snackbar(
+        'Nouvelle édition créée',
+        'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      Get.off(() => EventDetailPage(event: created));
+      Get.toNamed(
+        AppPages.eventEdit.replaceFirst(':id', created.id),
+        arguments: created,
+      );
+    } catch (error) {
+      if (context.mounted) {
+        Get.snackbar(
+          'Création impossible',
+          error.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
   }
 
   void _showDeleteConfirmation(BuildContext context, EventManagementController controller) {
