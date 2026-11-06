@@ -226,7 +226,6 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
   bool _isLoading = true;
   bool _communityStatsAvailable = false;
   bool _isCommunityOwner = false;
-  bool _communityCertified = false;
   String _role = 'member';
   Map<String, dynamic> _modCounts = {};
   String? _communityName;
@@ -249,7 +248,6 @@ class _CommunitySettingsMainScreenState extends State<CommunitySettingsMainScree
         );
         if (certification is Map) {
           _isCommunityOwner = certification['is_owner'] == true;
-          _communityCertified = certification['entity_certified'] == true;
         }
       } catch (e) {
         debugPrint('[CommunitySettingsMainScreen] Certification status unavailable: $e');
@@ -2612,7 +2610,6 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
   bool _requireManualApproval = false;
   bool _canManageSalonCreation = false;
   String _salonAllowedCreators = 'admins_moderators';
-  bool _certificationRequired = false;
   bool _membersListVisible = true;
   bool _allowReports = true;
   bool _allowComments = true;
@@ -2760,7 +2757,7 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
       _allowReports = settings['allow_reports'] != false;
       _allowComments = settings['allow_comments'] != false;
       _allowReactions = settings['allow_reactions'] != false;
-      _certificationRequired = access['certification_required'] == true;
+      // La certification n'est plus une condition d'accès aux communautés.
       _countriesEnabled = access['countries_enabled'] == true;
       _citiesEnabled = access['cities_enabled'] == true;
       _allowedCountries = _toIdList(access['allowed_countries']).toSet();
@@ -2824,7 +2821,7 @@ class _CommunityAccessDetailsScreenState extends State<CommunityAccessDetailsScr
         allowReports: _allowReports,
         allowComments: _allowComments,
         allowReactions: _allowReactions,
-        certificationRequired: _certificationRequired,
+        certificationRequired: false,
         countriesEnabled: _countriesEnabled,
         allowedCountries: _allowedCountries.toList(),
         citiesEnabled: _citiesEnabled,
