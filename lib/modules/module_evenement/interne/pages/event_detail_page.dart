@@ -692,7 +692,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         eventId: widget.event.id,
         eventName: widget.event.name,
         eventPhoto: widget.event.coverImageUrl ?? '',
-        eventLocation: widget.event.locationLabel,
+        eventLocation: widget.event.locationDisplay,
       ));
     }
   }
