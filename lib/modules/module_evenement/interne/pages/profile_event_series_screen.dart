@@ -6,14 +6,15 @@ import '../../../../shared/widgets/app_cached_image.dart';
 
 class ProfileEventSeriesScreen extends StatelessWidget {
   final Map<String, dynamic> series;
-  const ProfileEventSeriesScreen({super.key, required this.series});
+  final String profileUserId;
+  const ProfileEventSeriesScreen({super.key, required this.series, required this.profileUserId});
 
   Future<void> _openEdition(BuildContext context, Map<String, dynamic> edition) async {
     final id = (edition['id'] ?? '').toString();
     if (id.isEmpty) return;
     try {
       final event = await Get.find<EventRepository>().getEventById(id);
-      if (context.mounted) Get.to(() => EventDetailPage(event: event));
+      if (context.mounted) Get.to(() => EventDetailPage(event: event, profileUserId: profileUserId));
     } catch (_) {
       Get.snackbar('Événement', 'Impossible de charger cette édition.');
     }
@@ -77,7 +78,7 @@ class ProfileEventSeriesScreen extends StatelessWidget {
   }
 }
 
-Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> series) async {
+Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> series, {required String profileUserId}) async {
   final raw = series['editions'];
   final editions = raw is List
       ? raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
@@ -93,5 +94,5 @@ Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> s
     }
     return;
   }
-  if (context.mounted) Get.to(() => ProfileEventSeriesScreen(series: series));
+  if (context.mounted) Get.to(() => ProfileEventSeriesScreen(series: series, profileUserId: profileUserId));
 }
