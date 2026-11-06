@@ -211,6 +211,11 @@ class FeedPostCard extends StatelessWidget {
                     const SizedBox(height: 6),
                   ],
 
+                  if (post.eventId != null && post.eventId!.isNotEmpty) ...[
+                    _buildEventHeader(colorScheme),
+                    const SizedBox(height: 6),
+                  ],
+
                   // 2. En-tête : auteur, pseudo, badge & temps
                   if (!isSingleVideoPost)
                     _buildAuthorHeader(
@@ -417,6 +422,29 @@ class FeedPostCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildEventHeader(ColorScheme colorScheme) {
+    final logo = post.eventLogoUrl;
+    return InkWell(
+      onTap: () => Get.toNamed(AppPages.eventDetail.replaceFirst(':id', post.eventId!)),
+      child: Row(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: logo != null && logo.startsWith('http')
+            ? AppCachedImage(imageUrl: logo, width: 30, height: 30, fit: BoxFit.cover)
+            : Container(width: 30, height: 30, color: colorScheme.primaryContainer,
+                child: Icon(Icons.event_rounded, color: colorScheme.primary, size: 18)),
+        ),
+        const SizedBox(width: 9),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Depuis un événement', style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant)),
+          Text(post.eventName ?? 'Événement', maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colorScheme.primary)),
+        ])),
+        Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.onSurfaceVariant),
+      ]),
     );
   }
 
