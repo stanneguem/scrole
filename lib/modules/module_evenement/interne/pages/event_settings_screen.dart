@@ -196,7 +196,7 @@ class EventSettingsScreen extends StatelessWidget {
             children: [
               ScroleBottomSheetAction(
                 icon: Icons.insights_rounded,
-                label: 'Statistiques de l'événement',
+                label: "Statistiques de l'événement",
                 subtitle: 'Tableau de bord et indicateurs de performance',
                 onTap: () => Get.to(() => EventStatsDashboardScreen(event: event)),
               ),
