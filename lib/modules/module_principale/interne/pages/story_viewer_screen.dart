@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -488,6 +492,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   _StoryVideoPlayer(
                     key: ValueKey(_currentStory.id),
                     objectKey: _currentStory.imageUrl!,
+                    storyId: _currentStory.id,
+                    expiresAt: _currentStory.expiresAt,
+                    thumbnailObjectKey: _currentStory.thumbnailUrl,
                     isPaused: _isPaused || _commentFocusNode.hasFocus,
                     onProgress: (progress) {
                       if (mounted && (_videoProgress - progress).abs() >= 0.01) {
@@ -2298,6 +2305,7 @@ class _StorySharedVideoPost extends StatefulWidget {
 class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
   VideoPlayerController? _controller;
   bool _failed = false;
+  bool _isDownloading = false;
   bool _completionHandled = false;
 
   @override
@@ -2465,6 +2473,9 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
 /// non-looping and the story advances only after the video reaches its end.
 class _StoryVideoPlayer extends StatefulWidget {
   final String objectKey;
+  final String storyId;
+  final DateTime expiresAt;
+  final String? thumbnailObjectKey;
   final bool isPaused;
   final ValueChanged<double> onProgress;
   final VoidCallback onCompleted;
@@ -2472,6 +2483,9 @@ class _StoryVideoPlayer extends StatefulWidget {
   const _StoryVideoPlayer({
     super.key,
     required this.objectKey,
+    required this.storyId,
+    required this.expiresAt,
+    this.thumbnailObjectKey,
     required this.isPaused,
     required this.onProgress,
     required this.onCompleted,
@@ -2516,6 +2530,78 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
 
   Future<void> _initialize() async {
     try {
+      final localVideo = await _getOrDownloadStoryVideo();
+      if (!mounted) return;
+      final controller = VideoPlayerController.file(localVideo);
+      _controller = controller;
+      controller.addListener(_onVideoChanged);
+      await controller.initialize();
+      if (!mounted) return;
+      await controller.setLooping(false);
+      await controller.setVolume(1);
+      setState(() {});
+      if (!widget.isPaused) await controller.play();
+    } catch (e) {
+      debugPrint('[STORY] Standalone video initialization failed: $e');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  Future<File> _getOrDownloadStoryVideo() async {
+    final directory = await getApplicationSupportDirectory();
+    final cacheDirectory = Directory(p.join(directory.path, 'stories_cache'));
+    if (!await cacheDirectory.exists()) {
+      await cacheDirectory.create(recursive: true);
+    }
+    final safeId = widget.storyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final videoFile = File(p.join(cacheDirectory.path, '$safeId.mp4'));
+    final expiryFile = File(p.join(cacheDirectory.path, '$safeId.expiry'));
+    final expiry = widget.expiresAt.toUtc();
+    if (await videoFile.exists() && await expiryFile.exists()) {
+      final cachedExpiry = DateTime.tryParse(await expiryFile.readAsString());
+      if (cachedExpiry != null && cachedExpiry.isAfter(DateTime.now().toUtc()) &&
+          cachedExpiry.isAtSameMomentAs(expiry) && await videoFile.length() > 0) {
+        debugPrint('[STORY_CACHE] HIT story=${widget.storyId}');
+        return videoFile;
+      }
+    }
+    if (await videoFile.exists()) await videoFile.delete();
+    if (await expiryFile.exists()) await expiryFile.delete();
+
+    var url = widget.objectKey;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      final response = await Supabase.instance.client.functions.invoke(
+        'r2-media-upload',
+        body: {'action': 'create-download-url', 'object_key': widget.objectKey},
+      );
+      if (response.status < 200 || response.status >= 300 || response.data is! Map) {
+        throw StateError('Impossible de résoudre la vidéo privée de la story.');
+      }
+      url = (response.data as Map)['url']?.toString() ?? '';
+      if (url.isEmpty) throw StateError('URL de lecture de la vidéo absente.');
+    }
+    if (widget.expiresAt.isBefore(DateTime.now())) {
+      throw StateError('Cette story a expiré.');
+    }
+    if (mounted) setState(() => _isDownloading = true);
+    final client = http.Client();
+    try {
+      final response = await client.get(Uri.parse(url)).timeout(const Duration(minutes: 3));
+      if (response.statusCode < 200 || response.statusCode >= 300 || response.bodyBytes.isEmpty) {
+        throw HttpException('Téléchargement de la story impossible (HTTP ${response.statusCode}).');
+      }
+      await videoFile.writeAsBytes(response.bodyBytes, flush: true);
+      await expiryFile.writeAsString(expiry.toIso8601String(), flush: true);
+      debugPrint('[STORY_CACHE] SAVED story=${widget.storyId} bytes=${response.bodyBytes.length} expires=$expiry');
+      return videoFile;
+    } finally {
+      client.close();
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  /*_OLD_VIDEO_INITIALIZE*/
+  Future<void> _initializeOld() async {
       String url = widget.objectKey;
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         final response = await Supabase.instance.client.functions.invoke(
@@ -2538,7 +2624,7 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
       setState(() {});
       await controller.play();
     } catch (e) {
-      debugPrint('[STORY] Standalone video initialization failed: $e');
+      debugPrint('[STORY] Legacy video init failed: $e');
       if (mounted) setState(() => _failed = true);
     }
   }
@@ -2579,7 +2665,35 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
       return const Center(child: Icon(Icons.error_outline_rounded, color: Colors.white, size: 48));
     }
     if (controller == null || !controller.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (widget.thumbnailObjectKey != null && widget.thumbnailObjectKey!.isNotEmpty)
+            AppCachedImage(
+              imageUrl: widget.thumbnailObjectKey!,
+              fit: BoxFit.cover,
+              errorWidget: const ColoredBox(color: Colors.black),
+            )
+          else
+            const ColoredBox(color: Colors.black),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.48),
+                shape: BoxShape.circle,
+              ),
+              child: _isDownloading
+                  ? const SizedBox(
+                      width: 25,
+                      height: 25,
+                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                    )
+                  : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 38),
+            ),
+          ),
+        ],
+      );
     }
     // The story viewer owns navigation; the video itself is not tappable.
     return IgnorePointer(
