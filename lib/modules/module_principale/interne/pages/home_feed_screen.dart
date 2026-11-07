@@ -14,6 +14,9 @@ import '../../../../shared/widgets/app_cached_image.dart';
 import '../widgets/community_comments_sheet.dart';
 import 'package:scrole/modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 import 'package:scrole/modules/module_evenement/centre/models/event_model.dart';
+import 'package:scrole/modules/module_evenement/centre/models/event_day_models.dart';
+import 'package:scrole/modules/module_evenement/interne/pages/event_days_selector_screen.dart';
+import 'package:scrole/modules/module_evenement/centre/repositories/event_repository.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/home_feed_repository.dart';
 import 'story_viewer_screen.dart';
 import 'create_story_screen.dart';
@@ -803,7 +806,7 @@ class _SuggestedEventsCarousel extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Événements suggérés',
+                  'home_feed_suggested_events_title'.tr,
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: colorScheme.onSurface),
                 ),
                 TextButton(
@@ -822,79 +825,195 @@ class _SuggestedEventsCarousel extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 165,
-            child: ListView.builder(
+            height: 270,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: events.length,
-              itemBuilder: (context, index) {
-                final ev = events[index];
-                return GestureDetector(
-                  onTap: () {
-                    Get.toNamed(AppPages.eventPreviewPath(ev.id));
-                  },
-                  child: Container(
-                    width: 155,
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ev.coverImageUrl != null && ev.coverImageUrl!.isNotEmpty
-                            ? AppCachedImage(imageUrl: ev.coverImageUrl!, width: 155, height: 85, fit: BoxFit.cover)
-                            : Container(width: 155, height: 85, color: colorScheme.primaryContainer, child: const Icon(Icons.event, size: 28)),
-                        Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                Expanded(child: Text(ev.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                EntityCertifiedBadge(entityType: 'event', entityId: ev.id, size: 15),
-                              ]),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  Icon(Icons.location_on_rounded, size: 12, color: colorScheme.primary),
-                                  const SizedBox(width: 3),
-                                  Expanded(
-                                    child: Text(
-                                      ev.city?.toString() ?? 'Virtuel',
-                                      style: TextStyle(fontSize: 11.5, color: colorScheme.onSurfaceVariant),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) => _SuggestedEventActionCard(
+                event: events[index],
+                controller: controller,
+              ),
             ),
           ),
+          const SizedBox(height: 8),
         ],
       );
     });
   }
 }
 
+class _SuggestedEventActionCard extends StatefulWidget {
+  const _SuggestedEventActionCard({required this.event, required this.controller});
+
+  final EventModel event;
+  final HomeFeedController controller;
+
+  @override
+  State<_SuggestedEventActionCard> createState() => _SuggestedEventActionCardState();
+}
+
+class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
+  bool _adding = false;
+  bool _dismissing = false;
+
+  bool get _isMultiDay {
+    final start = DateTime(widget.event.startsAt.year, widget.event.startsAt.month, widget.event.startsAt.day);
+    final endValue = widget.event.endsAt ?? widget.event.startsAt;
+    final end = DateTime(endValue.year, endValue.month, endValue.day);
+    return end.difference(start).inDays >= 1;
+  }
+
+  Future<void> _addToCalendar() async {
+    if (_adding || _dismissing) return;
+    setState(() => _adding = true);
+    try {
+      final repository = Get.find<EventRepository>();
+      if (_isMultiDay) {
+        final openDays = await repository.getEventOpenDays(widget.event.id);
+        if (openDays.isEmpty || !openDays.any((day) => day.isOpen)) {
+          if (mounted) Get.snackbar('Calendrier', 'home_feed_suggested_open_days_missing'.tr,
+            snackPosition: SnackPosition.BOTTOM);
+          return;
+        }
+        if (!mounted) return;
+        Get.to(
+          () => EventDaysSelectorScreen(
+            eventId: widget.event.id,
+            eventName: widget.event.name,
+            openDays: openDays,
+            onSuccess: () => widget.controller.removeSuggestedEvent(widget.event.id),
+          ),
+          transition: Transition.rightToLeft,
+        );
+      } else {
+        final userId = Get.find<AppController>().authUser.value?.id ?? '';
+        if (userId.isEmpty) throw StateError('Authentification requise');
+        await repository.addEventToCalendarOptimistic(widget.event.id, userId);
+        widget.controller.removeSuggestedEvent(widget.event.id);
+        if (mounted) {
+          Get.snackbar('Calendrier', 'home_feed_suggested_added'.tr,
+            snackPosition: SnackPosition.BOTTOM);
+        }
+      }
+    } catch (e) {
+      debugPrint('[SuggestedEventCard] add to calendar failed: $e');
+      if (mounted) {
+        Get.snackbar('Calendrier', Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
+          snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 5));
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  Future<void> _dismiss() async {
+    if (_adding || _dismissing) return;
+    setState(() => _dismissing = true);
+    try {
+      await widget.controller.dismissSuggestedEvent(widget.event.id);
+    } catch (e) {
+      debugPrint('[SuggestedEventCard] dismiss failed: $e');
+      if (mounted) Get.snackbar('Erreur', 'home_feed_suggested_dismiss_error'.tr,
+        snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _dismissing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final ev = widget.event;
+    return Container(
+      width: 218,
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHigh.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 7, offset: const Offset(0, 2)),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => Get.toNamed(AppPages.eventPreviewPath(ev.id)),
+            child: Stack(
+              children: [
+                ev.coverImageUrl != null && ev.coverImageUrl!.isNotEmpty
+                    ? AppCachedImage(imageUrl: ev.coverImageUrl!, width: 218, height: 94, fit: BoxFit.cover)
+                    : Container(width: 218, height: 94, color: colors.primaryContainer,
+                        child: Icon(Icons.event_rounded, size: 34, color: colors.onPrimaryContainer)),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: EntityCertifiedBadge(entityType: 'event', entityId: ev.id, size: 17),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () => Get.toNamed(AppPages.eventPreviewPath(ev.id)),
+                    child: Text(ev.name,
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: colors.onSurface),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 34,
+                    child: FilledButton.icon(
+                      onPressed: (_adding || _dismissing) ? null : _addToCalendar,
+                      icon: _adding
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.calendar_month_rounded, size: 16),
+                      label: Text('home_feed_suggested_add'.tr,
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 7),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 29,
+                    child: Center(
+                      child: TextButton(
+                        onPressed: (_adding || _dismissing) ? null : _dismiss,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          minimumSize: const Size(0, 28),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: colors.onSurfaceVariant,
+                        ),
+                        child: _dismissing
+                            ? const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2))
+                            : Text('home_feed_suggested_not_interested'.tr,
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Compact live trends row shown directly below Stories in the home feed.
 class _TrendingHashtagsStrip extends StatefulWidget {
