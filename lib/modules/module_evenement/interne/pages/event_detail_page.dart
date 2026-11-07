@@ -331,7 +331,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
               colorText: Colors.white,
               mainButton: TextButton(
                 onPressed: () => Get.toNamed(AppPages.communityDetailPath(suggestedCommunityId)),
-                child: const Text('event_detail_join'.tr, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                child: Text('event_detail_join'.tr, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
               ),
               duration: const Duration(seconds: 5),
             );
@@ -1329,7 +1329,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                                 transition: Transition.rightToLeft,
                               ),
                               icon: const Icon(Icons.route_rounded, size: 18),
-                              label: const Text(
+                              label: Text(
                                 'event_detail_plan_my_route'.tr,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1601,7 +1601,7 @@ class _RestrictedPreviewView extends StatelessWidget {
               ],
               OutlinedButton(
                 onPressed: () => Get.back(),
-                child: const Text('event_detail_back'.tr),
+                child: Text('event_detail_back'.tr),
               ),
             ],
           ),
