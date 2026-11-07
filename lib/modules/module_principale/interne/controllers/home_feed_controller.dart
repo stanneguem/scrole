@@ -104,6 +104,17 @@ class HomeFeedController extends GetxController {
   }
 
   void queuePostView(CommunityPost post) {
+    // Video views are recorded only after 50% of effective playback.
+    if (post.media.any((media) => media.isVideo)) return;
+    _queuePostViewId(post);
+  }
+
+  void queueQualifiedVideoPostView(CommunityPost post) {
+    if (!post.media.any((media) => media.isVideo)) return;
+    _queuePostViewId(post);
+  }
+
+  void _queuePostViewId(CommunityPost post) {
     if (post.isPublishing) return;
     final myId = _authService.userId;
     if (myId != null && post.authorId == myId) return;
@@ -265,8 +276,12 @@ class HomeFeedController extends GetxController {
       int communityPostCount = remoteItems.where((p) => p.communityId != null).length;
       debugPrint('[HOME_FEED] Item counts per type -> Standard Posts: $postTypeCount, Community Posts: $communityPostCount');
 
-      if (remoteItems.isNotEmpty) {
-        unawaited(_feedRepo.recordPostViews(remoteItems.map((p) => p.id).toList()));
+      final immediatelyCountableIds = remoteItems
+          .where((post) => !post.media.any((media) => media.isVideo))
+          .map((post) => post.id)
+          .toList();
+      if (immediatelyCountableIds.isNotEmpty) {
+        unawaited(_feedRepo.recordPostViews(immediatelyCountableIds));
       }
 
       // Combine pending outbox posts (at top, grayed out) + remote items
