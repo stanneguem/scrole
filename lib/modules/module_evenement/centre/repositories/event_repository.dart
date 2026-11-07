@@ -410,6 +410,21 @@ class EventRepository {
     return data.map((e) => EventModel.fromJson(e)).toList();
   }
 
+  Future<Set<String>> getDismissedHomeEventSuggestionIds() =>
+      _remote.fetchDismissedHomeEventSuggestionIds();
+
+  Future<void> dismissHomeEventSuggestion(String eventId) =>
+      _remote.dismissHomeEventSuggestion(eventId);
+
+  List<dynamic> _withoutDismissedSuggestions(List<dynamic> rows, Set<String> dismissedIds) {
+    if (dismissedIds.isEmpty) return rows;
+    return rows.where((item) {
+      if (item is! Map) return false;
+      final id = (item['id'] ?? item['event_id'] ?? '').toString();
+      return !dismissedIds.contains(id);
+    }).toList();
+  }
+
   Future<List<EventModel>> getSuggestedEvents({bool forceRefresh = false}) async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
     final cacheKey = 'event_suggestions_$userId';
@@ -420,22 +435,26 @@ class EventRepository {
         final age = DateTime.now().difference(cachedAt);
         if (age < const Duration(hours: 5)) {
           final List<dynamic> list = jsonDecode(payload);
-          return _deduplicateRawSuggestions(list);
+          final dismissed = await _remote.fetchDismissedHomeEventSuggestionIds();
+          return _deduplicateRawSuggestions(_withoutDismissedSuggestions(list, dismissed));
         }
       }
     }
 
     try {
       final data = await _remote.fetchSuggestedEvents(limit: 50);
-      await _dao.saveDiscoveryCache(cacheKey, jsonEncode(data));
-      return _deduplicateRawSuggestions(data);
+      final dismissed = await _remote.fetchDismissedHomeEventSuggestionIds();
+      final visible = _withoutDismissedSuggestions(data, dismissed);
+      await _dao.saveDiscoveryCache(cacheKey, jsonEncode(visible));
+      return _deduplicateRawSuggestions(visible);
     } catch (e) {
       debugPrint('[Error] getSuggestedEvents: $e');
       // En cas d'erreur réseau/RPC, on essaie quand même de retourner le cache même s'il est vieux
       final cached = await _dao.getDiscoveryCache(cacheKey);
       if (cached != null) {
         final List<dynamic> list = jsonDecode(cached.$1);
-        return _deduplicateRawSuggestions(list);
+        final dismissed = await _remote.fetchDismissedHomeEventSuggestionIds();
+        return _deduplicateRawSuggestions(_withoutDismissedSuggestions(list, dismissed));
       }
       rethrow;
     }
