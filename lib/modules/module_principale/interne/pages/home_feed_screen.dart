@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:scrole/app_controller.dart';
+import 'package:scrole/app/theme/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
@@ -890,9 +891,22 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
       } else {
         final userId = Get.find<AppController>().authUser.value?.id ?? '';
         if (userId.isEmpty) throw StateError('Authentification requise');
-        await repository.addEventToCalendarOptimistic(widget.event.id, userId);
+        final suggestedCommunityId =
+            await repository.addEventToCalendarOptimistic(widget.event.id, userId);
         widget.controller.removeSuggestedEvent(widget.event.id);
-        if (mounted) {
+        if (mounted && suggestedCommunityId != null && suggestedCommunityId.isNotEmpty) {
+          Get.snackbar(
+            'Communauté associée',
+            'Cet événement est lié à une communauté ! Souhaitez-vous la rejoindre ?',
+            snackPosition: SnackPosition.BOTTOM,
+            mainButton: TextButton(
+              onPressed: () => Get.toNamed(AppPages.communityDetailPath(suggestedCommunityId)),
+              child: const Text('Rejoindre',
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            ),
+            duration: const Duration(seconds: 5),
+          );
+        } else if (mounted) {
           Get.snackbar('Calendrier', 'home_feed_suggested_added'.tr,
             snackPosition: SnackPosition.BOTTOM);
         }
