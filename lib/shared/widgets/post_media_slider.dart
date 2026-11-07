@@ -20,6 +20,7 @@ class PostMediaSlider extends StatefulWidget {
   final int viewsCount;
   final int commentsCount;
   final int sharesCount;
+  final VoidCallback? onVideoQualifiedView;
 
   const PostMediaSlider({
     super.key,
@@ -32,6 +33,7 @@ class PostMediaSlider extends StatefulWidget {
     this.viewsCount = 0,
     this.commentsCount = 0,
     this.sharesCount = 0,
+    this.onVideoQualifiedView,
   });
 
   @override
@@ -200,6 +202,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                       key: ValueKey('feed_video_${_getHeroTag(index)}'),
                       autoplayPostId: widget.autoplayPostId,
                       forceAutoplay: widget.forceAutoplayVideos,
+                      onQualifiedView: widget.onVideoQualifiedView,
                       onPlaybackOverlayOpacityChanged: (opacity) {
                         if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
                         setState(() => _videoOverlayOpacity = opacity);
@@ -376,6 +379,7 @@ class _InlineFeedVideo extends StatefulWidget {
   final String? autoplayPostId;
   final bool forceAutoplay;
   final ValueChanged<double>? onPlaybackOverlayOpacityChanged;
+  final VoidCallback? onQualifiedView;
   final String url;
   final String? thumbnailUrl;
   final VoidCallback onOpenFullScreen;
@@ -385,6 +389,7 @@ class _InlineFeedVideo extends StatefulWidget {
     this.autoplayPostId,
     this.forceAutoplay = false,
     this.onPlaybackOverlayOpacityChanged,
+    this.onQualifiedView,
     required this.url,
     required this.thumbnailUrl,
     required this.onOpenFullScreen,
@@ -405,6 +410,9 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
   bool _playbackOverlaysDismissed = false;
   double _playbackOverlayOpacity = 1;
   Worker? _preferencesWorker;
+  Duration _lastPlaybackPosition = Duration.zero;
+  Duration _accumulatedPlayback = Duration.zero;
+  bool _qualifiedViewSent = false;
 
   @override
   void initState() {
@@ -451,7 +459,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
       // the viewer mute/unmute without opening the fullscreen player.
       await controller.setVolume(_isMuted ? 0 : 1);
       _controller = controller;
-      controller.addListener(_updatePlaybackOverlayOpacity);
+      controller.addListener(_onVideoValueChanged);
       setState(() {});
       await controller.play();
     } catch (error) {
@@ -461,6 +469,29 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     } finally {
       _initializing = false;
     }
+  }
+
+  void _onVideoValueChanged() {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    final value = controller.value;
+    final position = value.position;
+    if (value.isPlaying && !value.isBuffering && _visible && _cardEligible && !_qualifiedViewSent) {
+      final delta = position - _lastPlaybackPosition;
+      // Listener updates are frequent; discard discontinuities caused by seeks,
+      // buffering stalls or lifecycle jumps rather than counting them as watch time.
+      if (delta > Duration.zero && delta <= const Duration(milliseconds: 900)) {
+        _accumulatedPlayback += delta;
+      }
+      final duration = value.duration;
+      if (duration > Duration.zero &&
+          _accumulatedPlayback >= Duration(microseconds: duration.inMicroseconds ~/ 2)) {
+        _qualifiedViewSent = true;
+        widget.onQualifiedView?.call();
+      }
+    }
+    _lastPlaybackPosition = position;
+    _updatePlaybackOverlayOpacity();
   }
 
   void _updatePlaybackOverlayOpacity() {
@@ -528,7 +559,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
     // no controller to pause or play.
     final controller = _controller;
     _controller = null;
-    controller?.removeListener(_updatePlaybackOverlayOpacity);
+    controller?.removeListener(_onVideoValueChanged);
     if (controller != null) unawaited(controller.dispose());
     super.dispose();
   }
