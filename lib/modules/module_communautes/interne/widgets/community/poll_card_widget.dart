@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -281,7 +283,7 @@ class _PollCardWidgetState extends State<PollCardWidget> {
                                       child: Align(
                                         alignment: Alignment.centerLeft,
                                         child: FractionallySizedBox(
-                                          widthFactor: (percent / 100).clamp(0.0, 1.0),
+                                          widthFactor: (percent / 100).clamp(0.0, 1.0).toDouble(),
                                           child: DecoratedBox(
                                             decoration: BoxDecoration(
                                               gradient: LinearGradient(colors: [
@@ -408,7 +410,7 @@ class _PollCardWidgetState extends State<PollCardWidget> {
                     minimumSize: const Size.fromHeight(49),
                     elevation: 0,
                     backgroundColor: accent,
-                    foregroundColor: colors.onPrimary,
+                    foregroundColor: _quiz ? colors.onTertiary : colors.onPrimary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -.1),
                   ),
