@@ -1095,7 +1095,9 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                       const SizedBox(width: 8),
                       _buildStatusBadge(event.status),
                       const Spacer(),
-                      _buildRankBadge(ranking.rang > 0 ? ranking.rang : 1),
+                      if (ranking.rang > 0 &&
+                          (event.status != EventStatus.completed || ranking.isFrozen))
+                        _buildRankBadge(ranking),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -1570,8 +1572,16 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     );
   }
 
-  Widget _buildRankBadge(int rank) {
-    return Container(
+  Widget _buildRankBadge(EventRankingInfo ranking) {
+    final label = ranking.isFrozen
+        ? 'Rang final #${ranking.rang}'
+        : '#${ranking.rang}';
+    final tooltip = ranking.sur > 0
+        ? '${ranking.rang}e sur ${ranking.sur} événements · score ${ranking.score.toStringAsFixed(0)}'
+        : 'Classement global';
+    return Tooltip(
+      message: tooltip,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.12),
@@ -1579,8 +1589,9 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Text(
-        '#$rank',
+        label,
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+      ),
       ),
     );
   }
