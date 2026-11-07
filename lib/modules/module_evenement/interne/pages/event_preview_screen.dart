@@ -24,6 +24,7 @@ import '../enums/event_enum.dart';
 import 'event_days_selector_screen.dart';
 import 'event_comments_screen.dart';
 import 'event_rating_screen.dart';
+import 'event_activities_list_screen.dart';
 
 class EventPreviewScreen extends StatefulWidget {
   const EventPreviewScreen({super.key});
@@ -1065,126 +1066,35 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                     ),
                   ],
 
-                  // Section Activités liées
+                  // Les activités sont consultables sur une page dédiée.
                   if (preview.activitiesLiees.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Text('Activités liées', style: AppTextStyles.h4),
-                    const SizedBox(height: 8),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: preview.activitiesLiees.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final act = preview.activitiesLiees[index];
-                        final isFree = act.converted.amount <= 0;
-                        final priceText = isFree
-                            ? 'Gratuit'
-                            : NumberFormatter.formatPrice(act.converted.amount, act.converted.symbol);
-
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            // Les visiteurs consultent la carte sans ouvrir les outils de gestion.
-                            onTap: canManageActivities
-                                ? () {
-                                    Get.toNamed(
-                                      AppPages.eventActivities.replaceFirst(':id', _eventId ?? ''),
-                                      arguments: {'activity': act, 'event': preview.event},
-                                    );
-                                  }
-                                : null,
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: isFree
-                                          ? AppColors.success.withValues(alpha: 0.12)
-                                          : AppColors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.local_activity_rounded,
-                                      color: isFree ? AppColors.success : AppColors.primary,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          act.name,
-                                          style: GoogleFonts.spaceGrotesk(
-                                            color: colorScheme.onSurface,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Activité de l\'événement',
-                                          style: AppTextStyles.caption.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: isFree
-                                              ? AppColors.success.withValues(alpha: 0.12)
-                                              : AppColors.primary.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Text(
-                                          priceText,
-                                          style: GoogleFonts.spaceGrotesk(
-                                            color: isFree ? AppColors.success : AppColors.primary,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        size: 14,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Get.to(
+                            () => EventActivitiesListScreen(
+                              activities: preview.activitiesLiees,
                             ),
+                            transition: Transition.rightToLeft,
+                          );
+                        },
+                        icon: const Icon(Icons.local_activity_outlined),
+                        label: Text(
+                          'event_detail_activities'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 20),
                   ],
-
-                  const SizedBox(height: 20),
 
                   // Context Public (Actions: Like, Noter, Partager)
                   if (!isOwnerOrCoFounder && (_contextRole == 'public' || _contextRole == null)) ...[
