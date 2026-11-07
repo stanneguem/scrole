@@ -436,7 +436,7 @@ class EventRepository {
 
   Future<List<EventModel>> getSuggestedEvents({bool forceRefresh = false}) async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
-    final cacheKey = 'event_suggestions_$userId';
+    final cacheKey = 'event_suggestions_v2_$userId';
     if (!forceRefresh) {
       final cached = await _dao.getDiscoveryCache(cacheKey);
       if (cached != null) {
@@ -469,8 +469,7 @@ class EventRepository {
     }
   }
 
-  /// Déduplique les événements par catégorie de sorte que (category, event.id) soit strictement unique.
-  /// Préserve un même événement s'il est présent dans des catégories DIFFÉRENTES.
+  /// De-duplicates by series when the RPC provides series_id, otherwise by event id.
   /// A series is presented once, even when it has several editions or
   /// the same event was returned by several recommendation categories.
   List<EventModel> _deduplicateRawSuggestions(List<dynamic> rawList) {
