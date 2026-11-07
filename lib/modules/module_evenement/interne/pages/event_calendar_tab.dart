@@ -103,12 +103,17 @@ class _CalendarTabState extends State<CalendarTab> {
                   : null,
             )),
             const SizedBox(width: 12),
-            Text(
-              f.label,
-              style: AppTextStyles.body.copyWith(
-                color: controller.currentSortFilter.value == f
-                    ? colorScheme.onSurface
-                    : colorScheme.onSurfaceVariant,
+            Expanded(
+              child: Text(
+                f.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: AppTextStyles.body.copyWith(
+                  color: controller.currentSortFilter.value == f
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -344,26 +349,7 @@ class _CalendarTabState extends State<CalendarTab> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Recherche dans les événements du calendrier.
-                  TextField(
-                    onChanged: (value) => controller.calendarSearchQuery.value = value,
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      hintText: 'event_calendar_search_hint'.tr,
-                      prefixIcon: const Icon(Icons.search),
-                      isDense: true,
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerLow,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
+                  // Les filtres sont directement accessibles sans champ de recherche.
                   const SizedBox(height: 12),
                   // Filtres réellement appliqués aux événements affichés.
                   Obx(() => SingleChildScrollView(
