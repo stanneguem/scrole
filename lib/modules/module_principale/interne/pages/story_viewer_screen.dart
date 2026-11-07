@@ -987,57 +987,60 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 Positioned(
                   right: 8,
                   top: 0,
-                  bottom: _isOwnStory ? 112 : 104,
+                  bottom: _isOwnStory ? 64 : 56,
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: AnimatedOpacity(
-                      opacity: _isDragging ? 0.0 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_isOwnStory)
-                            _buildStorySideAction(
-                              icon: Icons.remove_red_eye_outlined,
-                              count: _currentStory.viewersCount,
-                              onTap: _showViewersSheet,
-                            )
-                          else
-                            InkWell(
-                              onTap: _toggleStoryLike,
-                              borderRadius: BorderRadius.circular(24),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _currentStory.isLiked
-                                          ? Icons.favorite_rounded
-                                          : Icons.favorite_border_rounded,
-                                      color: _currentStory.isLiked ? Colors.red : Colors.white,
-                                      size: 28,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _currentStory.isLiked ? 'Aimé' : 'J’aime',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                    child: Transform.translate(
+                      offset: const Offset(0, 34),
+                      child: AnimatedOpacity(
+                        opacity: _isDragging ? 0.0 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_isOwnStory)
+                              _buildStorySideAction(
+                                icon: Icons.remove_red_eye_outlined,
+                                count: _currentStory.viewersCount,
+                                onTap: _showViewersSheet,
+                              )
+                            else
+                              InkWell(
+                                onTap: _toggleStoryLike,
+                                borderRadius: BorderRadius.circular(24),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _currentStory.isLiked
+                                            ? Icons.favorite_rounded
+                                            : Icons.favorite_border_rounded,
+                                        color: _currentStory.isLiked ? Colors.red : Colors.white,
+                                        size: 28,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _currentStory.isLiked ? 'Aimé' : 'J’aime',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                            _buildStorySideAction(
+                              assetIcon: 'assets/svg_icons/chat-round-svgrepo-com.svg',
+                              count: _currentStory.commentsCount,
+                              onTap: _openStoryCommentsModal,
                             ),
-                          _buildStorySideAction(
-                            assetIcon: 'assets/svg_icons/chat-round-svgrepo-com.svg',
-                            count: _currentStory.commentsCount,
-                            onTap: _openStoryCommentsModal,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1047,8 +1050,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 if (!_isOwnStory)
                   Positioned(
                     left: 12,
-                    right: 72,
-                    bottom: MediaQuery.of(context).padding.bottom + 16,
+                    right: 12,
+                    bottom: MediaQuery.of(context).padding.bottom + 12,
                     child: AnimatedOpacity(
                       opacity: _isDragging ? 0.0 : 1.0,
                       duration: const Duration(milliseconds: 200),
@@ -1108,18 +1111,22 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   Widget _buildQuickStoryReply() {
     final hasText = _replyController.text.trim().isNotEmpty;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.fromLTRB(10, 5, 8, 5),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.48),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+        color: Colors.black.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 3)),
+        ],
       ),
       child: Row(
         children: [
           PopupMenuButton<String>(
             tooltip: 'Émojis',
             padding: EdgeInsets.zero,
-            icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 24),
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 25),
             color: const Color(0xFF292929),
             onSelected: (emoji) {
               final value = _replyController.value;
@@ -1174,13 +1181,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     )
                   : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
             )
-          else
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Envoyer un cœur',
-              onPressed: _isSendingQuickReply ? null : () => _sendQuickStoryReply(quickEmoji: '❤️'),
-              icon: const Icon(Icons.favorite_border_rounded, color: Colors.white, size: 22),
-            ),
+          const SizedBox(width: 4),
         ],
       ),
     );
