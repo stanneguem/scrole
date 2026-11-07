@@ -425,16 +425,16 @@ class _CalendarTabState extends State<CalendarTab> {
                         final date = DateTime(
                             _currentMonth.year, _currentMonth.month, day);
 
-                        // Filtrage local depuis le cache global du calendrier
-                        final rawEvents =
-                        controller.filterCalendarEvents(controller.calendarEvents).where((e) {
+                        // Les indicateurs du calendrier représentent toujours
+                        // tous les événements de la date, indépendamment du filtre.
+                        // Le filtre est appliqué uniquement à l'ouverture de la date.
+                        final rawEvents = controller.calendarEvents.where((e) {
                           final localDate = e.startsAt.toLocal();
                           return localDate.year == date.year &&
                               localDate.month == date.month &&
                               localDate.day == date.day;
                         }).toList();
 
-                        // Application du tri
                         final events = controller.sortEventList(rawEvents);
 
                         return _DayCell(
