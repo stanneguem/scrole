@@ -181,6 +181,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     if (!mounted || _isPaused || _commentFocusNode.hasFocus ||
         _currentStory.kind != 'image' ||
         _imageLoadedStoryId != _currentStory.id) return;
+    _animController.duration = const Duration(seconds: 8);
     _animController.forward(from: 0.0);
     _markCurrentViewed();
   }
@@ -991,7 +992,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Transform.translate(
-                      offset: const Offset(0, 34),
+                      offset: const Offset(0, 68),
                       child: AnimatedOpacity(
                         opacity: _isDragging ? 0.0 : 1.0,
                         duration: const Duration(milliseconds: 200),
@@ -1050,7 +1051,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 if (!_isOwnStory)
                   Positioned(
                     left: 12,
-                    right: 12,
+                    right: 72,
                     bottom: MediaQuery.of(context).padding.bottom + 12,
                     child: AnimatedOpacity(
                       opacity: _isDragging ? 0.0 : 1.0,
@@ -1110,79 +1111,87 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   Widget _buildQuickStoryReply() {
     final hasText = _replyController.text.trim().isNotEmpty;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 5, 8, 5),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 3)),
-        ],
-      ),
-      child: Row(
-        children: [
-          PopupMenuButton<String>(
-            tooltip: 'Émojis',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 25),
-            color: const Color(0xFF292929),
-            onSelected: (emoji) {
-              final value = _replyController.value;
-              final selection = value.selection;
-              final start = selection.isValid ? selection.start : value.text.length;
-              final end = selection.isValid ? selection.end : value.text.length;
-              final nextText = value.text.replaceRange(start, end, emoji);
-              _replyController.value = TextEditingValue(
-                text: nextText,
-                selection: TextSelection.collapsed(offset: start + emoji.length),
-              );
-              setState(() {});
-              _commentFocusNode.requestFocus();
-            },
-            itemBuilder: (_) => ['❤️', '😂', '😍', '🔥', '👏', '👍']
-                .map((emoji) => PopupMenuItem<String>(
-                      value: emoji,
-                      child: Text(emoji, style: const TextStyle(fontSize: 22)),
-                    ))
-                .toList(),
-          ),
-          Expanded(
-            child: TextField(
-              controller: _replyController,
-              focusNode: _commentFocusNode,
-              onChanged: (_) => setState(() {}),
-              minLines: 1,
-              maxLines: 3,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendQuickStoryReply(),
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              cursorColor: Colors.white,
-              decoration: InputDecoration(
-                hintText: 'Répondre à la story…',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
-              ),
+    return Row(
+      children: [
+        // Emoji picker stays outside the text field's single border.
+        PopupMenuButton<String>(
+          tooltip: 'Émojis',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 26),
+          color: const Color(0xFF292929),
+          onSelected: (emoji) {
+            final value = _replyController.value;
+            final selection = value.selection;
+            final start = selection.isValid ? selection.start : value.text.length;
+            final end = selection.isValid ? selection.end : value.text.length;
+            final nextText = value.text.replaceRange(start, end, emoji);
+            _replyController.value = TextEditingValue(
+              text: nextText,
+              selection: TextSelection.collapsed(offset: start + emoji.length),
+            );
+            setState(() {});
+            _commentFocusNode.requestFocus();
+          },
+          itemBuilder: (_) => ['❤️', '😂', '😍', '🔥', '👏', '👍']
+              .map((emoji) => PopupMenuItem<String>(
+                    value: emoji,
+                    child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 5, 6, 5),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.58),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 3)),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _replyController,
+                    focusNode: _commentFocusNode,
+                    onChanged: (_) => setState(() {}),
+                    minLines: 1,
+                    maxLines: 3,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendQuickStoryReply(),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    cursorColor: Colors.white,
+                    decoration: InputDecoration(
+                      hintText: 'Répondre à la story…',
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
+                    ),
+                  ),
+                ),
+                if (hasText)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Envoyer',
+                    onPressed: _isSendingQuickReply ? null : _sendQuickStoryReply,
+                    icon: _isSendingQuickReply
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                  ),
+              ],
             ),
           ),
-          if (hasText)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Envoyer',
-              onPressed: _isSendingQuickReply ? null : _sendQuickStoryReply,
-              icon: _isSendingQuickReply
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
