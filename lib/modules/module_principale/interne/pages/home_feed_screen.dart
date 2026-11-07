@@ -202,11 +202,28 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 );
               }
 
+              // Interleave profile and event recommendations in the same feed
+              // stream: after 3 posts, after 3 more, then every 10 posts,
+              // alternating profile -> event -> profile -> event.
+              final suggestionSlots = <MapEntry<int, bool>>[];
+              final thresholds = <int>[3, 6];
+              for (var threshold = 16; threshold <= feedController.posts.length; threshold += 10) {
+                thresholds.add(threshold);
+              }
+              for (var i = 0; i < thresholds.length; i++) {
+                final hasSuggestions = i.isEven
+                    ? feedController.suggestedProfiles.isNotEmpty
+                    : feedController.suggestedEvents.isNotEmpty;
+                if (thresholds[i] <= feedController.posts.length && hasSuggestions) {
+                  suggestionSlots.add(MapEntry(thresholds[i], i.isEven));
+                }
+              }
+
               return ListView.builder(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 120),
-                itemCount: feedController.posts.length + 3,
+                itemCount: feedController.posts.length + suggestionSlots.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return Column(
@@ -214,8 +231,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       children: [
                         const _StoriesRow(),
                         const _TrendingHashtagsStrip(),
-                        // Preserve the layout boundary while making the separator
-                        // visually imperceptible, as requested.
                         Container(
                           height: 1,
                           width: double.infinity,
@@ -225,22 +240,18 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                     );
                   }
 
-                  final insertIndex = feedController.posts.length >= 2 ? 3 : (feedController.posts.length == 1 ? 2 : 1);
-
-                  if (index == insertIndex) {
-                    return _SuggestedProfilesCarousel(controller: feedController);
-                  }
-                  if (index == insertIndex + 1) {
-                    return _SuggestedEventsCarousel(controller: feedController);
-                  }
-
-                  int postIndex;
-                  if (index < insertIndex) {
-                    postIndex = index - 1;
-                  } else {
-                    postIndex = index - 3;
+                  var insertedBefore = 0;
+                  for (var slotIndex = 0; slotIndex < suggestionSlots.length; slotIndex++) {
+                    final visualIndex = suggestionSlots[slotIndex].key + slotIndex + 1;
+                    if (index == visualIndex) {
+                      return suggestionSlots[slotIndex].value
+                          ? _SuggestedProfilesCarousel(controller: feedController)
+                          : _SuggestedEventsCarousel(controller: feedController);
+                    }
+                    if (visualIndex < index) insertedBefore++;
                   }
 
+                  final postIndex = index - 1 - insertedBefore;
                   if (postIndex < 0 || postIndex >= feedController.posts.length) {
                     return const SizedBox.shrink();
                   }
@@ -796,124 +807,173 @@ class _SuggestedProfileActionCardState extends State<_SuggestedProfileActionCard
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final profile = widget.profile;
+    final displayName = profile.name.trim().isEmpty ? profile.username : profile.name;
+    final isUnavailable = _following || _dismissing || profile.isAdded || profile.isRequestSent;
+
     return Container(
-      width: 218,
-      height: 226,
-      padding: const EdgeInsets.all(12),
+      width: 204,
+      height: 218,
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.45)),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.42)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.045),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: colors.shadow.withValues(alpha: 0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          GestureDetector(
-            onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ClipOval(
-                  child: profile.photoUrl != null && profile.photoUrl!.isNotEmpty
-                      ? AppCachedImage(imageUrl: profile.photoUrl!, width: 58, height: 58, fit: BoxFit.cover)
-                      : Container(
-                          width: 58,
-                          height: 58,
-                          color: colors.primaryContainer,
-                          alignment: Alignment.center,
-                          child: Text(
-                            profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?',
-                            style: TextStyle(color: colors.onPrimaryContainer, fontSize: 21, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+          Positioned(
+            top: 7,
+            right: 7,
+            child: Material(
+              color: colors.surfaceContainerHighest.withValues(alpha: 0.85),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _dismissing || _following ? null : _dismiss,
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: _dismissing
+                      ? const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: CircularProgressIndicator(strokeWidth: 1.8),
+                        )
+                      : Icon(Icons.close_rounded, size: 17, color: colors.onSurfaceVariant),
                 ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 7),
-          GestureDetector(
-            onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 18, 12, 11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Flexible(
-                  child: Text(
-                    profile.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: colors.onSurface),
+                GestureDetector(
+                  onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    padding: const EdgeInsets.all(2.5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.primary.withValues(alpha: 0.65), width: 1.7),
+                    ),
+                    child: ClipOval(
+                      child: profile.photoUrl != null && profile.photoUrl!.isNotEmpty
+                          ? AppCachedImage(
+                              imageUrl: profile.photoUrl!,
+                              width: 67,
+                              height: 67,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              color: colors.primaryContainer,
+                              alignment: Alignment.center,
+                              child: Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                style: TextStyle(
+                                  color: colors.onPrimaryContainer,
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                    ),
                   ),
                 ),
-                if (profile.isCertified) ...[
-                  const SizedBox(width: 3),
-                  UserCertifiedBadge(userId: profile.id, size: 14, showTooltip: false),
-                ],
-              ],
-            ),
-          ),
-          if (profile.username.isNotEmpty)
-            Text(
-              '@${profile.username}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
-            ),
-          const SizedBox(height: 3),
-          Text(
-            profile.reasonSubtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
-          ),
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            height: 34,
-            child: ElevatedButton(
-              onPressed: (_following || _dismissing || profile.isAdded || profile.isRequestSent) ? null : _follow,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.zero,
-                elevation: 0,
-                backgroundColor: profile.isAdded ? colors.surfaceContainerHighest : colors.primary,
-                foregroundColor: profile.isAdded ? colors.onSurface : colors.onPrimary,
-                disabledBackgroundColor: colors.surfaceContainerHighest,
-                disabledForegroundColor: colors.onSurface,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: _following
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(
-                      profile.isRequestSent
-                    ? 'home_feed_profile_request_sent'.tr
-                    : (profile.isAdded ? 'home_feed_profile_following'.tr : 'home_feed_add_profile'.tr),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (profile.isCertified) ...[
+                        const SizedBox(width: 3),
+                        UserCertifiedBadge(userId: profile.id, size: 14, showTooltip: false),
+                      ],
+                    ],
+                  ),
+                ),
+                if (profile.username.isNotEmpty)
+                  Text(
+                    '@${profile.username}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+                  ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      profile.reasonSubtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        height: 1.2,
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
-            ),
-          ),
-          const SizedBox(height: 5),
-          SizedBox(
-            height: 22,
-            child: TextButton(
-              onPressed: (_following || _dismissing) ? null : _dismiss,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'home_feed_profile_not_interested'.tr,
-                maxLines: 1,
-                style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
-              ),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 36,
+                  child: ElevatedButton(
+                    onPressed: isUnavailable ? null : _follow,
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      elevation: 0,
+                      backgroundColor: profile.isAdded || profile.isRequestSent
+                          ? colors.surfaceContainerHighest
+                          : colors.primary,
+                      foregroundColor: profile.isAdded || profile.isRequestSent
+                          ? colors.onSurface
+                          : colors.onPrimary,
+                      disabledBackgroundColor: colors.surfaceContainerHighest,
+                      disabledForegroundColor: colors.onSurface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: _following
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            profile.isRequestSent
+                                ? 'home_feed_profile_request_sent'.tr
+                                : (profile.isAdded
+                                    ? 'home_feed_profile_following'.tr
+                                    : 'home_feed_add_profile'.tr),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
