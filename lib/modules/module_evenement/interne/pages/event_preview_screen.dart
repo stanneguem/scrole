@@ -25,10 +25,16 @@ import 'event_days_selector_screen.dart';
 import 'event_comments_screen.dart';
 import 'event_rating_screen.dart';
 import 'event_activities_list_screen.dart';
+import 'event_itinerary_overview_screen.dart';
+import 'external_event_itinerary_screen.dart';
 import 'report_event_sheet.dart';
 
 class EventPreviewScreen extends StatefulWidget {
-  const EventPreviewScreen({super.key});
+  final EventModel? initialEvent;
+  final String? profileUserId;
+  final bool archiveTabMode;
+
+  const EventPreviewScreen({super.key, this.initialEvent, this.profileUserId, this.archiveTabMode = false});
 
   @override
   State<EventPreviewScreen> createState() => _EventPreviewScreenState();
@@ -102,6 +108,10 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
 
   Future<void> _loadData() async {
     final args = Get.arguments;
+    if (widget.initialEvent != null) {
+      _eventId = widget.initialEvent!.id;
+      _contextRole = widget.archiveTabMode ? null : _contextRole;
+    }
     if (args is Map) {
       _eventId = (args['id'] ?? args['eventId'])?.toString();
       _contextRole = args['context']?.toString();
@@ -110,7 +120,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       }
     } else if (args is EventModel) {
       _eventId = args.id;
-    } else if (Get.parameters['id'] != null) {
+    } else if (Get.parameters['id'] != null && _eventId == null) {
       _eventId = Get.parameters['id'];
     }
 
@@ -163,6 +173,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
         _contextRole = 'owner';
       } else if (role == 'staff') {
         _contextRole = 'staff';
+      } else {
+        _contextRole = 'public';
       }
 
       // Comptabilise une ouverture réelle de la fiche, indépendamment des actions.
@@ -611,6 +623,62 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     Get.to(() => EventRatingScreen(event: _preview!.event));
   }
 
+  Future<void> _createNextEdition() async {
+    final event = _preview?.event;
+    if (event == null ||
+        event.status != EventStatus.completed ||
+        Get.find<AppController>().authUser.value?.id != event.creatorId) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final initial = event.startsAt.isAfter(now)
+        ? event.startsAt.add(const Duration(days: 1))
+        : now.add(const Duration(days: 1));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(initial.year, initial.month, initial.day),
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de la nouvelle édition',
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(event.startsAt),
+      helpText: 'Heure de début',
+    );
+    if (pickedTime == null || !mounted) return;
+
+    final startsAt = DateTime(pickedDate.year, pickedDate.month, pickedDate.day,
+        pickedTime.hour, pickedTime.minute);
+    if (!startsAt.isAfter(DateTime.now())) {
+      Get.snackbar('Date invalide', 'La nouvelle édition doit commencer dans le futur.');
+      return;
+    }
+
+    try {
+      final created = await Get.find<EventRepository>().createNextEventEdition(
+        sourceEventId: event.id,
+        startsAt: startsAt,
+      );
+      if (!mounted) return;
+      Get.snackbar(
+        'Nouvelle édition créée',
+        'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      Get.off(() => EventPreviewScreen(initialEvent: created));
+      Get.toNamed(AppPages.eventEdit.replaceFirst(':id', created.id), arguments: created);
+    } catch (error) {
+      if (mounted) {
+        Get.snackbar('Création impossible', error.toString(),
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    }
+  }
+
   void _showReportSheet() {
     final event = _preview?.event;
     if (event == null) return;
@@ -753,7 +821,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
+          if (!widget.archiveTabMode) SliverAppBar(
             expandedHeight: 260,
             pinned: true,
             leading: Center(
@@ -785,7 +853,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   ),
                 ),
               ),
-              if (!isOwnerOrCoFounder)
+              if (_contextRole == 'public')
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Center(
@@ -793,6 +861,18 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                       icon: Icons.more_vert,
                       tooltip: 'Signaler cet événement',
                       onPressed: _showReportSheet,
+                    ),
+                  ),
+                ),
+              if (event.status == EventStatus.completed &&
+                  currentUserId != null && currentUserId == event.creatorId)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: _HeaderActionButton(
+                      icon: Icons.add_circle_outline_rounded,
+                      tooltip: 'Créer une nouvelle édition',
+                      onPressed: _createNextEdition,
                     ),
                   ),
                 ),
@@ -1155,7 +1235,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           ),
         ],
       ),
-      bottomNavigationBar: (!showCalendarAction && !showPublicInteractions)
+      bottomNavigationBar: (widget.archiveTabMode || (!showCalendarAction && !showPublicInteractions))
           ? null
           : Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
