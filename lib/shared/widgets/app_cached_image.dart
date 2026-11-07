@@ -38,6 +38,21 @@ class AppCachedImage extends StatelessWidget {
     this.onImageLoaded,
   });
 
+  static Future<void> clearPrivateMediaCache(String objectKey) async {
+    try {
+      final directory = await getApplicationSupportDirectory();
+      final id = base64Url.encode(utf8.encode(objectKey)).replaceAll('=', '');
+      final cacheDirectory = Directory(p.join(directory.path, 'r2_media_cache'));
+      final file = File(p.join(cacheDirectory.path, id));
+      final expiry = File(p.join(cacheDirectory.path, '$id.expiry'));
+      if (await file.exists()) await file.delete();
+      if (await expiry.exists()) await expiry.delete();
+      debugPrint('[R2_IMAGE_CACHE] REMOVED key=$objectKey');
+    } catch (e) {
+      debugPrint('[R2_IMAGE_CACHE] Unable to remove cached media: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (imageUrl.isEmpty) return _buildErrorWidget();
