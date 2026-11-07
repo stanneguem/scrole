@@ -471,27 +471,26 @@ class EventRepository {
 
   /// Déduplique les événements par catégorie de sorte que (category, event.id) soit strictement unique.
   /// Préserve un même événement s'il est présent dans des catégories DIFFÉRENTES.
+  /// A series is presented once, even when it has several editions or
+  /// the same event was returned by several recommendation categories.
   List<EventModel> _deduplicateRawSuggestions(List<dynamic> rawList) {
-    final List<EventModel> result = [];
-    final Set<String> seenCategoryAndId = {};
+    final Map<String, EventModel> unique = {};
 
     for (final item in rawList) {
-      if (item is Map) {
-        final map = Map<String, dynamic>.from(item);
-        final category = (map['category'] ?? map['categorie'] ?? '').toString().toLowerCase().trim();
-        final id = (map['id'] ?? map['evenement_id'] ?? '').toString().trim();
-        final key = '${category}_$id';
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      final event = EventModel.fromJson(map);
+      final seriesId = (map['series_id'] ?? '').toString().trim();
+      final uniqueKey = seriesId.isNotEmpty ? 'series:$seriesId' : 'event:${event.id}';
+      final previous = unique[uniqueKey];
 
-        if (id.isNotEmpty && seenCategoryAndId.contains(key)) {
-          continue; // Saute les doublons au sein d'une MÊME catégorie
-        }
-
-        if (id.isNotEmpty) {
-          seenCategoryAndId.add(key);
-        }
-        result.add(EventModel.fromJson(map));
+      if (previous == null || event.startsAt.isBefore(previous.startsAt)) {
+        unique[uniqueKey] = event;
       }
     }
+
+    final result = unique.values.toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     return result;
   }
 
