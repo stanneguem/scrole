@@ -315,15 +315,23 @@ class _R2SignedImageState extends State<_R2SignedImage> {
   String get _cacheId => base64Url.encode(utf8.encode(widget.objectKey)).replaceAll('=', '');
 
   Future<File> _loadCachedMedia() async {
-    final directory = await getApplicationSupportDirectory();
-    final cacheDirectory = Directory(p.join(directory.path, 'r2_media_cache'));
+    final isStoryMedia = widget.objectKey.startsWith('stories/');
+    final directory = isStoryMedia
+        ? await getApplicationSupportDirectory()
+        : await getTemporaryDirectory();
+    final cacheDirectory = Directory(p.join(
+      directory.path,
+      isStoryMedia ? 'r2_media_cache' : 'r2_private_temp',
+    ));
     if (!await cacheDirectory.exists()) {
       await cacheDirectory.create(recursive: true);
     }
     final file = File(p.join(cacheDirectory.path, _cacheId));
     final expiryFile = File(p.join(cacheDirectory.path, '$_cacheId.expiry'));
 
-    if (await file.exists() && await expiryFile.exists()) {
+    // Only story media may be reused without a new authorization check. Other
+    // private R2 objects still require a fresh signed URL on every display.
+    if (isStoryMedia && await file.exists() && await expiryFile.exists()) {
       final expiry = DateTime.tryParse(await expiryFile.readAsString());
       if (expiry != null && expiry.isAfter(DateTime.now())) {
         debugPrint('[R2_IMAGE_CACHE] HIT key=${widget.objectKey}');
@@ -349,14 +357,16 @@ class _R2SignedImageState extends State<_R2SignedImage> {
       throw HttpException('Téléchargement du média privé impossible (HTTP ${download.statusCode}).');
     }
     await file.writeAsBytes(download.bodyBytes, flush: true);
-    // Story objects are short-lived; keep the offline copy for at most 24h.
-    final cacheExpiry = widget.cacheUntil ??
-        DateTime.now().add(const Duration(hours: 24));
-    if (cacheExpiry.isAfter(DateTime.now())) {
-      await expiryFile.writeAsString(cacheExpiry.toIso8601String(), flush: true);
-    } else {
-      await file.delete();
-      throw StateError('Ce média a expiré.');
+    if (isStoryMedia) {
+      // Keep the offline story copy only until the story itself expires.
+      final cacheExpiry = widget.cacheUntil ??
+          DateTime.now().add(const Duration(hours: 24));
+      if (cacheExpiry.isAfter(DateTime.now())) {
+        await expiryFile.writeAsString(cacheExpiry.toIso8601String(), flush: true);
+      } else {
+        await file.delete();
+        throw StateError('Ce média a expiré.');
+      }
     }
     debugPrint('[R2_IMAGE_CACHE] SAVED key=${widget.objectKey} bytes=${download.bodyBytes.length}');
     return file;
