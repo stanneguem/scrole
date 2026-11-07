@@ -210,7 +210,8 @@ class StoriesController extends GetxController {
 
   Future<File> _storyTrayCacheFile() async {
     final directory = await getApplicationSupportDirectory();
-    return File(p.join(directory.path, 'stories_tray_cache.json'));
+    final userId = _repo.client.auth.currentUser?.id ?? 'anonymous';
+    return File(p.join(directory.path, 'stories_tray_cache_$userId.json'));
   }
 
   bool get _hasStoryGroups =>
