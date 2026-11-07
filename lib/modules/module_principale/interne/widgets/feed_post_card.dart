@@ -21,6 +21,12 @@ import '../controllers/home_feed_controller.dart';
 import '../../externe/repositories/home_feed_repository.dart';
 import '../pages/create_story_screen.dart';
 import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
+import '../../../module_communautes/centre/models/community_model.dart';
+import '../../../module_communautes/centre/services/community_service.dart';
+import '../../../module_communautes/interne/pages/community_preview_screen.dart';
+import '../../../module_evenement/centre/repositories/event_repository.dart';
+import '../../../module_evenement/interne/pages/event_preview_screen.dart';
+import '../../../module_evenement/interne/pages/profile_event_series_screen.dart';
 
 /// Composant de texte extensible avec bouton "Voir plus" / "Voir moins"
 class ExpandableTextWidget extends StatefulWidget {
@@ -427,82 +433,171 @@ class FeedPostCard extends StatelessWidget {
 
   Widget _buildEventHeader(ColorScheme colorScheme) {
     final logo = post.eventLogoUrl;
-    return InkWell(
-      child: Row(children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(7),
-          child: logo != null && logo.startsWith('http')
-            ? AppCachedImage(imageUrl: logo, width: 30, height: 30, fit: BoxFit.cover)
-            : Container(width: 30, height: 30, color: colorScheme.primaryContainer,
-                child: Icon(Icons.event_rounded, color: colorScheme.primary, size: 18)),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: post.eventId == null || post.eventId!.isEmpty
+            ? null
+            : _openEventFromPost,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: logo != null && logo.startsWith('http')
+                  ? AppCachedImage(imageUrl: logo, width: 30, height: 30, fit: BoxFit.cover)
+                  : Container(
+                      width: 30,
+                      height: 30,
+                      color: colorScheme.primaryContainer,
+                      child: Icon(Icons.event_rounded, color: colorScheme.primary, size: 18),
+                    ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Depuis un événement',
+                      style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant)),
+                  Text(
+                    post.eventName ?? 'Événement',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colorScheme.primary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.onSurfaceVariant),
+          ]),
         ),
-        const SizedBox(width: 9),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Depuis un événement', style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant)),
-          Text(post.eventName ?? 'Événement', maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colorScheme.primary)),
-        ])),
-        Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.onSurfaceVariant),
-      ]),
+      ),
     );
   }
 
   Widget _buildCommunityHeader(ColorScheme colorScheme) {
     final logoUrl = post.communityLogoUrl;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          ClipOval(
-            child: (logoUrl != null && logoUrl.isNotEmpty)
-                ? AppCachedImage(
-              imageUrl: logoUrl,
-              width: 22,
-              height: 22,
-              fit: BoxFit.cover,
-            )
-                : Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: post.communityId == null || post.communityId!.isEmpty
+            ? null
+            : () => _openCommunityFromPost(post.communityId!),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: (logoUrl != null && logoUrl.isNotEmpty)
+                    ? AppCachedImage(imageUrl: logoUrl, width: 30, height: 30, fit: BoxFit.cover)
+                    : Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Icon(Icons.groups_rounded, size: 18, color: colorScheme.primary),
+                      ),
               ),
-              child: Icon(
-                Icons.groups_rounded,
-                size: 14,
-                color: colorScheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    post.communityName ?? 'Communauté',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Depuis une communauté',
+                        style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant)),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            post.communityName ?? 'Communauté',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        if (post.communityId != null && post.communityId!.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          EntityCertifiedBadge(
+                            entityType: 'community',
+                            entityId: post.communityId!,
+                            size: 15,
+                          ),
+                        ],
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
                 ),
-                if (post.communityId != null && post.communityId!.isNotEmpty)
-                  EntityCertifiedBadge(
-                    entityType: 'community',
-                    entityId: post.communityId!,
-                    size: 15,
-                  ),
-              ],
-            ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.onSurfaceVariant),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _openEventFromPost() async {
+    final eventId = post.eventId;
+    if (eventId == null || eventId.isEmpty) return;
+
+    try {
+      final event = await Get.find<EventRepository>().getEventById(eventId);
+      if (event.isFinished) {
+        final viewerId = Supabase.instance.client.auth.currentUser?.id ?? event.creatorId;
+        Get.to(() => ArchivedEventEditionScreen(event: event, profileUserId: viewerId));
+      } else {
+        Get.toNamed(
+          AppPages.eventPreviewPath(eventId),
+          arguments: {'id': eventId, 'context': 'post'},
+        );
+      }
+    } catch (e) {
+      debugPrint('[FeedPostCard] Unable to open linked event $eventId: $e');
+      Get.snackbar('Événement', 'Impossible d’ouvrir cet événement pour le moment.',
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  Future<void> _openCommunityFromPost(String communityId) async {
+    try {
+      final service = Get.isRegistered<CommunityService>()
+          ? Get.find<CommunityService>()
+          : Get.put(CommunityService());
+      final result = await service.openCommunity(communityId);
+
+      if (result.isMember) {
+        Get.toNamed(AppPages.communityDetailPath(communityId));
+        return;
+      }
+
+      if (result.destination == 'preview') {
+        showCommunityPreviewSheet(Get.context!, result: result);
+        return;
+      }
+
+      Get.snackbar(
+        'community_preview_title'.tr,
+        'community_unavailable_msg'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      debugPrint('[FeedPostCard] Unable to open linked community $communityId: $e');
+      Get.snackbar(
+        'community_preview_title'.tr,
+        'community_unavailable_msg'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   Widget _buildAuthorHeader(
