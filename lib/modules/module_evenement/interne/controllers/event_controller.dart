@@ -42,6 +42,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxList<EventModel> staffEvents = <EventModel>[].obs;
 
   final Rx<EventSortFilter> currentSortFilter = EventSortFilter.popularite.obs;
+  final Rx<EventCalendarFilter> currentCalendarFilter = EventCalendarFilter.tous.obs;
+  final RxString calendarSearchQuery = ''.obs;
   final Rx<EventSuggestionsStatus> suggestionsStatus = EventSuggestionsStatus.initial.obs;
   final RxString suggestionsErrorMessage = ''.obs;
 
@@ -464,6 +466,52 @@ class EventController extends GetxController with WidgetsBindingObserver {
 
   void setSortFilter(EventSortFilter filter) => currentSortFilter.value = filter;
 
+  void setCalendarFilter(EventCalendarFilter filter) =>
+      currentCalendarFilter.value = filter;
+
+  /// Filtrage local des événements déjà chargés pour le mois affiché.
+  /// Les critères reposent uniquement sur les champs réellement présents
+  /// dans EventModel ; aucun filtre social ou géographique fictif n'est appliqué.
+  List<EventModel> filterCalendarEvents(List<EventModel> list) {
+    final now = DateTime.now();
+    final query = calendarSearchQuery.value.trim().toLowerCase();
+    final filtered = list.where((event) {
+      switch (currentCalendarFilter.value) {
+        case EventCalendarFilter.tous:
+          break;
+        case EventCalendarFilter.aVenir:
+          if (event.startsAt.isBefore(now)) return false;
+          break;
+        case EventCalendarFilter.gratuits:
+          if (!event.isFree) return false;
+          break;
+        case EventCalendarFilter.payants:
+          if (event.isFree) return false;
+          break;
+        case EventCalendarFilter.enLigne:
+          if (!event.isOnline) return false;
+          break;
+        case EventCalendarFilter.enPresentiel:
+          if (event.isOnline) return false;
+          break;
+      }
+
+      if (query.isNotEmpty) {
+        final searchable = [
+          event.name,
+          event.description ?? '',
+          event.address ?? '',
+          event.city?.name ?? '',
+          event.country?.name ?? '',
+        ].join(' ').toLowerCase();
+        if (!searchable.contains(query)) return false;
+      }
+      return true;
+    }).toList();
+
+    return sortEventList(filtered);
+  }
+
   List<EventModel> sortEventList(List<EventModel> list) {
     final sorted = List<EventModel>.from(list);
     switch (currentSortFilter.value) {
@@ -474,10 +522,10 @@ class EventController extends GetxController with WidgetsBindingObserver {
         sorted.sort((a, b) => (a.isFree ? 0 : 1).compareTo(b.isFree ? 0 : 1));
         break;
       case EventSortFilter.plusAjouts:
-        sorted.sort((a, b) => b.goingCount.compareTo(a.goingCount));
+        sorted.sort((a, b) => b.totalAddedCount.compareTo(a.totalAddedCount));
         break;
       case EventSortFilter.plusSurs:
-        sorted.sort((a, b) => b.goingCount.compareTo(a.goingCount));
+        sorted.sort((a, b) => b.checkedInCount.compareTo(a.checkedInCount));
         break;
       case EventSortFilter.proches:
         sorted.sort((a, b) => a.startsAt.compareTo(b.startsAt));
