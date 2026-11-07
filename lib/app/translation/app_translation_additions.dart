@@ -5,6 +5,14 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'story_reply_hint': "Répondre à la story…",
+      'story_emoji_tooltip': "Émojis",
+      'story_choose_emoji': "Choisir une émoticône",
+      'story_delete': "Supprimer la story",
+      'cancel': "Annuler",
+      'story_send': "Envoyer",
+      'story_shared_post_unavailable': "Cette publication n’est plus disponible",
+      'story_shared_post_members_only': "Aperçu partagé · source réservée aux membres de la communauté",
       'story_like': 'J’aime',
       'salon_voice_recording_title': 'Enregistrement vocal',
       'salon_voice_preview_title': 'Aperçu du message vocal',
@@ -1391,6 +1399,14 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'story_reply_hint': "Reply to story…",
+      'story_emoji_tooltip': "Emojis",
+      'story_choose_emoji': "Choose an emoji",
+      'story_delete': "Delete story",
+      'cancel': "Cancel",
+      'story_send': "Send",
+      'story_shared_post_unavailable': "This post is no longer available",
+      'story_shared_post_members_only': "Shared preview · source reserved for community members",
       'story_like': 'Like',
       'salon_voice_recording_title': 'Recording voice message',
       'salon_voice_preview_title': 'Voice message preview',
@@ -2773,6 +2789,14 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'story_reply_hint': "Responder a la historia…",
+      'story_emoji_tooltip': "Emojis",
+      'story_choose_emoji': "Elegir un emoji",
+      'story_delete': "Eliminar historia",
+      'cancel': "Cancelar",
+      'story_send': "Enviar",
+      'story_shared_post_unavailable': "Esta publicación ya no está disponible",
+      'story_shared_post_members_only': "Vista previa compartida · fuente reservada a miembros de la comunidad",
       'story_like': 'Me gusta',
       'salon_voice_recording_title': 'Grabando mensaje de voz',
       'salon_voice_preview_title': 'Vista previa del mensaje de voz',
@@ -4058,6 +4082,14 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'story_reply_hint': "Auf Story antworten…",
+      'story_emoji_tooltip': "Emojis",
+      'story_choose_emoji': "Emoji auswählen",
+      'story_delete': "Story löschen",
+      'cancel': "Abbrechen",
+      'story_send': "Senden",
+      'story_shared_post_unavailable': "Dieser Beitrag ist nicht mehr verfügbar",
+      'story_shared_post_members_only': "Geteilte Vorschau · Quelle nur für Community-Mitglieder",
       'story_like': 'Gefällt mir',
       'salon_voice_recording_title': 'Sprachnachricht aufnehmen',
       'salon_voice_preview_title': 'Vorschau der Sprachnachricht',
@@ -5326,6 +5358,14 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'story_reply_hint': "Rispondi alla storia…",
+      'story_emoji_tooltip': "Emoji",
+      'story_choose_emoji': "Scegli un’emoji",
+      'story_delete': "Elimina storia",
+      'cancel': "Annulla",
+      'story_send': "Invia",
+      'story_shared_post_unavailable': "Questo post non è più disponibile",
+      'story_shared_post_members_only': "Anteprima condivisa · fonte riservata ai membri della community",
       'story_like': 'Mi piace',
       'salon_voice_recording_title': 'Registrazione messaggio vocale',
       'salon_voice_preview_title': 'Anteprima del messaggio vocale',
@@ -6592,6 +6632,14 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'story_reply_hint': "Responder ao story…",
+      'story_emoji_tooltip': "Emojis",
+      'story_choose_emoji': "Escolher um emoji",
+      'story_delete': "Excluir story",
+      'cancel': "Cancelar",
+      'story_send': "Enviar",
+      'story_shared_post_unavailable': "Esta publicação não está mais disponível",
+      'story_shared_post_members_only': "Prévia compartilhada · origem reservada aos membros da comunidade",
       'story_like': 'Gostei',
       'salon_voice_recording_title': 'Gravando mensagem de voz',
       'salon_voice_preview_title': 'Prévia da mensagem de voz',
@@ -7858,6 +7906,14 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'story_reply_hint': "回复快拍…",
+      'story_emoji_tooltip': "表情符号",
+      'story_choose_emoji': "选择表情符号",
+      'story_delete': "删除快拍",
+      'cancel': "取消",
+      'story_send': "发送",
+      'story_shared_post_unavailable': "此帖子已不可用",
+      'story_shared_post_members_only': "分享预览 · 原内容仅对社区成员开放",
       'story_like': '点赞',
       'salon_voice_recording_title': '正在录制语音消息',
       'salon_voice_preview_title': '语音消息预览',
@@ -9126,6 +9182,14 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'story_reply_hint': "ストーリーに返信…",
+      'story_emoji_tooltip': "絵文字",
+      'story_choose_emoji': "絵文字を選択",
+      'story_delete': "ストーリーを削除",
+      'cancel': "キャンセル",
+      'story_send': "送信",
+      'story_shared_post_unavailable': "この投稿は利用できません",
+      'story_shared_post_members_only': "共有プレビュー · 元の投稿はコミュニティメンバー限定です",
       'story_like': 'いいね',
       'salon_voice_recording_title': '音声メッセージを録音中',
       'salon_voice_preview_title': '音声メッセージのプレビュー',
@@ -10387,6 +10451,14 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'story_reply_hint': "Ответить на историю…",
+      'story_emoji_tooltip': "Эмодзи",
+      'story_choose_emoji': "Выберите эмодзи",
+      'story_delete': "Удалить историю",
+      'cancel': "Отмена",
+      'story_send': "Отправить",
+      'story_shared_post_unavailable': "Эта публикация больше недоступна",
+      'story_shared_post_members_only': "Предпросмотр · источник доступен только участникам сообщества",
       'story_like': 'Нравится',
       'salon_voice_recording_title': 'Запись голосового сообщения',
       'salon_voice_preview_title': 'Прослушивание голосового сообщения',
