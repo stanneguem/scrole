@@ -992,7 +992,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Transform.translate(
-                      offset: const Offset(0, 136),
+                      offset: const Offset(0, 170),
                       child: AnimatedOpacity(
                         opacity: _isDragging ? 0.0 : 1.0,
                         duration: const Duration(milliseconds: 200),
@@ -1133,24 +1133,33 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
             }
           },
           onSelected: (emoji) {
-            final value = _replyController.value;
-            final selection = value.selection;
-            final start = selection.isValid ? selection.start : value.text.length;
-            final end = selection.isValid ? selection.end : value.text.length;
-            final nextText = value.text.replaceRange(start, end, emoji);
-            _replyController.value = TextEditingValue(
-              text: nextText,
-              selection: TextSelection.collapsed(offset: start + emoji.length),
-            );
-            setState(() {});
-            _commentFocusNode.requestFocus();
+            if (emoji == '__more__') {
+              _showMoreStoryEmojis();
+              return;
+            }
+            // A quick emoji is sent immediately as a story comment.
+            _sendQuickStoryReply(quickEmoji: emoji);
           },
-          itemBuilder: (_) => ['❤️', '😂', '😍', '🔥', '👏', '👍']
-              .map((emoji) => PopupMenuItem<String>(
-                    value: emoji,
-                    child: Text(emoji, style: const TextStyle(fontSize: 22)),
-                  ))
-              .toList(),
+          itemBuilder: (_) => [
+            ...['❤️', '😂', '😍', '🔥', '👏', '👍'].map(
+              (emoji) => PopupMenuItem<String>(
+                value: emoji,
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem<String>(
+              value: '__more__',
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_circle_outline, color: Colors.white70),
+                  SizedBox(width: 8),
+                  Text('Plus d’émoticônes', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -1213,6 +1222,79 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     );
   }
 
+  Future<void> _showMoreStoryEmojis() async {
+    const emojis = [
+      '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂',
+      '🙃','😉','😍','🥰','😘','😗','😙','😚','😋','😛','😜','🤪',
+      '🤗','🤭','🤫','🤔','🫡','🤐','🤨','😐','😏','😒','🙄','😬',
+      '😴','🤤','🥳','😎','🤩','😭','😢','🥺','😤','😡','🤯','😱',
+      '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','💕','💞','💖',
+      '🔥','✨','⭐','🌟','💯','👏','🙌','👍','👎','🙏','💪','🎉',
+      '🥂','🍾','🌹','🌸','🌈','☀️','💐','🎂','😍','🤝','🫶','💋',
+    ];
+    final selectedEmoji = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          height: MediaQuery.of(sheetContext).size.height * 0.52,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+          decoration: const BoxDecoration(
+            color: Color(0xFF202020),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white30,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Choisir une émoticône',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: GridView.builder(
+                  itemCount: emojis.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                  ),
+                  itemBuilder: (_, index) => InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.of(sheetContext).pop(emojis[index]),
+                    child: Center(
+                      child: Text(emojis[index], style: const TextStyle(fontSize: 27)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    if (selectedEmoji != null) {
+      await _sendQuickStoryReply(quickEmoji: selectedEmoji);
+    } else {
+      setState(() => _isPaused = false);
+      _resumeStoryTimer();
+    }
+  }
+
   Future<void> _sendQuickStoryReply({String? quickEmoji}) async {
     final content = (quickEmoji ?? _replyController.text).trim();
     if (content.isEmpty || _isSendingQuickReply || _isOwnStory || DateTime.now().isAfter(_currentStory.expiresAt)) {
@@ -1231,12 +1313,18 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       setState(() {
         _currentStory.commentsCount++;
         _isSendingQuickReply = false;
+        _isPaused = false;
       });
       _commentFocusNode.unfocus();
+      _resumeStoryTimer();
     } catch (e, st) {
       debugPrint('[STORY] Quick reply failed: $e\\n$st');
       if (!mounted) return;
-      setState(() => _isSendingQuickReply = false);
+      setState(() {
+        _isSendingQuickReply = false;
+        _isPaused = false;
+      });
+      _resumeStoryTimer();
       Get.snackbar(
         'error'.tr,
         'story_error_sending_comment'.tr,
