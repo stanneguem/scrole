@@ -848,6 +848,10 @@ class EventRepository {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getPublicEventSeriesEditions(String eventId) {
+    return _remote.fetchPublicEventSeriesEditions(eventId);
+  }
+
   Future<List<EventModel>> getUserAgenda(String userId) async {
     final data = await _remote.fetchUserAgenda(userId);
     final List<EventModel> events = data.map((item) => EventModel.fromJson(item)).toList();
