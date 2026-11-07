@@ -377,7 +377,12 @@ class _CommunityPreviewSheetState extends State<CommunityPreviewSheet> {
                                   ),
                                   const SizedBox(height: 8),
                                   ...res.reasons.map((reasonCode) {
-                                    final translatedReason = 'community_reason_$reasonCode'.tr;
+                                    final reasonKey = 'community_reason_${reasonCode.trim()}';
+                                    final translatedReason = reasonKey.tr;
+                                    // Unknown backend codes must never be exposed as raw translation keys.
+                                    final displayReason = translatedReason == reasonKey
+                                        ? 'community_reason_GENERIC'.tr
+                                        : translatedReason;
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 4),
                                       child: Row(
@@ -386,7 +391,7 @@ class _CommunityPreviewSheetState extends State<CommunityPreviewSheet> {
                                           const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
                                           Expanded(
                                             child: Text(
-                                              translatedReason,
+                                              displayReason,
                                               style: TextStyle(fontSize: 12.5, color: colorScheme.onSurface),
                                             ),
                                           ),
