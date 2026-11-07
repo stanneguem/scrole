@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:flutter/material.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
@@ -110,12 +112,28 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
     }
   }
 
+  Future<bool> _requestGallerySavePermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt < 29) {
+        return (await Permission.storage.request()).isGranted;
+      }
+      return true;
+    }
+    if (Platform.isIOS) {
+      return (await Permission.photosAddOnly.request()).isGranted;
+    }
+    return false;
+  }
+
   Future<void> _saveCurrentMedia() async {
     if (_items.isEmpty || _isSavingMedia) return;
     final rawUrl = _items[_currentPage].url;
     if (rawUrl.isEmpty) return;
     setState(() => _isSavingMedia = true);
     try {
+      final permissionGranted = await _requestGallerySavePermission();
+      if (!permissionGranted) throw StateError('media_save_permission_denied'.tr);
       final uri = Uri.tryParse(rawUrl);
       final isNetwork = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
       File file;
