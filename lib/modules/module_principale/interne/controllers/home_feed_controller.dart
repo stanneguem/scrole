@@ -209,7 +209,10 @@ class HomeFeedController extends GetxController {
     try {
       _eventRepo = Get.find<EventRepository>();
     } catch (_) {
-      _eventRepo = EventRepository(Get.find(), Get.find());
+      _eventRepo = Get.put<EventRepository>(
+        EventRepository(Get.find(), Get.find()),
+        permanent: true,
+      );
     }
     fetchFeed();
     _counterRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) => _refreshVisibleCounters());
