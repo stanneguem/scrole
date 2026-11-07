@@ -7,16 +7,13 @@ import '../../../../app/theme/text_styles.dart';
 import '../../../../shared/utils/number_formatter.dart';
 import '../../centre/models/event_model.dart';
 import '../../centre/models/event_preview_model.dart';
-import 'activity_event_management_screen.dart';
 
 class EventActivitiesListScreen extends StatelessWidget {
-  final EventModel event;
   final List<EventPreviewActivity> activities;
   final bool canManageActivities;
 
   const EventActivitiesListScreen({
     super.key,
-    required this.event,
     required this.activities,
     this.canManageActivities = false,
   });
@@ -53,86 +50,64 @@ class EventActivitiesListScreen extends StatelessWidget {
                         activity.converted.symbol,
                       );
 
-                return Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: canManageActivities
-                        ? () {
-                            Get.toNamed(
-                              '/events/activities/${event.id}',
-                              arguments: {
-                                'activityId': activity.activityId,
-                                'event': event,
-                              },
-                            );
-                          }
-                        : null,
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: colors.outlineVariant.withValues(alpha: 0.35),
+                    border: Border.all(
+                      color: colors.outlineVariant.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: isFree
+                              ? AppColors.success.withValues(alpha: 0.12)
+                              : AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.local_activity_rounded,
+                          color: isFree ? AppColors.success : AppColors.primary,
+                          size: 22,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: isFree
-                                  ? AppColors.success.withValues(alpha: 0.12)
-                                  : AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.local_activity_rounded,
-                              color: isFree ? AppColors.success : AppColors.primary,
-                              size: 22,
-                            ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          activity.name,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: colors.onSurface,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              activity.name,
-                              style: GoogleFonts.spaceGrotesk(
-                                color: colors.onSurface,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isFree
-                                  ? AppColors.success.withValues(alpha: 0.12)
-                                  : AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              priceText,
-                              style: GoogleFonts.spaceGrotesk(
-                                color: isFree ? AppColors.success : AppColors.primary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (canManageActivities) ...[
-                            const SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_ios_rounded,
-                                size: 14, color: colors.onSurfaceVariant),
-                          ],
-                        ],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isFree
+                              ? AppColors.success.withValues(alpha: 0.12)
+                              : AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          priceText,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: isFree ? AppColors.success : AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
