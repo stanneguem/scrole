@@ -1378,14 +1378,10 @@ class _TrendingHashtagsStripState extends State<_TrendingHashtagsStrip> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  SvgPicture.asset(
-                                    'assets/svg_icons/fire-svgrepo-com.svg',
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: ColorFilter.mode(
-                                      colors.primary,
-                                      BlendMode.srcIn,
-                                    ),
+                                  Icon(
+                                    Icons.local_fire_department_rounded,
+                                    size: 16,
+                                    color: colors.primary,
                                   ),
                                   const SizedBox(width: 3),
                                   Flexible(
