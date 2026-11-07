@@ -124,11 +124,20 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
       if (!await file.exists()) throw StateError('media_save_file_missing'.tr);
       final bytes = await file.readAsBytes();
       final extension = _items[_currentPage].isVideo ? 'mp4' : 'jpg';
-      final result = await SaverGallery.saveImage(
-        Uint8List.fromList(bytes),
-        fileName: 'scrole_${DateTime.now().millisecondsSinceEpoch}.$extension',
-        skipIfExists: false,
-      );
+      final fileName = 'scrole_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final result = _items[_currentPage].isVideo
+          ? await SaverGallery.saveFile(
+              file: file.path,
+              fileName: fileName,
+              androidRelativePath: 'Movies/Scrole',
+              skipIfExists: false,
+            )
+          : await SaverGallery.saveImage(
+              Uint8List.fromList(bytes),
+              fileName: fileName,
+              androidRelativePath: 'Pictures/Scrole',
+              skipIfExists: false,
+            );
       if (!mounted) return;
       final success = result.isSuccess;
       Get.snackbar(
