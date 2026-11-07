@@ -848,7 +848,7 @@ class _SuggestedEventsCarousel extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 302,
+            height: 336,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -964,7 +964,7 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
     final ev = widget.event;
     return Container(
       width: 238,
-      height: 294,
+      height: 328,
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHigh.withValues(alpha: 0.55),
@@ -983,8 +983,8 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
             child: Stack(
               children: [
                 ev.coverImageUrl != null && ev.coverImageUrl!.isNotEmpty
-                    ? AppCachedImage(imageUrl: ev.coverImageUrl!, width: 238, height: 94, fit: BoxFit.cover)
-                    : Container(width: 238, height: 94, color: colors.primaryContainer,
+                    ? AppCachedImage(imageUrl: ev.coverImageUrl!, width: 238, height: 128, fit: BoxFit.cover)
+                    : Container(width: 238, height: 128, color: colors.primaryContainer,
                         child: Icon(Icons.event_rounded, size: 34, color: colors.onPrimaryContainer)),
                 Positioned(
                   right: 8,
