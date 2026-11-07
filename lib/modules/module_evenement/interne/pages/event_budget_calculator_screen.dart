@@ -251,7 +251,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            child: const Text('event_budget_done'.tr),
+            child: Text('event_budget_done'.tr),
           ),
         ],
       ),
