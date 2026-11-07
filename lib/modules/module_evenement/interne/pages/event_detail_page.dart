@@ -207,7 +207,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Conditions d’accès',
+          'event_detail_access_conditions'.tr,
           style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
         ),
         const SizedBox(height: 12),
@@ -266,7 +266,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
       builder: (_) => ScroleBottomSheet(
         child: Column(
           children: [
-            Text('Billets disponibles', style: AppTextStyles.h4),
+            Text('event_detail_available_tickets'.tr, style: AppTextStyles.h4),
             const SizedBox(height: 20),
             ScroleBottomSheetGroup(
               children: tickets.map((t) => ScroleBottomSheetAction(
@@ -291,7 +291,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         onSubmit: () {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Signalement envoyé', style: AppTextStyles.bodySmall.copyWith(color: AppColors.white)),
+              content: Text('event_detail_report_sent'.tr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.white)),
               backgroundColor: AppColors.black1,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -325,20 +325,20 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
 
           if (suggestedCommunityId != null && suggestedCommunityId.isNotEmpty) {
             Get.snackbar(
-              'Communauté associée',
-              'Cet événement est lié à une communauté ! Souhaitez-vous la rejoindre ?',
+              'event_detail_linked_community'.tr,
+              'event_detail_join_community_prompt'.tr,
               backgroundColor: Colors.black87,
               colorText: Colors.white,
               mainButton: TextButton(
                 onPressed: () => Get.toNamed(AppPages.communityDetailPath(suggestedCommunityId)),
-                child: const Text('Rejoindre', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                child: const Text('event_detail_join'.tr, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
               ),
               duration: const Duration(seconds: 5),
             );
           } else {
             Get.snackbar(
-              'Calendrier',
-              'Événement ajouté à votre agenda avec succès !',
+              'event_detail_calendar'.tr,
+              'event_detail_calendar_added_success'.tr,
               backgroundColor: Colors.black87,
               colorText: Colors.white,
             );
@@ -348,7 +348,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
             if (mounted) {
               setState(() => _isEventAdded = wasAdded);
               Get.snackbar(
-                'Calendrier',
+                'event_detail_calendar'.tr,
                 Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
                 backgroundColor: AppColors.error,
                 colorText: Colors.white,
@@ -411,7 +411,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Impossible de modifier votre mention J\'aime. Veuillez réessayer.',
+              'event_detail_like_error'.tr,
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.white),
             ),
             backgroundColor: AppColors.error,
@@ -442,7 +442,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Les jours de participation ne sont pas encore définis par l\'organisateur.',
+                  'event_detail_days_not_defined'.tr,
                   style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
                 ),
                 backgroundColor: AppColors.primary,
@@ -615,7 +615,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
             } else {
               Get.to(() => CreateCommunityPostScreen(
                     communityId: community == null ? null : (community['id'] ?? '').toString(),
-                    communityName: community == null ? 'Mon fil' : (community['name'] ?? 'Communauté').toString(),
+                    communityName: community == null ? 'Mon fil' : (community['name'] ?? 'event_detail_community'.tr).toString(),
                     prefilledText: caption,
                     prefilledMediaUrl: cardFile.path,
                   ));
@@ -936,17 +936,17 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                                 children: [
                                   _StatusChip(status: event.status),
                                   if (event.isOnline)
-                                    _TagChip(label: 'En ligne', color: AppColors.blue)
+                                    _TagChip(label: 'event_detail_online'.tr, color: AppColors.blue)
                                   else
-                                    _TagChip(label: 'Présentiel', color: AppColors.success),
+                                    _TagChip(label: 'event_detail_in_person'.tr, color: AppColors.success),
                                   _TagChip(
                                     label: event.visibility.toString().split('.').last == 'communityOnly'
-                                        ? 'Communauté'
+                                        ? 'event_detail_community'.tr
                                         : event.visibility.toString().split('.').last,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                   if (event.isRecurring)
-                                    _TagChip(label: 'Annuel', color: const Color(0xFFEAB308)),
+                                    _TagChip(label: 'event_detail_annual'.tr, color: const Color(0xFFEAB308)),
                                 ],
                               ),
                             ),
@@ -996,7 +996,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                           ),
                           GestureDetector(
                             onTap: () => setState(() => _descriptionExpanded = !_descriptionExpanded),
-                            child: Text(_descriptionExpanded ? 'Voir moins' : 'Voir plus',
+                            child: Text(_descriptionExpanded ? 'event_detail_see_less'.tr : 'event_detail_see_more'.tr,
                                 style: AppTextStyles.link.copyWith(color: AppColors.primary, fontSize: 13)),
                           ),
                         ],
@@ -1005,25 +1005,25 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         // Date & Lieu
                         _InfoRow(
                           icon: Icons.calendar_today_outlined,
-                          label: 'Date',
+                          label: 'event_detail_date'.tr,
                           value: DateFormat('EEEE d MMMM yyyy').format(event.startsAt),
                         ),
                         _InfoRow(
                           icon: Icons.access_time,
-                          label: 'Heure',
+                          label: 'event_detail_time'.tr,
                           value: event.endsAt != null
                               ? '${event.timeString} – ${DateFormat('HH:mm').format(event.endsAt!)}'
-                              : (event.timeString ?? 'Non précisé'),
+                              : (event.timeString ?? 'event_detail_unspecified'.tr),
                         ),
                         if (event.timezone != null)
-                          _InfoRow(icon: Icons.public, label: 'Fuseau horaire', value: event.timezone!),
+                          _InfoRow(icon: Icons.public, label: 'event_detail_timezone'.tr, value: event.timezone!),
                         const SizedBox(height: 16),
 
                         if (event.isOnline && event.onlineUrl != null) ...[
-                          _InfoRow(icon: Icons.videocam_outlined, label: 'Lien visio',
+                          _InfoRow(icon: Icons.videocam_outlined, label: 'event_detail_video_link'.tr,
                               value: event.onlineUrl!, isLink: true),
                         ] else if (event.address != null) ...[
-                          _InfoRow(icon: Icons.location_on_outlined, label: 'Adresse', value: event.address!),
+                          _InfoRow(icon: Icons.location_on_outlined, label: 'event_detail_address'.tr, value: event.address!),
                         ],
                         // Conditions d'accès configurées côté backend (event_restrictions).
                         if (preview != null && _hasAccessConditions(preview.restrictions)) ...[
@@ -1042,8 +1042,8 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                                   context,
                                   icon: Icons.money_off,
                                   color: AppColors.success,
-                                  label: 'Entrée Gratuite',
-                                  value: 'Gratuit',
+                                  label: 'event_detail_free_entry'.tr,
+                                  value: 'event_detail_free'.tr,
                                 ),
                               )
                             else ...[
@@ -1054,9 +1054,9 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                                     context,
                                     icon: Icons.confirmation_number_outlined,
                                     color: AppColors.primary,
-                                    label: 'À partir de',
+                                    label: 'event_detail_from_price'.tr,
                                     value: cheapestAmount <= 0
-                                        ? 'Gratuit'
+                                        ? 'event_detail_free'.tr
                                         : NumberFormatter.formatPrice(cheapestAmount, cheapestSymbol),
                                     showArrow: preview?.tickets.isNotEmpty ?? false,
                                   ),
@@ -1079,9 +1079,9 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                                     context,
                                     icon: Icons.account_balance_wallet_outlined,
                                     color: AppColors.primary,
-                                    label: 'Budget total estimé',
+                                    label: 'event_detail_estimated_budget'.tr,
                                     value: estimatedTotalBudget <= 0
-                                        ? 'Gratuit'
+                                        ? 'event_detail_free'.tr
                                         : NumberFormatter.formatPrice(estimatedTotalBudget, cheapestSymbol),
                                     isGradient: true,
                                   ),
@@ -1095,7 +1095,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                         // Amis ayant ajouté l'événement
                         if (preview != null && preview.amisDansAgendaPhotos.isNotEmpty) ...[
                           Text(
-                            'Tes connexions y vont',
+                            'event_detail_connections_going'.tr,
                             style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
                           ),
                           const SizedBox(height: 12),
@@ -1150,7 +1150,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
 
                         // Activités Réelles de l'événement
                         if (preview != null && preview.activitiesLiees.isNotEmpty) ...[
-                          Text('Activités', style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface)),
+                          Text('event_detail_activities'.tr, style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface)),
                           const SizedBox(height: 12),
                           ListView.separated(
                             shrinkWrap: true,
@@ -1161,7 +1161,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                               final act = preview.activitiesLiees[index];
                               final isFree = act.converted.amount <= 0;
                               final priceText = isFree
-                                  ? 'Gratuit'
+                                  ? 'event_detail_free'.tr
                                   : NumberFormatter.formatPrice(act.converted.amount, act.converted.symbol);
 
                               return Material(
@@ -1305,7 +1305,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                             onPressed: _isCalendarLoading ? null : _handleCalendarAction,
                             icon: Icon(_isEventAdded ? Icons.check_rounded : Icons.calendar_today_rounded, size: 18),
                             label: Text(
-                              _isEventAdded ? 'Ajouté à mon agenda' : 'Ajouter à mon agenda',
+                              _isEventAdded ? 'event_detail_added_to_calendar'.tr : 'event_detail_add_to_calendar'.tr,
                               style: AppTextStyles.buttonSmall.copyWith(fontSize: 13, fontWeight: FontWeight.bold),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1330,7 +1330,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                               ),
                               icon: const Icon(Icons.route_rounded, size: 18),
                               label: const Text(
-                                'Organiser mon parcours',
+                                'event_detail_plan_my_route'.tr,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
@@ -1409,7 +1409,7 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                               : null,
                           icon: Icon(Icons.star_outline_rounded, size: 16, color: colorScheme.onSurface),
                           label: Text(
-                            'Noter',
+                            'event_detail_rate'.tr,
                             style: AppTextStyles.buttonSmall.copyWith(color: colorScheme.onSurface),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1530,7 +1530,7 @@ class _RestrictedPreviewView extends StatelessWidget {
             Flexible(
               fit: FlexFit.loose,
               child: Text(
-                event.name.isNotEmpty ? event.name : 'Aperçu restreint',
+                event.name.isNotEmpty ? event.name : 'event_detail_restricted_preview'.tr,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1569,7 +1569,7 @@ class _RestrictedPreviewView extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'Prévisualisation publique restreinte',
+                'event_detail_restricted_public_preview'.tr,
                 style: AppTextStyles.h4.copyWith(color: colorScheme.onSurface),
                 textAlign: TextAlign.center,
               ),
@@ -1601,7 +1601,7 @@ class _RestrictedPreviewView extends StatelessWidget {
               ],
               OutlinedButton(
                 onPressed: () => Get.back(),
-                child: const Text('Retour'),
+                child: const Text('event_detail_back'.tr),
               ),
             ],
           ),
@@ -1655,16 +1655,16 @@ class _StatusChip extends StatelessWidget {
     Color color = Colors.grey;
 
     if (status == EventStatus.published) {
-      label = 'Actif';
+      label = 'event_detail_status_active'.tr;
       color = AppColors.success;
     } else if (status == EventStatus.draft) {
-      label = 'En attente';
+      label = 'event_detail_status_pending'.tr;
       color = Colors.amber[800]!;
     } else if (status == EventStatus.pendingDeletion) {
-      label = 'Suppression';
+      label = 'event_detail_status_deleting'.tr;
       color = AppColors.error;
     } else if (status == EventStatus.cancelled) {
-      label = 'Annulé';
+      label = 'event_detail_status_cancelled'.tr;
       color = AppColors.error;
     }
 
