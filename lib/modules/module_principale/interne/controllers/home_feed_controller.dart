@@ -106,23 +106,22 @@ class HomeFeedController extends GetxController {
   void queuePostView(CommunityPost post) {
     // Video views are recorded only after 50% of effective playback.
     if (post.media.any((media) => media.isVideo)) return;
-    _queuePostViewId(post);
+    _queuePostViewId(post.id, post);
   }
 
-  void queueQualifiedVideoPostView(CommunityPost post) {
-    if (!post.media.any((media) => media.isVideo)) return;
-    _queuePostViewId(post);
+  void queueQualifiedVideoPostView(String postId, CommunityPost post) {
+    _queuePostViewId(postId, post);
   }
 
-  void _queuePostViewId(CommunityPost post) {
-    if (post.isPublishing) return;
+  void _queuePostViewId(String postId, CommunityPost post) {
+    if (post.isPublishing || postId.isEmpty) return;
     final myId = _authService.userId;
     if (myId != null && post.authorId == myId) return;
-    if (_sentViewIds.contains(post.id)) return;
-    if (_pendingViewIds.contains(post.id)) return;
+    if (_sentViewIds.contains(postId)) return;
+    if (_pendingViewIds.contains(postId)) return;
 
-    _pendingViewIds.add(post.id);
-    _sentViewIds.add(post.id);
+    _pendingViewIds.add(postId);
+    _sentViewIds.add(postId);
 
     if (_pendingViewIds.length >= 20) {
       _flushViewBatch();
