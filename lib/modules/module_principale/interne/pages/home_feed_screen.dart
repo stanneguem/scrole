@@ -806,11 +806,25 @@ class _SuggestedEventsCarousel extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'home_feed_suggested_events_title'.tr,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: colorScheme.onSurface),
+                Expanded(
+                  child: Text(
+                    'home_feed_suggested_events_title'.tr,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 8),
                 TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 40),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () {
                     try {
                       if (Get.isRegistered<MainLayoutController>()) {
@@ -820,7 +834,15 @@ class _SuggestedEventsCarousel extends StatelessWidget {
                       debugPrint('[EVENTS] Error navigating to event suggestions: $e');
                     }
                   },
-                  child: Text('see_more'.tr, style: TextStyle(fontWeight: FontWeight.w600, color: colorScheme.primary)),
+                  child: Text(
+                    'see_more'.tr,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.primary,
+                    ),
+                  ),
                 ),
               ],
             ),
