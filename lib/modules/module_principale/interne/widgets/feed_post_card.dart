@@ -433,14 +433,12 @@ class FeedPostCard extends StatelessWidget {
 
   Widget _buildEventHeader(ColorScheme colorScheme) {
     final logo = post.eventLogoUrl;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: post.eventId == null || post.eventId!.isEmpty
-            ? null
-            : _openEventFromPost,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: post.eventId == null || post.eventId!.trim().isEmpty
+          ? null
+          : _openEventFromPost,
+      child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(children: [
             ClipRRect(
@@ -473,7 +471,6 @@ class FeedPostCard extends StatelessWidget {
             Icon(Icons.chevron_right_rounded, size: 18, color: colorScheme.onSurfaceVariant),
           ]),
         ),
-      ),
     );
   }
 
@@ -561,10 +558,27 @@ class FeedPostCard extends StatelessWidget {
           arguments: {'id': eventId, 'context': 'post'},
         );
       }
-    } catch (e) {
-      debugPrint('[FeedPostCard] Unable to open linked event $eventId: $e');
-      Get.snackbar('Événement', 'Impossible d’ouvrir cet événement pour le moment.',
-          snackPosition: SnackPosition.BOTTOM);
+    } catch (e, stackTrace) {
+      debugPrint('[FeedPostCard] Unable to preload linked event $eventId: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      // Le préchargement peut échouer (réseau, cache ou droits de lecture).
+      // On laisse tout de même l'écran de prévisualisation tenter son propre
+      // chargement au lieu de laisser le toucher sans effet.
+      try {
+        Get.toNamed(
+          AppPages.eventPreviewPath(eventId),
+          arguments: {'id': eventId, 'context': 'post'},
+        );
+      } catch (navigationError, navigationStack) {
+        debugPrint('[FeedPostCard] Event fallback navigation failed: $navigationError');
+        debugPrintStack(stackTrace: navigationStack);
+        Get.snackbar(
+          'Événement',
+          'Impossible d’ouvrir cet événement. Vérifie ta connexion puis réessaie.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     }
   }
 
