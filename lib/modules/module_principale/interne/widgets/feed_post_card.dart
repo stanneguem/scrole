@@ -484,7 +484,7 @@ class FeedPostCard extends StatelessWidget {
       child: InkWell(
         onTap: post.communityId == null || post.communityId!.isEmpty
             ? null
-            : () => _openCommunityFromPost(post.communityId!),
+            : () => _openCommunityFromPost(context, post.communityId!),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
@@ -568,7 +568,7 @@ class FeedPostCard extends StatelessWidget {
     }
   }
 
-  Future<void> _openCommunityFromPost(String communityId) async {
+  Future<void> _openCommunityFromPost(BuildContext context, String communityId) async {
     try {
       final service = Get.isRegistered<CommunityService>()
           ? Get.find<CommunityService>()
@@ -581,7 +581,7 @@ class FeedPostCard extends StatelessWidget {
       }
 
       if (result.destination == 'preview') {
-        showCommunityPreviewSheet(Get.context!, result: result);
+        if (context.mounted) showCommunityPreviewSheet(context, result: result);
         return;
       }
 
