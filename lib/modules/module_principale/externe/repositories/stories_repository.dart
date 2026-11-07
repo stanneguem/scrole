@@ -53,10 +53,10 @@ class StoriesRepository {
         'p_suggested_limit': suggestedLimit,
       });
       if (response is Map) return Map<String, dynamic>.from(response);
-      return {'own': null, 'following': [], 'suggested': []};
-    } catch (e) {
-      debugPrint('[STORY] [Repository] Error in getStoriesTray: $e');
-      return {'own': null, 'following': [], 'suggested': []};
+      throw StateError('Réponse invalide du fil de stories.');
+    } catch (e, st) {
+      debugPrint('[STORY] [Repository] Error in getStoriesTray: $e\\n$st');
+      rethrow;
     }
   }
 
