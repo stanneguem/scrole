@@ -444,7 +444,7 @@ class EventRepository {
         final age = DateTime.now().difference(cachedAt);
         if (age < const Duration(hours: 5)) {
           final List<dynamic> list = jsonDecode(payload);
-          final dismissed = await _remote.fetchDismissedHomeEventSuggestionIds();
+          final dismissed = await _loadDismissedSuggestionIdsSafely();
           return _deduplicateRawSuggestions(_withoutDismissedSuggestions(list, dismissed));
         }
       }
@@ -452,7 +452,7 @@ class EventRepository {
 
     try {
       final data = await _remote.fetchSuggestedEvents(limit: 50);
-      final dismissed = await _remote.fetchDismissedHomeEventSuggestionIds();
+      final dismissed = await _loadDismissedSuggestionIdsSafely();
       final visible = _withoutDismissedSuggestions(data, dismissed);
       await _dao.saveDiscoveryCache(cacheKey, jsonEncode(visible));
       return _deduplicateRawSuggestions(visible);
@@ -462,7 +462,7 @@ class EventRepository {
       final cached = await _dao.getDiscoveryCache(cacheKey);
       if (cached != null) {
         final List<dynamic> list = jsonDecode(cached.$1);
-        final dismissed = await _remote.fetchDismissedHomeEventSuggestionIds();
+        final dismissed = await _loadDismissedSuggestionIdsSafely();
         return _deduplicateRawSuggestions(_withoutDismissedSuggestions(list, dismissed));
       }
       rethrow;
