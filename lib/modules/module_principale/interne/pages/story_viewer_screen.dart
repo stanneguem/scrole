@@ -93,7 +93,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     // Wait until the first frame so inherited widgets (MediaQuery/Theme)
     // are available before starting story image precaching.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _startStory();
+      if (!mounted) return;
+      _startStory();
+      // Render the already-fetched story/media immediately, then reconcile
+      // visibility and live counters with Supabase without blocking playback.
+      unawaited(_refreshCurrentGroupFromServer());
     });
   }
 
@@ -185,6 +189,83 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         _imageLoadedStoryId == storyId) return;
     setState(() => _imageLoadedStoryId = storyId);
     _beginCurrentImageStory();
+  }
+
+  Future<void> _refreshCurrentGroupFromServer() async {
+    final groupAtRequest = _currentGroup;
+    final authorId = groupAtRequest.author.userId;
+    if (authorId.isEmpty) return;
+
+    try {
+      final data = await _storiesRepo.getUserStories(authorId);
+      if (!mounted || _groupIndex >= widget.groups.length ||
+          _currentGroup.author.userId != authorId) return;
+
+      // A successful empty response means the author deleted the story or
+      // the viewer no longer has permission to see it. A network error throws
+      // from the repository and deliberately leaves the offline copy intact.
+      final refreshed = data == null
+          ? <StoryItem>[]
+          : EventStoryGroup.fromMap(Map<String, dynamic>.from(data)).stories;
+      final refreshedById = {for (final story in refreshed) story.id: story};
+      final previousStories = List<StoryItem>.from(groupAtRequest.stories);
+
+      for (final previous in previousStories) {
+        if (refreshedById.containsKey(previous.id)) continue;
+        final mediaKey = previous.imageUrl;
+        final thumbnailKey = previous.thumbnailUrl;
+        if (mediaKey != null && mediaKey.startsWith('stories/')) {
+          await AppCachedImage.clearPrivateMediaCache(mediaKey);
+        }
+        if (thumbnailKey != null && thumbnailKey.startsWith('stories/')) {
+          await AppCachedImage.clearPrivateMediaCache(thumbnailKey);
+        }
+        // Video playback cache is keyed by story id and must disappear too
+        // when the server confirms that the story is no longer available.
+        try {
+          final directory = await getApplicationSupportDirectory();
+          final cacheDirectory = Directory(p.join(directory.path, 'stories_cache'));
+          final safeId = previous.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+          for (final suffix in ['.mp4', '.mov', '.expiry']) {
+            final cached = File(p.join(cacheDirectory.path, '$safeId$suffix'));
+            if (await cached.exists()) await cached.delete();
+          }
+        } catch (cacheError) {
+          debugPrint('[STORY_CACHE] Removed story media cleanup failed: $cacheError');
+        }
+        debugPrint('[STORY] Removed locally cached story no longer visible: ${previous.id}');
+      }
+
+      final currentId = _currentStory.id;
+      groupAtRequest.stories
+        ..clear()
+        ..addAll(refreshed);
+      groupAtRequest.hasUnseen = refreshed.any((story) => !story.viewed);
+
+      if (refreshed.isEmpty) {
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
+
+      final updatedIndex = refreshed.indexWhere((story) => story.id == currentId);
+      if (updatedIndex < 0) {
+        _storyIndex = _storyIndex.clamp(0, refreshed.length - 1);
+        _imageLoadedStoryId = null;
+        _videoProgress = 0;
+        if (mounted) {
+          setState(() {});
+          _startStory();
+        }
+      } else {
+        _storyIndex = updatedIndex;
+        if (mounted) setState(() {});
+      }
+      _storiesController.refreshGroupViewedState(groupAtRequest);
+      debugPrint('[STORY] Background sync completed for author=$authorId stories=${refreshed.length}');
+    } catch (e, st) {
+      // Offline or transient backend errors must not blank a valid cached story.
+      debugPrint('[STORY] Background sync failed; keeping cached story: $e\\n$st');
+    }
   }
 
   void _markCurrentViewed() {
