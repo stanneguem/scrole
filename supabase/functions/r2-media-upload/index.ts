@@ -236,10 +236,15 @@ Deno.serve(async (req: Request) => {
       const { data: member } = await admin.from("community_members").select("user_id").eq("community_id", communityId).eq("user_id", user.id).maybeSingle();
       allowed = !!member;
     } else if (parts[0] === "stories" && parts.length >= 3) {
-      const { data: story } = await admin.from("stories")
+      const { data: storyByVideo } = await admin.from("stories")
         .select("id,author_id,audience,status,expires_at,image_url,thumbnail_url")
-        .or(`image_url.eq.${key},thumbnail_url.eq.${key}`)
-        .maybeSingle();
+        .eq("image_url", key).maybeSingle();
+      const { data: storyByThumbnail } = storyByVideo
+        ? { data: null }
+        : await admin.from("stories")
+            .select("id,author_id,audience,status,expires_at,image_url,thumbnail_url")
+            .eq("thumbnail_url", key).maybeSingle();
+      const story = storyByVideo ?? storyByThumbnail;
       if (story && story.status === "active" && (!story.expires_at || new Date(story.expires_at).getTime() > Date.now())) {
         if (story.author_id === user.id) allowed = true;
         else {
