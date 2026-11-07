@@ -164,9 +164,9 @@ class FeedPostCard extends StatelessWidget {
     EdgeInsets.symmetric(horizontal: cardHorizontalPadding);
     final hasCommunity =
         post.communityId != null && post.communityId!.isNotEmpty;
-    final isInsideOwnCommunityFeed =
-        currentCommunityId != null && currentCommunityId == post.communityId;
-    final showCommunityHeader = hasCommunity && !isInsideOwnCommunityFeed;
+    // Afficher l'origine communautaire dans tous les fils, avec le même
+    // repère visuel que les publications liées à un événement.
+    final showCommunityHeader = hasCommunity;
     final isSingleVideoPost =
         post.media.length == 1 && post.media.first.isVideo;
 
