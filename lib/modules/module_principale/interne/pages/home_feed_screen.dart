@@ -448,9 +448,9 @@ class _StoriesRow extends GetView<StoriesController> {
                     (ownSharedMedia.first.thumbnailUrl?.isNotEmpty ?? false)
                 ? ownSharedMedia.first.thumbnailUrl
                 : ownSharedMedia.first.url);
-        final ownStoryPreviewUrl = ownLatestStory?.imageUrl?.isNotEmpty == true
-            ? ownLatestStory!.imageUrl
-            : ownSharedPreviewUrl;
+        final ownStoryPreviewUrl = ownLatestStory?.kind == 'video'
+            ? (ownLatestStory?.thumbnailUrl?.isNotEmpty == true ? ownLatestStory!.thumbnailUrl : own?.author.photoUrl ?? ownProfilePhoto)
+            : (ownLatestStory?.imageUrl?.isNotEmpty == true ? ownLatestStory!.imageUrl : ownSharedPreviewUrl);
         // Unseen stories first, then most recently active authors.
         final otherGroups = <EventStoryGroup>[
           ...controller.followingGroups,
@@ -583,6 +583,10 @@ class _StoriesRow extends GetView<StoriesController> {
 
             final group = otherGroups[index - 1];
             final hasUnviewed = group.hasUnseen;
+            final latestStory = group.stories.isEmpty ? null : (group.stories.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt))).first;
+            final storyPreviewUrl = latestStory?.kind == 'video'
+                ? (latestStory?.thumbnailUrl?.isNotEmpty == true ? latestStory!.thumbnailUrl : group.author.photoUrl)
+                : (latestStory?.imageUrl?.isNotEmpty == true ? latestStory!.imageUrl : group.author.photoUrl);
 
             return Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -603,14 +607,28 @@ class _StoriesRow extends GetView<StoriesController> {
                           width: 2.5,
                         ),
                       ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundImage: group.author.photoUrl != null && group.author.photoUrl!.isNotEmpty
-                            ? NetworkImage(group.author.photoUrl!)
-                            : null,
-                        child: group.author.photoUrl == null || group.author.photoUrl!.isEmpty
-                            ? Text(group.author.displayName.isNotEmpty ? group.author.displayName[0] : 'U')
-                            : null,
+                      child: ClipOval(
+                        child: SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: storyPreviewUrl != null && storyPreviewUrl.isNotEmpty
+                              ? AppCachedImage(
+                                  imageUrl: storyPreviewUrl,
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorWidget: Container(
+                                    color: colorScheme.surfaceContainerHighest,
+                                    alignment: Alignment.center,
+                                    child: Text(group.author.displayName.isNotEmpty ? group.author.displayName[0] : 'U'),
+                                  ),
+                                )
+                              : Container(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  alignment: Alignment.center,
+                                  child: Text(group.author.displayName.isNotEmpty ? group.author.displayName[0] : 'U'),
+                                ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
