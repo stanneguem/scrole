@@ -160,10 +160,6 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-                        width: 0.8,
-                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(
@@ -180,7 +176,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                   height: 66,
                   elevation: 0,
                   backgroundColor: colorScheme.surface,
-                  indicatorColor: colorScheme.primary.withValues(alpha: 0.13),
+                  indicatorColor: colorScheme.surfaceContainerHighest,
                   indicatorShape: const StadiumBorder(),
                   selectedIndex: _currentIndex == 2 ? 3 : _currentIndex,
                   onDestinationSelected: _onTabChanged,
