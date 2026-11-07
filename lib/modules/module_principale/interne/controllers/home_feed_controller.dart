@@ -103,9 +103,13 @@ class HomeFeedController extends GetxController {
     }
   }
 
+  bool _containsVideo(CommunityPost post) =>
+      post.media.any((media) => media.isVideo) ||
+      (post.sharedPost?.media.any((media) => media.isVideo) ?? false);
+
   void queuePostView(CommunityPost post) {
     // Video views are recorded only after 50% of effective playback.
-    if (post.media.any((media) => media.isVideo)) return;
+    if (_containsVideo(post)) return;
     _queuePostViewId(post.id, post);
   }
 
@@ -276,7 +280,7 @@ class HomeFeedController extends GetxController {
       debugPrint('[HOME_FEED] Item counts per type -> Standard Posts: $postTypeCount, Community Posts: $communityPostCount');
 
       final immediatelyCountableIds = remoteItems
-          .where((post) => !post.media.any((media) => media.isVideo))
+          .where((post) => !_containsVideo(post))
           .map((post) => post.id)
           .toList();
       if (immediatelyCountableIds.isNotEmpty) {
