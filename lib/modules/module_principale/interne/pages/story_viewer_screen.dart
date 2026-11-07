@@ -533,7 +533,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     color: colorScheme.error,
                   ),
                   title: Text(
-                    'Supprimer la story',
+                    'story_delete'.tr,
                     style: TextStyle(
                       color: colorScheme.error,
                       fontWeight: FontWeight.bold,
@@ -560,7 +560,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   color: colorScheme.onSurfaceVariant,
                 ),
                 title: Text(
-                  'Annuler',
+                  'cancel'.tr,
                   style: TextStyle(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
@@ -636,7 +636,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   )
                 else if (_currentStory.kind == 'image' &&
                     _currentStory.imageUrl != null)
-                  Center(
+                  Positioned.fill(
                     child: AppCachedImage(
                       key: ValueKey('story-image-${_currentStory.id}'),
                       imageUrl: _currentStory.imageUrl!,
@@ -689,7 +689,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: const Text(
-                                'Cette publication n\'est plus disponible',
+                                'story_shared_post_unavailable'.tr,
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontStyle: FontStyle.italic,
@@ -702,7 +702,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                               const Padding(
                                 padding: EdgeInsets.only(bottom: 8),
                                 child: Text(
-                                  'Aperçu partagé · source réservée aux membres de la communauté',
+                                  'story_shared_post_members_only'.tr,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Colors.white70,
@@ -1018,7 +1018,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                           Text(
                                             _currentStory.likesCount > 0
                                                 ? NumberFormatter.formatCount(_currentStory.likesCount)
-                                                : 'story_like'.tr,
+                                                : (_currentStory.isLiked ? '1' : 'story_like'.tr),
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 11,
@@ -1125,7 +1125,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       children: [
         // Emoji picker stays outside the text field's single border.
         PopupMenuButton<String>(
-          tooltip: 'Émojis',
+          tooltip: 'story_emoji_tooltip'.tr,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 26),
@@ -1189,7 +1189,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     style: const TextStyle(color: Colors.white, fontSize: 14),
                     cursorColor: Colors.white,
                     decoration: InputDecoration(
-                      hintText: 'Répondre à la story…',
+                      hintText: 'story_reply_hint'.tr,
                       hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
                       filled: true,
                       fillColor: Colors.transparent,
@@ -1208,7 +1208,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 if (hasText)
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    tooltip: 'Envoyer',
+                    tooltip: 'story_send'.tr,
                     onPressed: _isSendingQuickReply ? null : _sendQuickStoryReply,
                     icon: _isSendingQuickReply
                         ? const SizedBox(
@@ -1259,11 +1259,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 ),
               ),
               const SizedBox(height: 14),
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Choisir une émoticône',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                  'story_choose_emoji'.tr,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(height: 12),
@@ -3105,7 +3105,7 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
     return IgnorePointer(
       child: SizedBox.expand(
         child: FittedBox(
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
           child: SizedBox(
             width: controller.value.size.width,
             height: controller.value.size.height,
