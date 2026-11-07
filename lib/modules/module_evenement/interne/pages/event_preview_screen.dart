@@ -213,10 +213,17 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
             'edition_count': editions.length,
             'editions': editions,
           };
-          if (mounted) Get.off(() => ProfileEventSeriesScreen(
-            series: series,
-            profileUserId: userId,
-          ));
+          if (mounted) {
+            final completedEditions = editions.where((edition) =>
+              (edition['status'] ?? '').toString().toLowerCase() == 'completed'
+            ).toList();
+            final archiveSeries = {...series, 'editions': completedEditions,
+              'edition_count': completedEditions.length};
+            Get.off(() => ProfileEventSeriesScreen(
+              series: archiveSeries,
+              profileUserId: userId,
+            ));
+          }
           return;
         }
       }
@@ -933,14 +940,17 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   tooltip: 'Éditions passées',
                   icon: const Icon(Icons.history_rounded),
                   onPressed: () {
+                    final pastEditions = _seriesEditions.where((edition) =>
+                      (edition['status'] ?? '').toString().toLowerCase() == 'completed'
+                    ).toList();
                     final series = <String, dynamic>{
                       'id': event.seriesId ?? event.id,
                       'series_id': event.seriesId ?? event.id,
                       'name': event.name,
                       'photo': event.coverImageUrl,
                       'description': event.description,
-                      'edition_count': _seriesEditions.length,
-                      'editions': _seriesEditions,
+                      'edition_count': pastEditions.length,
+                      'editions': pastEditions,
                     };
                     Get.to(() => ProfileEventSeriesScreen(
                       series: series,
