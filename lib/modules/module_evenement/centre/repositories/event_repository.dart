@@ -418,7 +418,7 @@ class EventRepository {
 
   Future<Set<String>> _loadDismissedSuggestionIdsSafely() async {
     try {
-      return await _loadDismissedSuggestionIdsSafely();
+      return await _remote.fetchDismissedHomeEventSuggestionIds();
     } catch (e) {
       debugPrint('[EventRepository] Could not refresh dismissed suggestions: $e');
       return <String>{};
