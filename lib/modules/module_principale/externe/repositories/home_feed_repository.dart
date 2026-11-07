@@ -9,6 +9,7 @@ class SuggestedProfileModel {
   final String username;
   final String? photoUrl;
   final String reasonSubtitle;
+  final bool isCertified;
   bool isAdded;
 
   SuggestedProfileModel({
@@ -17,16 +18,30 @@ class SuggestedProfileModel {
     required this.username,
     this.photoUrl,
     required this.reasonSubtitle,
+    this.isCertified = false,
     this.isAdded = false,
   });
 
   factory SuggestedProfileModel.fromJson(Map<String, dynamic> json) {
+    final username = (json['username'] ?? '').toString();
+    final fullName = (json['full_name'] ?? json['name'] ?? json['display_name'] ?? '').toString().trim();
+    final mutual = (json['mutual_friends_count'] as num?)?.toInt() ?? 0;
+    final reason = mutual > 0
+        ? '$mutual ami${mutual > 1 ? 's' : ''} en commun'
+        : (json['same_city'] == true
+            ? 'Même ville'
+            : (json['common_community'] == true
+                ? 'Communauté en commun'
+                : ((json['common_interests_count'] as num?)?.toInt() ?? 0) > 0
+                    ? 'Centres d’intérêt communs'
+                    : 'Profil à découvrir'));
     return SuggestedProfileModel(
-      id: json['id']?.toString() ?? json['user_id']?.toString() ?? '',
-      name: json['name']?.toString() ?? json['display_name']?.toString() ?? json['username']?.toString() ?? '',
-      username: json['username']?.toString() ?? '',
-      photoUrl: json['photo_url']?.toString() ?? json['avatar_url']?.toString(),
-      reasonSubtitle: json['reason_subtitle']?.toString() ?? json['reason']?.toString() ?? 'Amis en commun',
+      id: (json['user_id'] ?? json['id'] ?? '').toString(),
+      name: fullName.isNotEmpty ? fullName : username,
+      username: username,
+      photoUrl: (json['photo_url'] ?? json['avatar_url'])?.toString(),
+      reasonSubtitle: (json['reason_subtitle'] ?? json['reason'] ?? reason).toString(),
+      isCertified: json['is_certified'] == true || json['is_verified'] == true,
       isAdded: json['is_added'] == true || json['is_following'] == true,
     );
   }
@@ -241,18 +256,24 @@ class HomeFeedRepository {
         'p_offset': offset,
       });
       debugPrint('[HOME_FEED] RPC get_suggested_profiles response count: ${response is List ? response.length : 1}');
-      if (response is List) {
-        return response.map((e) => SuggestedProfileModel.fromJson(Map<String, dynamic>.from(e))).toList();
-      }
-      return [];
+      final rawItems = response is List
+          ? response
+          : response is Map
+              ? (response['items'] as List? ?? const [])
+              : const [];
+      return rawItems
+          .whereType<Map>()
+          .map((e) => SuggestedProfileModel.fromJson(Map<String, dynamic>.from(e)))
+          .where((profile) => profile.id.isNotEmpty)
+          .toList(growable: false);
     } catch (e) {
-      debugPrint('[HOME_FEED] get_suggested_profiles error (fallback sample): $e');
-      return [
-        SuggestedProfileModel(id: 'sp_1', name: 'Sarah Koné', username: 'sarah_k', photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop', reasonSubtitle: 'Même ville (Yaoundé)'),
-        SuggestedProfileModel(id: 'sp_2', name: 'Marc Talla', username: 'marc_t', photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop', reasonSubtitle: '3 amis en commun'),
-        SuggestedProfileModel(id: 'sp_3', name: 'Aïcha Bello', username: 'aicha_b', photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop', reasonSubtitle: 'Communauté similaire'),
-      ];
+      debugPrint('[HOME_FEED] get_suggested_profiles error: $e');
+      return [];
     }
+  }
+
+  Future<void> dismissSuggestedProfile(String userId) async {
+    await client.rpc('dismiss_suggested_profile', params: {'p_user_id': userId});
   }
 
   /// Returns live hashtag trends calculated from visible posts in the last 30 minutes and 24 hours.
