@@ -29,6 +29,7 @@ import 'event_comments_screen.dart';
 import 'external_event_itinerary_screen.dart';
 import 'event_itinerary_overview_screen.dart';
 import 'event_rating_screen.dart';
+import 'event_activities_list_screen.dart';
 import '../widgets/event_share_options_sheet.dart';
 import '../widgets/event_share_card_design_picker.dart';
 import '../../../module_principale/interne/pages/create_story_screen.dart';
@@ -1148,122 +1149,30 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                           const SizedBox(height: 24),
                         ],
 
-                        // Activités Réelles de l'événement
+                        // Les activités sont consultables sur une page dédiée.
                         if (preview != null && preview.activitiesLiees.isNotEmpty) ...[
-                          Text('event_detail_activities'.tr, style: AppTextStyles.h5.copyWith(color: colorScheme.onSurface)),
-                          const SizedBox(height: 12),
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: preview.activitiesLiees.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final act = preview.activitiesLiees[index];
-                              final isFree = act.converted.amount <= 0;
-                              final priceText = isFree
-                                  ? 'event_detail_free'.tr
-                                  : NumberFormatter.formatPrice(act.converted.amount, act.converted.symbol);
-
-                              return Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  // Les visiteurs consultent uniquement la carte.
-                                  // L'écran de gestion est réservé à l'équipe.
-                                  onTap: canManageActivities
-                                      ? () {
-                                          Get.toNamed(
-                                            AppPages.eventActivities.replaceFirst(':id', widget.event.id),
-                                            arguments: {'activity': act, 'event': widget.event},
-                                          );
-                                        }
-                                      : null,
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.surfaceContainerLow,
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 44,
-                                          height: 44,
-                                          decoration: BoxDecoration(
-                                            color: isFree
-                                                ? AppColors.success.withValues(alpha: 0.12)
-                                                : AppColors.primary.withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Icon(
-                                            Icons.local_activity_rounded,
-                                            color: isFree ? AppColors.success : AppColors.primary,
-                                            size: 22,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                act.name,
-                                                style: GoogleFonts.spaceGrotesk(
-                                                  color: colorScheme.onSurface,
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Activité de l\'événement',
-                                                style: AppTextStyles.caption.copyWith(
-                                                  color: colorScheme.onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: isFree
-                                                    ? AppColors.success.withValues(alpha: 0.12)
-                                                    : AppColors.primary.withValues(alpha: 0.12),
-                                                borderRadius: BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                priceText,
-                                                style: GoogleFonts.spaceGrotesk(
-                                                  color: isFree ? AppColors.success : AppColors.primary,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Icon(
-                                              Icons.arrow_forward_ios_rounded,
-                                              size: 14,
-                                              color: colorScheme.onSurfaceVariant,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Get.to(
+                                  () => EventActivitiesListScreen(
+                                    activities: preview.activitiesLiees,
                                   ),
+                                );
+                              },
+                              icon: const Icon(Icons.local_activity_outlined),
+                              label: Text(
+                                'event_detail_activities'.tr,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 20),
                         ],
