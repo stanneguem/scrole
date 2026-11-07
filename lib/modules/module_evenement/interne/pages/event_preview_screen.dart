@@ -48,6 +48,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
   String? _eventId;
   String? _contextRole;
   List<Map<String, dynamic>> _seriesEditions = [];
+  List<EventOpenDay> _previewOpenDays = [];
   StreamSubscription<EventModel>? _eventUpdateSubscription;
   late AnimationController _heartsAnimationController;
 
@@ -228,7 +229,16 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
         }
       }
 
-      final role = preview.viewerRole ?? preview.event.userRole;
+      try {
+        _previewOpenDays = await repo.getEventOpenDays(preview.event.id);
+        _previewOpenDays = _previewOpenDays.where((day) => day.isOpen).toList()
+          ..sort((a, b) => a.date.compareTo(b.date));
+      } catch (error) {
+        _previewOpenDays = [];
+        debugPrint('[EventPreviewScreen] open days lookup failed: $error');
+      }
+
+            final role = preview.viewerRole ?? preview.event.userRole;
       final normalizedRole = (role ?? '').toLowerCase();
       if (normalizedRole == 'fondateur' ||
           normalizedRole == 'co_createur' ||
@@ -834,17 +844,12 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     );
   }
 
-  String _formatFrenchDate(DateTime startsAt, DateTime? endsAt) {
+  String _formatEventDateTime(DateTime value) {
+    final locale = Get.locale?.toLanguageTag() ?? 'fr_FR';
     try {
-      final dayMonth = DateFormat('d MMMM yyyy', 'fr_FR').format(startsAt);
-      final startTime = DateFormat('HH:mm').format(startsAt);
-      if (endsAt != null) {
-        final endTime = DateFormat('HH:mm').format(endsAt);
-        return '$dayMonth  •  $startTime – $endTime';
-      }
-      return '$dayMonth à $startTime';
+      return DateFormat('d MMMM yyyy · HH:mm', locale).format(value);
     } catch (_) {
-      return startsAt.toString().substring(0, 16);
+      return DateFormat('d MMMM yyyy · HH:mm').format(value);
     }
   }
 
@@ -1187,10 +1192,23 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
 
                   const SizedBox(height: 16),
 
-                  // Date & Lieu (Mise en page épurée avec date en français)
+                  // Dates de début, de fin et jours de participation
                   _InfoRow(
                     icon: Icons.calendar_today_rounded,
-                    text: _formatFrenchDate(event.startsAt, event.endsAt),
+                    text: '${'event_detail_start'.tr} : ${_formatEventDateTime(event.startsAt)}',
+                  ),
+                  const SizedBox(height: 10),
+                  if (event.endsAt != null)
+                    _InfoRow(
+                      icon: Icons.event_available_rounded,
+                      text: '${'event_detail_end'.tr} : ${_formatEventDateTime(event.endsAt!)}',
+                    ),
+                  if (event.endsAt != null) const SizedBox(height: 10),
+                  _InfoRow(
+                    icon: Icons.calendar_view_day_rounded,
+                    text: _previewOpenDays.isEmpty
+                        ? 'event_detail_no_days'.tr
+                        : 'event_detail_days_count'.trParams({'count': _previewOpenDays.length.toString()}),
                   ),
                   const SizedBox(height: 12),
                   _InfoRow(
@@ -1544,17 +1562,28 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     String label = status.value;
     Color color = Colors.grey;
 
-    if (status == EventStatus.published) {
-      label = 'Actif';
-      color = AppColors.success;
+    if (status == EventStatus.published || status == EventStatus.completed) {
+      final now = DateTime.now();
+      final event = _preview?.event;
+      if (event != null && now.isBefore(event.startsAt)) {
+        label = 'event_detail_status_upcoming'.tr;
+        color = AppColors.primary;
+      } else if (event != null &&
+          (event.endsAt == null || !now.isAfter(event.endsAt!))) {
+        label = 'event_detail_status_ongoing'.tr;
+        color = AppColors.success;
+      } else {
+        label = 'event_detail_status_completed'.tr;
+        color = Colors.grey;
+      }
     } else if (status == EventStatus.draft) {
-      label = 'En attente';
+      label = 'event_detail_status_pending'.tr;
       color = Colors.amber[800]!;
     } else if (status == EventStatus.pendingDeletion) {
-      label = 'Suppression programmée';
+      label = 'event_detail_status_deleting'.tr;
       color = AppColors.error;
     } else if (status == EventStatus.cancelled) {
-      label = 'Rejeté';
+      label = 'event_detail_status_cancelled'.tr;
       color = AppColors.error;
     }
 
