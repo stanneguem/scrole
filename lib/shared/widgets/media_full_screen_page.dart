@@ -190,15 +190,17 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      builder: (_) => Material(
+        color: colors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(width: 38, height: 4, decoration: BoxDecoration(color: colors.outlineVariant, borderRadius: BorderRadius.circular(4))),
             const SizedBox(height: 14),
             ListTile(
@@ -225,7 +227,8 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
               title: Text('cancel'.tr),
               onTap: () => Navigator.of(context).pop(),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -301,7 +304,7 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                   Widget mediaWidget = isLocalFile
                       ? Image.file(
                           File(url),
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
                             return const Center(
                               child: Icon(Icons.broken_image_rounded, color: Colors.white24, size: 64),
@@ -309,8 +312,8 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                           },
                         )
                       : isNetwork
-                          ? AppCachedImage(imageUrl: url, fit: BoxFit.cover)
-                          : ChatCachedMedia(remoteUrl: url, fit: BoxFit.cover);
+                          ? AppCachedImage(imageUrl: url, fit: BoxFit.contain)
+                          : ChatCachedMedia(remoteUrl: url, fit: BoxFit.contain);
 
                   return Center(
                     child: Hero(
