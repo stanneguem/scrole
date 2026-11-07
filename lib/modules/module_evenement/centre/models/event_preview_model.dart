@@ -51,12 +51,20 @@ class EventRankingInfo {
   final int sur;
   final double score;
   final String critere;
+  final bool isFrozen;
+  final DateTime? finalizedAt;
+  final double? prestigeScore;
+  final double? prestigeStars;
 
   const EventRankingInfo({
     this.rang = 0,
     this.sur = 0,
     this.score = 0.0,
     this.critere = '',
+    this.isFrozen = false,
+    this.finalizedAt,
+    this.prestigeScore,
+    this.prestigeStars,
   });
 
   factory EventRankingInfo.fromJson(Map<String, dynamic>? json) {
@@ -66,6 +74,12 @@ class EventRankingInfo {
       sur: (json['sur'] as num?)?.toInt() ?? 0,
       score: (json['score'] as num?)?.toDouble() ?? 0.0,
       critere: (json['critere'] ?? '').toString(),
+      isFrozen: json['fige'] == true,
+      finalizedAt: json['finalized_at'] != null
+          ? DateTime.tryParse(json['finalized_at'].toString())
+          : null,
+      prestigeScore: (json['prestige_score'] as num?)?.toDouble(),
+      prestigeStars: (json['prestige_stars'] as num?)?.toDouble(),
     );
   }
 }
