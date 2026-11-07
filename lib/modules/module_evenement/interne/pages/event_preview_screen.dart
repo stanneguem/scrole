@@ -172,7 +172,13 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       // Resolve series for every entry point. Prefer an active/upcoming edition;
       // if none remains, open the archive/gallery instead of a stale detail page.
       if (!widget.archiveTabMode) {
-        final editions = await repo.getPublicEventSeriesEditions(preview.event.id);
+        List<Map<String, dynamic>> editions = [];
+        try {
+          editions = await repo.getPublicEventSeriesEditions(preview.event.id);
+        } catch (error) {
+          // A series lookup must never prevent the event preview from opening.
+          debugPrint('[EventPreviewScreen] series lookup failed: $error');
+        }
         final now = DateTime.now();
         _seriesEditions = editions;
         final upcoming = editions.where((edition) {
