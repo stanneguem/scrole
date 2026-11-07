@@ -983,6 +983,36 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: colors.onSurface),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_rounded, size: 12, color: colors.primary),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          ev.isOnline ? 'Virtuel' : (ev.city?.name ?? ev.address ?? ''),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 11, color: colors.primary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          MaterialLocalizations.of(context).formatMediumDate(ev.startsAt),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
                   const Spacer(),
                   SizedBox(
                     width: double.infinity,
