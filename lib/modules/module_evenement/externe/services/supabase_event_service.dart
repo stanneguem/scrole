@@ -11,6 +11,22 @@ class SupabaseEventService {
 
   SupabaseClient get client => _client;
 
+  /// Returns the event suggestions the signed-in user previously dismissed.
+  Future<Set<String>> fetchDismissedHomeEventSuggestionIds() async {
+    final rows = await _client
+        .from('event_suggestion_dismissals')
+        .select('event_id');
+    return rows.map((row) => row['event_id'].toString()).toSet();
+  }
+
+  /// Persists the dismissal for the current authenticated user.
+  Future<void> dismissHomeEventSuggestion(String eventId) async {
+    await _client.rpc(
+      'dismiss_home_event_suggestion',
+      params: {'p_event_id': eventId},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> fetchEventActivities(String eventId) async {
     try {
       final response = await _client
@@ -1497,17 +1513,6 @@ class SupabaseEventService {
     }
 
     return [];
-  }
-
-  Future<Set<String>> fetchDismissedHomeEventSuggestionIds() async {
-    final rows = await _client
-        .from('event_suggestion_dismissals')
-        .select('event_id');
-    return rows.map((row) => row['event_id'].toString()).toSet();
-  }
-
-  Future<void> dismissHomeEventSuggestion(String eventId) async {
-    await _client.rpc('dismiss_home_event_suggestion', params: {'p_event_id': eventId});
   }
 
   Future<List<Map<String, dynamic>>> fetchSuggestedEvents({int limit = 50}) async {
