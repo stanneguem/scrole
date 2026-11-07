@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 
@@ -28,21 +29,30 @@ class SuggestedProfileModel {
     final username = (json['username'] ?? '').toString();
     final fullName = (json['full_name'] ?? json['name'] ?? json['display_name'] ?? '').toString().trim();
     final mutual = (json['mutual_friends_count'] as num?)?.toInt() ?? 0;
-    final reason = mutual > 0
-        ? '$mutual ami${mutual > 1 ? 's' : ''} en commun'
-        : (json['same_city'] == true
-            ? 'Même ville'
-            : (json['common_community'] == true
-                ? 'Communauté en commun'
-                : ((json['common_interests_count'] as num?)?.toInt() ?? 0) > 0
-                    ? 'Centres d’intérêt communs'
-                    : 'Profil à découvrir'));
+    final String reasonKey;
+    final Map<String, String> reasonParams;
+    if (mutual > 0) {
+      reasonKey = 'home_feed_profile_reason_mutual_friends';
+      reasonParams = {'count': mutual.toString()};
+    } else if (json['same_city'] == true) {
+      reasonKey = 'home_feed_profile_reason_same_city';
+      reasonParams = const {};
+    } else if (json['common_community'] == true) {
+      reasonKey = 'home_feed_profile_reason_common_community';
+      reasonParams = const {};
+    } else if (((json['common_interests_count'] as num?)?.toInt() ?? 0) > 0) {
+      reasonKey = 'home_feed_profile_reason_common_interests';
+      reasonParams = const {};
+    } else {
+      reasonKey = 'home_feed_profile_reason_discover';
+      reasonParams = const {};
+    }
     return SuggestedProfileModel(
       id: (json['user_id'] ?? json['id'] ?? '').toString(),
       name: fullName.isNotEmpty ? fullName : username,
       username: username,
       photoUrl: (json['photo_url'] ?? json['avatar_url'])?.toString(),
-      reasonSubtitle: (json['reason_subtitle'] ?? json['reason'] ?? reason).toString(),
+      reasonSubtitle: reasonKey.trParams(reasonParams),
       isCertified: json['is_certified'] == true || json['is_verified'] == true,
       isAdded: json['is_added'] == true || json['is_following'] == true,
       isRequestSent: json['request_sent'] == true,
