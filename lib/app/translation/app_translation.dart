@@ -4,6 +4,19 @@ class AppTranslations extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
     'fr': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Suggestion',
+      'home_feed_suggested_events_title': 'Événements suggérés',
+      'home_feed_suggested_add': 'Ajouter à mon agenda',
+      'home_feed_suggested_not_interested': 'Pas intéressé',
+      'home_feed_suggested_added': 'Ajouté à votre agenda',
+      'home_feed_suggested_dismiss_error': 'Impossible de masquer cette suggestion. Réessayez.',
+      'home_feed_suggested_open_days_missing': 'Les jours de participation ne sont pas encore définis par l’organisateur.',
+      'agenda_day_horizon_exceeded_message': "Sans certification active, tu peux sélectionner uniquement des jours situés dans les 2 prochains mois. Pour participer à des dates plus éloignées, une certification active du profil est nécessaire.",
+      'agenda_horizon_exceeded_message': "Sans certification active, tu peux ajouter à ton agenda des événements qui commencent dans les 2 prochains mois. Pour ajouter un événement au-delà de cette période, fais certifier ton profil.",
+      'agenda_event_quota_exceeded_message': "Sans certification active, ton agenda est limité à 2 événements. Active une certification pour pouvoir en ajouter davantage.",
+      'agenda_save_error': "Impossible d’ajouter cet événement à ton agenda. Vérifie les restrictions et réessaie.",
+
       'settings_logout_error_message': "Impossible de se déconnecter. Réessayez.",
       'settings_logout_error_title': "Erreur",
       'settings_logout_confirm_yes': "Se déconnecter",
@@ -507,6 +520,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Voir moins",
     },
     'en': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Suggested',
+      'home_feed_suggested_events_title': 'Suggested events',
+      'home_feed_suggested_add': 'Add to my calendar',
+      'home_feed_suggested_not_interested': 'Not interested',
+      'home_feed_suggested_added': 'Added to your calendar',
+      'home_feed_suggested_dismiss_error': 'Could not hide this suggestion. Please try again.',
+      'home_feed_suggested_open_days_missing': 'The organizer has not defined participation days yet.',
+      'agenda_day_horizon_exceeded_message': "Without active certification, you can select only days within the next 2 months. An active profile certification is required to select dates further ahead.",
+      'agenda_horizon_exceeded_message': "Without active certification, you can add events starting within the next 2 months to your calendar. To add an event beyond that period, certify your profile.",
+      'agenda_event_quota_exceeded_message': "Without active certification, your calendar is limited to 2 events. Activate a certification to add more.",
+      'agenda_save_error': "Unable to add this event to your calendar. Check the restrictions and try again.",
+
       'settings_logout_error_message': "Unable to log out. Please try again.",
       'settings_logout_error_title': "Error",
       'settings_logout_confirm_yes': "Log out",
@@ -956,6 +982,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "See less",
     },
     'es': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Sugerencia',
+      'home_feed_suggested_events_title': 'Eventos sugeridos',
+      'home_feed_suggested_add': 'Añadir a mi agenda',
+      'home_feed_suggested_not_interested': 'No me interesa',
+      'home_feed_suggested_added': 'Añadido a tu agenda',
+      'home_feed_suggested_dismiss_error': 'No se pudo ocultar esta sugerencia. Inténtalo de nuevo.',
+      'home_feed_suggested_open_days_missing': 'El organizador aún no ha definido los días de participación.',
+      'agenda_day_horizon_exceeded_message': "Sin una certificación activa, solo puedes seleccionar días dentro de los próximos 2 meses. Para fechas posteriores se necesita una certificación activa del perfil.",
+      'agenda_horizon_exceeded_message': "Sin una certificación activa, puedes añadir al calendario eventos que comiencen dentro de los próximos 2 meses. Para añadir uno posterior, certifica tu perfil.",
+      'agenda_event_quota_exceeded_message': "Sin certificación activa, tu agenda está limitada a 2 eventos. Activa una certificación para añadir más.",
+      'agenda_save_error': "No se pudo añadir el evento a tu agenda. Comprueba las restricciones e inténtalo de nuevo.",
+
       'settings_logout_error_message': "No se pudo cerrar sesión. Inténtalo de nuevo.",
       'settings_logout_error_title': "Error",
       'settings_logout_confirm_yes': "Cerrar sesión",
@@ -1372,6 +1411,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Ver menos",
     },
     'de': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Vorschlag',
+      'home_feed_suggested_events_title': 'Vorgeschlagene Veranstaltungen',
+      'home_feed_suggested_add': 'Zu meinem Kalender hinzufügen',
+      'home_feed_suggested_not_interested': 'Nicht interessiert',
+      'home_feed_suggested_added': 'Zu deinem Kalender hinzugefügt',
+      'home_feed_suggested_dismiss_error': 'Dieser Vorschlag konnte nicht ausgeblendet werden. Bitte erneut versuchen.',
+      'home_feed_suggested_open_days_missing': 'Der Veranstalter hat noch keine Teilnahmetage festgelegt.',
+      'agenda_day_horizon_exceeded_message': "Ohne aktive Zertifizierung kannst du nur Tage innerhalb der nächsten 2 Monate auswählen. Für spätere Termine ist eine aktive Profilzertifizierung erforderlich.",
+      'agenda_horizon_exceeded_message': "Ohne aktive Zertifizierung kannst du deinem Kalender Veranstaltungen hinzufügen, die innerhalb der nächsten 2 Monate beginnen. Für spätere Veranstaltungen muss dein Profil zertifiziert sein.",
+      'agenda_event_quota_exceeded_message': "Ohne aktive Zertifizierung ist dein Kalender auf 2 Veranstaltungen begrenzt. Aktiviere eine Zertifizierung, um weitere hinzuzufügen.",
+      'agenda_save_error': "Diese Veranstaltung konnte nicht zum Kalender hinzugefügt werden. Prüfe die Einschränkungen und versuche es erneut.",
+
       'settings_logout_error_message': "Abmeldung fehlgeschlagen. Bitte versuche es erneut.",
       'settings_logout_error_title': "Fehler",
       'settings_logout_confirm_yes': "Abmelden",
@@ -1798,6 +1850,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Weniger anzeigen",
     },
     'it': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Suggerimento',
+      'home_feed_suggested_events_title': 'Eventi suggeriti',
+      'home_feed_suggested_add': 'Aggiungi al mio calendario',
+      'home_feed_suggested_not_interested': 'Non mi interessa',
+      'home_feed_suggested_added': 'Aggiunto al tuo calendario',
+      'home_feed_suggested_dismiss_error': 'Impossibile nascondere questo suggerimento. Riprova.',
+      'home_feed_suggested_open_days_missing': 'L’organizzatore non ha ancora definito i giorni di partecipazione.',
+      'agenda_day_horizon_exceeded_message': "Senza una certificazione attiva, puoi selezionare solo giorni entro i prossimi 2 mesi. Per date successive è necessaria una certificazione attiva del profilo.",
+      'agenda_horizon_exceeded_message': "Senza una certificazione attiva, puoi aggiungere al calendario eventi che iniziano entro i prossimi 2 mesi. Per aggiungere un evento più lontano, certifica il tuo profilo.",
+      'agenda_event_quota_exceeded_message': "Senza certificazione attiva, il calendario è limitato a 2 eventi. Attiva una certificazione per aggiungerne altri.",
+      'agenda_save_error': "Impossibile aggiungere questo evento al calendario. Controlla le restrizioni e riprova.",
+
       'settings_logout_error_message': "Impossibile uscire. Riprova.",
       'settings_logout_error_title': "Errore",
       'settings_logout_confirm_yes': "Esci",
@@ -2197,6 +2262,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Mostra meno",
     },
     'pt': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Sugestão',
+      'home_feed_suggested_events_title': 'Eventos sugeridos',
+      'home_feed_suggested_add': 'Adicionar ao meu calendário',
+      'home_feed_suggested_not_interested': 'Não tenho interesse',
+      'home_feed_suggested_added': 'Adicionado ao seu calendário',
+      'home_feed_suggested_dismiss_error': 'Não foi possível ocultar esta sugestão. Tente novamente.',
+      'home_feed_suggested_open_days_missing': 'O organizador ainda não definiu os dias de participação.',
+      'agenda_day_horizon_exceeded_message': "Sem certificação ativa, só podes selecionar dias nos próximos 2 meses. Para datas posteriores, é necessária uma certificação ativa do perfil.",
+      'agenda_horizon_exceeded_message': "Sem certificação ativa, podes adicionar ao calendário eventos que comecem nos próximos 2 meses. Para adicionar um evento posterior, certifica o teu perfil.",
+      'agenda_event_quota_exceeded_message': "Sem certificação ativa, o teu calendário está limitado a 2 eventos. Ativa uma certificação para adicionar mais.",
+      'agenda_save_error': "Não foi possível adicionar este evento ao calendário. Verifica as restrições e tenta novamente.",
+
       'settings_logout_error_message': "Não foi possível terminar sessão. Tente novamente.",
       'settings_logout_error_title': "Erro",
       'settings_logout_confirm_yes': "Terminar sessão",
@@ -3102,6 +3180,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "عرض أقل",
     },
     'zh': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': '推荐',
+      'home_feed_suggested_events_title': '推荐活动',
+      'home_feed_suggested_add': '添加到我的日历',
+      'home_feed_suggested_not_interested': '不感兴趣',
+      'home_feed_suggested_added': '已添加到你的日历',
+      'home_feed_suggested_dismiss_error': '无法隐藏此推荐，请重试。',
+      'home_feed_suggested_open_days_missing': '组织者尚未设置参与日期。',
+      'agenda_day_horizon_exceeded_message': "未获得有效认证时，你只能选择未来两个月内的日期。选择更远的日期需要有效的个人资料认证。",
+      'agenda_horizon_exceeded_message': "未获得有效认证时，你只能将未来两个月内开始的活动添加到日历。若要添加更远日期的活动，请认证你的个人资料。",
+      'agenda_event_quota_exceeded_message': "未获得有效认证时，日历最多可添加 2 个活动。启用认证后即可添加更多活动。",
+      'agenda_save_error': "无法将此活动添加到日历。请检查限制后重试。",
+
       'settings_logout_error_message': "无法退出登录，请重试。",
       'settings_logout_error_title': "错误",
       'settings_logout_confirm_yes': "退出登录",
@@ -3505,6 +3596,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "收起",
     },
     'ja': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'おすすめ',
+      'home_feed_suggested_events_title': 'おすすめのイベント',
+      'home_feed_suggested_add': 'カレンダーに追加',
+      'home_feed_suggested_not_interested': '興味がありません',
+      'home_feed_suggested_added': 'カレンダーに追加しました',
+      'home_feed_suggested_dismiss_error': 'このおすすめを非表示にできませんでした。もう一度お試しください。',
+      'home_feed_suggested_open_days_missing': '主催者はまだ参加可能日を設定していません。',
+      'agenda_day_horizon_exceeded_message': "有効な認証がない場合、選択できるのは今後2か月以内の日付のみです。それ以降の日付には有効なプロフィール認証が必要です。",
+      'agenda_horizon_exceeded_message': "有効な認証がない場合、カレンダーに追加できるのは今後2か月以内に開始するイベントです。それ以降のイベントを追加するにはプロフィール認証が必要です。",
+      'agenda_event_quota_exceeded_message': "有効な認証がない場合、カレンダーに追加できるイベントは2件までです。認証を有効にすると、さらに追加できます。",
+      'agenda_save_error': "イベントをカレンダーに追加できませんでした。制限を確認して、もう一度お試しください。",
+
       'settings_logout_error_message': "ログアウトできませんでした。もう一度お試しください。",
       'settings_logout_error_title': "エラー",
       'settings_logout_confirm_yes': "ログアウト",
@@ -3911,6 +4015,19 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "閉じる",
     },
     'ru': {
+      // Home feed event suggestion cards and calendar feedback.
+      'home_feed_suggested': 'Рекомендация',
+      'home_feed_suggested_events_title': 'Рекомендуемые события',
+      'home_feed_suggested_add': 'Добавить в календарь',
+      'home_feed_suggested_not_interested': 'Не интересно',
+      'home_feed_suggested_added': 'Добавлено в ваш календарь',
+      'home_feed_suggested_dismiss_error': 'Не удалось скрыть рекомендацию. Попробуйте ещё раз.',
+      'home_feed_suggested_open_days_missing': 'Организатор ещё не указал дни участия.',
+      'agenda_day_horizon_exceeded_message': "Без действующей сертификации можно выбирать только даты в течение следующих 2 месяцев. Для более поздних дат нужна активная сертификация профиля.",
+      'agenda_horizon_exceeded_message': "Без действующей сертификации можно добавлять в календарь события, которые начинаются в течение следующих 2 месяцев. Чтобы добавить событие на более поздний срок, подтвердите профиль.",
+      'agenda_event_quota_exceeded_message': "Без действующей сертификации в календаре может быть не более 2 событий. Активируйте сертификацию, чтобы добавлять больше.",
+      'agenda_save_error': "Не удалось добавить событие в календарь. Проверьте ограничения и попробуйте снова.",
+
       'settings_logout_error_message': "Не удалось выйти из аккаунта. Попробуйте ещё раз.",
       'settings_logout_error_title': "Ошибка",
       'settings_logout_confirm_yes': "Выйти",
