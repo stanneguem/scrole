@@ -683,7 +683,7 @@ class _SuggestedProfilesCarousel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).colorScheme;
     return Obx(() {
       final profiles = controller.suggestedProfiles;
       if (profiles.isEmpty) return const SizedBox.shrink();
@@ -694,95 +694,261 @@ class _SuggestedProfilesCarousel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Suggestions de profils',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: colorScheme.onSurface),
+                Expanded(
+                  child: Text(
+                    'home_feed_suggested_profiles_title'.tr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: colors.onSurface,
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 8),
                 TextButton(
-                  onPressed: () {},
-                  child: Text('home_feed_see_more'.tr, style: TextStyle(fontWeight: FontWeight.w600, color: colorScheme.primary)),
+                  onPressed: () {
+                    // The current app exposes profile discovery through the
+                    // individual profile routes; keep this action explicit
+                    // without navigating to an unrelated screen.
+                    Get.snackbar(
+                      'home_feed_suggested_profiles_title'.tr,
+                      'home_feed_suggested_profiles_more_hint'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  },
+                  child: Text(
+                    'see_more'.tr,
+                    style: TextStyle(fontWeight: FontWeight.w600, color: colors.primary),
+                  ),
                 ),
               ],
             ),
           ),
           SizedBox(
-            height: 195,
-            child: ListView.builder(
+            height: 236,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: profiles.length,
-              itemBuilder: (context, index) {
-                final p = profiles[index];
-                return Container(
-                  width: 135,
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: p.photoUrl != null && p.photoUrl!.isNotEmpty
-                              ? AppCachedImage(imageUrl: p.photoUrl!, width: 60, height: 60, fit: BoxFit.cover)
-                              : Container(width: 60, height: 60, color: colorScheme.primary, alignment: Alignment.center, child: Text(p.name.isNotEmpty ? p.name[0].toUpperCase() : '?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(p.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 3),
-                      Text(p.reasonSubtitle, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-                      const Spacer(),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 32,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            p.isAdded = !p.isAdded;
-                            controller.suggestedProfiles.refresh();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            elevation: 0,
-                            backgroundColor: p.isAdded ? colorScheme.surfaceContainerHighest : colorScheme.primary,
-                            foregroundColor: p.isAdded ? colorScheme.onSurface : colorScheme.onPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          child: Text(p.isAdded ? 'Ajouté' : 'home_feed_add_profile'.tr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) => _SuggestedProfileActionCard(
+                profile: profiles[index],
+                controller: controller,
+              ),
             ),
           ),
+          const SizedBox(height: 8),
         ],
       );
     });
+  }
+}
+
+class _SuggestedProfileActionCard extends StatefulWidget {
+  const _SuggestedProfileActionCard({
+    required this.profile,
+    required this.controller,
+  });
+
+  final SuggestedProfileModel profile;
+  final HomeFeedController controller;
+
+  @override
+  State<_SuggestedProfileActionCard> createState() => _SuggestedProfileActionCardState();
+}
+
+class _SuggestedProfileActionCardState extends State<_SuggestedProfileActionCard> {
+  bool _following = false;
+  bool _dismissing = false;
+
+  Future<void> _follow() async {
+    if (_following || _dismissing || widget.profile.isAdded) return;
+    setState(() => _following = true);
+    try {
+      await widget.controller.followSuggestedProfile(widget.profile);
+      if (mounted) {
+        Get.snackbar(
+          'home_feed_suggested_profiles_title'.tr,
+          'home_feed_profile_followed'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } catch (error) {
+      debugPrint('[SuggestedProfileCard] follow failed: $error');
+      if (mounted) {
+        Get.snackbar(
+          'home_feed_suggested_profiles_title'.tr,
+          'home_feed_profile_follow_error'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _following = false);
+    }
+  }
+
+  Future<void> _dismiss() async {
+    if (_following || _dismissing) return;
+    setState(() => _dismissing = true);
+    try {
+      await widget.controller.dismissSuggestedProfile(widget.profile);
+    } catch (error) {
+      debugPrint('[SuggestedProfileCard] dismiss failed: $error');
+      if (mounted) {
+        Get.snackbar(
+          'home_feed_suggested_profiles_title'.tr,
+          'home_feed_profile_dismiss_error'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _dismissing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final profile = widget.profile;
+    return Container(
+      width: 218,
+      height: 226,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.045),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                tooltip: 'home_feed_profile_not_interested'.tr,
+                onPressed: (_following || _dismissing) ? null : _dismiss,
+                icon: _dismissing
+                    ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(Icons.close_rounded, size: 19, color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
+          GestureDetector(
+            onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ClipOval(
+                  child: profile.photoUrl != null && profile.photoUrl!.isNotEmpty
+                      ? AppCachedImage(imageUrl: profile.photoUrl!, width: 58, height: 58, fit: BoxFit.cover)
+                      : Container(
+                          width: 58,
+                          height: 58,
+                          color: colors.primaryContainer,
+                          alignment: Alignment.center,
+                          child: Text(
+                            profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?',
+                            style: TextStyle(color: colors.onPrimaryContainer, fontSize: 21, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 7),
+          GestureDetector(
+            onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    profile.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: colors.onSurface),
+                  ),
+                ),
+                if (profile.isCertified) ...[
+                  const SizedBox(width: 3),
+                  UserCertifiedBadge(userId: profile.id, size: 14, showTooltip: false),
+                ],
+              ],
+            ),
+          ),
+          if (profile.username.isNotEmpty)
+            Text(
+              '@${profile.username}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+            ),
+          const SizedBox(height: 3),
+          Text(
+            profile.reasonSubtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+          ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: ElevatedButton(
+              onPressed: (_following || _dismissing || profile.isAdded) ? null : _follow,
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                elevation: 0,
+                backgroundColor: profile.isAdded ? colors.surfaceContainerHighest : colors.primary,
+                foregroundColor: profile.isAdded ? colors.onSurface : colors.onPrimary,
+                disabledBackgroundColor: colors.surfaceContainerHighest,
+                disabledForegroundColor: colors.onSurface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: _following
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(
+                      profile.isAdded ? 'home_feed_profile_following'.tr : 'home_feed_add_profile'.tr,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          SizedBox(
+            height: 22,
+            child: TextButton(
+              onPressed: (_following || _dismissing) ? null : _dismiss,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'home_feed_profile_not_interested'.tr,
+                maxLines: 1,
+                style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
