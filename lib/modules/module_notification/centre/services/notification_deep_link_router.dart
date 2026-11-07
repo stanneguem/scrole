@@ -35,8 +35,8 @@ class NotificationDeepLinkRouter {
     final postId = value(['post_id', 'publication_id', 'source_post_id', 'target_post_id']);
     final commentId = value(['comment_id', 'commentaire_id', 'target_comment_id']);
     final communityId = value(['community_id', 'communaute_id', 'target_community_id']);
-    final eventId = value(['event_id', 'evenement_id', 'eventId']);
-    final actorId = value(['actor_id', 'sender_id', 'user_id', 'target_user_id']);
+    final eventId = value(['event_id', 'evenement_id', 'eventId', 'evenementId']);
+    final actorId = value(['actor_id', 'sender_id', 'user_id', 'target_user_id', 'mentioned_user_id', 'profile_user_id']);
 
     try {
       if (type == 'community_salon_message' || type == 'community_salon_reply') {
@@ -71,6 +71,14 @@ class NotificationDeepLinkRouter {
         return;
       }
 
+      if (type == 'follow_request') {
+        Get.toNamed(
+          AppPages.followRequests,
+          arguments: {'requestId': value(['request_id'])},
+        );
+        return;
+      }
+
       // All post/comment mentions use one canonical detail screen. This works
       // for personal posts and community posts and can focus the exact comment.
       if (postId != null) {
@@ -89,6 +97,26 @@ class NotificationDeepLinkRouter {
           AppPages.eventPreview.replaceFirst(':id', eventId),
           arguments: {'id': eventId, 'eventId': eventId},
         );
+        return;
+      }
+
+      if (communityId != null &&
+          (type.contains('community') ||
+              type.contains('communaute') ||
+              type.contains('publication'))) {
+        Get.to(
+          () => CommunityFeedScreen(
+            communityId: communityId,
+            communityName: value(['community_name', 'community_nom']) ?? 'Communauté',
+          ),
+          preventDuplicates: false,
+        );
+        return;
+      }
+
+      final mentionedUserId = value(['mentioned_user_id', 'target_user_id', 'profile_user_id']);
+      if (mentionedUserId != null) {
+        Get.toNamed(AppPages.externalProfilePath(mentionedUserId));
         return;
       }
 
