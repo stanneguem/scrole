@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import '../../modules/module_discussion_direct/interne/widgets/chat_cached_media.dart';
 import '../../modules/module_discussion_direct/centre/services/chat_media_cache.dart';
@@ -283,7 +283,7 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                   Widget mediaWidget = isLocalFile
                       ? Image.file(
                           File(url),
-                          fit: BoxFit.contain,
+                          fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return const Center(
                               child: Icon(Icons.broken_image_rounded, color: Colors.white24, size: 64),
@@ -291,8 +291,8 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                           },
                         )
                       : isNetwork
-                          ? AppCachedImage(imageUrl: url, fit: BoxFit.contain)
-                          : ChatCachedMedia(remoteUrl: url, fit: BoxFit.contain);
+                          ? AppCachedImage(imageUrl: url, fit: BoxFit.cover)
+                          : ChatCachedMedia(remoteUrl: url, fit: BoxFit.cover);
 
                   return Center(
                     child: Hero(
@@ -310,8 +310,9 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                         );
                       },
                       child: InteractiveViewer(
-                        minScale: 0.5,
-                        maxScale: 4.0,
+                        minScale: 1.0,
+                        maxScale: 5.0,
+                        boundaryMargin: const EdgeInsets.all(80),
                         child: SizedBox(
                           width: double.infinity,
                           height: double.infinity,
