@@ -18,7 +18,7 @@ class MediaGallerySheet extends StatefulWidget {
     this.allowMixedMedia = true,
   });
 
-  final Function(List<XFile>) onSelected;
+  final FutureOr<void> Function(List<XFile>) onSelected;
   final int maxSelection;
   final bool allowMixedMedia;
 
@@ -398,13 +398,13 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   }
 
   Future<void> _confirmSelection() async {
-    if (_selectedAssets.isEmpty) return;
+    if (_selectedAssets.isEmpty || _isOpeningMedia) return;
     final expectedCount = _selectedAssets.length;
     setState(() => _isOpeningMedia = true);
 
     try {
       final List<XFile> xFiles = [];
-      for (final asset in _selectedAssets) {
+      for (final asset in List<AssetEntity>.from(_selectedAssets)) {
         final file = await asset.file;
         if (file == null || !await file.exists()) {
           throw StateError('Un des fichiers sélectionnés est inaccessible.');
@@ -416,15 +416,19 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       if (xFiles.length != expectedCount) {
         throw StateError('Sélection incomplète : $expectedCount médias choisis, ${xFiles.length} accessibles.');
       }
-      // Le callback propriétaire ferme la feuille en renvoyant les fichiers.
-      // Un second pop fermerait aussi l'écran de création/édition de profil.
-      widget.onSelected(xFiles);
+
+      // Await the consumer (it may validate/trim a selected video), then close
+      // this sheet exactly once. Keeping the busy flag set prevents duplicate
+      // confirmation taps while files are being prepared.
+      await widget.onSelected(xFiles);
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } catch (error, stack) {
-      debugPrint('[MEDIA_GALLERY] Selection failed: $error\n$stack');
+      debugPrint('[MEDIA_GALLERY] Selection/consumer failed: $error\n$stack');
       if (mounted) {
         Get.snackbar(
-          'Sélection incomplète',
-          'Certains médias ne sont pas accessibles. Rien n’a été ajouté : réessaie avec d’autres fichiers.',
+          'Sélection impossible',
+          'Les médias sélectionnés n’ont pas pu être ajoutés. Réessaie.',
           snackPosition: SnackPosition.BOTTOM,
         );
       }
