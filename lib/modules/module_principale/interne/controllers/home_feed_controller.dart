@@ -232,6 +232,15 @@ class HomeFeedController extends GetxController {
     super.onClose();
   }
 
+  void removeSuggestedEvent(String eventId) {
+    suggestedEvents.removeWhere((event) => event.id == eventId);
+  }
+
+  Future<void> dismissSuggestedEvent(String eventId) async {
+    await _eventRepo.dismissHomeEventSuggestion(eventId);
+    removeSuggestedEvent(eventId);
+  }
+
   Future<void> fetchFeed({bool refresh = false}) async {
     if (refresh) {
       isRefreshing.value = true;
