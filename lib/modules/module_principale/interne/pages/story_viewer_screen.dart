@@ -43,6 +43,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   late AnimationController _animController;
   late AnimationController _heartsAnimationController;
   bool _isPaused = false;
+  bool _isSendingQuickReply = false;
   String? _imageLoadedStoryId;
   double _videoProgress = 0.0;
   final TextEditingController _replyController = TextEditingController();
@@ -979,131 +980,223 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   ),
                 ),
 
-                // --- Bottom Interactive Bar ---
+                // --- TikTok-style story actions on the right ---
                 Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: AnimatedOpacity(
-                      opacity: _isDragging ? 0.0 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Container(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          12,
-                          16,
-                          MediaQuery.of(context).padding.bottom + 12,
+                  right: 10,
+                  top: MediaQuery.of(context).size.height * 0.38,
+                  child: AnimatedOpacity(
+                    opacity: _isDragging ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isOwnStory)
+                          _buildStorySideAction(
+                            icon: Icons.remove_red_eye_outlined,
+                            count: _currentStory.viewersCount,
+                            onTap: _showViewersSheet,
+                          ),
+                        _buildStorySideAction(
+                          assetIcon: 'assets/svg_icons/chat-round-svgrepo-com.svg',
+                          count: _currentStory.commentsCount,
+                          onTap: _openStoryCommentsModal,
                         ),
-                        color: Colors.black.withValues(alpha: 0.3),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            // 1. Views icon & count (Only for own story)
-                            if (_isOwnStory)
-                              InkWell(
-                                onTap: _showViewersSheet,
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.remove_red_eye_outlined,
-                                        color: Colors.white,
-                                        size: 22,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        NumberFormatter.formatCount(
-                                          _currentStory.viewersCount,
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                            // 2. Comments icon & count (Both own & other stories)
-                            InkWell(
-                              onTap: _openStoryCommentsModal,
-                              borderRadius: BorderRadius.circular(16),
+                        if (!_isOwnStory)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 18),
+                            child: InkWell(
+                              onTap: _toggleStoryLike,
+                              borderRadius: BorderRadius.circular(24),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SvgPicture.asset(
-                                      'assets/svg_icons/chat-round-svgrepo-com.svg',
-                                      width: 22,
-                                      height: 22,
-                                      colorFilter: const ColorFilter.mode(
-                                        Colors.white,
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      NumberFormatter.formatCount(
-                                        _currentStory.commentsCount,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  _currentStory.isLiked
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: _currentStory.isLiked ? Colors.red : Colors.white,
+                                  size: 29,
                                 ),
                               ),
                             ),
-
-                            // 3. Like icon only (Only for other users' stories, NO count)
-                            if (!_isOwnStory)
-                              InkWell(
-                                onTap: _toggleStoryLike,
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  child: Icon(
-                                    _currentStory.isLiked
-                                        ? Icons.favorite_rounded
-                                        : Icons.favorite_border_rounded,
-                                    color: _currentStory.isLiked
-                                        ? Colors.red
-                                        : Colors.white,
-                                    size: 26,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
+
+                // --- Quick reply composer for another user's story ---
+                if (!_isOwnStory)
+                  Positioned(
+                    left: 12,
+                    right: 76,
+                    bottom: MediaQuery.of(context).padding.bottom + 12,
+                    child: AnimatedOpacity(
+                      opacity: _isDragging ? 0.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: _buildQuickStoryReply(),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildStorySideAction({
+    IconData? icon,
+    String? assetIcon,
+    required int count,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (assetIcon != null)
+                SvgPicture.asset(
+                  assetIcon,
+                  width: 25,
+                  height: 25,
+                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                )
+              else
+                Icon(icon, color: Colors.white, size: 25),
+              const SizedBox(height: 4),
+              Text(
+                NumberFormatter.formatCount(count),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStoryReply() {
+    final hasText = _replyController.text.trim().isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          PopupMenuButton<String>(
+            tooltip: 'Émojis',
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 24),
+            color: const Color(0xFF292929),
+            onSelected: (emoji) {
+              final value = _replyController.value;
+              final selection = value.selection;
+              final start = selection.isValid ? selection.start : value.text.length;
+              final end = selection.isValid ? selection.end : value.text.length;
+              final nextText = value.text.replaceRange(start, end, emoji);
+              _replyController.value = TextEditingValue(
+                text: nextText,
+                selection: TextSelection.collapsed(offset: start + emoji.length),
+              );
+              setState(() {});
+              _commentFocusNode.requestFocus();
+            },
+            itemBuilder: (_) => ['❤️', '😂', '😍', '🔥', '👏', '👍']
+                .map((emoji) => PopupMenuItem<String>(
+                      value: emoji,
+                      child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                    ))
+                .toList(),
+          ),
+          Expanded(
+            child: TextField(
+              controller: _replyController,
+              focusNode: _commentFocusNode,
+              onChanged: (_) => setState(() {}),
+              minLines: 1,
+              maxLines: 3,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendQuickStoryReply(),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              cursorColor: Colors.white,
+              decoration: InputDecoration(
+                hintText: 'Répondre à la story…',
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+              ),
+            ),
+          ),
+          if (hasText)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Envoyer',
+              onPressed: _isSendingQuickReply ? null : _sendQuickStoryReply,
+              icon: _isSendingQuickReply
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+            )
+          else
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Envoyer un cœur',
+              onPressed: _isSendingQuickReply ? null : () => _sendQuickStoryReply(quickEmoji: '❤️'),
+              icon: const Icon(Icons.favorite_border_rounded, color: Colors.white, size: 22),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendQuickStoryReply({String? quickEmoji}) async {
+    final content = (quickEmoji ?? _replyController.text).trim();
+    if (content.isEmpty || _isSendingQuickReply || _isOwnStory || DateTime.now().isAfter(_currentStory.expiresAt)) {
+      return;
+    }
+    setState(() => _isSendingQuickReply = true);
+    try {
+      await _storiesRepo.createStoryComment(
+        p_id: const Uuid().v4(),
+        p_story_id: _currentStory.id,
+        p_content: content,
+        p_parent_comment_id: null,
+      );
+      if (!mounted) return;
+      _replyController.clear();
+      setState(() {
+        _currentStory.commentsCount++;
+        _isSendingQuickReply = false;
+      });
+      _commentFocusNode.unfocus();
+    } catch (e, st) {
+      debugPrint('[STORY] Quick reply failed: $e\\n$st');
+      if (!mounted) return;
+      setState(() => _isSendingQuickReply = false);
+      Get.snackbar(
+        'error'.tr,
+        'story_error_sending_comment'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   Future<void> _openStoryCommentsModal() async {
