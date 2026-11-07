@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/entity_certified_badge.dart';
 import '../../../../../shared/widgets/shimmer.dart';
 import '../../centre/models/event_model.dart';
 import '../controllers/event_controller.dart';
-import 'event_detail_page.dart';
+import 'event_preview_screen.dart';
 
 bool _hasLoggedFirstSuggestionCard = false;
 
@@ -173,7 +173,7 @@ class SuggestionTab extends StatelessWidget {
                         child: _SuggestionCard(
                           event: event,
                           isTrending: true,
-                          onTap: () => Get.to(() => EventDetailPage(event: event)),
+                          onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                         ),
                       );
                     },
@@ -214,7 +214,7 @@ class SuggestionTab extends StatelessWidget {
                       child: _SuggestionCard(
                         event: event,
                         isTrending: true,
-                        onTap: () => Get.to(() => EventDetailPage(event: event)),
+                        onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                       ),
                     );
                   },
@@ -255,7 +255,7 @@ class SuggestionTab extends StatelessWidget {
                         child: _SuggestionCard(
                           event: event,
                           isTrending: false,
-                          onTap: () => Get.to(() => EventDetailPage(event: event)),
+                          onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                         ),
                       );
                     },
@@ -289,7 +289,7 @@ class SuggestionTab extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _SuggestionListTile(
                     event: event,
-                    onTap: () => Get.to(() => EventDetailPage(event: event)),
+                    onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                   ),
                 )),
                 const SizedBox(height: 28),
@@ -329,7 +329,7 @@ class SuggestionTab extends StatelessWidget {
                           event: event,
                           isTrending: false,
                           compact: true,
-                          onTap: () => Get.to(() => EventDetailPage(event: event)),
+                          onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                         ),
                       );
                     },
