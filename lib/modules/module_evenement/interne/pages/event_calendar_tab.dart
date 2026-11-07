@@ -32,7 +32,7 @@ class _CalendarTabState extends State<CalendarTab> {
 
   void _onDayTap(DateTime date) {
     // On filtre les événements chargés pour ce jour spécifique
-    final rawEvents = controller.calendarEvents.where((e) {
+    final rawEvents = controller.filterCalendarEvents(controller.calendarEvents).where((e) {
       final localDate = e.startsAt.toLocal();
       return localDate.year == date.year &&
           localDate.month == date.month &&
@@ -324,8 +324,7 @@ class _CalendarTabState extends State<CalendarTab> {
                               children: [
                                 Expanded(
                                   child: Obx(() => Text(
-                                    controller
-                                        .currentSortFilter.value.label,
+                                    controller.currentSortFilter.value.label,
                                     style: AppTextStyles.labelMedium
                                         .copyWith(
                                         color: colorScheme.onSurface),
@@ -344,6 +343,57 @@ class _CalendarTabState extends State<CalendarTab> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  // Recherche dans les événements du calendrier.
+                  TextField(
+                    onChanged: (value) => controller.calendarSearchQuery.value = value,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'event_calendar_search_hint'.tr,
+                      prefixIcon: const Icon(Icons.search),
+                      isDense: true,
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerLow,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Filtres réellement appliqués aux événements affichés.
+                  Obx(() => SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: EventCalendarFilter.values.map((filter) {
+                        final selected = controller.currentCalendarFilter.value == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(filter.label),
+                            selected: selected,
+                            onSelected: (_) => controller.setCalendarFilter(filter),
+                            showCheckmark: false,
+                            labelStyle: AppTextStyles.labelMedium.copyWith(
+                              color: selected
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            selectedColor: colorScheme.primary,
+                            backgroundColor: colorScheme.surfaceContainerLow,
+                            side: BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  )),
                   const SizedBox(height: 24),
                   // ===== WEEKDAY HEADERS =====
                   Row(
@@ -391,7 +441,7 @@ class _CalendarTabState extends State<CalendarTab> {
 
                         // Filtrage local depuis le cache global du calendrier
                         final rawEvents =
-                        controller.calendarEvents.where((e) {
+                        controller.filterCalendarEvents(controller.calendarEvents).where((e) {
                           final localDate = e.startsAt.toLocal();
                           return localDate.year == date.year &&
                               localDate.month == date.month &&
