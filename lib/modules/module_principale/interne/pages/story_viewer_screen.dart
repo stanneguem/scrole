@@ -688,7 +688,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                 color: Colors.black54,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'story_shared_post_unavailable'.tr,
                                 style: TextStyle(
                                   color: Colors.white,
@@ -699,8 +699,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                             )
                           else ...[
                             if (!_currentStory.sharedPostCanOpenOriginal)
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: Text(
                                   'story_shared_post_members_only'.tr,
                                   textAlign: TextAlign.center,
