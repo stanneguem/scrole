@@ -204,14 +204,21 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       // A successful empty response means the author deleted the story or
       // the viewer no longer has permission to see it. A network error throws
       // from the repository and deliberately leaves the offline copy intact.
-      final refreshed = data == null
-          ? <StoryItem>[]
-          : EventStoryGroup.fromMap(Map<String, dynamic>.from(data)).stories;
+      final refreshedGroup = data == null
+          ? null
+          : EventStoryGroup.fromMap(Map<String, dynamic>.from(data));
+      final refreshed = refreshedGroup?.stories ?? <StoryItem>[];
       final refreshedById = {for (final story in refreshed) story.id: story};
       final previousStories = List<StoryItem>.from(groupAtRequest.stories);
 
       for (final previous in previousStories) {
-        if (refreshedById.containsKey(previous.id)) continue;
+        final latest = refreshedById[previous.id];
+        final wasRemoved = latest == null;
+        final mediaChanged = latest != null &&
+            (latest.imageUrl != previous.imageUrl ||
+             latest.thumbnailUrl != previous.thumbnailUrl);
+        if (!wasRemoved && !mediaChanged) continue;
+
         final mediaKey = previous.imageUrl;
         final thumbnailKey = previous.thumbnailUrl;
         if (mediaKey != null && mediaKey.startsWith('stories/')) {
@@ -220,8 +227,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         if (thumbnailKey != null && thumbnailKey.startsWith('stories/')) {
           await AppCachedImage.clearPrivateMediaCache(thumbnailKey);
         }
-        // Video playback cache is keyed by story id and must disappear too
-        // when the server confirms that the story is no longer available.
+        // Video playback cache is keyed by story id. Remove it if the server
+        // confirms deletion or if the underlying video object has changed.
         try {
           final directory = await getApplicationSupportDirectory();
           final cacheDirectory = Directory(p.join(directory.path, 'stories_cache'));
@@ -231,15 +238,25 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
             if (await cached.exists()) await cached.delete();
           }
         } catch (cacheError) {
-          debugPrint('[STORY_CACHE] Removed story media cleanup failed: $cacheError');
+          debugPrint('[STORY_CACHE] Story media cleanup failed: $cacheError');
         }
-        debugPrint('[STORY] Removed locally cached story no longer visible: ${previous.id}');
+        if (wasRemoved) {
+          debugPrint('[STORY] Removed locally cached story no longer visible: ${previous.id}');
+        } else {
+          debugPrint('[STORY] Replaced stale cached media for story: ${previous.id}');
+        }
       }
 
       final currentId = _currentStory.id;
       groupAtRequest.stories
         ..clear()
         ..addAll(refreshed);
+      if (refreshedGroup != null) {
+        groupAtRequest.latestAt = refreshedGroup.latestAt;
+        groupAtRequest.storiesCount = refreshedGroup.storiesCount;
+      } else {
+        groupAtRequest.storiesCount = 0;
+      }
       groupAtRequest.hasUnseen = refreshed.any((story) => !story.viewed);
 
       if (refreshed.isEmpty) {
