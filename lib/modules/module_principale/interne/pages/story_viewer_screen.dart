@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -2307,6 +2308,7 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
   bool _failed = false;
   bool _isDownloading = false;
   bool _completionHandled = false;
+  Timer? _expiryCleanupTimer;
 
   @override
   void initState() {
@@ -2359,6 +2361,7 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
 
   @override
   void dispose() {
+    _expiryCleanupTimer?.cancel();
     _controller?.removeListener(_onVideoChanged);
     _controller?.dispose();
     super.dispose();
@@ -2503,7 +2506,25 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
   @override
   void initState() {
     super.initState();
+    final untilExpiry = widget.expiresAt.difference(DateTime.now());
+    if (untilExpiry > Duration.zero) {
+      _expiryCleanupTimer = Timer(untilExpiry, _deleteExpiredLocalVideo);
+    }
     _initialize();
+  }
+
+  Future<void> _deleteExpiredLocalVideo() async {
+    try {
+      final directory = await getApplicationSupportDirectory();
+      final safeId = widget.storyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final media = File(p.join(directory.path, 'stories_cache', '$safeId.mp4'));
+      final expiry = File(p.join(directory.path, 'stories_cache', '$safeId.expiry'));
+      if (await media.exists()) await media.delete();
+      if (await expiry.exists()) await expiry.delete();
+      debugPrint('[STORY_CACHE] EXPIRED story=${widget.storyId} removed');
+    } catch (e) {
+      debugPrint('[STORY_CACHE] Expiry cleanup failed: $e');
+    }
   }
 
   @override
