@@ -260,7 +260,30 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       groupAtRequest.hasUnseen = refreshed.any((story) => !story.viewed);
 
       if (refreshed.isEmpty) {
-        if (mounted) Navigator.of(context).pop();
+        if (!mounted) return;
+        // If one author deleted all their stories, continue with the next
+        // available author instead of closing the entire story viewer.
+        if (_groupIndex < widget.groups.length - 1) {
+          setState(() {
+            _groupIndex++;
+            _storyIndex = 0;
+            _imageLoadedStoryId = null;
+            _videoProgress = 0;
+          });
+          _startStory();
+          unawaited(_refreshCurrentGroupFromServer());
+        } else if (_groupIndex > 0) {
+          setState(() {
+            _groupIndex--;
+            _storyIndex = widget.groups[_groupIndex].stories.length - 1;
+            _imageLoadedStoryId = null;
+            _videoProgress = 0;
+          });
+          _startStory();
+          unawaited(_refreshCurrentGroupFromServer());
+        } else {
+          Navigator.of(context).pop();
+        }
         return;
       }
 
