@@ -4,6 +4,15 @@ class AppTranslations extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
     'fr': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Suggestions de profils',
+      'home_feed_suggested_profiles_more_hint': 'Découvrez les profils proposés dans votre fil d’actualité.',
+      'home_feed_profile_not_interested': 'Pas intéressé',
+      'home_feed_profile_following': 'Suivi',
+      'home_feed_profile_followed': 'Vous suivez maintenant ce profil.',
+      'home_feed_profile_follow_error': 'Impossible de suivre ce profil pour le moment.',
+      'home_feed_profile_dismiss_error': 'Impossible de masquer ce profil pour le moment.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Suggestion',
       'home_feed_suggested_events_title': 'Événements suggérés',
@@ -520,6 +529,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Voir moins",
     },
     'en': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Suggested profiles',
+      'home_feed_suggested_profiles_more_hint': 'Discover the profiles suggested in your feed.',
+      'home_feed_profile_not_interested': 'Not interested',
+      'home_feed_profile_following': 'Following',
+      'home_feed_profile_followed': 'You are now following this profile.',
+      'home_feed_profile_follow_error': 'Could not follow this profile right now.',
+      'home_feed_profile_dismiss_error': 'Could not hide this profile right now.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Suggested',
       'home_feed_suggested_events_title': 'Suggested events',
@@ -982,6 +1000,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "See less",
     },
     'es': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Perfiles sugeridos',
+      'home_feed_suggested_profiles_more_hint': 'Descubre los perfiles sugeridos en tu feed.',
+      'home_feed_profile_not_interested': 'No me interesa',
+      'home_feed_profile_following': 'Siguiendo',
+      'home_feed_profile_followed': 'Ahora sigues este perfil.',
+      'home_feed_profile_follow_error': 'No se pudo seguir este perfil.',
+      'home_feed_profile_dismiss_error': 'No se pudo ocultar este perfil.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Sugerencia',
       'home_feed_suggested_events_title': 'Eventos sugeridos',
@@ -1411,6 +1438,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Ver menos",
     },
     'de': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Profilvorschläge',
+      'home_feed_suggested_profiles_more_hint': 'Entdecke die Profile, die dir im Feed vorgeschlagen werden.',
+      'home_feed_profile_not_interested': 'Nicht interessiert',
+      'home_feed_profile_following': 'Folge ich',
+      'home_feed_profile_followed': 'Du folgst diesem Profil jetzt.',
+      'home_feed_profile_follow_error': 'Dieses Profil kann gerade nicht abonniert werden.',
+      'home_feed_profile_dismiss_error': 'Dieses Profil kann gerade nicht ausgeblendet werden.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Vorschlag',
       'home_feed_suggested_events_title': 'Vorgeschlagene Veranstaltungen',
@@ -1850,6 +1886,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Weniger anzeigen",
     },
     'it': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Profili suggeriti',
+      'home_feed_suggested_profiles_more_hint': 'Scopri i profili suggeriti nel tuo feed.',
+      'home_feed_profile_not_interested': 'Non mi interessa',
+      'home_feed_profile_following': 'Segui già',
+      'home_feed_profile_followed': 'Ora segui questo profilo.',
+      'home_feed_profile_follow_error': 'Impossibile seguire questo profilo al momento.',
+      'home_feed_profile_dismiss_error': 'Impossibile nascondere questo profilo al momento.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Suggerimento',
       'home_feed_suggested_events_title': 'Eventi suggeriti',
@@ -2262,6 +2307,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Mostra meno",
     },
     'pt': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Perfis sugeridos',
+      'home_feed_suggested_profiles_more_hint': 'Descubra os perfis sugeridos no seu feed.',
+      'home_feed_profile_not_interested': 'Não tenho interesse',
+      'home_feed_profile_following': 'Seguindo',
+      'home_feed_profile_followed': 'Agora você segue este perfil.',
+      'home_feed_profile_follow_error': 'Não foi possível seguir este perfil agora.',
+      'home_feed_profile_dismiss_error': 'Não foi possível ocultar este perfil agora.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Sugestão',
       'home_feed_suggested_events_title': 'Eventos sugeridos',
@@ -2726,6 +2780,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Ver menos",
     },
     'ar': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'حسابات مقترحة',
+      'home_feed_suggested_profiles_more_hint': 'اكتشف الحسابات المقترحة في موجزك.',
+      'home_feed_profile_not_interested': 'غير مهتم',
+      'home_feed_profile_following': 'تتابعه',
+      'home_feed_profile_followed': 'أصبحت تتابع هذا الحساب الآن.',
+      'home_feed_profile_follow_error': 'تعذرت متابعة هذا الحساب حاليًا.',
+      'home_feed_profile_dismiss_error': 'تعذر إخفاء هذا الحساب حاليًا.',
+
       'settings_logout_error_message': "تعذر تسجيل الخروج. حاول مرة أخرى.",
       'settings_logout_error_title': "خطأ",
       'settings_logout_confirm_yes': "تسجيل الخروج",
@@ -3180,6 +3243,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "عرض أقل",
     },
     'zh': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': '推荐用户',
+      'home_feed_suggested_profiles_more_hint': '发现动态中推荐给你的用户。',
+      'home_feed_profile_not_interested': '不感兴趣',
+      'home_feed_profile_following': '已关注',
+      'home_feed_profile_followed': '你现在已关注此用户。',
+      'home_feed_profile_follow_error': '暂时无法关注此用户。',
+      'home_feed_profile_dismiss_error': '暂时无法隐藏此用户。',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': '推荐',
       'home_feed_suggested_events_title': '推荐活动',
@@ -3596,6 +3668,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "收起",
     },
     'ja': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'おすすめのユーザー',
+      'home_feed_suggested_profiles_more_hint': 'フィードでおすすめされたプロフィールを見つけましょう。',
+      'home_feed_profile_not_interested': '興味がない',
+      'home_feed_profile_following': 'フォロー中',
+      'home_feed_profile_followed': 'このプロフィールをフォローしました。',
+      'home_feed_profile_follow_error': '現在このプロフィールをフォローできません。',
+      'home_feed_profile_dismiss_error': '現在このプロフィールを非表示にできません。',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'おすすめ',
       'home_feed_suggested_events_title': 'おすすめのイベント',
@@ -4015,6 +4096,15 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "閉じる",
     },
     'ru': {
+      // Suggested profile cards on the home feed.
+      'home_feed_suggested_profiles_title': 'Рекомендуемые профили',
+      'home_feed_suggested_profiles_more_hint': 'Откройте профили, рекомендованные в вашей ленте.',
+      'home_feed_profile_not_interested': 'Не интересно',
+      'home_feed_profile_following': 'Вы подписаны',
+      'home_feed_profile_followed': 'Теперь вы подписаны на этот профиль.',
+      'home_feed_profile_follow_error': 'Не удалось подписаться на этот профиль.',
+      'home_feed_profile_dismiss_error': 'Не удалось скрыть этот профиль.',
+
       // Home feed event suggestion cards and calendar feedback.
       'home_feed_suggested': 'Рекомендация',
       'home_feed_suggested_events_title': 'Рекомендуемые события',
