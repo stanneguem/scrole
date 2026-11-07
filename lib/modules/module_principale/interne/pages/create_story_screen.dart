@@ -195,8 +195,11 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
     setState(() => _isPublishing = true);
     storiesController.isPublishingStory.value = true;
 
-    // Close the composer immediately. The upload continues in the controller
-    // while the user's own story avatar displays a rotating progress ring.
+    // Refresh the tray as soon as the user returns to the feed. The publishing
+    // flag keeps the progress ring visible while the upload runs in background.
+    unawaited(storiesController.fetchStories());
+
+    // Close the composer immediately; upload continues in the background.
     Get.back();
     unawaited(_publishInBackground(
       storiesController: storiesController,
@@ -259,6 +262,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         colorText: Colors.white,
       );
     } finally {
+      // Always reconcile the tray, including failed uploads, before hiding
+      // the publishing indicator.
+      await storiesController.fetchStories();
       storiesController.isPublishingStory.value = false;
     }
   }
