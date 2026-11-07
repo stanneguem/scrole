@@ -63,6 +63,17 @@ class CommunityFeedController extends GetxController {
   }
 
   void queuePostView(CommunityPost post) {
+    // Video views wait for the player to report 50% effective playback.
+    if (post.media.any((media) => media.isVideo)) return;
+    _queuePostViewId(post);
+  }
+
+  void queueQualifiedVideoPostView(CommunityPost post) {
+    if (!post.media.any((media) => media.isVideo)) return;
+    _queuePostViewId(post);
+  }
+
+  void _queuePostViewId(CommunityPost post) {
     if (post.isPublishing) return;
     final myId = currentUserId;
     if (myId != null && post.authorId == myId) return;
