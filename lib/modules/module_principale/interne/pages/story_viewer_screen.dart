@@ -328,6 +328,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         _storyIndex = 0;
       });
       _startStory();
+      unawaited(_refreshCurrentGroupFromServer());
     } else {
       Navigator.of(context).pop();
     }
@@ -345,6 +346,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         _storyIndex = widget.groups[_groupIndex].stories.length - 1;
       });
       _startStory();
+      unawaited(_refreshCurrentGroupFromServer());
     } else {
       _animController.forward(from: 0.0);
     }
