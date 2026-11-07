@@ -1,5 +1,9 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'shimmer.dart';
@@ -278,15 +282,37 @@ class _R2SignedImage extends StatefulWidget {
 }
 
 class _R2SignedImageState extends State<_R2SignedImage> {
-  late Future<String> _urlFuture;
+  late Future<File> _mediaFuture;
 
   @override
   void initState() {
     super.initState();
-    _urlFuture = _resolveUrl();
+    _mediaFuture = _loadCachedMedia();
   }
 
-  Future<String> _resolveUrl() async {
+  // Private R2 media is cached by its stable object key, not by its short-lived
+  // signed URL. This avoids a new download every time the URL is refreshed.
+  String get _cacheId => base64Url.encode(utf8.encode(widget.objectKey)).replaceAll('=', '');
+
+  Future<File> _loadCachedMedia() async {
+    final directory = await getApplicationSupportDirectory();
+    final cacheDirectory = Directory(p.join(directory.path, 'r2_media_cache'));
+    if (!await cacheDirectory.exists()) {
+      await cacheDirectory.create(recursive: true);
+    }
+    final file = File(p.join(cacheDirectory.path, _cacheId));
+    final expiryFile = File(p.join(cacheDirectory.path, '$_cacheId.expiry'));
+
+    if (await file.exists() && await expiryFile.exists()) {
+      final expiry = DateTime.tryParse(await expiryFile.readAsString());
+      if (expiry != null && expiry.isAfter(DateTime.now())) {
+        debugPrint('[R2_IMAGE_CACHE] HIT key=${widget.objectKey}');
+        return file;
+      }
+    }
+    if (await file.exists()) await file.delete();
+    if (await expiryFile.exists()) await expiryFile.delete();
+
     final response = await Supabase.instance.client.functions.invoke(
       'r2-media-upload',
       body: {'action': 'create-download-url', 'object_key': widget.objectKey},
@@ -297,13 +323,25 @@ class _R2SignedImageState extends State<_R2SignedImage> {
     final data = Map<String, dynamic>.from(response.data as Map);
     final url = data['url']?.toString();
     if (url == null || url.isEmpty) throw StateError('URL de lecture R2 absente.');
-    return url;
+
+    final download = await http.get(Uri.parse(url)).timeout(const Duration(minutes: 2));
+    if (download.statusCode < 200 || download.statusCode >= 300 || download.bodyBytes.isEmpty) {
+      throw HttpException('Téléchargement du média privé impossible (HTTP ${download.statusCode}).');
+    }
+    await file.writeAsBytes(download.bodyBytes, flush: true);
+    // Story objects are short-lived; keep the offline copy for at most 24h.
+    await expiryFile.writeAsString(
+      DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+      flush: true,
+    );
+    debugPrint('[R2_IMAGE_CACHE] SAVED key=${widget.objectKey} bytes=${download.bodyBytes.length}');
+    return file;
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: _urlFuture,
+    return FutureBuilder<File>(
+      future: _mediaFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return widget.errorWidget ?? Container(
@@ -318,11 +356,26 @@ class _R2SignedImageState extends State<_R2SignedImage> {
             borderRadius: widget.borderRadius?.topLeft.x ?? 0,
           );
         }
-        return AppCachedImage(
-          imageUrl: snapshot.data!, width: widget.width, height: widget.height,
-          fit: widget.fit, borderRadius: widget.borderRadius,
-          placeholder: widget.placeholder, errorWidget: widget.errorWidget,
-          onImageLoaded: widget.onImageLoaded,
+        return ClipRRect(
+          borderRadius: widget.borderRadius ?? BorderRadius.zero,
+          child: Image.file(
+            snapshot.data!,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+              if (frame != null || wasSynchronouslyLoaded) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  widget.onImageLoaded?.call();
+                });
+              }
+              return child;
+            },
+            errorBuilder: (_, __, ___) => widget.errorWidget ?? Container(
+              width: widget.width, height: widget.height, color: Colors.grey[200],
+              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+            ),
+          ),
         );
       },
     );
