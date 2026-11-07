@@ -2326,7 +2326,10 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
     if (controller == null) return;
     try {
       await controller.initialize();
-      if (!mounted) return;
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
       await controller.setLooping(false);
       await controller.setVolume(1);
       setState(() {});
@@ -2502,7 +2505,9 @@ class _StoryVideoPlayer extends StatefulWidget {
 class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
   VideoPlayerController? _controller;
   bool _failed = false;
+  bool _isDownloading = false;
   bool _completionHandled = false;
+  Timer? _expiryCleanupTimer;
 
   @override
   void initState() {
@@ -2571,6 +2576,7 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
       if (!widget.isPaused) await controller.play();
     } catch (e) {
       debugPrint('[STORY] Standalone video initialization failed: $e');
+      await _deleteExpiredLocalVideo();
       if (mounted) setState(() => _failed = true);
     }
   }
