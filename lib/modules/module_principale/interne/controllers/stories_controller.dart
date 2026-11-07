@@ -151,8 +151,8 @@ class EventStoryGroup {
   final StoryAuthor author;
   final String relation; // 'own' | 'friend' | 'follow' | 'other'
   bool hasUnseen;
-  final DateTime latestAt;
-  final int storiesCount;
+  DateTime latestAt;
+  int storiesCount;
   final List<StoryItem> stories;
 
   EventStoryGroup({
