@@ -181,10 +181,6 @@ class FeedPostCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.zero,
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.16),
-            width: 0.7,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
@@ -2639,10 +2635,6 @@ class _RepublicationPostCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.zero,
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.18),
-          width: 0.8,
-        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
