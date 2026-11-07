@@ -2361,7 +2361,8 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
 
   @override
   void dispose() {
-    _expiryCleanupTimer?.cancel();
+    // Keep the expiry timer alive after leaving the viewer so cached media
+    // is deleted at the story's actual expiration time.
     _controller?.removeListener(_onVideoChanged);
     _controller?.dispose();
     super.dispose();
