@@ -992,7 +992,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Transform.translate(
-                      offset: const Offset(0, 68),
+                      offset: const Offset(0, 102),
                       child: AnimatedOpacity(
                         opacity: _isDragging ? 0.0 : 1.0,
                         duration: const Duration(milliseconds: 200),
@@ -1051,7 +1051,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 if (!_isOwnStory)
                   Positioned(
                     left: 12,
-                    right: 72,
+                    right: 12,
                     bottom: MediaQuery.of(context).padding.bottom + 12,
                     child: AnimatedOpacity(
                       opacity: _isDragging ? 0.0 : 1.0,
@@ -1169,6 +1169,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                       hintText: 'Répondre à la story…',
                       hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      isCollapsed: false,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
                     ),
