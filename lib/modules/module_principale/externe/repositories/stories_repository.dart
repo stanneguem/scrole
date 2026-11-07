@@ -79,9 +79,11 @@ class StoriesRepository {
       final response = await client.rpc('get_user_stories', params: {'p_user_id': userId});
       if (response is Map) return Map<String, dynamic>.from(response);
       return null;
-    } catch (e) {
-      debugPrint('[STORY] [Repository] Error in getUserStories: $e');
-      return null;
+    } catch (e, st) {
+      // A network/server error must not be interpreted as a deleted or
+      // inaccessible story. The viewer keeps its cached content in that case.
+      debugPrint('[STORY] [Repository] Error refreshing user stories: $e\n$st');
+      rethrow;
     }
   }
 
