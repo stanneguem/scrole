@@ -15,6 +15,7 @@ class StoriesRepository {
     String p_audience = 'public',
     Map<String, dynamic>? p_poll,
     bool p_allow_reshare = false,
+    String? p_thumbnail_url,
   }) async {
     try {
       debugPrint('[STORY] [Repository] Calling RPC create_story with p_id=$p_id, kind=$p_kind, audience=$p_audience');
@@ -29,6 +30,7 @@ class StoriesRepository {
         'p_audience': p_audience,
         'p_poll': p_poll,
         'p_allow_reshare': p_allow_reshare,
+        'p_thumbnail_url': p_thumbnail_url,
       };
 
       final response = await client.rpc('create_story', params: params);
