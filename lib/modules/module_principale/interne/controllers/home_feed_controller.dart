@@ -232,6 +232,8 @@ class HomeFeedController extends GetxController {
     super.onClose();
   }
 
+  String eventAgendaRestrictionMessageKey(Object error) => _eventRepo.agendaRestrictionMessageKey(error);
+
   void removeSuggestedEvent(String eventId) {
     suggestedEvents.removeWhere((event) => event.id == eventId);
   }
