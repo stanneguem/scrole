@@ -245,10 +245,10 @@ class HomeFeedController extends GetxController {
     try {
       final relation = await SocialRepository().followUser(profile.id);
       final state = (relation['state'] ?? '').toString();
-      profile.isAdded = state == 'friends' || state == 'requested' ||
-          state == 'following' || relation['is_following'] == true;
+      profile.isAdded = state == 'friends' || state == 'following' || relation['is_following'] == true;
+      profile.isRequestSent = state == 'requested' || relation['request_sent'] == true;
       suggestedProfiles.refresh();
-      if (!profile.isAdded) {
+      if (!profile.isAdded && !profile.isRequestSent) {
         throw StateError('Le suivi n’a pas été confirmé');
       }
     } finally {
