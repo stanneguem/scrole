@@ -900,7 +900,7 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
     } catch (e) {
       debugPrint('[SuggestedEventCard] add to calendar failed: $e');
       if (mounted) {
-        Get.snackbar('Calendrier', Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
+        Get.snackbar('Calendrier', widget.controller.eventAgendaRestrictionMessageKey(e).tr,
           snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 5));
       }
     } finally {
