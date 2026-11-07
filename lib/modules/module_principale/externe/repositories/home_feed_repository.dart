@@ -11,6 +11,7 @@ class SuggestedProfileModel {
   final String reasonSubtitle;
   final bool isCertified;
   bool isAdded;
+  bool isRequestSent;
 
   SuggestedProfileModel({
     required this.id,
@@ -20,6 +21,7 @@ class SuggestedProfileModel {
     required this.reasonSubtitle,
     this.isCertified = false,
     this.isAdded = false,
+    this.isRequestSent = false,
   });
 
   factory SuggestedProfileModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class SuggestedProfileModel {
       reasonSubtitle: (json['reason_subtitle'] ?? json['reason'] ?? reason).toString(),
       isCertified: json['is_certified'] == true || json['is_verified'] == true,
       isAdded: json['is_added'] == true || json['is_following'] == true,
+      isRequestSent: json['request_sent'] == true,
     );
   }
 }
