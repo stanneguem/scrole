@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:scrole/app/utils/boot_timing.dart';
+import 'package:scrole/app/service_global/connectivity_service.dart';
 import 'package:scrole/shared/widgets/search_screen.dart';
 
 import '../../../../../shared/widgets/glas_buton.dart';
