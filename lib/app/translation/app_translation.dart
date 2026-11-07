@@ -537,6 +537,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_interests': 'Centres d’intérêt communs',
       'home_feed_profile_reason_discover': 'Profil à découvrir',
 
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Enregistrer sur l’appareil',
+      'media_saved_to_gallery': 'Le média a été enregistré dans votre galerie.',
+      'media_save_failed': 'Impossible d’enregistrer ce média.',
+      'media_report': 'Signaler ce média',
+      'media_report_thanks': 'Merci, votre signalement a été pris en compte.',
+      'media_save_file_missing': 'Fichier média introuvable.',
+      'media_unavailable': 'Média indisponible.',
+      'media_download_failed': 'Impossible de télécharger ce média.',
+
     },
     'en': {
       'home_feed_profile_request_sent': 'Request sent',
@@ -1018,6 +1028,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_interests': 'Common interests',
       'home_feed_profile_reason_discover': 'Discover this profile',
 
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Save to device',
+      'media_saved_to_gallery': 'Media saved to your gallery.',
+      'media_save_failed': 'Could not save this media.',
+      'media_report': 'Report this media',
+      'media_report_thanks': 'Thank you. Your report has been received.',
+      'media_save_file_missing': 'Media file not found.',
+      'media_unavailable': 'Media unavailable.',
+      'media_download_failed': 'Could not download this media.',
+
     },
     'es': {
       'home_feed_profile_request_sent': 'Solicitud enviada',
@@ -1465,6 +1485,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_community': 'Comunidad en común',
       'home_feed_profile_reason_common_interests': 'Intereses en común',
       'home_feed_profile_reason_discover': 'Perfil por descubrir',
+
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Guardar en el dispositivo',
+      'media_saved_to_gallery': 'El contenido se guardó en tu galería.',
+      'media_save_failed': 'No se pudo guardar este contenido.',
+      'media_report': 'Denunciar este contenido',
+      'media_report_thanks': 'Gracias. Hemos recibido tu denuncia.',
+      'media_save_file_missing': 'No se encontró el archivo.',
+      'media_unavailable': 'Contenido no disponible.',
+      'media_download_failed': 'No se pudo descargar este contenido.',
 
     },
     'de': {
@@ -1924,6 +1954,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_interests': 'Gemeinsame Interessen',
       'home_feed_profile_reason_discover': 'Profil entdecken',
 
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Auf Gerät speichern',
+      'media_saved_to_gallery': 'Medium in deiner Galerie gespeichert.',
+      'media_save_failed': 'Dieses Medium konnte nicht gespeichert werden.',
+      'media_report': 'Dieses Medium melden',
+      'media_report_thanks': 'Danke. Deine Meldung wurde übermittelt.',
+      'media_save_file_missing': 'Mediendatei nicht gefunden.',
+      'media_unavailable': 'Medium nicht verfügbar.',
+      'media_download_failed': 'Medium konnte nicht heruntergeladen werden.',
+
     },
     'it': {
       'home_feed_profile_request_sent': 'Richiesta inviata',
@@ -2354,6 +2394,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_community': 'Community in comune',
       'home_feed_profile_reason_common_interests': 'Interessi in comune',
       'home_feed_profile_reason_discover': 'Profilo da scoprire',
+
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Salva sul dispositivo',
+      'media_saved_to_gallery': 'Contenuto salvato nella galleria.',
+      'media_save_failed': 'Impossibile salvare questo contenuto.',
+      'media_report': 'Segnala questo contenuto',
+      'media_report_thanks': 'Grazie. La segnalazione è stata ricevuta.',
+      'media_save_file_missing': 'File multimediale non trovato.',
+      'media_unavailable': 'Contenuto non disponibile.',
+      'media_download_failed': 'Impossibile scaricare questo contenuto.',
 
     },
     'pt': {
@@ -2838,6 +2888,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_interests': 'Interesses em comum',
       'home_feed_profile_reason_discover': 'Perfil para descobrir',
 
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Salvar no dispositivo',
+      'media_saved_to_gallery': 'Mídia salva na galeria.',
+      'media_save_failed': 'Não foi possível salvar esta mídia.',
+      'media_report': 'Denunciar esta mídia',
+      'media_report_thanks': 'Obrigado. Sua denúncia foi recebida.',
+      'media_save_file_missing': 'Arquivo de mídia não encontrado.',
+      'media_unavailable': 'Mídia indisponível.',
+      'media_download_failed': 'Não foi possível baixar esta mídia.',
+
     },
     'ar': {
       'home_feed_profile_request_sent': 'تم إرسال الطلب',
@@ -3311,6 +3371,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_interests': 'اهتمامات مشتركة',
       'home_feed_profile_reason_discover': 'ملف شخصي لاكتشافه',
 
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'حفظ على الجهاز',
+      'media_saved_to_gallery': 'تم حفظ الوسائط في المعرض.',
+      'media_save_failed': 'تعذر حفظ هذه الوسائط.',
+      'media_report': 'الإبلاغ عن هذه الوسائط',
+      'media_report_thanks': 'شكرًا، تم استلام بلاغك.',
+      'media_save_file_missing': 'ملف الوسائط غير موجود.',
+      'media_unavailable': 'الوسائط غير متاحة.',
+      'media_download_failed': 'تعذر تنزيل هذه الوسائط.',
+
     },
     'zh': {
       'home_feed_profile_request_sent': '请求已发送',
@@ -3746,6 +3816,16 @@ class AppTranslations extends Translations {
       'home_feed_profile_reason_common_interests': '共同兴趣',
       'home_feed_profile_reason_discover': '发现此用户',
 
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': '保存到设备',
+      'media_saved_to_gallery': '媒体已保存到相册。',
+      'media_save_failed': '无法保存此媒体。',
+      'media_report': '举报此媒体',
+      'media_report_thanks': '感谢反馈，已收到你的举报。',
+      'media_save_file_missing': '找不到媒体文件。',
+      'media_unavailable': '媒体不可用。',
+      'media_download_failed': '无法下载此媒体。',
+
     },
     'ja': {
       'home_feed_profile_request_sent': 'リクエスト送信済み',
@@ -4176,6 +4256,16 @@ class AppTranslations extends Translations {
       'community_chat_settings_save_error': "この設定を保存できませんでした：@error",
       'community_chat_settings_see_more': "もっと見る",
       'community_chat_settings_see_less': "閉じる",
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': '端末に保存',
+      'media_saved_to_gallery': 'メディアをギャラリーに保存しました。',
+      'media_save_failed': 'メディアを保存できませんでした。',
+      'media_report': 'このメディアを報告',
+      'media_report_thanks': 'ご報告ありがとうございます。',
+      'media_save_file_missing': 'メディアファイルが見つかりません。',
+      'media_unavailable': 'メディアを利用できません。',
+      'media_download_failed': 'メディアをダウンロードできませんでした。',
+
     },
     'ru': {
       'home_feed_profile_request_sent': 'Запрос отправлен',
@@ -4607,6 +4697,16 @@ class AppTranslations extends Translations {
       'community_chat_settings_save_error': "Не удалось сохранить настройку: @error",
       'community_chat_settings_see_more': "Показать ещё",
       'community_chat_settings_see_less': "Свернуть",
+      // Full-screen post media viewer actions.
+      'media_save_to_gallery': 'Сохранить на устройство',
+      'media_saved_to_gallery': 'Медиа сохранено в галерею.',
+      'media_save_failed': 'Не удалось сохранить это медиа.',
+      'media_report': 'Пожаловаться на медиа',
+      'media_report_thanks': 'Спасибо, жалоба получена.',
+      'media_save_file_missing': 'Медиафайл не найден.',
+      'media_unavailable': 'Медиа недоступно.',
+      'media_download_failed': 'Не удалось скачать это медиа.',
+
     },
   };
 }
