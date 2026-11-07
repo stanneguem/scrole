@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'story_like': 'J’aime',
       'salon_voice_recording_title': 'Enregistrement vocal',
       'salon_voice_preview_title': 'Aperçu du message vocal',
       'salon_voice_message_label': 'Message vocal',
@@ -1390,6 +1391,7 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'story_like': 'Like',
       'salon_voice_recording_title': 'Recording voice message',
       'salon_voice_preview_title': 'Voice message preview',
       'salon_voice_message_label': 'Voice message',
@@ -2771,6 +2773,7 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'story_like': 'Me gusta',
       'salon_voice_recording_title': 'Grabando mensaje de voz',
       'salon_voice_preview_title': 'Vista previa del mensaje de voz',
       'salon_voice_message_label': 'Mensaje de voz',
@@ -4055,6 +4058,7 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'story_like': 'Gefällt mir',
       'salon_voice_recording_title': 'Sprachnachricht aufnehmen',
       'salon_voice_preview_title': 'Vorschau der Sprachnachricht',
       'salon_voice_message_label': 'Sprachnachricht',
@@ -5322,6 +5326,7 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'story_like': 'Mi piace',
       'salon_voice_recording_title': 'Registrazione messaggio vocale',
       'salon_voice_preview_title': 'Anteprima del messaggio vocale',
       'salon_voice_message_label': 'Messaggio vocale',
@@ -6587,6 +6592,7 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'story_like': 'Gostei',
       'salon_voice_recording_title': 'Gravando mensagem de voz',
       'salon_voice_preview_title': 'Prévia da mensagem de voz',
       'salon_voice_message_label': 'Mensagem de voz',
@@ -7852,6 +7858,7 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'story_like': '点赞',
       'salon_voice_recording_title': '正在录制语音消息',
       'salon_voice_preview_title': '语音消息预览',
       'salon_voice_message_label': '语音消息',
@@ -9119,6 +9126,7 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'story_like': 'いいね',
       'salon_voice_recording_title': '音声メッセージを録音中',
       'salon_voice_preview_title': '音声メッセージのプレビュー',
       'salon_voice_message_label': '音声メッセージ',
@@ -10379,6 +10387,7 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'story_like': 'Нравится',
       'salon_voice_recording_title': 'Запись голосового сообщения',
       'salon_voice_preview_title': 'Прослушивание голосового сообщения',
       'salon_voice_message_label': 'Голосовое сообщение',
