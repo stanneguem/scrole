@@ -62,9 +62,13 @@ class CommunityFeedController extends GetxController {
     super.onClose();
   }
 
+  bool _containsVideo(CommunityPost post) =>
+      post.media.any((media) => media.isVideo) ||
+      (post.sharedPost?.media.any((media) => media.isVideo) ?? false);
+
   void queuePostView(CommunityPost post) {
     // Video views wait for the player to report 50% effective playback.
-    if (post.media.any((media) => media.isVideo)) return;
+    if (_containsVideo(post)) return;
     _queuePostViewId(post.id, post);
   }
 
