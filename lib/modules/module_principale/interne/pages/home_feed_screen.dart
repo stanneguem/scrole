@@ -498,7 +498,7 @@ class _StoriesRow extends GetView<StoriesController> {
                                 width: 2.5,
                               ),
                             ),
-                            ClipOval(
+                            child: ClipOval(
                               child: SizedBox(
                                 width: 56,
                                 height: 56,
