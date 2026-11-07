@@ -2372,16 +2372,6 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
     super.dispose();
   }
 
-  Widget _buildFallbackBackground() {
-    final fallback = widget.fallbackImageUrl?.trim() ?? '';
-    if (fallback.isEmpty) return const ColoredBox(color: Colors.black);
-    return AppCachedImage(
-      imageUrl: fallback,
-      fit: BoxFit.cover,
-      errorWidget: const ColoredBox(color: Colors.black),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -2706,6 +2696,16 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
     _controller?.removeListener(_onVideoChanged);
     _controller?.dispose();
     super.dispose();
+  }
+
+  Widget _buildFallbackBackground() {
+    final fallback = widget.fallbackImageUrl?.trim() ?? '';
+    if (fallback.isEmpty) return const ColoredBox(color: Colors.black);
+    return AppCachedImage(
+      imageUrl: fallback,
+      fit: BoxFit.cover,
+      errorWidget: const ColoredBox(color: Colors.black),
+    );
   }
 
   @override
