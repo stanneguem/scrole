@@ -547,6 +547,8 @@ class AppTranslations extends Translations {
       'media_unavailable': 'Média indisponible.',
       'media_download_failed': 'Impossible de télécharger ce média.',
 
+      'media_save_permission_denied': 'Autorisez l’accès à la galerie pour enregistrer ce média.',
+
     },
     'en': {
       'home_feed_profile_request_sent': 'Request sent',
@@ -1038,6 +1040,8 @@ class AppTranslations extends Translations {
       'media_unavailable': 'Media unavailable.',
       'media_download_failed': 'Could not download this media.',
 
+      'media_save_permission_denied': 'Allow gallery access to save this media.',
+
     },
     'es': {
       'home_feed_profile_request_sent': 'Solicitud enviada',
@@ -1495,6 +1499,8 @@ class AppTranslations extends Translations {
       'media_save_file_missing': 'No se encontró el archivo.',
       'media_unavailable': 'Contenido no disponible.',
       'media_download_failed': 'No se pudo descargar este contenido.',
+
+      'media_save_permission_denied': 'Permite el acceso a la galería para guardar este contenido.',
 
     },
     'de': {
@@ -1964,6 +1970,8 @@ class AppTranslations extends Translations {
       'media_unavailable': 'Medium nicht verfügbar.',
       'media_download_failed': 'Medium konnte nicht heruntergeladen werden.',
 
+      'media_save_permission_denied': 'Erlaube den Galeriezugriff, um dieses Medium zu speichern.',
+
     },
     'it': {
       'home_feed_profile_request_sent': 'Richiesta inviata',
@@ -2404,6 +2412,8 @@ class AppTranslations extends Translations {
       'media_save_file_missing': 'File multimediale non trovato.',
       'media_unavailable': 'Contenuto non disponibile.',
       'media_download_failed': 'Impossibile scaricare questo contenuto.',
+
+      'media_save_permission_denied': 'Consenti l’accesso alla galleria per salvare questo contenuto.',
 
     },
     'pt': {
@@ -2898,6 +2908,8 @@ class AppTranslations extends Translations {
       'media_unavailable': 'Mídia indisponível.',
       'media_download_failed': 'Não foi possível baixar esta mídia.',
 
+      'media_save_permission_denied': 'Permita o acesso à galeria para salvar esta mídia.',
+
     },
     'ar': {
       'home_feed_profile_request_sent': 'تم إرسال الطلب',
@@ -3381,6 +3393,8 @@ class AppTranslations extends Translations {
       'media_unavailable': 'الوسائط غير متاحة.',
       'media_download_failed': 'تعذر تنزيل هذه الوسائط.',
 
+      'media_save_permission_denied': 'اسمح بالوصول إلى المعرض لحفظ هذه الوسائط.',
+
     },
     'zh': {
       'home_feed_profile_request_sent': '请求已发送',
@@ -3826,6 +3840,8 @@ class AppTranslations extends Translations {
       'media_unavailable': '媒体不可用。',
       'media_download_failed': '无法下载此媒体。',
 
+      'media_save_permission_denied': '请允许访问相册以保存此媒体。',
+
     },
     'ja': {
       'home_feed_profile_request_sent': 'リクエスト送信済み',
@@ -4265,6 +4281,8 @@ class AppTranslations extends Translations {
       'media_save_file_missing': 'メディアファイルが見つかりません。',
       'media_unavailable': 'メディアを利用できません。',
       'media_download_failed': 'メディアをダウンロードできませんでした。',
+
+      'media_save_permission_denied': 'メディアを保存するには、ギャラリーへのアクセスを許可してください。',
 
     },
     'ru': {
@@ -4706,6 +4724,8 @@ class AppTranslations extends Translations {
       'media_save_file_missing': 'Медиафайл не найден.',
       'media_unavailable': 'Медиа недоступно.',
       'media_download_failed': 'Не удалось скачать это медиа.',
+
+      'media_save_permission_denied': 'Разрешите доступ к галерее, чтобы сохранить это медиа.',
 
     },
   };
