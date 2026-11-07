@@ -396,8 +396,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   Future<void> _toggleStoryLike() async {
     final newLiked = !_currentStory.isLiked;
+    final previousCount = _currentStory.likesCount;
     setState(() {
       _currentStory.isLiked = newLiked;
+      _currentStory.likesCount = (previousCount + (newLiked ? 1 : -1)).clamp(0, 1 << 31);
       if (newLiked) {
         _heartsAnimationController.forward(from: 0.0);
       } else {
@@ -409,8 +411,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       await _storiesRepo.setStoryLike(_currentStory.id, newLiked);
     } catch (e) {
       debugPrint('[STORY] [Controller] Error setting story like: $e');
+      if (!mounted) return;
       setState(() {
         _currentStory.isLiked = !newLiked;
+        _currentStory.likesCount = previousCount;
       });
     }
   }
@@ -966,21 +970,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   ),
                 ),
 
-                // --- Lottie Hearts Animation Overlay ---
-                Positioned(
-                  bottom: 80,
-                  right: 60,
-                  child: IgnorePointer(
-                    child: Lottie.asset(
-                      'assets/lotties/head.json',
-                      controller: _heartsAnimationController,
-                      width: 130,
-                      height: 130,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-
                 // --- TikTok-style story actions on the right ---
                 // Vertical action rail pinned to the extreme right, like TikTok.
                 // For other people's stories: Like first, comments immediately below.
@@ -1011,24 +1000,45 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                 borderRadius: BorderRadius.circular(24),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.center,
                                     children: [
-                                      Icon(
-                                        _currentStory.isLiked
-                                            ? Icons.favorite_rounded
-                                            : Icons.favorite_border_rounded,
-                                        color: _currentStory.isLiked ? Colors.red : Colors.white,
-                                        size: 28,
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _currentStory.isLiked
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_border_rounded,
+                                            color: _currentStory.isLiked ? Colors.red : Colors.white,
+                                            size: 28,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _currentStory.likesCount > 0
+                                                ? NumberFormatter.formatCount(_currentStory.likesCount)
+                                                : 'story_like'.tr,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _currentStory.isLiked ? 'Aimé' : 'J’aime',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                      Positioned(
+                                        right: -42,
+                                        top: -62,
+                                        child: IgnorePointer(
+                                          child: Lottie.asset(
+                                            'assets/lotties/head.json',
+                                            controller: _heartsAnimationController,
+                                            width: 112,
+                                            height: 112,
+                                            fit: BoxFit.contain,
+                                          ),
                                         ),
                                       ),
                                     ],
