@@ -14,6 +14,7 @@ import 'package:scrole/modules/module_communautes/centre/services/community_outb
 import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/app/utils/supabase_error_mapper.dart';
+import 'package:scrole/modules/module_discussion_direct/externe/repositories/social_repository.dart';
 import 'package:uuid/uuid.dart';
 
 enum HomeFeedState { initial, loading, loaded, empty, error, loadingMore }
@@ -236,6 +237,34 @@ class HomeFeedController extends GetxController {
   }
 
   String eventAgendaRestrictionMessageKey(Object error) => _eventRepo.agendaRestrictionMessageKey(error);
+
+  final Set<String> _profileSuggestionActionsInFlight = {};
+
+  Future<void> followSuggestedProfile(SuggestedProfileModel profile) async {
+    if (profile.id.isEmpty || !_profileSuggestionActionsInFlight.add(profile.id)) return;
+    try {
+      final relation = await SocialRepository().followUser(profile.id);
+      final state = (relation['state'] ?? '').toString();
+      profile.isAdded = state == 'friends' || state == 'requested' ||
+          state == 'following' || relation['is_following'] == true;
+      suggestedProfiles.refresh();
+      if (!profile.isAdded) {
+        throw StateError('Le suivi n’a pas été confirmé');
+      }
+    } finally {
+      _profileSuggestionActionsInFlight.remove(profile.id);
+    }
+  }
+
+  Future<void> dismissSuggestedProfile(SuggestedProfileModel profile) async {
+    if (profile.id.isEmpty || !_profileSuggestionActionsInFlight.add(profile.id)) return;
+    try {
+      await _feedRepo.dismissSuggestedProfile(profile.id);
+      suggestedProfiles.removeWhere((item) => item.id == profile.id);
+    } finally {
+      _profileSuggestionActionsInFlight.remove(profile.id);
+    }
+  }
 
   void removeSuggestedEvent(String eventId) {
     suggestedEvents.removeWhere((event) => event.id == eventId);
