@@ -201,6 +201,50 @@ class FeedPostCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (post.isPublishing)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.42),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      if (!post.timeAgo.toLowerCase().contains('échec'))
+                        SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.primary,
+                          ),
+                        )
+                      else
+                        Icon(Icons.error_outline_rounded, size: 17, color: colorScheme.error),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          post.reasonSubtitle?.isNotEmpty == true
+                              ? post.reasonSubtitle!
+                              : post.timeAgo,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: post.timeAgo.toLowerCase().contains('échec')
+                                ? colorScheme.error
+                                : colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
 
             // ───────── Partie haute (avec marges latérales) ─────────
