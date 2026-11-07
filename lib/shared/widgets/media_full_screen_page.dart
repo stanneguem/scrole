@@ -1,10 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:saver_gallery/saver_gallery.dart';
 import 'package:flutter/material.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
@@ -55,7 +51,6 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
   bool _isDragging = false;
   bool _videoControlsVisible = true;
   bool _chromeVisible = true;
-  bool _isSavingMedia = false;
 
   late int _likesCount;
   late int _dislikesCount;
@@ -112,79 +107,6 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
     }
   }
 
-  Future<bool> _requestGallerySavePermission() async {
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt < 29) {
-        return (await Permission.storage.request()).isGranted;
-      }
-      return true;
-    }
-    if (Platform.isIOS) {
-      return (await Permission.photosAddOnly.request()).isGranted;
-    }
-    return false;
-  }
-
-  Future<void> _saveCurrentMedia() async {
-    if (_items.isEmpty || _isSavingMedia) return;
-    final rawUrl = _items[_currentPage].url;
-    if (rawUrl.isEmpty) return;
-    setState(() => _isSavingMedia = true);
-    try {
-      final permissionGranted = await _requestGallerySavePermission();
-      if (!permissionGranted) throw StateError('media_save_permission_denied'.tr);
-      final uri = Uri.tryParse(rawUrl);
-      final isNetwork = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-      File file;
-      if (isNetwork) {
-        file = await DefaultCacheManager().getSingleFile(rawUrl);
-      } else if (ChatMediaCache.isFilesystemPath(rawUrl) && await File(rawUrl).exists()) {
-        file = File(rawUrl);
-      } else {
-        final response = await Supabase.instance.client.functions.invoke(
-          'r2-media-upload',
-          body: {'action': 'create-download-url', 'object_key': rawUrl},
-        );
-        if (response.status < 200 || response.status >= 300 || response.data is! Map) {
-          throw StateError('media_download_failed'.tr);
-        }
-        final signedUrl = (response.data as Map)['url']?.toString() ?? '';
-        if (signedUrl.isEmpty) throw StateError('media_download_failed'.tr);
-        file = await DefaultCacheManager().getSingleFile(signedUrl);
-      }
-      if (!await file.exists()) throw StateError('media_save_file_missing'.tr);
-      final bytes = await file.readAsBytes();
-      final extension = _items[_currentPage].isVideo ? 'mp4' : 'jpg';
-      final fileName = 'scrole_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final result = _items[_currentPage].isVideo
-          ? await SaverGallery.saveFile(
-              filePath: file.path,
-              fileName: fileName,
-              androidRelativePath: 'Movies/Scrole',
-              skipIfExists: false,
-            )
-          : await SaverGallery.saveImage(
-              Uint8List.fromList(bytes),
-              fileName: fileName,
-              androidRelativePath: 'Pictures/Scrole',
-              skipIfExists: false,
-            );
-      if (!mounted) return;
-      final success = result.isSuccess;
-      Get.snackbar(
-        success ? 'success'.tr : 'error'.tr,
-        success ? 'media_saved_to_gallery'.tr : 'media_save_failed'.tr,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } catch (error) {
-      debugPrint('[MEDIA_VIEWER] save failed: $error');
-      if (mounted) Get.snackbar('error'.tr, 'media_save_failed'.tr, snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      if (mounted) setState(() => _isSavingMedia = false);
-    }
-  }
-
   Future<void> _onReport() async {
     final colors = Theme.of(context).colorScheme;
     await showModalBottomSheet(
@@ -203,12 +125,6 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
             children: [
             Container(width: 38, height: 4, decoration: BoxDecoration(color: colors.outlineVariant, borderRadius: BorderRadius.circular(4))),
             const SizedBox(height: 14),
-            ListTile(
-              leading: const Icon(Icons.download_rounded),
-              title: Text('media_save_to_gallery'.tr),
-              trailing: _isSavingMedia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : null,
-              onTap: _isSavingMedia ? null : () { Navigator.of(context).pop(); _saveCurrentMedia(); },
-            ),
             ListTile(
               leading: const Icon(Icons.ios_share_rounded),
               title: Text('share'.tr),
