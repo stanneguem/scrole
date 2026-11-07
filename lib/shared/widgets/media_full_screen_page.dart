@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'package:saver_gallery/saver_gallery.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
@@ -49,6 +52,8 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
   double _bgOpacity = 1.0;
   bool _isDragging = false;
   bool _videoControlsVisible = true;
+  bool _chromeVisible = true;
+  bool _isSavingMedia = false;
 
   late int _likesCount;
   late int _dislikesCount;
@@ -105,33 +110,88 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
     }
   }
 
-  void _onReport() {
-    showModalBottomSheet(
+  Future<void> _saveCurrentMedia() async {
+    if (_items.isEmpty || _isSavingMedia) return;
+    final rawUrl = _items[_currentPage].url;
+    if (rawUrl.isEmpty) return;
+    setState(() => _isSavingMedia = true);
+    try {
+      final uri = Uri.tryParse(rawUrl);
+      final isNetwork = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+      final file = isNetwork
+          ? await DefaultCacheManager().getSingleFile(rawUrl)
+          : File(rawUrl);
+      if (!await file.exists()) throw StateError('media_save_file_missing'.tr);
+      final bytes = await file.readAsBytes();
+      final extension = _items[_currentPage].isVideo ? 'mp4' : 'jpg';
+      final result = await SaverGallery.saveImage(
+        Uint8List.fromList(bytes),
+        fileName: 'scrole_${DateTime.now().millisecondsSinceEpoch}.$extension',
+        skipIfExists: false,
+      );
+      if (!mounted) return;
+      final success = result.isSuccess;
+      Get.snackbar(
+        success ? 'success'.tr : 'error'.tr,
+        success ? 'media_saved_to_gallery'.tr : 'media_save_failed'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      debugPrint('[MEDIA_VIEWER] save failed: $error');
+      if (mounted) Get.snackbar('error'.tr, 'media_save_failed'.tr, snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _isSavingMedia = false);
+    }
+  }
+
+  Future<void> _onReport() async {
+    final colors = Theme.of(context).colorScheme;
+    await showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => SafeArea(
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(width: 38, height: 4, decoration: BoxDecoration(color: colors.outlineVariant, borderRadius: BorderRadius.circular(4))),
+            const SizedBox(height: 14),
+            ListTile(
+              leading: const Icon(Icons.download_rounded),
+              title: Text('media_save_to_gallery'.tr),
+              trailing: _isSavingMedia ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : null,
+              onTap: _isSavingMedia ? null : () { Navigator.of(context).pop(); _saveCurrentMedia(); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.ios_share_rounded),
+              title: Text('share'.tr),
+              onTap: () { Navigator.of(context).pop(); _onShare(); },
+            ),
             ListTile(
               leading: const Icon(Icons.flag_outlined, color: Colors.red),
-              title: const Text('Signaler cette image', style: TextStyle(color: Colors.red)),
+              title: Text('media_report'.tr, style: const TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.of(context).pop();
-                Get.snackbar('Signalement', 'Merci, ce média a été signalé.', snackPosition: SnackPosition.BOTTOM);
+                Get.snackbar('media_report'.tr, 'media_report_thanks'.tr, snackPosition: SnackPosition.BOTTOM);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.cancel_outlined),
-              title: const Text('Annuler'),
+              leading: const Icon(Icons.close_rounded),
+              title: Text('cancel'.tr),
               onTap: () => Navigator.of(context).pop(),
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _toggleChrome() {
+    setState(() => _chromeVisible = !_chromeVisible);
   }
 
   @override
@@ -168,7 +228,10 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
           child: Stack(
             children: [
               // --- Slider plein écran avec Hero ---
-              PageView.builder(
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _toggleChrome,
+                child: PageView.builder(
                 controller: _pageController,
                 itemCount: count,
                 onPageChanged: (index) => setState(() {
@@ -236,6 +299,7 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                   );
                 },
               ),
+              ),
 
               // --- Barre supérieure (Fermer à gauche, Menu signaler à droite) ---
               Positioned(
@@ -243,10 +307,10 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                 left: 10,
                 right: 10,
                 child: IgnorePointer(
-                  ignoring: (_isDragging ||
+                  ignoring: (!_chromeVisible || _isDragging ||
                       (_items.isNotEmpty && _items[_currentPage].isVideo && !_videoControlsVisible)),
                   child: AnimatedOpacity(
-                    opacity: (_isDragging ||
+                    opacity: (!_chromeVisible || _isDragging ||
                       (_items.isNotEmpty && _items[_currentPage].isVideo && !_videoControlsVisible)) ? 0.0 : 1.0,
                     duration: const Duration(milliseconds: 200),
                     child: Row(
@@ -276,10 +340,10 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
                 left: 16,
                 right: 16,
                 child: IgnorePointer(
-                  ignoring: (_isDragging ||
+                  ignoring: (!_chromeVisible || _isDragging ||
                       (_items.isNotEmpty && _items[_currentPage].isVideo && !_videoControlsVisible)),
                   child: AnimatedOpacity(
-                    opacity: (_isDragging ||
+                    opacity: (!_chromeVisible || _isDragging ||
                       (_items.isNotEmpty && _items[_currentPage].isVideo && !_videoControlsVisible)) ? 0.0 : 1.0,
                     duration: const Duration(milliseconds: 200),
                     child: Row(
