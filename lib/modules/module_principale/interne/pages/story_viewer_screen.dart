@@ -992,7 +992,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Transform.translate(
-                      offset: const Offset(0, 170),
+                      offset: const Offset(0, 136),
                       child: AnimatedOpacity(
                         opacity: _isDragging ? 0.0 : 1.0,
                         duration: const Duration(milliseconds: 200),
@@ -1150,13 +1150,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
             const PopupMenuDivider(),
             const PopupMenuItem<String>(
               value: '__more__',
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_circle_outline, color: Colors.white70),
-                  SizedBox(width: 8),
-                  Text('Plus d’émoticônes', style: TextStyle(color: Colors.white)),
-                ],
+              child: Center(
+                child: Icon(Icons.add_circle_outline, color: Colors.white, size: 22),
               ),
             ),
           ],
@@ -1169,9 +1164,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(30),
               border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 3)),
-              ],
             ),
             child: Row(
               children: [
@@ -1189,6 +1181,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     decoration: InputDecoration(
                       hintText: 'Répondre à la story…',
                       hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
+                      filled: true,
+                      fillColor: Colors.transparent,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
