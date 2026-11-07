@@ -992,7 +992,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Transform.translate(
-                      offset: const Offset(0, 102),
+                      offset: const Offset(0, 136),
                       child: AnimatedOpacity(
                         opacity: _isDragging ? 0.0 : 1.0,
                         duration: const Duration(milliseconds: 200),
@@ -1120,6 +1120,18 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
           constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 26),
           color: const Color(0xFF292929),
+          onOpened: () {
+            if (!mounted) return;
+            _animController.stop();
+            setState(() => _isPaused = true);
+          },
+          onCanceled: () {
+            if (!mounted || _commentFocusNode.hasFocus) return;
+            setState(() => _isPaused = false);
+            if (!_currentStoryHasVideo) {
+              _resumeStoryTimer();
+            }
+          },
           onSelected: (emoji) {
             final value = _replyController.value;
             final selection = value.selection;
@@ -1145,7 +1157,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 5, 6, 5),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.58),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(30),
               border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
               boxShadow: const [
