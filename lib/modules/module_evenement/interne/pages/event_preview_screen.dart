@@ -701,6 +701,10 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
 
     final canScan = isOwnerOrCoFounder || _contextRole == 'staff' || event.userRole == 'staff';
 
+    final showCalendarAction = preview.canAddToCalendar && !isOwnerOrCoFounder;
+    final showPublicInteractions = !isOwnerOrCoFounder &&
+        (_contextRole == 'public' || _contextRole == null);
+
     // Calcul du budget total estimé
     final cheapestAmount = preview.cheapestTicket != null
         ? preview.cheapestTicket!.converted.amount
@@ -1096,91 +1100,6 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                     const SizedBox(height: 20),
                   ],
 
-                  // Context Public (Actions: Like, Noter, Partager)
-                  if (!isOwnerOrCoFounder && (_contextRole == 'public' || _contextRole == null)) ...[
-                    Row(
-                      children: [
-                        // 1. LIKE
-                        Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: (_isLikeLoading || !preview.canLike) ? null : _toggleLike,
-                              icon: Icon(
-                                preview.isLikedByMe ? Icons.favorite : Icons.favorite_border,
-                                size: 16,
-                                color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
-                              ),
-                              label: Text(
-                                NumberFormatter.formatCount(preview.likesCount),
-                                style: TextStyle(
-                                  color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                side: BorderSide(
-                                  color: preview.isLikedByMe
-                                      ? AppColors.error.withValues(alpha: 0.5)
-                                      : colorScheme.outlineVariant.withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 24,
-                              child: IgnorePointer(
-                                child: Lottie.asset(
-                                  'assets/lotties/head.json',
-                                  controller: _heartsAnimationController,
-                                  width: 140,
-                                  height: 140,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-
-                        // 2. NOTER
-                        OutlinedButton.icon(
-                          onPressed: preview.canRate ? _openRatingSheet : null,
-                          icon: Icon(Icons.star_outline_rounded, size: 16, color: colorScheme.onSurface),
-                          label: Text(
-                            'Noter',
-                            style: TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // 3. PARTAGER
-                        OutlinedButton.icon(
-                          onPressed: preview.canShare ? _shareEvent : null,
-                          icon: Icon(Icons.share_outlined, size: 16, color: colorScheme.onSurface),
-                          label: Text(
-                            NumberFormatter.formatCount(preview.shareCount),
-                            style: TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
                   // Description avec 'Voir plus' (max 3 lignes)
                   Text('À propos', style: AppTextStyles.h4),
                   const SizedBox(height: 8),
@@ -1197,7 +1116,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           ),
         ],
       ),
-      bottomNavigationBar: (!preview.canAddToCalendar || isOwnerOrCoFounder)
+      bottomNavigationBar: (!showCalendarAction && !showPublicInteractions)
           ? null
           : Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -1214,27 +1133,124 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
               ),
               child: SafeArea(
                 top: false,
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isCalendarLoading ? null : _handleCalendarAction,
-                        icon: Icon(preview.isInMyCalendar ? Icons.check : Icons.calendar_today, size: 18),
-                        label: Text(
-                          preview.isInMyCalendar
-                              ? 'event_added_to_calendar'.tr
-                              : 'event_add_to_calendar'.tr,
-                          style: AppTextStyles.buttonSmall.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: preview.isInMyCalendar ? AppColors.success : AppColors.primary,
-                          foregroundColor: AppColors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
+                    if (showCalendarAction)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isCalendarLoading ? null : _handleCalendarAction,
+                          icon: Icon(preview.isInMyCalendar ? Icons.check : Icons.calendar_today, size: 18),
+                          label: Text(
+                            preview.isInMyCalendar
+                                ? 'event_added_to_calendar'.tr
+                                : 'event_add_to_calendar'.tr,
+                            style: AppTextStyles.buttonSmall.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: preview.isInMyCalendar ? AppColors.success : AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
                         ),
                       ),
-                    ),
+                    if (showCalendarAction && showPublicInteractions)
+                      const SizedBox(height: 10),
+                    if (showPublicInteractions)
+                      Row(
+                        children: [
+                          // 1. J'AIME
+                          Expanded(
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: (_isLikeLoading || !preview.canLike) ? null : _toggleLike,
+                                    icon: Icon(
+                                      preview.isLikedByMe ? Icons.favorite : Icons.favorite_border,
+                                      size: 16,
+                                      color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
+                                    ),
+                                    label: Text(
+                                      NumberFormatter.formatCount(preview.likesCount),
+                                      style: AppTextStyles.buttonSmall.copyWith(
+                                        color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
+                                      side: BorderSide(
+                                        color: preview.isLikedByMe
+                                            ? AppColors.error.withValues(alpha: 0.4)
+                                            : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 24,
+                                  child: IgnorePointer(
+                                    child: Lottie.asset(
+                                      'assets/lotties/head.json',
+                                      controller: _heartsAnimationController,
+                                      width: 140,
+                                      height: 140,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 2. NOTER
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: preview.canRate ? _openRatingSheet : null,
+                              icon: Icon(Icons.star_outline_rounded, size: 16, color: colorScheme.onSurface),
+                              label: Text(
+                                'event_detail_rate'.tr,
+                                style: AppTextStyles.buttonSmall.copyWith(color: colorScheme.onSurface),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colorScheme.onSurface,
+                                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 3. PARTAGER
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: preview.canShare ? _shareEvent : null,
+                              icon: Icon(Icons.share_outlined, size: 16, color: colorScheme.onSurface),
+                              label: Text(
+                                NumberFormatter.formatCount(preview.shareCount),
+                                style: AppTextStyles.buttonSmall.copyWith(color: colorScheme.onSurface),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colorScheme.onSurface,
+                                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
