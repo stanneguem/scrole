@@ -227,6 +227,33 @@ class ArchivedEventEditionScreen extends StatelessWidget {
   }
 }
 
+Future<void> openEventSeriesForEvent(
+  BuildContext context,
+  EventModel event, {
+  String? profileUserId,
+}) async {
+  try {
+    final editions = await Get.find<EventRepository>().getPublicEventSeriesEditions(event.id);
+    if (!context.mounted) return;
+    final series = <String, dynamic>{
+      'id': event.seriesId ?? event.id,
+      'series_id': event.seriesId ?? event.id,
+      'name': event.name,
+      'photo': event.coverImageUrl,
+      'description': event.description,
+      'edition_count': editions.length,
+      'editions': editions,
+    };
+    await openProfileEventSeries(
+      context,
+      series,
+      profileUserId: profileUserId ?? Supabase.instance.client.auth.currentUser?.id ?? '',
+    );
+  } catch (_) {
+    if (context.mounted) Get.snackbar('Événement', 'Impossible de charger les éditions.');
+  }
+}
+
 Future<void> openProfileEventSeries(BuildContext context, Map<String, dynamic> series, {required String profileUserId}) async {
   final raw = series['editions'];
   final editions = raw is List
