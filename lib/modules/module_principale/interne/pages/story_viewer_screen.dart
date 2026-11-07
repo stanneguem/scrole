@@ -981,45 +981,64 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 ),
 
                 // --- TikTok-style story actions on the right ---
+                // Vertical action rail pinned to the extreme right, like TikTok.
+                // For other people's stories: Like first, comments immediately below.
+                // For own stories: viewers first, then comments.
                 Positioned(
-                  right: 10,
-                  top: MediaQuery.of(context).size.height * 0.38,
-                  child: AnimatedOpacity(
-                    opacity: _isDragging ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_isOwnStory)
-                          _buildStorySideAction(
-                            icon: Icons.remove_red_eye_outlined,
-                            count: _currentStory.viewersCount,
-                            onTap: _showViewersSheet,
-                          ),
-                        _buildStorySideAction(
-                          assetIcon: 'assets/svg_icons/chat-round-svgrepo-com.svg',
-                          count: _currentStory.commentsCount,
-                          onTap: _openStoryCommentsModal,
-                        ),
-                        if (!_isOwnStory)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 18),
-                            child: InkWell(
+                  right: 8,
+                  top: 0,
+                  bottom: _isOwnStory ? 112 : 104,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: AnimatedOpacity(
+                      opacity: _isDragging ? 0.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isOwnStory)
+                            _buildStorySideAction(
+                              icon: Icons.remove_red_eye_outlined,
+                              count: _currentStory.viewersCount,
+                              onTap: _showViewersSheet,
+                            )
+                          else
+                            InkWell(
                               onTap: _toggleStoryLike,
                               borderRadius: BorderRadius.circular(24),
                               child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(
-                                  _currentStory.isLiked
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  color: _currentStory.isLiked ? Colors.red : Colors.white,
-                                  size: 29,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _currentStory.isLiked
+                                          ? Icons.favorite_rounded
+                                          : Icons.favorite_border_rounded,
+                                      color: _currentStory.isLiked ? Colors.red : Colors.white,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _currentStory.isLiked ? 'Aimé' : 'J’aime',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
+                          _buildStorySideAction(
+                            assetIcon: 'assets/svg_icons/chat-round-svgrepo-com.svg',
+                            count: _currentStory.commentsCount,
+                            onTap: _openStoryCommentsModal,
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1028,8 +1047,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 if (!_isOwnStory)
                   Positioned(
                     left: 12,
-                    right: 76,
-                    bottom: MediaQuery.of(context).padding.bottom + 12,
+                    right: 72,
+                    bottom: MediaQuery.of(context).padding.bottom + 16,
                     child: AnimatedOpacity(
                       opacity: _isDragging ? 0.0 : 1.0,
                       duration: const Duration(milliseconds: 200),
