@@ -4,6 +4,8 @@ class AppTranslations extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
     'fr': {
+      'home_feed_profile_request_sent': 'Demande envoyée',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Suggestions de profils',
       'home_feed_suggested_profiles_more_hint': 'Découvrez les profils proposés dans votre fil d’actualité.',
@@ -529,6 +531,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Voir moins",
     },
     'en': {
+      'home_feed_profile_request_sent': 'Request sent',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Suggested profiles',
       'home_feed_suggested_profiles_more_hint': 'Discover the profiles suggested in your feed.',
@@ -1000,6 +1004,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "See less",
     },
     'es': {
+      'home_feed_profile_request_sent': 'Solicitud enviada',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Perfiles sugeridos',
       'home_feed_suggested_profiles_more_hint': 'Descubre los perfiles sugeridos en tu feed.',
@@ -1438,6 +1444,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Ver menos",
     },
     'de': {
+      'home_feed_profile_request_sent': 'Anfrage gesendet',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Profilvorschläge',
       'home_feed_suggested_profiles_more_hint': 'Entdecke die Profile, die dir im Feed vorgeschlagen werden.',
@@ -1886,6 +1894,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Weniger anzeigen",
     },
     'it': {
+      'home_feed_profile_request_sent': 'Richiesta inviata',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Profili suggeriti',
       'home_feed_suggested_profiles_more_hint': 'Scopri i profili suggeriti nel tuo feed.',
@@ -2307,6 +2317,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Mostra meno",
     },
     'pt': {
+      'home_feed_profile_request_sent': 'Solicitação enviada',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Perfis sugeridos',
       'home_feed_suggested_profiles_more_hint': 'Descubra os perfis sugeridos no seu feed.',
@@ -2780,6 +2792,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "Ver menos",
     },
     'ar': {
+      'home_feed_profile_request_sent': 'تم إرسال الطلب',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'حسابات مقترحة',
       'home_feed_suggested_profiles_more_hint': 'اكتشف الحسابات المقترحة في موجزك.',
@@ -3243,6 +3257,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "عرض أقل",
     },
     'zh': {
+      'home_feed_profile_request_sent': '请求已发送',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': '推荐用户',
       'home_feed_suggested_profiles_more_hint': '发现动态中推荐给你的用户。',
@@ -3668,6 +3684,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "收起",
     },
     'ja': {
+      'home_feed_profile_request_sent': 'リクエスト送信済み',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'おすすめのユーザー',
       'home_feed_suggested_profiles_more_hint': 'フィードでおすすめされたプロフィールを見つけましょう。',
@@ -4096,6 +4114,8 @@ class AppTranslations extends Translations {
       'community_chat_settings_see_less': "閉じる",
     },
     'ru': {
+      'home_feed_profile_request_sent': 'Запрос отправлен',
+
       // Suggested profile cards on the home feed.
       'home_feed_suggested_profiles_title': 'Рекомендуемые профили',
       'home_feed_suggested_profiles_more_hint': 'Откройте профили, рекомендованные в вашей ленте.',
