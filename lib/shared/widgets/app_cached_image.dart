@@ -21,6 +21,7 @@ class AppCachedImage extends StatelessWidget {
   final int? highResolutionWidth;
   final int imageQuality;
   final VoidCallback? onImageLoaded;
+  final DateTime? cacheUntil;
 
   const AppCachedImage({
     super.key,
@@ -36,6 +37,7 @@ class AppCachedImage extends StatelessWidget {
     this.highResolutionWidth,
     this.imageQuality = 80,
     this.onImageLoaded,
+    this.cacheUntil,
   });
 
   static Future<void> clearPrivateMediaCache(String objectKey) async {
@@ -67,6 +69,7 @@ class AppCachedImage extends StatelessWidget {
         objectKey: imageUrl, width: width, height: height, fit: fit,
         borderRadius: borderRadius, placeholder: placeholder, errorWidget: errorWidget,
         onImageLoaded: onImageLoaded,
+        cacheUntil: cacheUntil,
       );
     }
     // Storage object keys (e.g. `{uid}/chat/media/file.jpg`) are not files.
@@ -281,6 +284,7 @@ class _R2SignedImage extends StatefulWidget {
     this.placeholder,
     this.errorWidget,
     this.onImageLoaded,
+    this.cacheUntil,
   });
 
   final String objectKey;
@@ -291,6 +295,7 @@ class _R2SignedImage extends StatefulWidget {
   final Widget? placeholder;
   final Widget? errorWidget;
   final VoidCallback? onImageLoaded;
+  final DateTime? cacheUntil;
 
   @override
   State<_R2SignedImage> createState() => _R2SignedImageState();
@@ -345,10 +350,14 @@ class _R2SignedImageState extends State<_R2SignedImage> {
     }
     await file.writeAsBytes(download.bodyBytes, flush: true);
     // Story objects are short-lived; keep the offline copy for at most 24h.
-    await expiryFile.writeAsString(
-      DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
-      flush: true,
-    );
+    final cacheExpiry = widget.cacheUntil ??
+        DateTime.now().add(const Duration(hours: 24));
+    if (cacheExpiry.isAfter(DateTime.now())) {
+      await expiryFile.writeAsString(cacheExpiry.toIso8601String(), flush: true);
+    } else {
+      await file.delete();
+      throw StateError('Ce média a expiré.');
+    }
     debugPrint('[R2_IMAGE_CACHE] SAVED key=${widget.objectKey} bytes=${download.bodyBytes.length}');
     return file;
   }
