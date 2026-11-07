@@ -496,6 +496,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     storyId: _currentStory.id,
                     expiresAt: _currentStory.expiresAt,
                     thumbnailObjectKey: _currentStory.thumbnailUrl,
+                    fallbackImageUrl: _currentGroup.author.photoUrl,
                     isPaused: _isPaused || _commentFocusNode.hasFocus,
                     onProgress: (progress) {
                       if (mounted && (_videoProgress - progress).abs() >= 0.01) {
@@ -2371,6 +2372,16 @@ class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
     super.dispose();
   }
 
+  Widget _buildFallbackBackground() {
+    final fallback = widget.fallbackImageUrl?.trim() ?? '';
+    if (fallback.isEmpty) return const ColoredBox(color: Colors.black);
+    return AppCachedImage(
+      imageUrl: fallback,
+      fit: BoxFit.cover,
+      errorWidget: const ColoredBox(color: Colors.black),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -2483,6 +2494,7 @@ class _StoryVideoPlayer extends StatefulWidget {
   final String storyId;
   final DateTime expiresAt;
   final String? thumbnailObjectKey;
+  final String? fallbackImageUrl;
   final bool isPaused;
   final ValueChanged<double> onProgress;
   final VoidCallback onCompleted;
@@ -2493,6 +2505,7 @@ class _StoryVideoPlayer extends StatefulWidget {
     required this.storyId,
     required this.expiresAt,
     this.thumbnailObjectKey,
+    this.fallbackImageUrl,
     required this.isPaused,
     required this.onProgress,
     required this.onCompleted,
@@ -2709,10 +2722,10 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
             AppCachedImage(
               imageUrl: widget.thumbnailObjectKey!,
               fit: BoxFit.cover,
-              errorWidget: const ColoredBox(color: Colors.black),
+              errorWidget: _buildFallbackBackground(),
             )
           else
-            const ColoredBox(color: Colors.black),
+            _buildFallbackBackground(),
           Center(
             child: Container(
               padding: const EdgeInsets.all(13),
