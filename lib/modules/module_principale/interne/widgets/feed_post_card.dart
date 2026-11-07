@@ -279,7 +279,7 @@ class FeedPostCard extends StatelessWidget {
                     ),
 
                   // 3. Badge "Suggéré" & bouton Rejoindre
-                  if (post.isSuggested) ...[
+                  if (post.isSuggested && !isSingleVideoPost) ...[
                     const SizedBox(height: 6),
                     _buildSuggestedRow(colorScheme, hasCommunity),
                   ],
@@ -893,6 +893,13 @@ class FeedPostCard extends StatelessWidget {
                       fontSize: 11.5,
                     ),
                   ),
+                  if (post.isSuggested) ...[
+                    const SizedBox(height: 5),
+                    _buildSuggestedRow(
+                      Theme.of(context).colorScheme,
+                      post.communityId != null && post.communityId!.isNotEmpty,
+                    ),
+                  ],
                 ],
               ),
             ),
