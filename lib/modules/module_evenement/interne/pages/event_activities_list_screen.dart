@@ -5,17 +5,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../../../shared/utils/number_formatter.dart';
-import '../../centre/models/event_model.dart';
 import '../../centre/models/event_preview_model.dart';
 
 class EventActivitiesListScreen extends StatelessWidget {
   final List<EventPreviewActivity> activities;
-  final bool canManageActivities;
 
   const EventActivitiesListScreen({
     super.key,
     required this.activities,
-    this.canManageActivities = false,
   });
 
   @override
