@@ -60,6 +60,11 @@ begin
 end
 $function$;
 
+revoke all on function public.create_story(uuid,text,text,text,text,text,jsonb,boolean,text)
+  from public, anon;
+grant execute on function public.create_story(uuid,text,text,text,text,text,jsonb,boolean,text)
+  to authenticated;
+
 -- Extend the existing private story grouping function without duplicating its
 -- access-control and audience-visibility rules.
 do $$
