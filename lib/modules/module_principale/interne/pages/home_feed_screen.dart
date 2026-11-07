@@ -266,6 +266,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                         constraints: const BoxConstraints(maxWidth: 760),
                         child: FeedPostCard(
                           post: post,
+                          onVideoQualifiedView: (postId) => feedController.queueQualifiedVideoPostView(post),
                           onRetryPublishing: () => feedController.retryQueuedPost(post.id),
                           onReactionTap: (reaction) => feedController.handleReaction(post.id, reaction),
                           onCommentTap: () {
