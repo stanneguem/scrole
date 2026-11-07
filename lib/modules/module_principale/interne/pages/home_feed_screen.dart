@@ -707,23 +707,6 @@ class _SuggestedProfilesCarousel extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () {
-                    // The current app exposes profile discovery through the
-                    // individual profile routes; keep this action explicit
-                    // without navigating to an unrelated screen.
-                    Get.snackbar(
-                      'home_feed_suggested_profiles_title'.tr,
-                      'home_feed_suggested_profiles_more_hint'.tr,
-                      snackPosition: SnackPosition.BOTTOM,
-                    );
-                  },
-                  child: Text(
-                    'see_more'.tr,
-                    style: TextStyle(fontWeight: FontWeight.w600, color: colors.primary),
-                  ),
-                ),
               ],
             ),
           ),
@@ -911,7 +894,7 @@ class _SuggestedProfileActionCardState extends State<_SuggestedProfileActionCard
             width: double.infinity,
             height: 34,
             child: ElevatedButton(
-              onPressed: (_following || _dismissing || profile.isAdded) ? null : _follow,
+              onPressed: (_following || _dismissing || profile.isAdded || profile.isRequestSent) ? null : _follow,
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.zero,
                 elevation: 0,
@@ -924,7 +907,9 @@ class _SuggestedProfileActionCardState extends State<_SuggestedProfileActionCard
               child: _following
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : Text(
-                      profile.isAdded ? 'home_feed_profile_following'.tr : 'home_feed_add_profile'.tr,
+                      profile.isRequestSent
+                    ? 'home_feed_profile_request_sent'.tr
+                    : (profile.isAdded ? 'home_feed_profile_following'.tr : 'home_feed_add_profile'.tr),
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
             ),
