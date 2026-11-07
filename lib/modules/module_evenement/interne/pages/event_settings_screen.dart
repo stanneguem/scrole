@@ -13,7 +13,7 @@ import 'event_pricing_screen.dart';
 import 'event_stats_dashboard_screen.dart';
 import 'event_interests_screen.dart';
 import 'event_open_days_screen.dart';
-import 'event_detail_page.dart';
+import 'event_preview_screen.dart';
 import '../../centre/repositories/event_repository.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_settings_main_screen.dart';
 
@@ -339,7 +339,7 @@ class EventSettingsScreen extends StatelessWidget {
         'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
         snackPosition: SnackPosition.BOTTOM,
       );
-      Get.off(() => EventDetailPage(event: created));
+      Get.off(() => EventPreviewScreen(initialEvent: created));
       Get.toNamed(
         AppPages.eventEdit.replaceFirst(':id', created.id),
         arguments: created,
