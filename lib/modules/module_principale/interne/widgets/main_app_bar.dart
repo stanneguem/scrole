@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:scrole/app/utils/boot_timing.dart';
 import 'package:scrole/shared/widgets/search_screen.dart';
 
-import '../../../../../app/service_global/connectivity_service.dart';
 import '../../../../../shared/widgets/glas_buton.dart';
 import '../controllers/main_layout_controller.dart';
 
@@ -20,7 +20,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     bootLog('CustomAppBar.build');
     final colorScheme = Theme.of(context).colorScheme;
-    final connectivity = Get.find<ConnectivityService>();
 
     return SafeArea(
       child: Container(
@@ -29,53 +28,28 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: Colors.transparent,
         child: Row(
           children: [
-            // ─── GAUCHE : Logo PNG de l'app ouvrant le Drawer + état en ligne/hors ligne ───
+            // ─── GAUCHE : Scrole wordmark ───
             Builder(
               builder: (drawerContext) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => Scaffold.of(drawerContext).openDrawer(),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      'assets/logos/img.png',
-                      width: 38,
-                      height: 38,
-                      fit: BoxFit.contain,
+                child: Obx(() {
+                  final isOnline = Get.find<ConnectivityService>().isConnected.value;
+                  return AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeInOut,
+                    style: GoogleFonts.grandHotel(
+                      fontSize: 39,
+                      fontWeight: FontWeight.w400,
+                      height: 1.05,
+                      letterSpacing: 0.15,
+                      color: isOnline
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.58),
                     ),
-                    const SizedBox(width: 10),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Obx(() {
-                          final isOnline = connectivity.isConnected.value;
-                          return Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: isOnline
-                                      ? const Color(0xFF10B981)
-                                      : colorScheme.outline,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                isOnline ? 'status_online'.tr : 'status_offline'.tr,
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-                      ],
-                    ),
-                  ],
-                ),
+                    child: const Text('Scrole'),
+                  );
+                }),
               ),
             ),
 
