@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../centre/repositories/event_repository.dart';
 import '../../../../app/routes/app_pages.dart';
-import '../../interne/pages/event_detail_page.dart';
+import '../../interne/pages/event_preview_screen.dart';
 import '../../interne/pages/event_comments_screen.dart';
 import '../../interne/pages/event_itinerary_overview_screen.dart';
 import '../../interne/pages/external_event_itinerary_screen.dart';
@@ -219,7 +219,7 @@ class ArchivedEventEditionScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             _ArchivedEventGallery(eventId: event.id),
-            EventDetailPage(event: event, profileUserId: profileUserId, archiveTabMode: true),
+            EventPreviewScreen(initialEvent: event, profileUserId: profileUserId, archiveTabMode: true),
           ],
         ),
       ),
