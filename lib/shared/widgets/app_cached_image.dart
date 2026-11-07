@@ -385,7 +385,7 @@ class _R2SignedImageState extends State<_R2SignedImage> {
         throw StateError('Ce média a expiré.');
       }
     }
-    debugPrint('[R2_IMAGE_CACHE] SAVED key=${widget.objectKey} bytes=${download.bodyBytes.length}');
+    debugPrint('[R2_IMAGE_CACHE] SAVED key=${widget.objectKey} bytes=${await file.length()}');
     return file;
   }
 
