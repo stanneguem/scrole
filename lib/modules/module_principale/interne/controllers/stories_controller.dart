@@ -93,7 +93,16 @@ class StoryItem {
       viewersCount: (map['viewers_count'] ?? map['views_count'] as num?)?.toInt() ?? 0,
       commentsCount: (map['comments_count'] ?? map['comment_count'] ?? map['shared_post']?['comment_count'] as num?)?.toInt() ?? 0,
       poll: map['poll'],
-      likesCount: (map['likes_count'] as num?)?.toInt() ?? 0,
+      likesCount: ((map['likes_count'] ?? map['like_count'] ?? map['total_likes']) as num?)?.toInt() ??
+          ((map['is_liked'] == true || map['is_liked'] == 1 ||
+            map['is_liked']?.toString() == 'true' ||
+            map['user_liked'] == true || map['user_liked'] == 1 ||
+            map['user_liked']?.toString() == 'true' ||
+            map['viewer_has_liked'] == true || map['viewer_has_liked'] == 1 ||
+            map['viewer_has_liked']?.toString() == 'true' ||
+            map['is_liked_by_me'] == true || map['is_liked_by_me'] == 1 ||
+            map['is_like'] == true || map['liked'] == true || map['liked'] == 1)
+              ? 1 : 0),
       sharesCount: (map['shares_count'] as num?)?.toInt() ?? 0,
       isLiked: map['is_liked'] == true ||
                map['is_liked'] == 1 ||
