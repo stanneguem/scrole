@@ -2553,6 +2553,22 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
     if (!await cacheDirectory.exists()) {
       await cacheDirectory.create(recursive: true);
     }
+    // Remove media belonging to stories that have already expired.
+    final now = DateTime.now().toUtc();
+    await for (final entity in cacheDirectory.list()) {
+      if (entity is! File || !entity.path.endsWith('.expiry')) continue;
+      try {
+        final cachedExpiry = DateTime.tryParse(await entity.readAsString());
+        if (cachedExpiry == null || !cachedExpiry.isAfter(now)) {
+          final mediaPath = entity.path.substring(0, entity.path.length - '.expiry'.length) + '.mp4';
+          final cachedMedia = File(mediaPath);
+          if (await cachedMedia.exists()) await cachedMedia.delete();
+          await entity.delete();
+        }
+      } catch (cleanupError) {
+        debugPrint('[STORY_CACHE] Expired cache cleanup failed: $cleanupError');
+      }
+    }
     final safeId = widget.storyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     final videoFile = File(p.join(cacheDirectory.path, '$safeId.mp4'));
     final expiryFile = File(p.join(cacheDirectory.path, '$safeId.expiry'));
@@ -2600,34 +2616,6 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
     }
   }
 
-  /*_OLD_VIDEO_INITIALIZE*/
-  Future<void> _initializeOld() async {
-      String url = widget.objectKey;
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        final response = await Supabase.instance.client.functions.invoke(
-          'r2-media-upload',
-          body: {'action': 'create-download-url', 'object_key': widget.objectKey},
-        );
-        if (response.status < 200 || response.status >= 300 || response.data is! Map) {
-          throw StateError('Impossible de résoudre la vidéo privée de la story.');
-        }
-        url = (response.data as Map)['url']?.toString() ?? '';
-        if (url.isEmpty) throw StateError('URL de lecture de la vidéo absente.');
-      }
-      final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-      _controller = controller;
-      controller.addListener(_onVideoChanged);
-      await controller.initialize();
-      if (!mounted) return;
-      await controller.setLooping(false);
-      await controller.setVolume(1);
-      setState(() {});
-      await controller.play();
-    } catch (e) {
-      debugPrint('[STORY] Legacy video init failed: $e');
-      if (mounted) setState(() => _failed = true);
-    }
-  }
 
   void _onVideoChanged() {
     final controller = _controller;
