@@ -213,7 +213,7 @@ class FeedPostCard extends StatelessWidget {
                   // 1. En-tête de la communauté si présente et hors du fil
                   //    propre de cette communauté
                   if (showCommunityHeader) ...[
-                    _buildCommunityHeader(colorScheme),
+                    _buildCommunityHeader(context, colorScheme),
                     const SizedBox(height: 6),
                   ],
 
@@ -474,7 +474,7 @@ class FeedPostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCommunityHeader(ColorScheme colorScheme) {
+  Widget _buildCommunityHeader(BuildContext context, ColorScheme colorScheme) {
     final logoUrl = post.communityLogoUrl;
     return Material(
       color: Colors.transparent,
