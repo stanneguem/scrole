@@ -416,6 +416,15 @@ class EventRepository {
   Future<void> dismissHomeEventSuggestion(String eventId) =>
       _remote.dismissHomeEventSuggestion(eventId);
 
+  Future<Set<String>> _loadDismissedSuggestionIdsSafely() async {
+    try {
+      return await _loadDismissedSuggestionIdsSafely();
+    } catch (e) {
+      debugPrint('[EventRepository] Could not refresh dismissed suggestions: $e');
+      return <String>{};
+    }
+  }
+
   List<dynamic> _withoutDismissedSuggestions(List<dynamic> rows, Set<String> dismissedIds) {
     if (dismissedIds.isEmpty) return rows;
     return rows.where((item) {
