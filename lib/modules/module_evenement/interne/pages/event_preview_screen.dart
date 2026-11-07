@@ -28,6 +28,7 @@ import 'event_activities_list_screen.dart';
 import 'event_itinerary_overview_screen.dart';
 import 'external_event_itinerary_screen.dart';
 import 'report_event_sheet.dart';
+import 'profile_event_series_screen.dart';
 
 class EventPreviewScreen extends StatefulWidget {
   final EventModel? initialEvent;
@@ -46,6 +47,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
   bool _isCalendarLoading = false;
   String? _eventId;
   String? _contextRole;
+  List<Map<String, dynamic>> _seriesEditions = [];
   StreamSubscription<EventModel>? _eventUpdateSubscription;
   late AnimationController _heartsAnimationController;
 
@@ -164,6 +166,52 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           preview = await repo.getEventPreviewOwner(_eventId!);
         } else if (!preview.canViewPublicPreview && returnedRole == 'staff') {
           preview = await repo.getEventPreviewStaff(_eventId!);
+        }
+      }
+
+      // Resolve series for every entry point. Prefer an active/upcoming edition;
+      // if none remains, open the archive/gallery instead of a stale detail page.
+      if (!widget.archiveTabMode) {
+        final editions = await repo.getPublicEventSeriesEditions(preview.event.id);
+        final now = DateTime.now();
+        _seriesEditions = editions;
+        final upcoming = editions.where((edition) {
+          final status = (edition['status'] ?? '').toString().toLowerCase();
+          final start = DateTime.tryParse((edition['starts_at'] ?? '').toString());
+          final end = DateTime.tryParse((edition['ends_at'] ?? '').toString());
+          return status == 'active' && start != null &&
+              (start.isAfter(now) || (end != null && !end.isBefore(now)));
+        }).toList()
+          ..sort((a, b) => DateTime.parse(a['starts_at'].toString())
+              .compareTo(DateTime.parse(b['starts_at'].toString())));
+        final currentAvailable = preview.event.status == EventStatus.published &&
+            (preview.event.startsAt.isAfter(now) ||
+             (preview.event.endsAt != null && !preview.event.endsAt!.isBefore(now)));
+        if (!currentAvailable && upcoming.isNotEmpty) {
+          final nextId = (upcoming.first['id'] ?? '').toString();
+          if (nextId.isNotEmpty && nextId != preview.event.id) {
+            final nextEvent = await repo.getEventById(nextId);
+            if (mounted) Get.off(() => EventPreviewScreen(initialEvent: nextEvent));
+            return;
+          }
+        }
+        if (!currentAvailable && upcoming.isEmpty &&
+            (preview.event.isFinished || preview.event.status == EventStatus.completed)) {
+          final userId = Get.find<AppController>().authUser.value?.id ?? '';
+          final series = <String, dynamic>{
+            'id': preview.event.seriesId ?? preview.event.id,
+            'series_id': preview.event.seriesId ?? preview.event.id,
+            'name': preview.event.name,
+            'photo': preview.event.coverImageUrl,
+            'description': preview.event.description,
+            'edition_count': editions.length,
+            'editions': editions,
+          };
+          if (mounted) Get.off(() => ProfileEventSeriesScreen(
+            series: series,
+            profileUserId: userId,
+          ));
+          return;
         }
       }
 
@@ -873,6 +921,27 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                     ),
             ),
             actions: [
+              if (!widget.archiveTabMode && _seriesEditions.any((edition) =>
+                  (edition['status'] ?? '').toString().toLowerCase() == 'completed'))
+                IconButton(
+                  tooltip: 'Éditions passées',
+                  icon: const Icon(Icons.history_rounded),
+                  onPressed: () {
+                    final series = <String, dynamic>{
+                      'id': event.seriesId ?? event.id,
+                      'series_id': event.seriesId ?? event.id,
+                      'name': event.name,
+                      'photo': event.coverImageUrl,
+                      'description': event.description,
+                      'edition_count': _seriesEditions.length,
+                      'editions': _seriesEditions,
+                    };
+                    Get.to(() => ProfileEventSeriesScreen(
+                      series: series,
+                      profileUserId: currentUserId ?? '',
+                    ));
+                  },
+                ),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Center(
