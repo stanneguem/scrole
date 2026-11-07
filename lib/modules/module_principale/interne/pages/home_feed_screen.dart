@@ -815,21 +815,6 @@ class _SuggestedProfileActionCardState extends State<_SuggestedProfileActionCard
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                tooltip: 'home_feed_profile_not_interested'.tr,
-                onPressed: (_following || _dismissing) ? null : _dismiss,
-                icon: _dismissing
-                    ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Icon(Icons.close_rounded, size: 19, color: colors.onSurfaceVariant),
-              ),
-            ],
-          ),
           GestureDetector(
             onTap: () => Get.toNamed(AppPages.externalProfilePath(profile.id)),
             child: Row(
