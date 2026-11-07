@@ -118,24 +118,38 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
     try {
       final uri = Uri.tryParse(rawUrl);
       final isNetwork = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-      final file = isNetwork
-          ? await DefaultCacheManager().getSingleFile(rawUrl)
-          : File(rawUrl);
+      File file;
+      if (isNetwork) {
+        file = await DefaultCacheManager().getSingleFile(rawUrl);
+      } else if (ChatMediaCache.isFilesystemPath(rawUrl) && await File(rawUrl).exists()) {
+        file = File(rawUrl);
+      } else {
+        final response = await Supabase.instance.client.functions.invoke(
+          'r2-media-upload',
+          body: {'action': 'create-download-url', 'object_key': rawUrl},
+        );
+        if (response.status < 200 || response.status >= 300 || response.data is! Map) {
+          throw StateError('media_download_failed'.tr);
+        }
+        final signedUrl = (response.data as Map)['url']?.toString() ?? '';
+        if (signedUrl.isEmpty) throw StateError('media_download_failed'.tr);
+        file = await DefaultCacheManager().getSingleFile(signedUrl);
+      }
       if (!await file.exists()) throw StateError('media_save_file_missing'.tr);
       final bytes = await file.readAsBytes();
       final extension = _items[_currentPage].isVideo ? 'mp4' : 'jpg';
       final fileName = 'scrole_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final result = _items[_currentPage].isVideo
           ? await SaverGallery.saveFile(
-              file: file.path,
+              filePath: file.path,
               fileName: fileName,
-              androidRelativePath: 'Movies/Scrole',
+              albumPath: 'Scrole/videos',
               skipIfExists: false,
             )
           : await SaverGallery.saveImage(
               Uint8List.fromList(bytes),
               fileName: fileName,
-              androidRelativePath: 'Pictures/Scrole',
+              albumPath: 'Scrole/images',
               skipIfExists: false,
             );
       if (!mounted) return;
