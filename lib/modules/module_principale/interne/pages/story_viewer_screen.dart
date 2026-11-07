@@ -1180,8 +1180,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
-            )
-          const SizedBox(width: 4),
+            ),
         ],
       ),
     );
