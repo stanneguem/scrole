@@ -118,6 +118,7 @@ class FeedPostCard extends StatelessWidget {
   final VoidCallback? onJoinCommunity;
   final VoidCallback? onRetryPublishing;
   final String? currentCommunityId;
+  final ValueChanged<String>? onVideoQualifiedView;
 
   /// Enables inline video autoplay when this card is embedded in a story.
   final bool autoplayVideos;
@@ -134,6 +135,7 @@ class FeedPostCard extends StatelessWidget {
     this.onJoinCommunity,
     this.onRetryPublishing,
     this.currentCommunityId,
+    this.onVideoQualifiedView,
     this.autoplayVideos = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
   });
@@ -149,6 +151,7 @@ class FeedPostCard extends StatelessWidget {
         onMoreTap: onMoreTap,
         onHidePost: onHidePost,
         currentCommunityId: currentCommunityId,
+        onVideoQualifiedView: onVideoQualifiedView,
         autoplayVideos: autoplayVideos,
         margin: margin,
       );
@@ -790,6 +793,7 @@ class FeedPostCard extends StatelessWidget {
           PostMediaSlider(
             heroTagPrefix: 'post_${post.id}',
             forceAutoplayVideos: autoplayVideos,
+            onVideoQualifiedView: () => onVideoQualifiedView?.call(post.id),
             media: post.media,
             likesCount: post.likeCount,
             dislikesCount: post.dislikeCount,
@@ -2582,6 +2586,7 @@ class _RepublicationPostCard extends StatelessWidget {
   final VoidCallback? onMoreTap;
   final VoidCallback? onHidePost;
   final String? currentCommunityId;
+  final ValueChanged<String>? onVideoQualifiedView;
   final bool autoplayVideos;
   final EdgeInsetsGeometry margin;
 
@@ -2593,6 +2598,7 @@ class _RepublicationPostCard extends StatelessWidget {
     this.onMoreTap,
     this.onHidePost,
     this.currentCommunityId,
+    this.onVideoQualifiedView,
     this.autoplayVideos = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
   });
@@ -2905,6 +2911,7 @@ class _RepublicationPostCard extends StatelessWidget {
             child: PostMediaSlider(
               heroTagPrefix: 'shared_${shared.id}_${post.id}',
               forceAutoplayVideos: autoplayVideos,
+              onVideoQualifiedView: () => onVideoQualifiedView?.call(shared.id),
               media: shared.media,
               likesCount: shared.likeCount,
               dislikesCount: shared.dislikeCount,
