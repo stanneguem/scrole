@@ -1565,16 +1565,16 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     if (status == EventStatus.published || status == EventStatus.completed) {
       final now = DateTime.now();
       final event = _preview?.event;
-      if (event != null && now.isBefore(event.startsAt)) {
-        label = 'event_detail_status_upcoming'.tr;
-        color = AppColors.primary;
-      } else if (event != null &&
-          (event.endsAt == null || !now.isAfter(event.endsAt!))) {
-        label = 'event_detail_status_ongoing'.tr;
-        color = AppColors.success;
-      } else {
+      if (status == EventStatus.completed ||
+          (event?.endsAt != null && now.isAfter(event!.endsAt!))) {
         label = 'event_detail_status_completed'.tr;
         color = Colors.grey;
+      } else if (event != null && now.isBefore(event.startsAt)) {
+        label = 'event_detail_status_upcoming'.tr;
+        color = AppColors.primary;
+      } else {
+        label = 'event_detail_status_ongoing'.tr;
+        color = AppColors.success;
       }
     } else if (status == EventStatus.draft) {
       label = 'event_detail_status_pending'.tr;
