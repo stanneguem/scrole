@@ -25,6 +25,7 @@ import 'event_days_selector_screen.dart';
 import 'event_comments_screen.dart';
 import 'event_rating_screen.dart';
 import 'event_activities_list_screen.dart';
+import 'report_event_sheet.dart';
 
 class EventPreviewScreen extends StatefulWidget {
   const EventPreviewScreen({super.key});
@@ -610,6 +611,33 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     Get.to(() => EventRatingScreen(event: _preview!.event));
   }
 
+  void _showReportSheet() {
+    final event = _preview?.event;
+    if (event == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => ReportEventSheet(
+        eventName: event.name,
+        onSubmit: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'event_detail_report_sent'.tr,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.white),
+              ),
+              backgroundColor: AppColors.black1,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showJoinCommunityDialog(String communityId) {
     showModalBottomSheet(
       context: context,
@@ -757,6 +785,17 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   ),
                 ),
               ),
+              if (!isOwnerOrCoFounder)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: _HeaderActionButton(
+                      icon: Icons.more_vert,
+                      tooltip: 'Signaler cet événement',
+                      onPressed: _showReportSheet,
+                    ),
+                  ),
+                ),
               if (canScan)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
