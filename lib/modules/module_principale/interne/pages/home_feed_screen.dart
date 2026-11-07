@@ -848,7 +848,7 @@ class _SuggestedEventsCarousel extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 336,
+            height: 278,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -964,7 +964,7 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
     final ev = widget.event;
     return Container(
       width: 238,
-      height: 328,
+      height: 270,
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHigh.withValues(alpha: 0.55),
@@ -994,10 +994,9 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
               ],
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-              child: Column(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   GestureDetector(
@@ -1036,8 +1035,7 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
                       ),
                     ],
                   ),
-                  const Spacer(),
-                  SizedBox(
+                          SizedBox(
                     width: double.infinity,
                     height: 34,
                     child: FilledButton.icon(
@@ -1075,7 +1073,6 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );
