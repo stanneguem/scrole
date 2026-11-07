@@ -19,6 +19,19 @@ class SupabaseEventService {
     return rows.map((row) => row['event_id'].toString()).toSet();
   }
 
+  /// Returns public, readable editions belonging to the same event series.
+  Future<List<Map<String, dynamic>>> fetchPublicEventSeriesEditions(String eventId) async {
+    final response = await _client.rpc(
+      'get_public_event_series_editions',
+      params: {'p_event_id': eventId},
+    );
+    if (response is List) {
+      return response.whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row)).toList();
+    }
+    return [];
+  }
+
   /// Persists the dismissal for the current authenticated user.
   Future<void> dismissHomeEventSuggestion(String eventId) async {
     await _client.rpc(
