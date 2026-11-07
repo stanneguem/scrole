@@ -352,11 +352,28 @@ class _R2SignedImageState extends State<_R2SignedImage> {
     final url = data['url']?.toString();
     if (url == null || url.isEmpty) throw StateError('URL de lecture R2 absente.');
 
-    final download = await http.get(Uri.parse(url)).timeout(const Duration(minutes: 2));
-    if (download.statusCode < 200 || download.statusCode >= 300 || download.bodyBytes.isEmpty) {
-      throw HttpException('Téléchargement du média privé impossible (HTTP ${download.statusCode}).');
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', Uri.parse(url));
+      final download = await client.send(request).timeout(const Duration(minutes: 2));
+      if (download.statusCode < 200 || download.statusCode >= 300) {
+        throw HttpException('Téléchargement du média privé impossible (HTTP ${download.statusCode}).');
+      }
+      final sink = file.openWrite();
+      try {
+        await download.stream.pipe(sink);
+      } catch (_) {
+        await sink.close();
+        if (await file.exists()) await file.delete();
+        rethrow;
+      }
+      if (!await file.exists() || await file.length() == 0) {
+        if (await file.exists()) await file.delete();
+        throw StateError('Le média privé téléchargé est vide.');
+      }
+    } finally {
+      client.close();
     }
-    await file.writeAsBytes(download.bodyBytes, flush: true);
     if (isStoryMedia) {
       // Keep the offline story copy only until the story itself expires.
       final cacheExpiry = widget.cacheUntil ??
