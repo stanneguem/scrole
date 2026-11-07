@@ -249,7 +249,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
       final updatedIndex = refreshed.indexWhere((story) => story.id == currentId);
       if (updatedIndex < 0) {
-        _storyIndex = _storyIndex.clamp(0, refreshed.length - 1);
+        _storyIndex = _storyIndex.clamp(0, refreshed.length - 1).toInt();
         _imageLoadedStoryId = null;
         _videoProgress = 0;
         if (mounted) {
@@ -593,6 +593,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                       key: ValueKey('story-image-${_currentStory.id}'),
                       imageUrl: _currentStory.imageUrl!,
                       fit: BoxFit.cover,
+                      cacheUntil: _currentStory.expiresAt,
                       onImageLoaded: () => _onCurrentStoryImageLoaded(_currentStory.id),
                       placeholder: const Center(
                         child: SizedBox(
