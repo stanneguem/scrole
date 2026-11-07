@@ -9,7 +9,7 @@ import '../../centre/models/event_model.dart';
 import '../controllers/event_controller.dart';
 import '../widgets/event_bottom_sheet.dart';
 import '../widgets/event_filter.dart';
-import 'event_detail_page.dart';
+import 'event_preview_screen.dart';
 
 class CalendarTab extends StatefulWidget {
   const CalendarTab({super.key});
@@ -44,7 +44,7 @@ class _CalendarTabState extends State<CalendarTab> {
     if (events.isEmpty) return;
 
     if (events.length == 1) {
-      Get.to(() => EventDetailPage(event: events.first));
+      Get.to(() => EventPreviewScreen(initialEvent: events.first));
     } else {
       showModalBottomSheet(
         context: context,
@@ -55,7 +55,7 @@ class _CalendarTabState extends State<CalendarTab> {
           events: events,
           onEventTap: (event) {
             Navigator.pop(context);
-            Get.to(() => EventDetailPage(event: event));
+            Get.to(() => EventPreviewScreen(initialEvent: event));
           },
         ),
       );
