@@ -826,7 +826,7 @@ class _SuggestedEventsCarousel extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 270,
+            height: 302,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -941,7 +941,8 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
     final colors = Theme.of(context).colorScheme;
     final ev = widget.event;
     return Container(
-      width: 218,
+      width: 238,
+      height: 294,
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHigh.withValues(alpha: 0.55),
@@ -960,8 +961,8 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
             child: Stack(
               children: [
                 ev.coverImageUrl != null && ev.coverImageUrl!.isNotEmpty
-                    ? AppCachedImage(imageUrl: ev.coverImageUrl!, width: 218, height: 94, fit: BoxFit.cover)
-                    : Container(width: 218, height: 94, color: colors.primaryContainer,
+                    ? AppCachedImage(imageUrl: ev.coverImageUrl!, width: 238, height: 94, fit: BoxFit.cover)
+                    : Container(width: 238, height: 94, color: colors.primaryContainer,
                         child: Icon(Icons.event_rounded, size: 34, color: colors.onPrimaryContainer)),
                 Positioned(
                   right: 8,
@@ -980,7 +981,7 @@ class _SuggestedEventActionCardState extends State<_SuggestedEventActionCard> {
                   GestureDetector(
                     onTap: () => Get.toNamed(AppPages.eventPreviewPath(ev.id)),
                     child: Text(ev.name,
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: colors.onSurface),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: colors.onSurface),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                   const SizedBox(height: 4),
