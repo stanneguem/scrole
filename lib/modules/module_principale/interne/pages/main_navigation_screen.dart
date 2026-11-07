@@ -149,7 +149,39 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 250),
                 opacity: _isBottomNavVisible ? 1.0 : 0.0,
-                child: NavigationBar(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    0,
+                    12,
+                    MediaQuery.of(context).padding.bottom > 0 ? 8 : 12,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+                        width: 0.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.08,
+                          ),
+                          blurRadius: 22,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: NavigationBar(
+                  height: 66,
+                  elevation: 0,
+                  backgroundColor: colorScheme.surface,
+                  indicatorColor: colorScheme.primary.withValues(alpha: 0.13),
+                  indicatorShape: const StadiumBorder(),
                   selectedIndex: _currentIndex == 2 ? 3 : _currentIndex,
                   onDestinationSelected: _onTabChanged,
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
@@ -252,6 +284,9 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                       label: 'nav_profile'.tr,
                     ),
                   ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
