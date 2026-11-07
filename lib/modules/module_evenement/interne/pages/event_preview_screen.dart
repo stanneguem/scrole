@@ -168,10 +168,19 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       }
 
       final role = preview.viewerRole ?? preview.event.userRole;
-      if (role == 'fondateur' || role == 'co_createur' || role == 'owner' || role == 'managed' ||
-          (currentUserId != null && currentUserId.isNotEmpty && preview.event.creatorId == currentUserId)) {
+      final normalizedRole = (role ?? '').toLowerCase();
+      if (normalizedRole == 'fondateur' ||
+          normalizedRole == 'co_createur' ||
+          normalizedRole == 'cofounder' ||
+          normalizedRole == 'co_founder' ||
+          normalizedRole == 'co_creator' ||
+          normalizedRole == 'owner' ||
+          normalizedRole == 'managed' ||
+          (currentUserId != null &&
+              currentUserId.isNotEmpty &&
+              preview.event.creatorId == currentUserId)) {
         _contextRole = 'owner';
-      } else if (role == 'staff') {
+      } else if (normalizedRole == 'staff' || normalizedRole == 'member_staff') {
         _contextRole = 'staff';
       } else {
         _contextRole = 'public';
@@ -679,6 +688,27 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     }
   }
 
+  void _openArchivedItinerary() {
+    final event = _preview?.event;
+    if (event == null) return;
+    final userId = widget.profileUserId ??
+        Get.find<AppController>().authUser.value?.id ??
+        '';
+    if (userId.isEmpty) return;
+    final currentUserId = Get.find<AppController>().authUser.value?.id ?? '';
+    if (userId == currentUserId) {
+      Get.to(() => EventItineraryOverviewScreen(event: event, readOnly: true));
+    } else {
+      Get.to(() => ExternalEventItineraryScreen(
+        userId: userId,
+        eventId: event.id,
+        eventName: event.name,
+        eventPhoto: event.coverImageUrl ?? '',
+        eventLocation: event.locationDisplay,
+      ));
+    }
+  }
+
   void _showReportSheet() {
     final event = _preview?.event;
     if (event == null) return;
@@ -873,6 +903,17 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                       icon: Icons.add_circle_outline_rounded,
                       tooltip: 'Créer une nouvelle édition',
                       onPressed: _createNextEdition,
+                    ),
+                  ),
+                ),
+              if (event.status == EventStatus.completed)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: _HeaderActionButton(
+                      icon: Icons.route_rounded,
+                      tooltip: 'Revoir mon programme',
+                      onPressed: _openArchivedItinerary,
                     ),
                   ),
                 ),
