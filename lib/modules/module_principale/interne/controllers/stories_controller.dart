@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
 import 'package:video_player/video_player.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/stories_repository.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 import '../../../../app_controller.dart';
@@ -18,6 +19,7 @@ class StoryItem {
   final String kind; // 'text' | 'image' | 'video'
   final String? content;
   final String? imageUrl;
+  final String? thumbnailUrl;
   final String? background;
   final String audience;
   final DateTime createdAt;
@@ -39,6 +41,7 @@ class StoryItem {
     required this.kind,
     this.content,
     this.imageUrl,
+    this.thumbnailUrl,
     this.background,
     this.audience = 'public',
     required this.createdAt,
@@ -80,6 +83,7 @@ class StoryItem {
       kind: map['kind']?.toString() ?? 'text',
       content: map['content']?.toString(),
       imageUrl: map['image_url']?.toString() ?? map['media_url']?.toString(),
+      thumbnailUrl: map['thumbnail_url']?.toString() ?? map['thumbnailUrl']?.toString(),
       background: map['background']?.toString(),
       audience: map['audience']?.toString() ?? 'public',
       createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now() : DateTime.now(),
@@ -317,6 +321,7 @@ class StoriesController extends GetxController {
     final fileToUpload = imageFile ?? (imageFiles != null && imageFiles.isNotEmpty ? imageFiles.first : null);
 
     String? imageUrl;
+    String? thumbnailUrl;
     if ((kind == 'image' || kind == 'video') && fileToUpload != null) {
       try {
         if (kind == 'video') {
@@ -336,6 +341,26 @@ class StoriesController extends GetxController {
                 colorText: Colors.white,
               );
               return;
+            }
+            debugPrint('[STORY] [Controller] Generating story video thumbnail...');
+            try {
+              final generatedThumbnail = await VideoCompress.getFileThumbnail(
+                fileToUpload.path,
+                quality: 82,
+                position: 1000,
+              );
+              if (await generatedThumbnail.exists()) {
+                final thumbUpload = await _r2MediaRepo.uploadFile(
+                  file: generatedThumbnail,
+                  category: 'story_media',
+                  mediaType: 'image',
+                  mediaRole: 'thumbnail',
+                );
+                thumbnailUrl = thumbUpload.objectKey;
+                debugPrint('[STORY] [Controller] Story thumbnail uploaded: $thumbnailUrl');
+              }
+            } catch (thumbnailError, thumbnailStack) {
+              debugPrint('[STORY] [Controller] Thumbnail generation/upload failed: $thumbnailError\\n$thumbnailStack');
             }
             debugPrint('[STORY] [Controller] Uploading story video to private Cloudflare R2 duration=${duration.inMilliseconds}ms');
             final uploaded = await _r2MediaRepo.uploadFile(
@@ -387,6 +412,7 @@ class StoriesController extends GetxController {
         p_content: content,
         p_image_url: imageUrl,
         p_background: background,
+        p_thumbnail_url: thumbnailUrl,
         p_audience: audience,
         p_poll: poll,
         p_allow_reshare: allowReshare,
