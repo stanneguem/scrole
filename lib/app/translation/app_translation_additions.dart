@@ -5,6 +5,13 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'event_detail_start': 'Début',
+      'event_detail_end': 'Fin',
+      'event_detail_no_days': 'Aucun jour défini',
+      'event_detail_days_count': '@count jour(s)',
+      'event_detail_status_upcoming': 'À venir',
+      'event_detail_status_ongoing': 'En cours',
+      'event_detail_status_completed': 'Terminé',
       'event_detail_online': 'En ligne',
       'event_detail_in_person': 'Présentiel',
       'event_detail_community': 'Communauté',
@@ -1457,6 +1464,13 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'event_detail_start': 'Start',
+      'event_detail_end': 'End',
+      'event_detail_no_days': 'No days specified',
+      'event_detail_days_count': '@count day(s)',
+      'event_detail_status_upcoming': 'Upcoming',
+      'event_detail_status_ongoing': 'Ongoing',
+      'event_detail_status_completed': 'Completed',
       'event_detail_online': 'Online',
       'event_detail_in_person': 'In person',
       'event_detail_community': 'Community',
@@ -2905,6 +2919,13 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'event_detail_start': 'Inicio',
+      'event_detail_end': 'Fin',
+      'event_detail_no_days': 'No hay días definidos',
+      'event_detail_days_count': '@count día(s)',
+      'event_detail_status_upcoming': 'Próximo',
+      'event_detail_status_ongoing': 'En curso',
+      'event_detail_status_completed': 'Finalizado',
       'event_detail_online': 'En línea',
       'event_detail_in_person': 'Presencial',
       'event_detail_community': 'Comunidad',
@@ -4256,6 +4277,13 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'event_detail_start': 'Beginn',
+      'event_detail_end': 'Ende',
+      'event_detail_no_days': 'Keine Tage festgelegt',
+      'event_detail_days_count': '@count Tag(e)',
+      'event_detail_status_upcoming': 'Bevorstehend',
+      'event_detail_status_ongoing': 'Läuft',
+      'event_detail_status_completed': 'Abgeschlossen',
       'event_detail_online': 'Online',
       'event_detail_in_person': 'Vor Ort',
       'event_detail_community': 'Community',
@@ -5590,6 +5618,13 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'event_detail_start': 'Inizio',
+      'event_detail_end': 'Fine',
+      'event_detail_no_days': 'Nessun giorno definito',
+      'event_detail_days_count': '@count giorno/i',
+      'event_detail_status_upcoming': 'In arrivo',
+      'event_detail_status_ongoing': 'In corso',
+      'event_detail_status_completed': 'Terminato',
       'event_detail_online': 'Online',
       'event_detail_in_person': 'In presenza',
       'event_detail_community': 'Community',
@@ -6922,6 +6957,13 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'event_detail_start': 'Início',
+      'event_detail_end': 'Fim',
+      'event_detail_no_days': 'Nenhum dia definido',
+      'event_detail_days_count': '@count dia(s)',
+      'event_detail_status_upcoming': 'A decorrer',
+      'event_detail_status_ongoing': 'Em andamento',
+      'event_detail_status_completed': 'Concluído',
       'event_detail_online': 'Online',
       'event_detail_in_person': 'Presencial',
       'event_detail_community': 'Comunidade',
@@ -8254,6 +8296,13 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'event_detail_start': '开始',
+      'event_detail_end': '结束',
+      'event_detail_no_days': '未指定日期',
+      'event_detail_days_count': '@count 天',
+      'event_detail_status_upcoming': '即将开始',
+      'event_detail_status_ongoing': '进行中',
+      'event_detail_status_completed': '已结束',
       'event_detail_online': '线上',
       'event_detail_in_person': '线下',
       'event_detail_community': '社群',
@@ -9588,6 +9637,13 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'event_detail_start': '開始',
+      'event_detail_end': '終了',
+      'event_detail_no_days': '日程未設定',
+      'event_detail_days_count': '@count日',
+      'event_detail_status_upcoming': '開催予定',
+      'event_detail_status_ongoing': '開催中',
+      'event_detail_status_completed': '終了',
       'event_detail_online': 'オンライン',
       'event_detail_in_person': '現地開催',
       'event_detail_community': 'コミュニティ',
@@ -10915,6 +10971,13 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'event_detail_start': 'Начало',
+      'event_detail_end': 'Окончание',
+      'event_detail_no_days': 'Дни не указаны',
+      'event_detail_days_count': '@count дн.',
+      'event_detail_status_upcoming': 'Предстоящее',
+      'event_detail_status_ongoing': 'Идёт',
+      'event_detail_status_completed': 'Завершено',
       'event_detail_online': 'Онлайн',
       'event_detail_in_person': 'Очно',
       'event_detail_community': 'Сообщество',
