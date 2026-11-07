@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/routes/app_pages.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../centre/services/notification_db_service.dart';
-import '../../../module_communautes/interne/pages/community_feed_screen.dart';
+import '../../centre/services/notification_deep_link_router.dart';
 import '../controllers/notification_controller.dart';
 
 class NotificationScreen extends GetView<NotificationController> {
@@ -120,149 +119,16 @@ class NotificationScreen extends GetView<NotificationController> {
   }
 
   Future<void> _handleNotification(NotificationEntry notification) async {
+    // Use the exact same deep-link routing as taps on local/FCM notifications.
+    // The payload stored locally can contain either a nested "data" object or
+    // a flat map depending on the notification delivery path.
     await controller.markAsRead(notification.id);
-    final payload = controller.payloadOf(notification);
-    final rawData = payload['data'];
-    final data = rawData is Map
-        ? Map<String, dynamic>.from(rawData)
-        : <String, dynamic>{};
-
-    String? idOf(List<String> keys) {
-      for (final key in keys) {
-        final value = data[key] ?? payload[key];
-        if (value != null && value.toString().isNotEmpty && value.toString() != 'null') {
-          return value.toString();
-        }
-      }
-      return null;
-    }
-
-    final type = notification.type.toLowerCase();
-
-    if (type == 'follow_request') {
-      Get.toNamed(AppPages.followRequests, arguments: {'requestId': data['request_id']});
-      return;
-    }
-
-    // Mentions : ouvrir la cible (publication/commentaire) plutôt que seulement
-    // marquer la notification comme lue. Pour une publication communautaire,
-    // ouvrir le fil de cette communauté et transmettre les identifiants cibles.
-    final isMention = type.contains('mention') ||
-        type == 'mentioned_in_post' ||
-        type == 'mentioned_in_comment' ||
-        type == 'mention_publication' ||
-        type == 'mention_commentaire';
-    if (isMention) {
-      final communityId = idOf(['community_id', 'communaute_id', 'target_community_id']);
-      final postId = idOf(['post_id', 'publication_id', 'source_post_id', 'target_post_id']);
-      final commentId = idOf(['comment_id', 'commentaire_id', 'target_comment_id']);
-      final eventId = idOf(['event_id', 'evenement_id', 'target_event_id']);
-
-      if (communityId != null && communityId.isNotEmpty) {
-        Get.to(() => CommunityFeedScreen(communityId: communityId, communityName: (data['community_name'] ?? data['community_nom'] ?? 'Communauté').toString()), arguments: {
-          'postId': postId,
-          'commentId': commentId,
-          'openComment': commentId != null,
-        });
-        return;
-      }
-      // If the mention was made inside a comment, open that comment's post first.
-      // The event remains accessible from the comment itself.
-      if (postId != null && postId.isNotEmpty) {
-        try {
-          final post = await Supabase.instance.client
-              .from('posts')
-              .select('id,community_id')
-              .eq('id', postId)
-              .maybeSingle();
-          final targetCommunity = post?['community_id']?.toString() ?? communityId;
-          if (targetCommunity != null && targetCommunity.isNotEmpty) {
-            Get.to(() => CommunityFeedScreen(communityId: targetCommunity, communityName: (data['community_name'] ?? data['community_nom'] ?? 'Communauté').toString()), arguments: {
-              'postId': postId,
-              'commentId': commentId,
-              'openComment': commentId != null,
-            });
-            return;
-          }
-        } catch (e) {
-          debugPrint('[Notification] Could not resolve mention target post: $e');
-        }
-      }
-      if (eventId != null && eventId.isNotEmpty) {
-        await controller.goToEventPreview(eventId);
-        return;
-      }
-      final mentionedUserId = idOf(['mentioned_user_id', 'target_user_id', 'profile_user_id']);
-      if (mentionedUserId != null && mentionedUserId.isNotEmpty) {
-        Get.toNamed(AppPages.externalProfilePath(mentionedUserId));
-        return;
-      }
-    }
-
-    // Commentaires et réponses sur une publication communautaire : ouvrir
-    // la publication puis le panneau de commentaires correspondant.
-    final contentPostId = idOf(['post_id', 'publication_id', 'source_post_id', 'target_post_id']);
-    final contentCommunityId = idOf(['community_id', 'communaute_id', 'target_community_id']);
-    final contentCommentId = idOf(['comment_id', 'commentaire_id', 'target_comment_id', 'parent_comment_id']);
-    if (contentPostId != null &&
-        contentCommunityId != null &&
-        (type.contains('comment') || type.contains('reply') || type.contains('community_post_like'))) {
-      Get.to(
-        () => CommunityFeedScreen(
-          communityId: contentCommunityId,
-          communityName: (data['community_name'] ?? data['community_nom'] ?? 'Communauté').toString(),
-        ),
-        arguments: {
-          'postId': contentPostId,
-          'commentId': contentCommentId,
-          'openComment': contentCommentId != null,
-        },
-      );
-      return;
-    }
-
-    // Les invitations d'événement ouvrent la fiche de l'événement.
-    final eventTargetId = idOf(['event_id', 'evenement_id', 'eventId']);
-    if (eventTargetId != null &&
-        (type.contains('invitation') || type.contains('invite') || type.contains('evenement'))) {
-      await controller.goToEventPreview(eventTargetId);
-      return;
-    }
-
-    // Les notifications de communauté ouvrent la communauté visée.
-    final communityTargetId = idOf(['community_id', 'communaute_id', 'target_community_id']);
-    if (communityTargetId != null &&
-        (type.contains('community') || type.contains('communaute') || type.contains('publication'))) {
-      Get.to(() => CommunityFeedScreen(communityId: communityTargetId, communityName: (data['community_name'] ?? data['community_nom'] ?? 'Communauté').toString()));
-      return;
-    }
-
-    // Les notifications de relation ouvrent le profil de l'autre personne.
-    if (['new_follower', 'new_friend', 'follow_request_accepted', 'friend_via_qr',
-         'connection_request', 'connection_accepted', 'demande_ami', 'demande_ami_acceptee', 'ami_confirme'].contains(type)) {
-      final actorId = payload['actor_id']?.toString() ?? (data is Map ? data['user_id']?.toString() : null);
-      if (actorId != null && actorId.isNotEmpty) {
-        Get.toNamed(AppPages.externalProfilePath(actorId));
-        return;
-      }
-    }
-
-    // Cas 2 : Transfert, Invitation Staff, Invité d'honneur ou Sponsor -> Preview de l'événement
-    if (notification.type == 'transfert_propriete_evenement' || 
-        notification.type == 'invitation_staff' || 
-        notification.type == 'invitation_guest_evenement' || 
-        notification.type == 'invitation_guest' || 
-        notification.type == 'guest_invitation' || 
-        notification.type == 'invitation_sponsor_evenement' || 
-        notification.type == 'invitation_sponsor' || 
-        notification.type == 'sponsor_invitation' || 
-        notification.type == 'evenement_modifie') {
-      final eventId = data?['evenement_id']?.toString() ?? data?['event_id']?.toString();
-      if (eventId != null && eventId.isNotEmpty) {
-        await controller.goToEventPreview(eventId);
-        return;
-      }
-    }
+    final storedPayload = controller.payloadOf(notification);
+    final payload = <String, dynamic>{
+      ...storedPayload,
+      'type': notification.type,
+    };
+    await NotificationDeepLinkRouter.open(payload);
   }
 }
 
@@ -281,28 +147,44 @@ class _NotificationTile extends StatelessWidget {
   final VoidCallback onDelete;
   final String? avatarUrl;
 
+  String? _genericNotificationFamily(String rawType) {
+    final type = rawType.toLowerCase();
+    // Direct messages contain user-written text: never replace or translate it.
+    if (type == 'message_received') return null;
+    if (type.contains('mention')) return 'mention';
+    if (type.contains('like')) return 'like';
+    if (type.contains('comment')) return 'comment';
+    if (type.contains('annul') || type.contains('cancel')) return 'canceled';
+    if (type.contains('accep') || type.contains('accepted') || type == 'ami_confirme') return 'accepted';
+    if (type.contains('rejet') || type.contains('reject')) return 'rejected';
+    if (type.contains('valide') || type.contains('approved')) return 'approved';
+    if (type.contains('demande') || type.contains('request') || type.contains('join_request')) return 'request';
+    if (type.contains('reponse_invitation')) return 'reply';
+    if (type.contains('invitation') || type.contains('invite') || type.contains('sponsor')) return 'invitation';
+    if (type.contains('shared_story') || type.contains('share')) return 'share';
+    if (type.contains('bienvenue') || type == 'welcome') return 'welcome';
+    if (type.contains('transfert') || type.contains('transfer')) return 'transfer';
+    if (type.contains('prix_activite_reduit') || type.contains('price_reduced')) return 'price_reduced';
+    if (type.contains('checkin')) return 'checkin';
+    if (type.contains('suppression') || type.contains('supprime') || type.contains('deletion')) return 'deletion';
+    if (type.contains('pres_de_vous') || type.contains('nearby_event')) return 'nearby_event';
+    if (type.contains('promotion') || type.contains('co_createur') ||
+        type.contains('quitte') || type.contains('retire') ||
+        type.contains('assignation') || type.contains('staff') ||
+        type.contains('role_update')) return 'role_update';
+    if (type.contains('modifie') || type.contains('event_update')) return 'event_update';
+    return 'other';
+  }
+
   String _localizedTitle(NotificationController controller) {
-    final type = notification.type.toLowerCase();
-    const supported = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
-    if (!supported.contains(type)) return notification.title;
-    final payload = controller.payloadOf(notification);
-    final rawData = payload['data'];
-    final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
-    final name = (data['display_name'] ?? data['name'] ?? data['username'] ?? data['pseudo'] ?? payload['actor_name'] ?? '').toString();
-    final key = switch (type) {
-      'new_follower' => 'follow_notification_new_follower',
-      'new_friend' => 'follow_notification_new_friend',
-      'follow_request' => 'follow_notification_request',
-      'follow_request_accepted' => 'follow_notification_accepted',
-      _ => 'follow_notification_friend_qr',
-    };
-    return key.trParams({'name': name});
+    // Server-rendered titles are localized and include the real actor name.
+    final title = notification.title.trim();
+    return title.isNotEmpty ? title : 'notifications_title'.tr;
   }
 
   String _localizedMessage(NotificationController controller) {
-    const supported = {'new_follower', 'new_friend', 'follow_request', 'follow_request_accepted', 'friend_via_qr'};
-    if (supported.contains(notification.type.toLowerCase())) return '';
-    return notification.message;
+    // Preserve server-rendered action details and user-authored message text.
+    return notification.message.trim();
   }
 
   @override

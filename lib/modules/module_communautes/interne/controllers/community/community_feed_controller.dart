@@ -62,15 +62,29 @@ class CommunityFeedController extends GetxController {
     super.onClose();
   }
 
+  bool _containsVideo(CommunityPost post) =>
+      post.media.any((media) => media.isVideo) ||
+      (post.sharedPost?.media.any((media) => media.isVideo) ?? false);
+
   void queuePostView(CommunityPost post) {
-    if (post.isPublishing) return;
+    // Video views wait for the player to report 50% effective playback.
+    if (_containsVideo(post)) return;
+    _queuePostViewId(post.id, post);
+  }
+
+  void queueQualifiedVideoPostView(String postId, CommunityPost post) {
+    _queuePostViewId(postId, post);
+  }
+
+  void _queuePostViewId(String postId, CommunityPost post) {
+    if (post.isPublishing || postId.isEmpty) return;
     final myId = currentUserId;
     if (myId != null && post.authorId == myId) return;
-    if (_globalSentViewIds.contains(post.id)) return;
-    if (_pendingViewIds.contains(post.id)) return;
+    if (_globalSentViewIds.contains(postId)) return;
+    if (_pendingViewIds.contains(postId)) return;
 
-    _pendingViewIds.add(post.id);
-    _globalSentViewIds.add(post.id);
+    _pendingViewIds.add(postId);
+    _globalSentViewIds.add(postId);
 
     if (_pendingViewIds.length >= 20) {
       _flushViewBatch();

@@ -115,6 +115,11 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                     trimmer: _trimmer,
                     viewerHeight: 50.0,
                     viewerWidth: MediaQuery.of(context).size.width,
+                    // Affiche la timeline complète : l’utilisateur peut choisir
+                    // une portion de 30 s n’importe où dans une vidéo longue.
+                    // Le mode auto passe en mode défilant sur les longues vidéos,
+                    // ce qui ne montre qu’une partie de la timeline à la fois.
+                    type: ViewerType.fixed,
                     maxVideoLength: widget.maxDuration,
                     onChangeStart: (value) => _startValue = value,
                     onChangeEnd: (value) => _endValue = value,

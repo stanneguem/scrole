@@ -61,7 +61,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                   ...controller.tickets.map((ticket) => Obx(() {
                     final isSelected = controller.selectedTicket.value?.id == ticket.id;
                     return GestureDetector(
-                      onTap: () => controller.selectedTicket.value = ticket,
+                      onTap: () => controller.selectTicket(ticket),
                       child: Card(
                         elevation: 0,
                         margin: const EdgeInsets.only(bottom: 8),
@@ -79,7 +79,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                               CupertinoRadio<String>(
                                 value: ticket.id,
                                 groupValue: controller.selectedTicket.value?.id,
-                                onChanged: (_) => controller.selectedTicket.value = ticket,
+                                onChanged: (_) => controller.selectTicket(ticket),
                                 activeColor: AppColors.primary,
                               ),
                               const SizedBox(width: 8),
@@ -243,7 +243,10 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
             ],
           ),
           ElevatedButton(
-            onPressed: () => Get.back(),
+            onPressed: () {
+              controller.completeSimulation();
+              Get.back();
+            },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

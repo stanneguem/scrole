@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import '../../../modules/module_communautes/centre/persistence/salon_chat_database.dart';
 
 class AppDatabase {
   static const String _dbName = 'app_local.db';
-  static const int _dbVersion = 31;
+  static const int _dbVersion = 33;
   Future<Database>? _dbOpenFuture;
   Database? _database;
 
@@ -884,6 +885,9 @@ class AppDatabase {
       // Note: On peut garder la table 'communities' car elle est globale, 
       // mais on a supprimé l'appartenance de l'utilisateur via community_members.
     });
+    // Salon conversations live in their own SQLite file; purge that file's
+    // account-scoped rows as part of the same logout/account-switch workflow.
+    await SalonChatDatabase.instance.clearUserData(userId);
     debugPrint('[Database] Données locales purgées pour l\'utilisateur : $userId');
   }
 

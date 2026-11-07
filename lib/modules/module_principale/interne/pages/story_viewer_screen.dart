@@ -1,10 +1,18 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import '../../../../shared/widgets/user_certified_badge.dart';
 import '../../../../shared/widgets/user_identity_row.dart';
 import '../../../../shared/utils/number_formatter.dart';
@@ -12,6 +20,7 @@ import '../controllers/stories_controller.dart';
 import '../widgets/feed_post_card.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/stories_repository.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/home_feed_repository.dart';
+import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final List<EventStoryGroup> groups;
@@ -34,6 +43,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   late AnimationController _animController;
   late AnimationController _heartsAnimationController;
   bool _isPaused = false;
+  bool _isSendingQuickReply = false;
+  String? _imageLoadedStoryId;
+  double _videoProgress = 0.0;
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   final StoriesController _storiesController = Get.find<StoriesController>();
@@ -70,7 +82,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       } else {
         setState(() => _isPaused = false);
         if (_replyController.text.trim().isEmpty) {
-          _animController.forward();
+          if (_currentStoryHasVideo) {
+            _animController.stop();
+          } else {
+            _resumeStoryTimer();
+          }
         }
       }
     });
@@ -78,7 +94,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     // Wait until the first frame so inherited widgets (MediaQuery/Theme)
     // are available before starting story image precaching.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _startStory();
+      if (!mounted) return;
+      _startStory();
+      // Render the already-fetched story/media immediately, then reconcile
+      // visibility and live counters with Supabase without blocking playback.
+      unawaited(_refreshCurrentGroupFromServer());
     });
   }
 
@@ -88,28 +108,205 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     _precacheNextStory();
   }
 
+  bool _isPrecacheableStoryImage(String? value) {
+    final raw = value?.trim() ?? '';
+    if (raw.isEmpty) return false;
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasAuthority ||
+        (uri.scheme != 'https' && uri.scheme != 'http')) {
+      // Story media may be stored as an R2 object key (for example
+      // stories/<user>/<file>.jpg). NetworkImage cannot load that key directly.
+      return false;
+    }
+    final path = uri.path.toLowerCase();
+    return !path.endsWith('.mp4') &&
+        !path.endsWith('.mov') &&
+        !path.endsWith('.m3u8') &&
+        !path.endsWith('.webm');
+  }
+
   void _precacheNextStory() {
     if (_storyIndex < _currentGroup.stories.length - 1) {
-      final url = _currentGroup.stories[_storyIndex + 1].imageUrl;
-      if (url != null && url.isNotEmpty) {
-        precacheImage(NetworkImage(url), context);
+      final nextStory = _currentGroup.stories[_storyIndex + 1];
+      final url = nextStory.imageUrl;
+      if (nextStory.kind != 'video' && _isPrecacheableStoryImage(url)) {
+        precacheImage(NetworkImage(url!.trim()), context)
+            .catchError((Object _) {});
       }
     } else if (_groupIndex < widget.groups.length - 1) {
       final nextGroup = widget.groups[_groupIndex + 1];
       if (nextGroup.stories.isNotEmpty) {
-        final url = nextGroup.stories.first.imageUrl;
-        if (url != null && url.isNotEmpty) {
-          precacheImage(NetworkImage(url), context).catchError((Object _) {});
+        final nextStory = nextGroup.stories.first;
+        final url = nextStory.imageUrl;
+        if (nextStory.kind != 'video' && _isPrecacheableStoryImage(url)) {
+          precacheImage(NetworkImage(url!.trim()), context)
+              .catchError((Object _) {});
         }
       }
     }
   }
 
+  bool get _currentStoryHasVideo {
+    if (_currentStory.kind == 'video') {
+      return (_currentStory.imageUrl ?? '').trim().isNotEmpty;
+    }
+    if (_currentStory.kind != 'post') return false;
+    final post = _currentStory.sharedPost;
+    return post != null && post.media.any((media) => media.isVideo && (media.url ?? '').trim().isNotEmpty);
+  }
+
   void _startStory() {
-    if (!_isPaused && !_commentFocusNode.hasFocus) {
-      _animController.forward(from: 0.0);
-      _markCurrentViewed();
+    if (_isPaused || _commentFocusNode.hasFocus) return;
+    if (_currentStory.kind == 'image') {
+      // Wait for the actual image frame, including private R2 media.
+      _animController.stop();
+      if (_imageLoadedStoryId == _currentStory.id) {
+        _beginCurrentImageStory();
+      }
       _precacheNextStory();
+      return;
+    }
+    if (_currentStoryHasVideo) {
+      _animController.stop();
+      _animController.value = 0;
+      _videoProgress = 0.0;
+    } else {
+      _animController.forward(from: 0.0);
+    }
+    _markCurrentViewed();
+    _precacheNextStory();
+  }
+
+  void _beginCurrentImageStory() {
+    if (!mounted || _isPaused || _commentFocusNode.hasFocus ||
+        _currentStory.kind != 'image' ||
+        _imageLoadedStoryId != _currentStory.id) return;
+    _animController.duration = const Duration(seconds: 8);
+    _animController.forward(from: 0.0);
+    _markCurrentViewed();
+  }
+
+  void _onCurrentStoryImageLoaded(String storyId) {
+    if (!mounted || _currentStory.id != storyId ||
+        _imageLoadedStoryId == storyId) return;
+    setState(() => _imageLoadedStoryId = storyId);
+    _beginCurrentImageStory();
+  }
+
+  Future<void> _refreshCurrentGroupFromServer() async {
+    final groupAtRequest = _currentGroup;
+    final authorId = groupAtRequest.author.userId;
+    if (authorId.isEmpty) return;
+
+    try {
+      final data = await _storiesRepo.getUserStories(authorId);
+      if (!mounted || _groupIndex >= widget.groups.length ||
+          _currentGroup.author.userId != authorId) return;
+
+      // A successful empty response means the author deleted the story or
+      // the viewer no longer has permission to see it. A network error throws
+      // from the repository and deliberately leaves the offline copy intact.
+      final refreshedGroup = data == null
+          ? null
+          : EventStoryGroup.fromMap(Map<String, dynamic>.from(data));
+      final refreshed = refreshedGroup?.stories ?? <StoryItem>[];
+      final refreshedById = {for (final story in refreshed) story.id: story};
+      final previousStories = List<StoryItem>.from(groupAtRequest.stories);
+
+      for (final previous in previousStories) {
+        final latest = refreshedById[previous.id];
+        final wasRemoved = latest == null;
+        final mediaChanged = latest != null &&
+            (latest.imageUrl != previous.imageUrl ||
+             latest.thumbnailUrl != previous.thumbnailUrl);
+        if (!wasRemoved && !mediaChanged) continue;
+
+        final mediaKey = previous.imageUrl;
+        final thumbnailKey = previous.thumbnailUrl;
+        if (mediaKey != null && mediaKey.startsWith('stories/')) {
+          await AppCachedImage.clearPrivateMediaCache(mediaKey);
+        }
+        if (thumbnailKey != null && thumbnailKey.startsWith('stories/')) {
+          await AppCachedImage.clearPrivateMediaCache(thumbnailKey);
+        }
+        // Video playback cache is keyed by story id. Remove it if the server
+        // confirms deletion or if the underlying video object has changed.
+        try {
+          final directory = await getApplicationSupportDirectory();
+          final cacheDirectory = Directory(p.join(directory.path, 'stories_cache'));
+          final safeId = previous.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+          for (final suffix in ['.mp4', '.mov', '.expiry']) {
+            final cached = File(p.join(cacheDirectory.path, '$safeId$suffix'));
+            if (await cached.exists()) await cached.delete();
+          }
+        } catch (cacheError) {
+          debugPrint('[STORY_CACHE] Story media cleanup failed: $cacheError');
+        }
+        if (wasRemoved) {
+          debugPrint('[STORY] Removed locally cached story no longer visible: ${previous.id}');
+        } else {
+          debugPrint('[STORY] Replaced stale cached media for story: ${previous.id}');
+        }
+      }
+
+      final currentId = _currentStory.id;
+      groupAtRequest.stories
+        ..clear()
+        ..addAll(refreshed);
+      if (refreshedGroup != null) {
+        groupAtRequest.latestAt = refreshedGroup.latestAt;
+        groupAtRequest.storiesCount = refreshedGroup.storiesCount;
+      } else {
+        groupAtRequest.storiesCount = 0;
+      }
+      groupAtRequest.hasUnseen = refreshed.any((story) => !story.viewed);
+
+      if (refreshed.isEmpty) {
+        if (!mounted) return;
+        // If one author deleted all their stories, continue with the next
+        // available author instead of closing the entire story viewer.
+        if (_groupIndex < widget.groups.length - 1) {
+          setState(() {
+            _groupIndex++;
+            _storyIndex = 0;
+            _imageLoadedStoryId = null;
+            _videoProgress = 0;
+          });
+          _startStory();
+          unawaited(_refreshCurrentGroupFromServer());
+        } else if (_groupIndex > 0) {
+          setState(() {
+            _groupIndex--;
+            _storyIndex = widget.groups[_groupIndex].stories.length - 1;
+            _imageLoadedStoryId = null;
+            _videoProgress = 0;
+          });
+          _startStory();
+          unawaited(_refreshCurrentGroupFromServer());
+        } else {
+          Navigator.of(context).pop();
+        }
+        return;
+      }
+
+      final updatedIndex = refreshed.indexWhere((story) => story.id == currentId);
+      if (updatedIndex < 0) {
+        _storyIndex = _storyIndex.clamp(0, refreshed.length - 1).toInt();
+        _imageLoadedStoryId = null;
+        _videoProgress = 0;
+        if (mounted) {
+          setState(() {});
+          _startStory();
+        }
+      } else {
+        _storyIndex = updatedIndex;
+        if (mounted) setState(() {});
+      }
+      _storiesController.refreshGroupViewedState(groupAtRequest);
+      debugPrint('[STORY] Background sync completed for author=$authorId stories=${refreshed.length}');
+    } catch (e, st) {
+      // Offline or transient backend errors must not blank a valid cached story.
+      debugPrint('[STORY] Background sync failed; keeping cached story: $e\\n$st');
     }
   }
 
@@ -141,17 +338,29 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   StoryItem get _currentStory => _currentGroup.stories[_storyIndex];
   bool get _isOwnStory => _currentGroup.relation == 'own';
 
+  void _resumeStoryTimer() {
+    if (_currentStoryHasVideo ||
+        (_currentStory.kind == 'image' &&
+            _imageLoadedStoryId != _currentStory.id)) {
+      _animController.stop();
+    } else {
+      _animController.forward();
+    }
+  }
+
   String _formatStoryAge(DateTime createdAt) {
     final elapsed = DateTime.now().difference(createdAt);
-    if (elapsed.isNegative || elapsed.inSeconds < 60) return 'À l’instant';
-    if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
-    if (elapsed.inHours < 24) return 'Il y a ${elapsed.inHours} h';
-    if (elapsed.inDays == 1) return 'Il y a 1 jour';
-    if (elapsed.inDays < 7) return 'Il y a ${elapsed.inDays} jours';
+    if (elapsed.isNegative || elapsed.inSeconds < 60) return 'relative_just_now'.tr;
+    if (elapsed.inMinutes < 60) return 'relative_minutes_ago'.trParams({'count': '${elapsed.inMinutes}'});
+    if (elapsed.inHours < 24) return 'relative_hours_ago'.trParams({'count': '${elapsed.inHours}'});
+    if (elapsed.inDays == 1) return 'relative_one_day_ago'.tr;
+    if (elapsed.inDays < 7) return 'relative_days_ago'.trParams({'count': '${elapsed.inDays}'});
     return '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
   }
 
   void _nextStory() {
+    _videoProgress = 0.0;
+    _imageLoadedStoryId = null;
     if (_storyIndex < _currentGroup.stories.length - 1) {
       setState(() => _storyIndex++);
       _startStory();
@@ -161,12 +370,15 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         _storyIndex = 0;
       });
       _startStory();
+      unawaited(_refreshCurrentGroupFromServer());
     } else {
       Navigator.of(context).pop();
     }
   }
 
   void _prevStory() {
+    _videoProgress = 0.0;
+    _imageLoadedStoryId = null;
     if (_storyIndex > 0) {
       setState(() => _storyIndex--);
       _startStory();
@@ -176,6 +388,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         _storyIndex = widget.groups[_groupIndex].stories.length - 1;
       });
       _startStory();
+      unawaited(_refreshCurrentGroupFromServer());
     } else {
       _animController.forward(from: 0.0);
     }
@@ -183,8 +396,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   Future<void> _toggleStoryLike() async {
     final newLiked = !_currentStory.isLiked;
+    final previousCount = _currentStory.likesCount;
     setState(() {
       _currentStory.isLiked = newLiked;
+      _currentStory.likesCount = (previousCount + (newLiked ? 1 : -1)).clamp(0, 1 << 31);
       if (newLiked) {
         _heartsAnimationController.forward(from: 0.0);
       } else {
@@ -196,33 +411,15 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       await _storiesRepo.setStoryLike(_currentStory.id, newLiked);
     } catch (e) {
       debugPrint('[STORY] [Controller] Error setting story like: $e');
+      if (!mounted) return;
       setState(() {
         _currentStory.isLiked = !newLiked;
+        _currentStory.likesCount = previousCount;
       });
     }
   }
 
-  Future<void> _shareCurrentStory() async {
-    final story = _currentStory;
-    final author = _currentGroup.author.displayName;
-    final parts = <String>[
-      'Story de $author sur Scrole',
-      if ((story.content ?? '').trim().isNotEmpty) story.content!.trim(),
-      if ((story.imageUrl ?? '').trim().isNotEmpty) story.imageUrl!.trim(),
-    ];
-    try {
-      await SharePlus.instance.share(ShareParams(text: parts.join('\n\n')));
-    } catch (e) {
-      if (mounted) {
-        Get.snackbar(
-          'Erreur',
-          'Impossible de partager cette story.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-      debugPrint('[STORY] Error sharing story: $e');
-    }
-  }
+
 
   void _onTapDown(TapDownDetails details) {
     if (_commentFocusNode.hasFocus || _isPaused) return;
@@ -235,15 +432,16 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     if (details.globalPosition.dx < screenWidth / 3) {
       _prevStory();
     } else if (details.globalPosition.dx > screenWidth * 2 / 3) {
+      // Left/right zones navigate between all story types.
       _nextStory();
-    } else {
-      _animController.forward();
+    } else if (!_currentStoryHasVideo) {
+      _resumeStoryTimer();
     }
   }
 
   void _onCancel() {
     if (_commentFocusNode.hasFocus || _isPaused) return;
-    _animController.forward();
+    _resumeStoryTimer();
   }
 
   Future<void> _showViewersSheet() async {
@@ -259,7 +457,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -276,7 +474,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -321,45 +519,55 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
             ),
             const SizedBox(height: 20),
             if (_isOwnStory)
-              ListTile(
+              Material(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  tileColor: colorScheme.errorContainer.withValues(alpha: 0.3),
+                  leading: Icon(
+                    Icons.delete_outline_rounded,
+                    color: colorScheme.error,
+                  ),
+                  title: Text(
+                    'story_delete'.tr,
+                    style: TextStyle(
+                      color: colorScheme.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _storiesController.deleteStory(_currentStory.id);
+                    if (mounted) Navigator.of(context).pop();
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+            Material(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                tileColor: colorScheme.errorContainer.withValues(alpha: 0.3),
                 leading: Icon(
-                  Icons.delete_outline_rounded,
-                  color: colorScheme.error,
+                  Icons.cancel_outlined,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 title: Text(
-                  'Supprimer la story',
+                  'cancel'.tr,
                   style: TextStyle(
-                    color: colorScheme.error,
-                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  await _storiesController.deleteStory(_currentStory.id);
-                  if (mounted) Navigator.of(context).pop();
-                },
+                onTap: () => Navigator.of(context).pop(),
               ),
-            const SizedBox(height: 8),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              leading: Icon(
-                Icons.cancel_outlined,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                'Annuler',
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onTap: () => Navigator.of(context).pop(),
             ),
           ],
         ),
@@ -368,7 +576,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -404,20 +612,47 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         child: Transform.translate(
           offset: Offset(0, _dragOffsetY),
           child: GestureDetector(
-            onTapDown: _onTapDown,
-            onTapUp: _onTapUp,
-            onTapCancel: _onCancel,
-            onDoubleTap: _isOwnStory ? null : _toggleStoryLike,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 // --- Media / Background ---
-                if (_currentStory.kind == 'image' &&
+                if (_currentStory.kind == 'video' &&
+                    _currentStory.imageUrl != null &&
+                    _currentStory.imageUrl!.isNotEmpty)
+                  _StoryVideoPlayer(
+                    key: ValueKey(_currentStory.id),
+                    objectKey: _currentStory.imageUrl!,
+                    storyId: _currentStory.id,
+                    expiresAt: _currentStory.expiresAt,
+                    thumbnailObjectKey: _currentStory.thumbnailUrl,
+                    fallbackImageUrl: _currentGroup.author.photoUrl,
+                    isPaused: _isPaused || _commentFocusNode.hasFocus,
+                    onProgress: (progress) {
+                      if (mounted && (_videoProgress - progress).abs() >= 0.01) {
+                        setState(() => _videoProgress = progress);
+                      }
+                    },
+                    onCompleted: _nextStory,
+                  )
+                else if (_currentStory.kind == 'image' &&
                     _currentStory.imageUrl != null)
-                  Center(
+                  Positioned.fill(
                     child: AppCachedImage(
+                      key: ValueKey('story-image-${_currentStory.id}'),
                       imageUrl: _currentStory.imageUrl!,
                       fit: BoxFit.cover,
+                      cacheUntil: _currentStory.expiresAt,
+                      onImageLoaded: () => _onCurrentStoryImageLoaded(_currentStory.id),
+                      placeholder: const Center(
+                        child: SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
                   )
                 else if (_currentStory.kind == 'post')
@@ -434,13 +669,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                         children: [
                           if (_currentStory.content != null &&
                               _currentStory.content!.isNotEmpty) ...[
-                            Text(
-                              _currentStory.content!,
+                            LinkifiedText(
+                              text: _currentStory.content!,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
+                              linkColor: Colors.lightBlueAccent,
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
@@ -452,8 +688,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                 color: Colors.black54,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: const Text(
-                                'Cette publication n\'est plus disponible',
+                              child: Text(
+                                'story_shared_post_unavailable'.tr,
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontStyle: FontStyle.italic,
@@ -463,10 +699,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                             )
                           else ...[
                             if (!_currentStory.sharedPostCanOpenOriginal)
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: Text(
-                                  'Aperçu partagé · source réservée aux membres de la communauté',
+                                  'story_shared_post_members_only'.tr,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Colors.white70,
@@ -474,18 +710,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   ),
                                 ),
                               ),
-                            GestureDetector(
-                              onTap: () {
-                                if (_currentStory.sharedPostId != null && _currentStory.sharedPostCanOpenOriginal) {
-                                  _openOriginalPost(
-                                    _currentStory.sharedPostId!,
-                                  );
-                                }
-                              },
+                            SizedBox(
+                              width: (MediaQuery.of(context).size.width - 32)
+                                  .clamp(0.0, 400.0)
+                                  .toDouble(),
                               child: Container(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 400,
-                                ),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(18),
@@ -498,8 +727,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                   ],
                                 ),
                                 clipBehavior: Clip.antiAlias,
+                                // Reuse the exact feed card for every shared post,
+                                // including videos. The previous custom video card
+                                // omitted the feed interaction/counter bar and clipped
+                                // tall cards before their actions could be seen.
                                 child: FeedPostCard(
                                   post: _currentStory.sharedPost!,
+                                  autoplayVideos: true,
                                   onReactionTap: (_) {},
                                   onCommentTap: () {},
                                 ),
@@ -527,6 +761,67 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     ),
                   ),
 
+                // Explicit left/center/right hit zones sit above media and
+                // repost cards, but below the header and footer controls.
+                // This avoids VideoPlayer or a post card winning the gesture arena.
+                Positioned(
+                  top: 64,
+                  left: 0,
+                  right: 0,
+                  bottom: 132,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (!_commentFocusNode.hasFocus && !_isPaused) {
+                              _prevStory();
+                            }
+                          },
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          // Hold anywhere in the center zone to pause the story;
+                          // releasing resumes the image timer or the video.
+                          onLongPressStart: (_) {
+                            if (_commentFocusNode.hasFocus || _isPaused) return;
+                            _animController.stop();
+                            setState(() => _isPaused = true);
+                          },
+                          onLongPressEnd: (_) {
+                            if (_commentFocusNode.hasFocus || !_isPaused) return;
+                            setState(() => _isPaused = false);
+                            _resumeStoryTimer();
+                          },
+                          onTap: () {
+                            if (!_commentFocusNode.hasFocus && !_isPaused &&
+                                !_currentStoryHasVideo) {
+                              _resumeStoryTimer();
+                            }
+                          },
+                          onDoubleTap: _isOwnStory ? null : _toggleStoryLike,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (!_commentFocusNode.hasFocus && !_isPaused) {
+                              _nextStory();
+                            }
+                          },
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // --- Top Progress Bars & Header ---
                 SafeArea(
                   child: Column(
@@ -553,7 +848,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                                       value: idx < _storyIndex
                                           ? 1.0
                                           : idx == _storyIndex
-                                          ? _animController.value
+                                          ? (_currentStoryHasVideo
+                                              ? _videoProgress
+                                              : _animController.value)
                                           : 0.0,
                                       backgroundColor: Colors.white24,
                                       valueColor:
@@ -673,163 +970,371 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   ),
                 ),
 
-                // --- Lottie Hearts Animation Overlay ---
+                // --- TikTok-style story actions on the right ---
+                // Vertical action rail pinned to the extreme right, like TikTok.
+                // For other people's stories: Like first, comments immediately below.
+                // For own stories: viewers first, then comments.
                 Positioned(
-                  bottom: 80,
-                  right: 60,
-                  child: IgnorePointer(
-                    child: Lottie.asset(
-                      'assets/lotties/head.json',
-                      controller: _heartsAnimationController,
-                      width: 130,
-                      height: 130,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-
-                // --- Bottom Interactive Bar ---
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: AnimatedOpacity(
-                      opacity: _isDragging ? 0.0 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Container(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          12,
-                          16,
-                          MediaQuery.of(context).padding.bottom + 12,
-                        ),
-                        color: Colors.black.withValues(alpha: 0.3),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  right: 8,
+                  top: 0,
+                  bottom: _isOwnStory ? 64 : 56,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Transform.translate(
+                      offset: const Offset(0, 136),
+                      child: AnimatedOpacity(
+                        opacity: _isDragging ? 0.0 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            // 1. Views icon & count (Only for own story)
                             if (_isOwnStory)
-                              InkWell(
+                              _buildStorySideAction(
+                                icon: Icons.remove_red_eye_outlined,
+                                count: _currentStory.viewersCount,
                                 onTap: _showViewersSheet,
-                                borderRadius: BorderRadius.circular(16),
+                              )
+                            else
+                              InkWell(
+                                onTap: _toggleStoryLike,
+                                borderRadius: BorderRadius.circular(24),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.center,
                                     children: [
-                                      const Icon(
-                                        Icons.remove_red_eye_outlined,
-                                        color: Colors.white,
-                                        size: 22,
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _currentStory.isLiked
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_border_rounded,
+                                            color: _currentStory.isLiked ? Colors.red : Colors.white,
+                                            size: 28,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _currentStory.likesCount > 0
+                                                ? NumberFormatter.formatCount(_currentStory.likesCount)
+                                                : (_currentStory.isLiked ? '1' : 'story_like'.tr),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        NumberFormatter.formatCount(
-                                          _currentStory.viewersCount,
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                                      Positioned(
+                                        right: -42,
+                                        top: -62,
+                                        child: IgnorePointer(
+                                          child: Lottie.asset(
+                                            'assets/lotties/head.json',
+                                            controller: _heartsAnimationController,
+                                            width: 112,
+                                            height: 112,
+                                            fit: BoxFit.contain,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-
-                            // Share story with the device share sheet.
-                            InkWell(
-                              onTap: _shareCurrentStory,
-                              borderRadius: BorderRadius.circular(16),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                child: Icon(
-                                  Icons.ios_share_rounded,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                              ),
-                            ),
-
-                            // 2. Comments icon & count (Both own & other stories)
-                            InkWell(
+                            _buildStorySideAction(
+                              assetIcon: 'assets/svg_icons/chat-round-svgrepo-com.svg',
+                              count: _currentStory.commentsCount,
                               onTap: _openStoryCommentsModal,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SvgPicture.asset(
-                                      'assets/svg_icons/chat-round-svgrepo-com.svg',
-                                      width: 22,
-                                      height: 22,
-                                      colorFilter: const ColorFilter.mode(
-                                        Colors.white,
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      NumberFormatter.formatCount(
-                                        _currentStory.commentsCount,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
-
-                            // 3. Like icon only (Only for other users' stories, NO count)
-                            if (!_isOwnStory)
-                              InkWell(
-                                onTap: _toggleStoryLike,
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  child: Icon(
-                                    _currentStory.isLiked
-                                        ? Icons.favorite_rounded
-                                        : Icons.favorite_border_rounded,
-                                    color: _currentStory.isLiked
-                                        ? Colors.red
-                                        : Colors.white,
-                                    size: 26,
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       ),
                     ),
                   ),
                 ),
+
+                // --- Quick reply composer for another user's story ---
+                if (!_isOwnStory)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: MediaQuery.of(context).padding.bottom + 12,
+                    child: AnimatedOpacity(
+                      opacity: _isDragging ? 0.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: _buildQuickStoryReply(),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildStorySideAction({
+    IconData? icon,
+    String? assetIcon,
+    required int count,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (assetIcon != null)
+                SvgPicture.asset(
+                  assetIcon,
+                  width: 25,
+                  height: 25,
+                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                )
+              else
+                Icon(icon, color: Colors.white, size: 25),
+              const SizedBox(height: 4),
+              Text(
+                NumberFormatter.formatCount(count),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStoryReply() {
+    final hasText = _replyController.text.trim().isNotEmpty;
+    return Row(
+      children: [
+        // Emoji picker stays outside the text field's single border.
+        PopupMenuButton<String>(
+          tooltip: 'story_emoji_tooltip'.tr,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white, size: 26),
+          color: const Color(0xFF292929),
+          onOpened: () {
+            if (!mounted) return;
+            _animController.stop();
+            setState(() => _isPaused = true);
+          },
+          onCanceled: () {
+            if (!mounted || _commentFocusNode.hasFocus) return;
+            setState(() => _isPaused = false);
+            if (!_currentStoryHasVideo) {
+              _resumeStoryTimer();
+            }
+          },
+          onSelected: (emoji) {
+            if (emoji == '__more__') {
+              _showMoreStoryEmojis();
+              return;
+            }
+            // A quick emoji is sent immediately as a story comment.
+            _sendQuickStoryReply(quickEmoji: emoji);
+          },
+          itemBuilder: (_) => [
+            ...['❤️', '😂', '😍', '🔥', '👏', '👍'].map(
+              (emoji) => PopupMenuItem<String>(
+                value: emoji,
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem<String>(
+              value: '__more__',
+              child: Center(
+                child: Icon(Icons.add_circle_outline, color: Colors.white, size: 22),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 5, 6, 5),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _replyController,
+                    focusNode: _commentFocusNode,
+                    onChanged: (_) => setState(() {}),
+                    minLines: 1,
+                    maxLines: 3,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendQuickStoryReply(),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    cursorColor: Colors.white,
+                    decoration: InputDecoration(
+                      hintText: 'story_reply_hint'.tr,
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13),
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      isCollapsed: false,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
+                    ),
+                  ),
+                ),
+                if (hasText)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'story_send'.tr,
+                    onPressed: _isSendingQuickReply ? null : _sendQuickStoryReply,
+                    icon: _isSendingQuickReply
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showMoreStoryEmojis() async {
+    const emojis = [
+      '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂',
+      '🙃','😉','😍','🥰','😘','😗','😙','😚','😋','😛','😜','🤪',
+      '🤗','🤭','🤫','🤔','🫡','🤐','🤨','😐','😏','😒','🙄','😬',
+      '😴','🤤','🥳','😎','🤩','😭','😢','🥺','😤','😡','🤯','😱',
+      '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','💕','💞','💖',
+      '🔥','✨','⭐','🌟','💯','👏','🙌','👍','👎','🙏','💪','🎉',
+      '🥂','🍾','🌹','🌸','🌈','☀️','💐','🎂','😍','🤝','🫶','💋',
+    ];
+    final selectedEmoji = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          height: MediaQuery.of(sheetContext).size.height * 0.52,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+          decoration: const BoxDecoration(
+            color: Color(0xFF202020),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white30,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'story_choose_emoji'.tr,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: GridView.builder(
+                  itemCount: emojis.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                  ),
+                  itemBuilder: (_, index) => InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.of(sheetContext).pop(emojis[index]),
+                    child: Center(
+                      child: Text(emojis[index], style: const TextStyle(fontSize: 27)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    if (selectedEmoji != null) {
+      await _sendQuickStoryReply(quickEmoji: selectedEmoji);
+    } else {
+      setState(() => _isPaused = false);
+      _resumeStoryTimer();
+    }
+  }
+
+  Future<void> _sendQuickStoryReply({String? quickEmoji}) async {
+    final content = (quickEmoji ?? _replyController.text).trim();
+    if (content.isEmpty || _isSendingQuickReply || _isOwnStory || DateTime.now().isAfter(_currentStory.expiresAt)) {
+      return;
+    }
+    setState(() => _isSendingQuickReply = true);
+    try {
+      await _storiesRepo.createStoryComment(
+        p_id: const Uuid().v4(),
+        p_story_id: _currentStory.id,
+        p_content: content,
+        p_parent_comment_id: null,
+      );
+      if (!mounted) return;
+      _replyController.clear();
+      setState(() {
+        _currentStory.commentsCount++;
+        _isSendingQuickReply = false;
+        _isPaused = false;
+      });
+      _commentFocusNode.unfocus();
+      _resumeStoryTimer();
+    } catch (e, st) {
+      debugPrint('[STORY] Quick reply failed: $e\\n$st');
+      if (!mounted) return;
+      setState(() {
+        _isSendingQuickReply = false;
+        _isPaused = false;
+      });
+      _resumeStoryTimer();
+      Get.snackbar(
+        'error'.tr,
+        'story_error_sending_comment'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   Future<void> _openStoryCommentsModal() async {
@@ -853,7 +1358,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
     if (mounted) {
       setState(() => _isPaused = false);
-      _animController.forward();
+      _resumeStoryTimer();
     }
   }
 
@@ -863,7 +1368,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       final originalPost = await repo.getPost(postId);
       Get.to(
         () => Scaffold(
-          appBar: AppBar(title: const Text('Publication originale')),
+          appBar: AppBar(title: Text('comments_original_post'.tr)),
           body: SingleChildScrollView(
             child: FeedPostCard(
               post: originalPost,
@@ -1553,19 +2058,19 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
     final username = author['username']?.toString();
     final authorName = username != null && username.isNotEmpty
         ? '@$username'
-        : (author['first_name']?.toString() ?? 'Utilisateur');
+        : (author['first_name']?.toString() ?? 'story_default_user'.tr);
     final content = comment['content']?.toString() ?? '';
     try {
       await SharePlus.instance.share(
         ShareParams(
-          text: 'Commentaire de $authorName sur une story Scrole :\n\n$content',
+          text: 'story_share_comment_text'.trParams({'author': authorName, 'content': content}),
         ),
       );
     } catch (e) {
       if (mounted) {
         Get.snackbar(
-          'Erreur',
-          'Impossible de partager ce commentaire.',
+          'story_share_comment_error_title'.tr,
+          'story_share_comment_error'.tr,
           snackPosition: SnackPosition.BOTTOM,
         );
       }
@@ -1719,7 +2224,7 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                         'author':
                             _replyingTo!['author']?['username'] ??
                             _replyingTo!['author']?['first_name'] ??
-                            'Utilisateur',
+                            'story_default_user'.tr,
                       }),
                       style: TextStyle(
                         fontSize: 13,
@@ -1803,6 +2308,7 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
+                        tooltip: 'story_send'.tr,
                         onPressed: _isSending ? null : _sendComment,
                         icon: _isSending
                             ? const SizedBox(
@@ -1851,11 +2357,11 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
     String commentAge() {
       if (createdAt == null) return '';
       final elapsed = DateTime.now().difference(createdAt);
-      if (elapsed.inSeconds < 60) return 'À l’instant';
-      if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
-      if (elapsed.inHours < 24) return 'Il y a ${elapsed.inHours} h';
-      if (elapsed.inDays == 1) return 'Il y a 1 jour';
-      if (elapsed.inDays < 7) return 'Il y a ${elapsed.inDays} jours';
+      if (elapsed.inSeconds < 60) return 'relative_just_now'.tr;
+      if (elapsed.inMinutes < 60) return 'relative_minutes_ago'.trParams({'count': '${elapsed.inMinutes}'});
+      if (elapsed.inHours < 24) return 'relative_hours_ago'.trParams({'count': '${elapsed.inHours}'});
+      if (elapsed.inDays == 1) return 'relative_one_day_ago'.tr;
+      if (elapsed.inDays < 7) return 'relative_days_ago'.trParams({'count': '${elapsed.inDays}'});
       return '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
     }
 
@@ -1955,8 +2461,8 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        content,
+                      LinkifiedText(
+                        text: content,
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurface,
@@ -2083,10 +2589,10 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                           const SizedBox(width: 4),
                           Text(
                             repliesLoading
-                                ? 'Chargement des réponses…'
+                                ? 'comments_loading_replies'.tr
                                 : repliesExpanded
-                                    ? 'Masquer les réponses'
-                                    : 'Afficher les réponses ($repliesCount)',
+                                    ? 'comments_hide_replies'.tr
+                                    : 'comments_show_replies'.trParams({'count': '$repliesCount'}),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -2102,7 +2608,7 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
                   Padding(
                     padding: const EdgeInsets.only(left: 8, top: 4),
                     child: Text(
-                      'Aucune réponse pour le moment.',
+                      'comments_no_replies'.tr,
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme.onSurfaceVariant,
@@ -2120,6 +2626,492 @@ class _StoryCommentsSheetState extends State<_StoryCommentsSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Story-specific video player: unlike the feed player it never loops, and
+/// the story advances only when the source video finishes.
+String _formatOriginalPostDate(String raw) {
+  final date = DateTime.tryParse(raw)?.toLocal();
+  if (date == null) return raw;
+  final now = DateTime.now();
+  final sameDay = date.year == now.year && date.month == now.month && date.day == now.day;
+  final clock = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  if (sameDay) return "Aujourd’hui à $clock";
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} · $clock';
+}
+
+class _StorySharedVideoPost extends StatefulWidget {
+  final CommunityPost post;
+  final ValueChanged<double> onProgress;
+  final VoidCallback onCompleted;
+
+  const _StorySharedVideoPost({
+    super.key,
+    required this.post,
+    required this.onProgress,
+    required this.onCompleted,
+  });
+
+  @override
+  State<_StorySharedVideoPost> createState() => _StorySharedVideoPostState();
+}
+
+class _StorySharedVideoPostState extends State<_StorySharedVideoPost> {
+  VideoPlayerController? _controller;
+  bool _failed = false;
+  bool _isDownloading = false;
+  bool _completionHandled = false;
+  Timer? _expiryCleanupTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    final video = widget.post.media.firstWhere(
+      (media) => media.isVideo && (media.url ?? '').trim().isNotEmpty,
+    );
+    _controller = VideoPlayerController.networkUrl(Uri.parse(video.url!))
+      ..addListener(_onVideoChanged);
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final controller = _controller;
+    if (controller == null) return;
+    try {
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      await controller.setLooping(false);
+      await controller.setVolume(1);
+      setState(() {});
+      await controller.play();
+    } catch (e) {
+      debugPrint('[STORY] Shared video failed to initialize: $e');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  void _onVideoChanged() {
+    final controller = _controller;
+    if (!mounted || controller == null || !controller.value.isInitialized) return;
+    if (controller.value.hasError) {
+      setState(() => _failed = true);
+      return;
+    }
+    if (controller.value.duration > Duration.zero) {
+      widget.onProgress(
+        (controller.value.position.inMilliseconds /
+                controller.value.duration.inMilliseconds)
+            .clamp(0.0, 1.0),
+      );
+    }
+    if (controller.value.position >= controller.value.duration &&
+        controller.value.duration > Duration.zero &&
+        !_completionHandled) {
+      _completionHandled = true;
+      widget.onCompleted();
+    }
+  }
+
+  @override
+  void dispose() {
+    // Keep the expiry timer alive after leaving the viewer so cached media
+    // is deleted at the story's actual expiration time.
+    _controller?.removeListener(_onVideoChanged);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                backgroundImage: widget.post.authorObj?.photoUrl != null &&
+                        widget.post.authorObj!.photoUrl!.trim().isNotEmpty
+                    ? NetworkImage(widget.post.authorObj!.photoUrl!)
+                    : null,
+                child: widget.post.authorObj?.photoUrl == null ||
+                        widget.post.authorObj!.photoUrl!.trim().isEmpty
+                    ? Text(widget.post.authorName.trim().isNotEmpty
+                        ? widget.post.authorName.trim()[0].toUpperCase()
+                        : 'U')
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Flexible(
+                        child: Text(widget.post.authorName,
+                          style: TextStyle(color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700, fontSize: 14),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                      if ((widget.post.authorObj?.username ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Flexible(child: Text(
+                          '@${widget.post.authorObj!.username.replaceFirst(RegExp(r'^@'), '')}',
+                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                          maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ],
+                      if (widget.post.authorObj?.isCertified == true) ...[
+                        const SizedBox(width: 4),
+                        UserCertifiedBadge(size: 14, userId: widget.post.authorObj!.userId),
+                      ],
+                    ]),
+                    Text(_formatOriginalPostDate(widget.post.timeAgo),
+                      style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (widget.post.content.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              widget.post.content,
+              style: TextStyle(color: colorScheme.onSurface),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: (MediaQuery.of(context).size.height * 0.34)
+                .clamp(150.0, 280.0)
+                .toDouble(),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ColoredBox(
+                color: Colors.black,
+                child: controller?.value.isInitialized == true && !_failed
+                    ? FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: controller!.value.size.width,
+                          height: controller.value.size.height,
+                          child: IgnorePointer(
+                            child: VideoPlayer(controller),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Icon(
+                          _failed ? Icons.error_outline_rounded : Icons.play_circle_outline_rounded,
+                          color: Colors.white,
+                          size: 44,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Plays a standalone video story from its private R2 object key. Playback is
+/// non-looping and the story advances only after the video reaches its end.
+class _StoryVideoPlayer extends StatefulWidget {
+  final String objectKey;
+  final String storyId;
+  final DateTime expiresAt;
+  final String? thumbnailObjectKey;
+  final String? fallbackImageUrl;
+  final bool isPaused;
+  final ValueChanged<double> onProgress;
+  final VoidCallback onCompleted;
+
+  const _StoryVideoPlayer({
+    super.key,
+    required this.objectKey,
+    required this.storyId,
+    required this.expiresAt,
+    this.thumbnailObjectKey,
+    this.fallbackImageUrl,
+    required this.isPaused,
+    required this.onProgress,
+    required this.onCompleted,
+  });
+
+  @override
+  State<_StoryVideoPlayer> createState() => _StoryVideoPlayerState();
+}
+
+class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
+  VideoPlayerController? _controller;
+  bool _failed = false;
+  bool _isDownloading = false;
+  bool _completionHandled = false;
+  Timer? _expiryCleanupTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    final untilExpiry = widget.expiresAt.difference(DateTime.now());
+    if (untilExpiry > Duration.zero) {
+      _expiryCleanupTimer = Timer(untilExpiry, _deleteExpiredLocalVideo);
+    }
+    _initialize();
+  }
+
+  String _storyVideoExtension() {
+    final path = Uri.tryParse(widget.objectKey)?.path ?? widget.objectKey;
+    final extension = p.extension(path).toLowerCase();
+    return extension == '.mov' ? '.mov' : '.mp4';
+  }
+
+  Future<void> _deleteExpiredLocalVideo() async {
+    try {
+      final directory = await getApplicationSupportDirectory();
+      final safeId = widget.storyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final media = File(p.join(directory.path, 'stories_cache', safeId + _storyVideoExtension()));
+      final expiry = File(p.join(directory.path, 'stories_cache', '$safeId.expiry'));
+      if (await media.exists()) await media.delete();
+      if (await expiry.exists()) await expiry.delete();
+      debugPrint('[STORY_CACHE] EXPIRED story=${widget.storyId} removed');
+    } catch (e) {
+      debugPrint('[STORY_CACHE] Expiry cleanup failed: $e');
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _StoryVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isPaused != widget.isPaused) {
+      _syncPlaybackState();
+    }
+  }
+
+  Future<void> _syncPlaybackState() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    try {
+      if (widget.isPaused) {
+        await controller.pause();
+      } else {
+        await controller.play();
+      }
+    } catch (e) {
+      debugPrint('[STORY] Unable to update video pause state: $e');
+    }
+  }
+
+  Future<void> _initialize() async {
+    try {
+      final localVideo = await _getOrDownloadStoryVideo();
+      if (!mounted) return;
+      final controller = VideoPlayerController.file(localVideo);
+      _controller = controller;
+      controller.addListener(_onVideoChanged);
+      await controller.initialize();
+      if (!mounted) return;
+      await controller.setLooping(false);
+      await controller.setVolume(1);
+      setState(() {});
+      if (!widget.isPaused) await controller.play();
+    } catch (e) {
+      debugPrint('[STORY] Standalone video initialization failed: $e');
+      await _deleteExpiredLocalVideo();
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  Future<File> _getOrDownloadStoryVideo() async {
+    final directory = await getApplicationSupportDirectory();
+    final cacheDirectory = Directory(p.join(directory.path, 'stories_cache'));
+    if (!await cacheDirectory.exists()) {
+      await cacheDirectory.create(recursive: true);
+    }
+    // Remove media belonging to stories that have already expired.
+    final now = DateTime.now().toUtc();
+    await for (final entity in cacheDirectory.list()) {
+      if (entity is! File || !entity.path.endsWith('.expiry')) continue;
+      try {
+        final cachedExpiry = DateTime.tryParse(await entity.readAsString());
+        if (cachedExpiry == null || !cachedExpiry.isAfter(now)) {
+          final basePath = entity.path.substring(0, entity.path.length - '.expiry'.length);
+          for (final extension in ['.mp4', '.mov']) {
+            final cachedMedia = File('$basePath$extension');
+            if (await cachedMedia.exists()) await cachedMedia.delete();
+          }
+          await entity.delete();
+        }
+      } catch (cleanupError) {
+        debugPrint('[STORY_CACHE] Expired cache cleanup failed: $cleanupError');
+      }
+    }
+    final safeId = widget.storyId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final videoFile = File(p.join(cacheDirectory.path, safeId + _storyVideoExtension()));
+    final expiryFile = File(p.join(cacheDirectory.path, '$safeId.expiry'));
+    final expiry = widget.expiresAt.toUtc();
+    if (await videoFile.exists() && await expiryFile.exists()) {
+      final cachedExpiry = DateTime.tryParse(await expiryFile.readAsString());
+      if (cachedExpiry != null && cachedExpiry.isAfter(DateTime.now().toUtc()) &&
+          cachedExpiry.isAtSameMomentAs(expiry) && await videoFile.length() > 0) {
+        debugPrint('[STORY_CACHE] HIT story=${widget.storyId}');
+        return videoFile;
+      }
+    }
+    if (await videoFile.exists()) await videoFile.delete();
+    if (await expiryFile.exists()) await expiryFile.delete();
+
+    var url = widget.objectKey;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      final response = await Supabase.instance.client.functions.invoke(
+        'r2-media-upload',
+        body: {'action': 'create-download-url', 'object_key': widget.objectKey},
+      );
+      if (response.status < 200 || response.status >= 300 || response.data is! Map) {
+        throw StateError('Impossible de résoudre la vidéo privée de la story.');
+      }
+      url = (response.data as Map)['url']?.toString() ?? '';
+      if (url.isEmpty) throw StateError('URL de lecture de la vidéo absente.');
+    }
+    if (widget.expiresAt.isBefore(DateTime.now())) {
+      throw StateError('Cette story a expiré.');
+    }
+    if (mounted) setState(() => _isDownloading = true);
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', Uri.parse(url));
+      final streamed = await client.send(request).timeout(const Duration(minutes: 3));
+      if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+        throw HttpException('Téléchargement de la story impossible (HTTP ${streamed.statusCode}).');
+      }
+      final sink = videoFile.openWrite();
+      try {
+        await streamed.stream.pipe(sink);
+      } catch (_) {
+        await sink.close();
+        if (await videoFile.exists()) await videoFile.delete();
+        rethrow;
+      }
+      final size = await videoFile.length();
+      if (size == 0) {
+        await videoFile.delete();
+        throw StateError('Le fichier vidéo téléchargé est vide.');
+      }
+      await expiryFile.writeAsString(expiry.toIso8601String(), flush: true);
+      debugPrint('[STORY_CACHE] SAVED story=${widget.storyId} bytes=$size expires=$expiry');
+      return videoFile;
+    } finally {
+      client.close();
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+
+  void _onVideoChanged() {
+    final controller = _controller;
+    if (!mounted || controller == null || !controller.value.isInitialized) return;
+    if (controller.value.hasError) {
+      setState(() => _failed = true);
+      return;
+    }
+    if (controller.value.duration > Duration.zero) {
+      widget.onProgress(
+        (controller.value.position.inMilliseconds /
+                controller.value.duration.inMilliseconds)
+            .clamp(0.0, 1.0),
+      );
+    }
+    if (controller.value.duration > Duration.zero &&
+        controller.value.position >= controller.value.duration &&
+        !_completionHandled) {
+      _completionHandled = true;
+      widget.onCompleted();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onVideoChanged);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  Widget _buildFallbackBackground() {
+    final fallback = widget.fallbackImageUrl?.trim() ?? '';
+    if (fallback.isEmpty) return const ColoredBox(color: Colors.black);
+    return AppCachedImage(
+      imageUrl: fallback,
+      fit: BoxFit.cover,
+      errorWidget: const ColoredBox(color: Colors.black),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (_failed) {
+      return const Center(child: Icon(Icons.error_outline_rounded, color: Colors.white, size: 48));
+    }
+    if (controller == null || !controller.value.isInitialized) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (widget.thumbnailObjectKey != null && widget.thumbnailObjectKey!.isNotEmpty)
+            AppCachedImage(
+              imageUrl: widget.thumbnailObjectKey!,
+              fit: BoxFit.cover,
+              cacheUntil: widget.expiresAt,
+              errorWidget: _buildFallbackBackground(),
+            )
+          else
+            _buildFallbackBackground(),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.48),
+                shape: BoxShape.circle,
+              ),
+              child: _isDownloading
+                  ? const SizedBox(
+                      width: 25,
+                      height: 25,
+                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                    )
+                  : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 38),
+            ),
+          ),
+        ],
+      );
+    }
+    // The story viewer owns navigation; the video itself is not tappable.
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller.value.size.width,
+            height: controller.value.size.height,
+            child: VideoPlayer(controller),
+          ),
+        ),
       ),
     );
   }

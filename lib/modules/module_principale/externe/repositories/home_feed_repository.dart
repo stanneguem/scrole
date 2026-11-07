@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 
@@ -9,7 +10,9 @@ class SuggestedProfileModel {
   final String username;
   final String? photoUrl;
   final String reasonSubtitle;
+  final bool isCertified;
   bool isAdded;
+  bool isRequestSent;
 
   SuggestedProfileModel({
     required this.id,
@@ -17,17 +20,42 @@ class SuggestedProfileModel {
     required this.username,
     this.photoUrl,
     required this.reasonSubtitle,
+    this.isCertified = false,
     this.isAdded = false,
+    this.isRequestSent = false,
   });
 
   factory SuggestedProfileModel.fromJson(Map<String, dynamic> json) {
+    final username = (json['username'] ?? '').toString();
+    final fullName = (json['full_name'] ?? json['name'] ?? json['display_name'] ?? '').toString().trim();
+    final mutual = (json['mutual_friends_count'] as num?)?.toInt() ?? 0;
+    final String reasonKey;
+    final Map<String, String> reasonParams;
+    if (mutual > 0) {
+      reasonKey = 'home_feed_profile_reason_mutual_friends';
+      reasonParams = {'count': mutual.toString()};
+    } else if (json['same_city'] == true) {
+      reasonKey = 'home_feed_profile_reason_same_city';
+      reasonParams = const {};
+    } else if (json['common_community'] == true) {
+      reasonKey = 'home_feed_profile_reason_common_community';
+      reasonParams = const {};
+    } else if (((json['common_interests_count'] as num?)?.toInt() ?? 0) > 0) {
+      reasonKey = 'home_feed_profile_reason_common_interests';
+      reasonParams = const {};
+    } else {
+      reasonKey = 'home_feed_profile_reason_discover';
+      reasonParams = const {};
+    }
     return SuggestedProfileModel(
-      id: json['id']?.toString() ?? json['user_id']?.toString() ?? '',
-      name: json['name']?.toString() ?? json['display_name']?.toString() ?? json['username']?.toString() ?? '',
-      username: json['username']?.toString() ?? '',
-      photoUrl: json['photo_url']?.toString() ?? json['avatar_url']?.toString(),
-      reasonSubtitle: json['reason_subtitle']?.toString() ?? json['reason']?.toString() ?? 'Amis en commun',
+      id: (json['user_id'] ?? json['id'] ?? '').toString(),
+      name: fullName.isNotEmpty ? fullName : username,
+      username: username,
+      photoUrl: (json['photo_url'] ?? json['avatar_url'])?.toString(),
+      reasonSubtitle: reasonKey.trParams(reasonParams),
+      isCertified: json['is_certified'] == true || json['is_verified'] == true,
       isAdded: json['is_added'] == true || json['is_following'] == true,
+      isRequestSent: json['request_sent'] == true,
     );
   }
 }
@@ -117,6 +145,23 @@ class HomeFeedRepository {
       rethrow;
     } catch (e, st) {
       debugPrint('[HOME_FEED] Unexpected error in hide_post: $e\n$st');
+      rethrow;
+    }
+  }
+
+  Future<int> recordPostDwell(List<Map<String, dynamic>> items) async {
+    if (items.isEmpty) return 0;
+    if (items.length > 100) {
+      throw ArgumentError('record_post_dwell accepts at most 100 items');
+    }
+    try {
+      final response = await client.rpc(
+        'record_post_dwell',
+        params: {'p_items': items},
+      );
+      return response is num ? response.toInt() : 0;
+    } catch (e, st) {
+      debugPrint('[POST_DWELL] Error recording dwell batch: $e\\n$st');
       rethrow;
     }
   }
@@ -224,18 +269,82 @@ class HomeFeedRepository {
         'p_offset': offset,
       });
       debugPrint('[HOME_FEED] RPC get_suggested_profiles response count: ${response is List ? response.length : 1}');
-      if (response is List) {
-        return response.map((e) => SuggestedProfileModel.fromJson(Map<String, dynamic>.from(e))).toList();
-      }
-      return [];
+      final rawItems = response is List
+          ? response
+          : response is Map
+              ? (response['items'] as List? ?? const [])
+              : const [];
+      return rawItems
+          .whereType<Map>()
+          .map((e) => SuggestedProfileModel.fromJson(Map<String, dynamic>.from(e)))
+          .where((profile) => profile.id.isNotEmpty)
+          .toList(growable: false);
     } catch (e) {
-      debugPrint('[HOME_FEED] get_suggested_profiles error (fallback sample): $e');
-      return [
-        SuggestedProfileModel(id: 'sp_1', name: 'Sarah Koné', username: 'sarah_k', photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop', reasonSubtitle: 'Même ville (Yaoundé)'),
-        SuggestedProfileModel(id: 'sp_2', name: 'Marc Talla', username: 'marc_t', photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop', reasonSubtitle: '3 amis en commun'),
-        SuggestedProfileModel(id: 'sp_3', name: 'Aïcha Bello', username: 'aicha_b', photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop', reasonSubtitle: 'Communauté similaire'),
-      ];
+      debugPrint('[HOME_FEED] get_suggested_profiles error: $e');
+      return [];
     }
+  }
+
+  Future<void> dismissSuggestedProfile(String userId) async {
+    await client.rpc('dismiss_suggested_profile', params: {'p_user_id': userId});
+  }
+
+  /// Returns live hashtag trends calculated from visible posts in the last 30 minutes and 24 hours.
+  Future<List<Map<String, dynamic>>> getTrendingHashtags({int limit = 20}) async {
+    final response = await client.rpc('get_trending_hashtags', params: {
+      'p_limit': limit,
+    });
+    if (response is! List) return <Map<String, dynamic>>[];
+    return response
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> getPostsByHashtag(
+    String hashtag, {
+    int limit = 20,
+    String? cursor,
+  }) async {
+    final normalized = hashtag.trim().replaceFirst(RegExp(r'^#+'), '').toLowerCase();
+    if (normalized.isEmpty) {
+      return {'items': <CommunityPost>[], 'next_cursor': null, 'has_more': false};
+    }
+
+    final params = <String, dynamic>{
+      'p_hashtag': normalized,
+      'p_limit': limit,
+      if (cursor != null && cursor.isNotEmpty) 'p_cursor': cursor,
+    };
+    final response = await client.rpc('get_posts_by_hashtag', params: params);
+    List rawItems = [];
+    String? nextCursor;
+    bool hasMore = false;
+    if (response is Map) {
+      rawItems = response['items'] as List? ?? [];
+      nextCursor = response['next_cursor']?.toString();
+      hasMore = response['has_more'] == true || nextCursor != null;
+    } else if (response is List) {
+      rawItems = response;
+    }
+
+    final items = <CommunityPost>[];
+    final seen = <String>{};
+    for (final row in rawItems) {
+      if (row is! Map) continue;
+      final map = Map<String, dynamic>.from(row);
+      final id = (map['id'] ?? map['post_id'] ?? '').toString();
+      if (id.isEmpty || !seen.add(id)) continue;
+      items.add(_parsePost(map));
+    }
+    return {
+      'items': items,
+      'next_cursor': nextCursor,
+      'has_more': hasMore,
+      'total_posts': response is Map ? (response['total_posts'] as num?)?.toInt() ?? items.length : items.length,
+      'total_views': response is Map ? (response['total_views'] as num?)?.toInt() ?? 0 : 0,
+      'total_likes': response is Map ? (response['total_likes'] as num?)?.toInt() ?? 0 : 0,
+    };
   }
 
   CommunityPost _parsePost(Map<String, dynamic> map) {
@@ -344,8 +453,9 @@ class HomeFeedRepository {
         return response.map((e) => Map<String, dynamic>.from(e)).toList();
       }
       return [];
-    } catch (e, st) {
-      debugPrint('[POST_ACTIONS] Error in get_post_counters (ignored): $e\n$st');
+    } catch (e) {
+      // Counter refresh is best-effort; keep transient network failures concise.
+      debugPrint('[POST_ACTIONS] get_post_counters failed (will retry later): $e');
       return [];
     }
   }

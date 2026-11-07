@@ -6,62 +6,26 @@ import '../service_global/supabse_service.dart';
 class DeviceRepository {
   final SupabaseClient _client = Get.find<SupabaseService>().client;
 
-  /// Récupère tous les appareils associés au compte courant.
-  ///
-  /// Le backend calcule `is_current_device` à partir du token de l'appareil
-  /// actuellement utilisé.
   Future<List<DeviceInfos>> getMyDevices({String? deviceToken}) async {
-    try {
-      final response = await _client.rpc(
-        'get_my_devices',
-        params: {
-          'p_device_token': deviceToken,
-        },
-      );
-
-      final data = Map<String, dynamic>.from(response as Map);
-      final devicesJson = data['devices'];
-
-      if (devicesJson is! List) {
-        throw Exception(
-          'Réponse invalide lors de la récupération des appareils',
-        );
-      }
-
-      return devicesJson
-          .map(
-            (item) => DeviceInfos.fromJson(
-              Map<String, dynamic>.from(item as Map),
-            ),
-          )
-          .toList();
-    } on PostgrestException catch (e) {
-      throw Exception(e.message);
-    } catch (e) {
-      throw Exception('Échec de la récupération des appareils: $e');
-    }
+    final response = await _client.rpc('get_my_devices', params: {'p_device_token': deviceToken});
+    if (response is! Map) throw const FormatException('Invalid devices response');
+    final items = response['devices'];
+    if (items is! List) throw const FormatException('Missing devices array');
+    return items.whereType<Map>().map((item) => DeviceInfos.fromJson(Map<String, dynamic>.from(item))).toList(growable: false);
   }
 
-  Future<void> deleteDevice(String deviceId) async {
-    try {
-      await _client.from('user_devices').delete().eq('id', deviceId);
-    } catch (e) {
-      throw Exception('Erreur suppression appareil: $e');
-    }
+  Future<void> deleteDevice({required String deviceId, required String currentDeviceToken}) async {
+    final result = await _client.rpc('remove_my_device', params: {
+      'p_device_id': deviceId, 'p_current_device_token': currentDeviceToken,
+    });
+    if (result is! Map || result['success'] != true) throw const FormatException('Device removal was not confirmed');
   }
 
   Future<void> updateDevice(Map<String, dynamic> data) async {
-    try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      await _client.from('user_devices').upsert({
-        ...data,
-        'user_id': userId,
-        'last_seen_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id, device_token');
-    } catch (e) {
-      print('Erreur mise à jour device: $e');
-    }
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw StateError('not_authenticated');
+    await _client.from('user_devices').upsert({
+      ...data, 'user_id': userId, 'last_seen_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id, device_token');
   }
 }

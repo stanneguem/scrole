@@ -14,6 +14,7 @@ import 'package:scrole/modules/module_communautes/centre/services/community_outb
 import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/app/utils/supabase_error_mapper.dart';
+import 'package:scrole/modules/module_discussion_direct/externe/repositories/social_repository.dart';
 import 'package:uuid/uuid.dart';
 
 enum HomeFeedState { initial, loading, loaded, empty, error, loadingMore }
@@ -34,20 +35,98 @@ class HomeFeedController extends GetxController {
   final RxBool isLoadingMore = false.obs;
   final RxString nextCursor = ''.obs;
 
+  final Map<String, DateTime> _activeDwellStartedAt = {};
+  final List<Map<String, dynamic>> _pendingDwellItems = [];
+  Timer? _dwellBatchTimer;
+
   final Set<String> _sentViewIds = {};
   final List<String> _pendingViewIds = [];
   Timer? _viewBatchTimer;
   Timer? _counterRefreshTimer;
+  bool _refreshingVisibleCounters = false;
 
-  void queuePostView(CommunityPost post) {
-    if (post.isPublishing) return;
+  // Protect against duplicate HomeFeedController instances issuing the same
+  // periodic counters RPC at the same time.
+  static bool _postCountersRequestInFlight = false;
+  static DateTime? _lastPostCountersRequestAt;
+
+  Future<List<Map<String, dynamic>>> _requestPostCounters(List<String> ids) async {
+    if (ids.isEmpty || _postCountersRequestInFlight) return const [];
+    final now = DateTime.now();
+    final lastRequest = _lastPostCountersRequestAt;
+    // Multiple feed controllers can exist briefly during route transitions.
+    // Coalesce their identical refreshes instead of flooding Supabase.
+    if (lastRequest != null && now.difference(lastRequest) < const Duration(seconds: 8)) {
+      return const [];
+    }
+    _postCountersRequestInFlight = true;
+    _lastPostCountersRequestAt = now;
+    try {
+      return await _feedRepo.getPostCounters(ids);
+    } finally {
+      _postCountersRequestInFlight = false;
+    }
+  }
+
+  void startPostDwell(CommunityPost post) {
+    if (post.isPublishing || post.id.isEmpty) return;
     final myId = _authService.userId;
     if (myId != null && post.authorId == myId) return;
-    if (_sentViewIds.contains(post.id)) return;
-    if (_pendingViewIds.contains(post.id)) return;
+    _activeDwellStartedAt.putIfAbsent(post.id, DateTime.now);
+  }
 
-    _pendingViewIds.add(post.id);
-    _sentViewIds.add(post.id);
+  void stopPostDwell(String postId) {
+    final startedAt = _activeDwellStartedAt.remove(postId);
+    if (startedAt == null) return;
+    final dwellMs = DateTime.now().difference(startedAt).inMilliseconds;
+    if (dwellMs <= 0) return;
+    _pendingDwellItems.add({'post_id': postId, 'dwell_ms': dwellMs});
+    if (_pendingDwellItems.length >= 100) {
+      unawaited(_flushPostDwell());
+    } else {
+      _dwellBatchTimer ??= Timer(const Duration(seconds: 5), _flushPostDwell);
+    }
+  }
+
+  Future<void> _flushPostDwell() async {
+    _dwellBatchTimer?.cancel();
+    _dwellBatchTimer = null;
+    while (_pendingDwellItems.isNotEmpty) {
+      final count = _pendingDwellItems.length > 100 ? 100 : _pendingDwellItems.length;
+      final batch = _pendingDwellItems.take(count).toList();
+      _pendingDwellItems.removeRange(0, count);
+      try {
+        final recorded = await _feedRepo.recordPostDwell(batch);
+        debugPrint('[POST_DWELL] Recorded dwell for $recorded/${batch.length} posts');
+      } catch (e) {
+        debugPrint('[POST_DWELL] Batch failed and was dropped: $e');
+      }
+    }
+  }
+
+  bool _containsVideo(CommunityPost post) =>
+      post.media.any((media) => media.isVideo) ||
+      (post.sharedPost?.media.any((media) => media.isVideo) ?? false);
+
+  void queuePostView(CommunityPost post) {
+    // Video views are recorded only after 50% of effective playback.
+    if (_containsVideo(post)) return;
+    _queuePostViewId(post.id, post);
+  }
+
+  void queueQualifiedVideoPostView(String postId, CommunityPost post) {
+    _queuePostViewId(postId, post);
+  }
+
+  void _queuePostViewId(String postId, CommunityPost post) {
+    if (post.isPublishing || postId.isEmpty) return;
+    final myId = _authService.userId;
+    if (myId != null && post.authorId == myId) return;
+    if (_sentViewIds.contains(postId)) return;
+    if (_pendingViewIds.contains(postId)) return;
+
+    _pendingViewIds.add(postId);
+    _sentViewIds.add(postId);
 
     if (_pendingViewIds.length >= 20) {
       _flushViewBatch();
@@ -68,7 +147,7 @@ class HomeFeedController extends GetxController {
       debugPrint('[POST_ACTIONS] Sending view batch of ${batch.length} posts');
       await _feedRepo.recordPostViews(batch);
 
-      final counters = await _feedRepo.getPostCounters(batch);
+      final counters = await _requestPostCounters(batch);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -93,10 +172,12 @@ class HomeFeedController extends GetxController {
   }
 
   Future<void> _refreshVisibleCounters() async {
-    if (posts.isEmpty) return;
-    final ids = posts.take(50).map((p) => p.id).toList();
+    if (_refreshingVisibleCounters || posts.isEmpty || state.value != HomeFeedState.loaded) return;
+    final ids = posts.take(50).map((p) => p.id).toSet().toList();
+    if (ids.isEmpty) return;
+    _refreshingVisibleCounters = true;
     try {
-      final counters = await _feedRepo.getPostCounters(ids);
+      final counters = await _requestPostCounters(ids);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -115,7 +196,11 @@ class HomeFeedController extends GetxController {
         }
         posts.refresh();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[POST_ACTIONS] Counter refresh failed; will retry on next interval: $e');
+    } finally {
+      _refreshingVisibleCounters = false;
+    }
   }
 
   @override
@@ -125,7 +210,10 @@ class HomeFeedController extends GetxController {
     try {
       _eventRepo = Get.find<EventRepository>();
     } catch (_) {
-      _eventRepo = EventRepository(Get.find(), Get.find());
+      _eventRepo = Get.put<EventRepository>(
+        EventRepository(Get.find(), Get.find()),
+        permanent: true,
+      );
     }
     fetchFeed();
     _counterRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) => _refreshVisibleCounters());
@@ -133,6 +221,11 @@ class HomeFeedController extends GetxController {
 
   @override
   void onClose() {
+    _dwellBatchTimer?.cancel();
+    for (final postId in _activeDwellStartedAt.keys.toList()) {
+      stopPostDwell(postId);
+    }
+    unawaited(_flushPostDwell());
     _viewBatchTimer?.cancel();
     _counterRefreshTimer?.cancel();
     _flushViewBatch();
@@ -141,6 +234,45 @@ class HomeFeedController extends GetxController {
     }
     _reactionDebouncers.clear();
     super.onClose();
+  }
+
+  String eventAgendaRestrictionMessageKey(Object error) => _eventRepo.agendaRestrictionMessageKey(error);
+
+  final Set<String> _profileSuggestionActionsInFlight = {};
+
+  Future<void> followSuggestedProfile(SuggestedProfileModel profile) async {
+    if (profile.id.isEmpty || !_profileSuggestionActionsInFlight.add(profile.id)) return;
+    try {
+      final relation = await SocialRepository().followUser(profile.id);
+      final state = (relation['state'] ?? '').toString();
+      profile.isAdded = state == 'friends' || state == 'following' || relation['is_following'] == true;
+      profile.isRequestSent = state == 'requested' || relation['request_sent'] == true;
+      suggestedProfiles.refresh();
+      if (!profile.isAdded && !profile.isRequestSent) {
+        throw StateError('Le suivi n’a pas été confirmé');
+      }
+    } finally {
+      _profileSuggestionActionsInFlight.remove(profile.id);
+    }
+  }
+
+  Future<void> dismissSuggestedProfile(SuggestedProfileModel profile) async {
+    if (profile.id.isEmpty || !_profileSuggestionActionsInFlight.add(profile.id)) return;
+    try {
+      await _feedRepo.dismissSuggestedProfile(profile.id);
+      suggestedProfiles.removeWhere((item) => item.id == profile.id);
+    } finally {
+      _profileSuggestionActionsInFlight.remove(profile.id);
+    }
+  }
+
+  void removeSuggestedEvent(String eventId) {
+    suggestedEvents.removeWhere((event) => event.id == eventId);
+  }
+
+  Future<void> dismissSuggestedEvent(String eventId) async {
+    await _eventRepo.dismissHomeEventSuggestion(eventId);
+    removeSuggestedEvent(eventId);
   }
 
   Future<void> fetchFeed({bool refresh = false}) async {
@@ -190,8 +322,12 @@ class HomeFeedController extends GetxController {
       int communityPostCount = remoteItems.where((p) => p.communityId != null).length;
       debugPrint('[HOME_FEED] Item counts per type -> Standard Posts: $postTypeCount, Community Posts: $communityPostCount');
 
-      if (remoteItems.isNotEmpty) {
-        unawaited(_feedRepo.recordPostViews(remoteItems.map((p) => p.id).toList()));
+      final immediatelyCountableIds = remoteItems
+          .where((post) => !_containsVideo(post))
+          .map((post) => post.id)
+          .toList();
+      if (immediatelyCountableIds.isNotEmpty) {
+        unawaited(_feedRepo.recordPostViews(immediatelyCountableIds));
       }
 
       // Combine pending outbox posts (at top, grayed out) + remote items

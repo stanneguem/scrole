@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/text_styles.dart';
 import '../../../module_principale/interne/controllers/main_layout_controller.dart';
+import '../controllers/event_controller.dart';
 import 'event_calendar_tab.dart';
 import 'event_suggestion_tab.dart';
 
@@ -25,6 +26,11 @@ class _EventScreenState extends State<EventScreen> {
   void initState() {
     super.initState();
     bootLog('EventScreen.initState');
+    // Les deux onglets utilisent le même contrôleur. L'enregistrer avant
+    // que le PageView ne construise SuggestionTab et CalendarTab.
+    if (!Get.isRegistered<EventController>()) {
+      Get.put<EventController>(EventController(), permanent: true);
+    }
     if (Get.isRegistered<MainLayoutController>()) {
       final layoutController = Get.find<MainLayoutController>();
       _lastSuggestionsNavigationRequest = layoutController.eventSuggestionsNavigationRequest.value;

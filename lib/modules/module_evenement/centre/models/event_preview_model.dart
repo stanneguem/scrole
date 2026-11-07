@@ -250,6 +250,40 @@ class EventPreviewModel {
     this.prestigeStars = 0.0,
   });
 
+  EventPreviewModel copyWith({List<EventPreviewActivity>? activitiesLiees}) {
+    return EventPreviewModel(
+      event: event,
+      creator: creator,
+      canView: canView,
+      canViewPublicPreview: canViewPublicPreview,
+      viewerRole: viewerRole,
+      message: message,
+      isInMyCalendar: isInMyCalendar,
+      isLikedByMe: isLikedByMe,
+      likesCount: likesCount,
+      attendeeCount: attendeeCount,
+      shareCount: shareCount,
+      amisDansAgenda: amisDansAgenda,
+      amisDansAgendaCount: amisDansAgendaCount,
+      amisDansAgendaPhotos: amisDansAgendaPhotos,
+      ranking: ranking,
+      tickets: tickets,
+      cheapestTicket: cheapestTicket,
+      activitiesLiees: activitiesLiees ?? this.activitiesLiees,
+      restrictions: restrictions,
+      canAccess: canAccess,
+      canInteract: canInteract,
+      canLike: canLike,
+      canComment: canComment,
+      canRate: canRate,
+      canShare: canShare,
+      canAddToCalendar: canAddToCalendar,
+      canRegister: canRegister,
+      prestigeScore: prestigeScore,
+      prestigeStars: prestigeStars,
+    );
+  }
+
   factory EventPreviewModel.fromJson(Map<String, dynamic> json) {
     final eventMap = json['event'] is Map<String, dynamic>
         ? json['event'] as Map<String, dynamic>

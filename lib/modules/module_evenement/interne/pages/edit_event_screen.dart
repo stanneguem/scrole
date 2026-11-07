@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../app/routes/app_pages.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../../../shared/widgets/text_input_field.dart';
@@ -74,6 +75,18 @@ class EditEventScreen extends GetView<EditEventController> {
               impuHintText: '',
               maxLines: 4,
               func: (v) => null,
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: () => Get.toNamed(
+                AppPages.eventActivities.replaceFirst(':id', controller.event.id),
+              ),
+              icon: const Icon(Icons.event_note_rounded),
+              label: const Text('Gérer les activités de cette édition'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                alignment: Alignment.centerLeft,
+              ),
             ),
             const SizedBox(height: 24),
             const Divider(),

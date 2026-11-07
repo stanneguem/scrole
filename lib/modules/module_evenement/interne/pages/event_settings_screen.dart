@@ -12,9 +12,9 @@ import '../enums/event_enum.dart';
 import 'event_pricing_screen.dart';
 import 'event_stats_dashboard_screen.dart';
 import 'event_interests_screen.dart';
-import 'event_guest_invitations_screen.dart';
-import 'event_sponsors_screen.dart';
 import 'event_open_days_screen.dart';
+import 'event_detail_page.dart';
+import '../../centre/repositories/event_repository.dart';
 import 'package:scrole/modules/module_communautes/interne/pages/community_settings_main_screen.dart';
 
 class EventSettingsScreen extends StatelessWidget {
@@ -28,6 +28,48 @@ class EventSettingsScreen extends StatelessWidget {
     // La propriété repose sur l'identifiant du créateur, pas sur le rôle d'affichage.
     // L'accès à la certification est en plus confirmé par le RPC serveur.
     final isCreator = event.creatorId == currentUserId;
+    final isPendingValidation = event.status == EventStatus.draft;
+
+    // Un événement en attente de validation reste consultable en aperçu,
+    // mais ses paramètres ne doivent pas être accessibles avant publication.
+    if (isPendingValidation) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'event_settings'.tr,
+            style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.hourglass_top_rounded, size: 48, color: Colors.orange.shade700),
+                const SizedBox(height: 16),
+                Text(
+                  'Paramètres indisponibles',
+                  style: AppTextStyles.h4,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Cet événement est encore en attente de validation administrative. Tu pourras accéder à ses paramètres dès qu’il sera validé.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: Get.back,
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Retour à l’aperçu'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -83,42 +125,6 @@ class EventSettingsScreen extends StatelessWidget {
             return const SizedBox.shrink();
           }),
 
-          // --- CERTIFICATION (source de vérité : backend) ---
-          FutureBuilder<dynamic>(
-            future: Supabase.instance.client.rpc(
-              'scrole_get_entity_certification_status',
-              params: {'p_entity_type': 'event', 'p_entity_id': event.id},
-            ),
-            builder: (context, snapshot) {
-              final status = snapshot.data is Map
-                  ? Map<String, dynamic>.from(snapshot.data as Map)
-                  : <String, dynamic>{};
-              if (snapshot.connectionState == ConnectionState.waiting ||
-                  status['is_owner'] != true) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: ScroleBottomSheetGroup(
-                  children: [
-                    ScroleBottomSheetAction(
-                      icon: Icons.verified_user_outlined,
-                      label: 'Certifier l’événement',
-                      subtitle: status['entity_certified'] == true
-                          ? 'Certification active · gérer les droits'
-                          : 'Consulter vos droits inclus ou acheter une certification',
-                      onTap: () => Get.to(() => EntityCertificationManagementScreen(
-                        entityType: 'event',
-                        entityId: event.id,
-                        entityName: event.name,
-                      )),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-
           // --- SECTION ÉVÉNEMENT ---
           Text(
             'Événement',
@@ -135,6 +141,15 @@ class EventSettingsScreen extends StatelessWidget {
                   arguments: event,
                 ),
               ),
+              if (isCreator && event.status == EventStatus.completed) ...[
+                const ScroleBottomSheetDivider(),
+                ScroleBottomSheetAction(
+                  icon: Icons.add_circle_outline_rounded,
+                  label: 'Créer une nouvelle édition',
+                  subtitle: 'Ajouter une date à cette série d’événements',
+                  onTap: () => _createNextEdition(context, event),
+                ),
+              ],
               const ScroleBottomSheetDivider(),
               ScroleBottomSheetAction(
                 icon: Icons.security_outlined,
@@ -177,90 +192,52 @@ class EventSettingsScreen extends StatelessWidget {
             style: AppTextStyles.labelSmall.copyWith(color: Theme.of(context).colorScheme.primary, letterSpacing: 1.2),
           ),
           const SizedBox(height: 8),
-          FutureBuilder<dynamic>(
-            future: Supabase.instance.client.rpc(
-              'scrole_get_entity_certification_status',
-              params: {'p_entity_type': 'event', 'p_entity_id': event.id},
-            ),
-            builder: (context, snapshot) {
-              final cert = snapshot.data is Map
-                  ? Map<String, dynamic>.from(snapshot.data as Map)
-                  : <String, dynamic>{};
-              final eventCertified = cert['entity_certified'] == true;
-              final communityCertified = cert['community_certified'] == true;
-              final actions = <Widget>[];
-              if (eventCertified) {
-                actions.add(ScroleBottomSheetAction(
-                  icon: Icons.insights_rounded,
-                  label: 'Statistiques de l\'événement',
-                  subtitle: 'Tableau de bord et indicateurs de performance',
-                  onTap: () => Get.to(() => EventStatsDashboardScreen(event: event)),
-                ));
-                actions.add(const ScroleBottomSheetDivider());
-              }
-              actions.add(ScroleBottomSheetAction(
+          ScroleBottomSheetGroup(
+            children: [
+              ScroleBottomSheetAction(
+                icon: Icons.insights_rounded,
+                label: "Statistiques de l'événement",
+                subtitle: 'Tableau de bord et indicateurs de performance',
+                onTap: () => Get.to(() => EventStatsDashboardScreen(event: event)),
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
                 icon: Icons.stars_outlined,
                 label: 'Gérer les co-fondateurs',
-                subtitle: 'Limites applicables aux événements non certifiés',
                 onTap: () => Get.toNamed(
                   AppPages.eventCoCreators.replaceFirst(':id', event.id),
                   arguments: event,
                 ),
-              ));
-              actions.add(const ScroleBottomSheetDivider());
-              actions.add(ScroleBottomSheetAction(
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
                 icon: Icons.people_outline,
                 label: 'Gérer le staff',
-                subtitle: eventCertified ? 'Gérer l’équipe et attribuer les activités' : 'Plafond du staff applicable aux événements non certifiés',
+                subtitle: 'Gérer l’équipe et attribuer les activités',
                 onTap: () => Get.toNamed(
                   AppPages.eventStaff.replaceFirst(':id', event.id),
                   arguments: {'event': event, 'initialTab': 0},
                 ),
-              ));
-              if (eventCertified) {
-                actions.addAll([
-                  const ScroleBottomSheetDivider(),
-                  ScroleBottomSheetAction(
-                    icon: Icons.mark_email_read_outlined,
-                    label: 'Invitations d\'honneur',
-                    subtitle: 'Inviter des personnalités ou profils publics',
-                    onTap: () => Get.to(() => EventGuestInvitationsScreen(event: event)),
-                  ),
-                  const ScroleBottomSheetDivider(),
-                  ScroleBottomSheetAction(
-                    icon: Icons.workspace_premium_outlined,
-                    label: 'Sponsors',
-                    subtitle: 'Inviter et gérer les sponsors de l\'événement',
-                    onTap: () => Get.to(() => EventSponsorsScreen(event: event)),
-                  ),
-                ]);
-              }
-              if (eventCertified || communityCertified) {
-                actions.addAll([
-                  const ScroleBottomSheetDivider(),
-                  ScroleBottomSheetAction(
-                    icon: Icons.confirmation_number_outlined,
-                    label: 'Gérer la billetterie',
-                    onTap: () => Get.toNamed(
-                      AppPages.eventTickets.replaceFirst(':id', event.id),
-                      arguments: event,
-                    ),
-                  ),
-                ]);
-              }
-              actions.addAll([
-                const ScroleBottomSheetDivider(),
-                ScroleBottomSheetAction(
-                  icon: Icons.assignment_outlined,
-                  label: 'Gérer les activités',
-                  onTap: () => Get.toNamed(
-                    AppPages.eventActivities.replaceFirst(':id', event.id),
-                    arguments: event,
-                  ),
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
+                icon: Icons.confirmation_number_outlined,
+                label: 'Gérer la billetterie',
+                onTap: () => Get.toNamed(
+                  AppPages.eventTickets.replaceFirst(':id', event.id),
+                  arguments: event,
                 ),
-              ]);
-              return ScroleBottomSheetGroup(children: actions);
-            },
+              ),
+              const ScroleBottomSheetDivider(),
+              ScroleBottomSheetAction(
+                icon: Icons.assignment_outlined,
+                label: 'Gérer les activités',
+                onTap: () => Get.toNamed(
+                  AppPages.eventActivities.replaceFirst(':id', event.id),
+                  arguments: event,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
 
@@ -308,6 +285,74 @@ class EventSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+
+  Future<void> _createNextEdition(BuildContext context, EventModel event) async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (event.status != EventStatus.completed ||
+        currentUserId == null ||
+        currentUserId != event.creatorId) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final initial = event.startsAt.isAfter(now)
+        ? event.startsAt.add(const Duration(days: 1))
+        : now.add(const Duration(days: 1));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(initial.year, initial.month, initial.day),
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de la nouvelle édition',
+    );
+    if (pickedDate == null || !context.mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(event.startsAt),
+      helpText: 'Heure de début',
+    );
+    if (pickedTime == null || !context.mounted) return;
+
+    final startsAt = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    if (!startsAt.isAfter(DateTime.now())) {
+      Get.snackbar('Date invalide', 'La nouvelle édition doit commencer dans le futur.');
+      return;
+    }
+
+    try {
+      final created = await Get.find<EventRepository>().createNextEventEdition(
+        sourceEventId: event.id,
+        startsAt: startsAt,
+      );
+      if (!context.mounted) return;
+      Get.snackbar(
+        'Nouvelle édition créée',
+        'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      Get.off(() => EventDetailPage(event: created));
+      Get.toNamed(
+        AppPages.eventEdit.replaceFirst(':id', created.id),
+        arguments: created,
+      );
+    } catch (error) {
+      if (context.mounted) {
+        Get.snackbar(
+          'Création impossible',
+          error.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
   }
 
   void _showDeleteConfirmation(BuildContext context, EventManagementController controller) {

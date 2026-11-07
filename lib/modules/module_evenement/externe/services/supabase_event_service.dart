@@ -11,6 +11,22 @@ class SupabaseEventService {
 
   SupabaseClient get client => _client;
 
+  /// Returns the event suggestions the signed-in user previously dismissed.
+  Future<Set<String>> fetchDismissedHomeEventSuggestionIds() async {
+    final rows = await _client
+        .from('event_suggestion_dismissals')
+        .select('event_id');
+    return rows.map((row) => row['event_id'].toString()).toSet();
+  }
+
+  /// Persists the dismissal for the current authenticated user.
+  Future<void> dismissHomeEventSuggestion(String eventId) async {
+    await _client.rpc(
+      'dismiss_home_event_suggestion',
+      params: {'p_event_id': eventId},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> fetchEventActivities(String eventId) async {
     try {
       final response = await _client
@@ -1055,6 +1071,21 @@ class SupabaseEventService {
     return Map<String, dynamic>.from(response as Map);
   }
 
+  Future<Map<String, dynamic>> createNextEventEdition({
+    required String sourceEventId,
+    required DateTime startsAt,
+  }) async {
+    final response = await _client.rpc('create_next_event_edition', params: {
+      'p_source_event_id': sourceEventId,
+      'p_starts_at': startsAt.toUtc().toIso8601String(),
+    });
+    if (response is List && response.isNotEmpty) {
+      return Map<String, dynamic>.from(response.first as Map);
+    }
+    if (response is Map) return Map<String, dynamic>.from(response);
+    throw StateError('Le serveur n’a pas retourné la nouvelle édition.');
+  }
+
   Future<Map<String, dynamic>> createEvent(Map<String, dynamic> params) async {
     final response = await _client.rpc('create_event', params: params);
     if (response == null) throw Exception('Erreur lors de la création de l\'événement');
@@ -1143,9 +1174,21 @@ class SupabaseEventService {
     }
   }
 
+  Future<void> recordEventAnalytics({required String eventId, required String action, Map<String, dynamic> metadata = const {}}) async {
+    try {
+      await _client.rpc('record_event_analytics_event', params: {
+        'p_event_id': eventId,
+        'p_action': action,
+        'p_metadata': metadata,
+      });
+    } catch (e) {
+      debugPrint('[SupabaseEventService] recordEventAnalytics($action) failed: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> getEventStatistics({required String eventId}) async {
     try {
-      final response = await _client.rpc('get_event_statistics', params: {'p_event_id': eventId});
+      final response = await _client.rpc('get_event_analytics_extended', params: {'p_event_id': eventId});
       if (response is Map) {
         return Map<String, dynamic>.from(response);
       }
@@ -1335,6 +1378,7 @@ class SupabaseEventService {
       }
     } catch (e) {
       debugPrint('[Error] addEventToCalendar RPC: $e');
+      rethrow;
     }
     return null;
   }

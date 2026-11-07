@@ -155,6 +155,26 @@ class ExternalProfileRepository {
     return res.profile;
   }
 
+  /// Events actually attended by an external profile (validated check-in).
+  /// Keep this list identical to the profile's Events tab.
+  Future<List<Map<String, dynamic>>> fetchExternalUserAttendedEvents(String userId) {
+    return fetchProfileTab(userId: userId, tab: 'events', limit: 60, offset: 0);
+  }
+
+  /// Events saved in the external user's personal agenda (not attendance).
+  Future<List<Map<String, dynamic>>> fetchExternalUserAgenda(String userId) async {
+    final response = await _client.rpc('get_external_user_agenda', params: {
+      'p_user_id': userId,
+    });
+    if (response is List) {
+      return response
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
   /// Updates local cached profile map when a relationship action is performed.
   Future<void> updateCachedProfile(ExternalProfileModel model) async {
     final cacheKey = FastCacheKey.externalProfile(model.userId);
@@ -165,8 +185,8 @@ class ExternalProfileRepository {
     try {
       final response = await _client
           .from('activities')
-          .select('id, name, base_price, currency_code, photo_url')
-          .eq('user_id', userId)
+          .select('id, name, base_price, currency_code, description')
+          .eq('creator_id', userId)
           .limit(10);
 
       if (response is List) {
@@ -189,12 +209,18 @@ class ExternalProfileRepository {
     int limit = 24,
     int offset = 0,
   }) async {
-    final response = await _client.rpc('get_external_profile_tab', params: {
-      'p_user_id': userId,
-      'p_tab': tab,
-      'p_limit': limit,
-      'p_offset': offset,
-    });
+    final response = tab == 'events'
+        ? await _client.rpc('get_profile_attended_event_series', params: {
+            'p_user_id': userId,
+            'p_limit': limit,
+            'p_offset': offset,
+          })
+        : await _client.rpc('get_external_profile_tab', params: {
+            'p_user_id': userId,
+            'p_tab': tab,
+            'p_limit': limit,
+            'p_offset': offset,
+          });
     if (response is List) {
       return response
           .whereType<Map>()

@@ -111,7 +111,8 @@ class EventSharePosterService {
       }
 
       // Ouverture du système de partage natif (WhatsApp, Instagram, etc.)
-      final shareText = 'Participe à ${preview.event.name} avec Scrole !';
+      final eventLink = 'https://scrole.fun/event/${Uri.encodeComponent(preview.event.id)}';
+      final shareText = 'Participe à ${preview.event.name} avec Scrole !\n\n$eventLink';
       final result = await Share.shareXFiles(
         [XFile(file.path)],
         text: shareText,

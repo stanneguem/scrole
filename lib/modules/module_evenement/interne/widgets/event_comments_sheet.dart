@@ -42,7 +42,7 @@ class _EventCommentsSheetState extends State<EventCommentsSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Commentaires',
+                'comments_title'.tr,
                 style: AppTextStyles.h4.copyWith(color: colorScheme.onSurface),
               ),
               IconButton(
@@ -82,13 +82,13 @@ class _EventCommentsSheetState extends State<EventCommentsSheet> {
                 Icon(Icons.chat_bubble_outline_rounded, size: 40, color: colorScheme.onSurfaceVariant),
                 const SizedBox(height: 12),
                 Text(
-                  'Aucun commentaire pour le moment',
+                  'comments_empty'.tr,
                   style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Soyez le premier à commenter cet événement !',
+                  'event_comments_empty_message'.tr,
                   style: AppTextStyles.bodySmall.copyWith(color: colorScheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
@@ -134,7 +134,7 @@ class _EventCommentsSheetState extends State<EventCommentsSheet> {
                     textInputAction: TextInputAction.newline,
                     style: AppTextStyles.bodySmall.copyWith(color: colorScheme.onSurface, height: 1.35),
                     decoration: InputDecoration(
-                      hintText: 'Écrire un commentaire...',
+                      hintText: 'comments_input_hint'.tr,
                       hintStyle: AppTextStyles.bodySmall.copyWith(color: colorScheme.onSurfaceVariant),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -158,7 +158,7 @@ class _EventCommentsSheetState extends State<EventCommentsSheet> {
                   ),
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    tooltip: 'Envoyer',
+                    tooltip: 'comments_send'.tr,
                     onPressed: () {
                       final text = _commentController.text.trim();
                       if (text.isEmpty) return;
@@ -166,7 +166,7 @@ class _EventCommentsSheetState extends State<EventCommentsSheet> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Envoi de commentaire en attente de l\'API backend.',
+                            'event_comment_pending_api'.tr,
                             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
                           ),
                           backgroundColor: AppColors.primary,

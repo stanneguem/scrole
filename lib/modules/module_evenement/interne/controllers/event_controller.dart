@@ -42,6 +42,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxList<EventModel> staffEvents = <EventModel>[].obs;
 
   final Rx<EventSortFilter> currentSortFilter = EventSortFilter.popularite.obs;
+  final Rx<EventCalendarFilter> currentCalendarFilter = EventCalendarFilter.tous.obs;
+  final RxString calendarSearchQuery = ''.obs;
   final Rx<EventSuggestionsStatus> suggestionsStatus = EventSuggestionsStatus.initial.obs;
   final RxString suggestionsErrorMessage = ''.obs;
 
@@ -52,6 +54,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxBool isLoadingSuggestions = false.obs;
   final RxBool isLoadingCalendar = false.obs;
   final RxBool isLoadingMyEvents = false.obs;
+  final RxBool hasLoadedMyEvents = false.obs;
+  bool _myEventsRefreshRequested = false;
 
   // Checkpoint pour le préchargement du calendrier
   DateTime? _lastMonthLoaded;
@@ -374,30 +378,61 @@ class EventController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  bool _isVisibleInMyEvents(EventModel event) =>
+      event.status != EventStatus.deleted &&
+      event.status != EventStatus.pendingDeletion;
+
   Future<void> fetchMyEvents() async {
-    isLoadingMyEvents.value = true;
-    try {
-      final localManaged = await _repository.getManagedEventsLocal();
-      if (localManaged.isNotEmpty) {
-        managedEvents.assignAll(localManaged);
-      }
-      final localStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(localStaff);
-    } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents local: $e');
-    } finally {
-      isLoadingMyEvents.value = false;
+    if (isLoadingMyEvents.value) {
+      _myEventsRefreshRequested = true;
+      return;
     }
 
+    final isFirstLoad = !hasLoadedMyEvents.value;
+    isLoadingMyEvents.value = true;
+
+    List<EventModel> localManaged = const [];
+    List<EventModel> localStaff = const [];
+
     try {
-      final remoteManaged = await _repository.syncManagedEventsRemote();
-      if (remoteManaged.isNotEmpty) {
-        managedEvents.assignAll(remoteManaged);
+      // Le cache sert de solution de secours au premier chargement seulement.
+      // Lors des actualisations suivantes, on conserve la liste déjà affichée
+      // jusqu'à réception des deux listes distantes complètes.
+      if (isFirstLoad) {
+        localManaged = (await _repository.getManagedEventsLocal())
+            .where(_isVisibleInMyEvents)
+            .toList();
+        localStaff = (await _repository.getStaffEvents())
+            .where(_isVisibleInMyEvents)
+            .toList();
       }
-      final remoteStaff = await _repository.getStaffEvents();
+
+      final remoteManaged = (await _repository.syncManagedEventsRemote())
+          .where(_isVisibleInMyEvents)
+          .toList();
+      final remoteStaff = (await _repository.getStaffEvents())
+          .where(_isVisibleInMyEvents)
+          .toList();
+
+      // Publier les résultats ensemble évite un état intermédiaire où une
+      // partie des éditions serait visible avant l'autre.
+      managedEvents.assignAll(remoteManaged);
       staffEvents.assignAll(remoteStaff);
     } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents remote: $e');
+      debugPrint('[Error] EventController.fetchMyEvents: $e');
+      // En cas d'échec réseau au premier lancement, afficher le cache en
+      // secours. L'écran applique toujours le regroupement avant le rendu.
+      if (isFirstLoad) {
+        managedEvents.assignAll(localManaged);
+        staffEvents.assignAll(localStaff);
+      }
+    } finally {
+      hasLoadedMyEvents.value = true;
+      isLoadingMyEvents.value = false;
+      if (_myEventsRefreshRequested) {
+        _myEventsRefreshRequested = false;
+        unawaited(fetchMyEvents());
+      }
     }
   }
 
@@ -431,6 +466,52 @@ class EventController extends GetxController with WidgetsBindingObserver {
 
   void setSortFilter(EventSortFilter filter) => currentSortFilter.value = filter;
 
+  void setCalendarFilter(EventCalendarFilter filter) =>
+      currentCalendarFilter.value = filter;
+
+  /// Filtrage local des événements déjà chargés pour le mois affiché.
+  /// Les critères reposent uniquement sur les champs réellement présents
+  /// dans EventModel ; aucun filtre social ou géographique fictif n'est appliqué.
+  List<EventModel> filterCalendarEvents(List<EventModel> list) {
+    final now = DateTime.now();
+    final query = calendarSearchQuery.value.trim().toLowerCase();
+    final filtered = list.where((event) {
+      switch (currentCalendarFilter.value) {
+        case EventCalendarFilter.tous:
+          break;
+        case EventCalendarFilter.aVenir:
+          if (event.startsAt.isBefore(now)) return false;
+          break;
+        case EventCalendarFilter.gratuits:
+          if (!event.isFree) return false;
+          break;
+        case EventCalendarFilter.payants:
+          if (event.isFree) return false;
+          break;
+        case EventCalendarFilter.enLigne:
+          if (!event.isOnline) return false;
+          break;
+        case EventCalendarFilter.enPresentiel:
+          if (event.isOnline) return false;
+          break;
+      }
+
+      if (query.isNotEmpty) {
+        final searchable = [
+          event.name,
+          event.description ?? '',
+          event.address ?? '',
+          event.city?.name ?? '',
+          event.country?.name ?? '',
+        ].join(' ').toLowerCase();
+        if (!searchable.contains(query)) return false;
+      }
+      return true;
+    }).toList();
+
+    return sortEventList(filtered);
+  }
+
   List<EventModel> sortEventList(List<EventModel> list) {
     final sorted = List<EventModel>.from(list);
     switch (currentSortFilter.value) {
@@ -441,10 +522,10 @@ class EventController extends GetxController with WidgetsBindingObserver {
         sorted.sort((a, b) => (a.isFree ? 0 : 1).compareTo(b.isFree ? 0 : 1));
         break;
       case EventSortFilter.plusAjouts:
-        sorted.sort((a, b) => b.goingCount.compareTo(a.goingCount));
+        sorted.sort((a, b) => b.totalAddedCount.compareTo(a.totalAddedCount));
         break;
       case EventSortFilter.plusSurs:
-        sorted.sort((a, b) => b.goingCount.compareTo(a.goingCount));
+        sorted.sort((a, b) => b.checkedInCount.compareTo(a.checkedInCount));
         break;
       case EventSortFilter.proches:
         sorted.sort((a, b) => a.startsAt.compareTo(b.startsAt));

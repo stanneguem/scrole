@@ -55,11 +55,11 @@ class BugReportController extends GetxController {
 
     isSending.value = true;
     try {
-      String? screenshotUrl;
+      String? screenshotObjectKey;
       final userId = _authService.userId;
 
       if (screenshot.value != null && userId != null) {
-        screenshotUrl = await _storageRepository.uploadBugReportScreenshot(
+        screenshotObjectKey = await _storageRepository.uploadBugReportScreenshot(
           userId, 
           screenshot.value!,
         );
@@ -68,7 +68,7 @@ class BugReportController extends GetxController {
       await _supportRepository.sendBugReport(
         title: title,
         description: description,
-        screenshotUrl: screenshotUrl,
+        screenshotObjectKey: screenshotObjectKey,
       );
 
       Get.back();

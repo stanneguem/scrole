@@ -24,9 +24,17 @@ import '../enums/event_enum.dart';
 import 'event_days_selector_screen.dart';
 import 'event_comments_screen.dart';
 import 'event_rating_screen.dart';
+import 'event_activities_list_screen.dart';
+import 'event_itinerary_overview_screen.dart';
+import 'external_event_itinerary_screen.dart';
+import 'report_event_sheet.dart';
 
 class EventPreviewScreen extends StatefulWidget {
-  const EventPreviewScreen({super.key});
+  final EventModel? initialEvent;
+  final String? profileUserId;
+  final bool archiveTabMode;
+
+  const EventPreviewScreen({super.key, this.initialEvent, this.profileUserId, this.archiveTabMode = false});
 
   @override
   State<EventPreviewScreen> createState() => _EventPreviewScreenState();
@@ -100,6 +108,10 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
 
   Future<void> _loadData() async {
     final args = Get.arguments;
+    if (widget.initialEvent != null) {
+      _eventId = widget.initialEvent!.id;
+      _contextRole = widget.archiveTabMode ? null : _contextRole;
+    }
     if (args is Map) {
       _eventId = (args['id'] ?? args['eventId'])?.toString();
       _contextRole = args['context']?.toString();
@@ -108,7 +120,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       }
     } else if (args is EventModel) {
       _eventId = args.id;
-    } else if (Get.parameters['id'] != null) {
+    } else if (Get.parameters['id'] != null && _eventId == null) {
       _eventId = Get.parameters['id'];
     }
 
@@ -156,13 +168,26 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       }
 
       final role = preview.viewerRole ?? preview.event.userRole;
-      if (role == 'fondateur' || role == 'co_createur' || role == 'owner' || role == 'managed' ||
-          (currentUserId != null && currentUserId.isNotEmpty && preview.event.creatorId == currentUserId)) {
+      final normalizedRole = (role ?? '').toLowerCase();
+      if (normalizedRole == 'fondateur' ||
+          normalizedRole == 'co_createur' ||
+          normalizedRole == 'cofounder' ||
+          normalizedRole == 'co_founder' ||
+          normalizedRole == 'co_creator' ||
+          normalizedRole == 'owner' ||
+          normalizedRole == 'managed' ||
+          (currentUserId != null &&
+              currentUserId.isNotEmpty &&
+              preview.event.creatorId == currentUserId)) {
         _contextRole = 'owner';
-      } else if (role == 'staff') {
+      } else if (normalizedRole == 'staff' || normalizedRole == 'member_staff') {
         _contextRole = 'staff';
+      } else {
+        _contextRole = 'public';
       }
 
+      // Comptabilise une ouverture réelle de la fiche, indépendamment des actions.
+      unawaited(repo.recordEventAnalytics(_eventId!, 'detail_open'));
       if (mounted) {
         setState(() {
           _preview = preview;
@@ -607,6 +632,110 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     Get.to(() => EventRatingScreen(event: _preview!.event));
   }
 
+  Future<void> _createNextEdition() async {
+    final event = _preview?.event;
+    if (event == null ||
+        event.status != EventStatus.completed ||
+        Get.find<AppController>().authUser.value?.id != event.creatorId) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final initial = event.startsAt.isAfter(now)
+        ? event.startsAt.add(const Duration(days: 1))
+        : now.add(const Duration(days: 1));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(initial.year, initial.month, initial.day),
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de la nouvelle édition',
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(event.startsAt),
+      helpText: 'Heure de début',
+    );
+    if (pickedTime == null || !mounted) return;
+
+    final startsAt = DateTime(pickedDate.year, pickedDate.month, pickedDate.day,
+        pickedTime.hour, pickedTime.minute);
+    if (!startsAt.isAfter(DateTime.now())) {
+      Get.snackbar('Date invalide', 'La nouvelle édition doit commencer dans le futur.');
+      return;
+    }
+
+    try {
+      final created = await Get.find<EventRepository>().createNextEventEdition(
+        sourceEventId: event.id,
+        startsAt: startsAt,
+      );
+      if (!mounted) return;
+      Get.snackbar(
+        'Nouvelle édition créée',
+        'L’édition n°${created.editionNumber} a été créée. Vous pouvez maintenant personnaliser sa couverture et sa description.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      Get.off(() => EventPreviewScreen(initialEvent: created));
+      Get.toNamed(AppPages.eventEdit.replaceFirst(':id', created.id), arguments: created);
+    } catch (error) {
+      if (mounted) {
+        Get.snackbar('Création impossible', error.toString(),
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    }
+  }
+
+  void _openArchivedItinerary() {
+    final event = _preview?.event;
+    if (event == null) return;
+    final userId = widget.profileUserId ??
+        Get.find<AppController>().authUser.value?.id ??
+        '';
+    if (userId.isEmpty) return;
+    final currentUserId = Get.find<AppController>().authUser.value?.id ?? '';
+    if (userId == currentUserId) {
+      Get.to(() => EventItineraryOverviewScreen(event: event, readOnly: true));
+    } else {
+      Get.to(() => ExternalEventItineraryScreen(
+        userId: userId,
+        eventId: event.id,
+        eventName: event.name,
+        eventPhoto: event.coverImageUrl ?? '',
+        eventLocation: event.locationDisplay,
+      ));
+    }
+  }
+
+  void _showReportSheet() {
+    final event = _preview?.event;
+    if (event == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => ReportEventSheet(
+        eventName: event.name,
+        onSubmit: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'event_detail_report_sent'.tr,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.white),
+              ),
+              backgroundColor: AppColors.black1,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showJoinCommunityDialog(String communityId) {
     showModalBottomSheet(
       context: context,
@@ -692,8 +821,15 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     final isOwnerOrCoFounder = (_contextRole == 'owner' || _contextRole == 'managed' ||
         event.userRole == 'fondateur' || event.userRole == 'co_createur' ||
         (currentUserId != null && currentUserId.isNotEmpty && event.creatorId == currentUserId));
+    final canManageActivities = isOwnerOrCoFounder || _contextRole == 'staff' ||
+        event.userRole == 'staff' || preview.viewerRole == 'owner' ||
+        preview.viewerRole == 'cofounder' || preview.viewerRole == 'staff';
 
     final canScan = isOwnerOrCoFounder || _contextRole == 'staff' || event.userRole == 'staff';
+
+    final showCalendarAction = preview.canAddToCalendar && !isOwnerOrCoFounder;
+    final showPublicInteractions = !isOwnerOrCoFounder &&
+        (_contextRole == 'public' || _contextRole == null);
 
     // Calcul du budget total estimé
     final cheapestAmount = preview.cheapestTicket != null
@@ -715,7 +851,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
+          if (!widget.archiveTabMode) SliverAppBar(
             expandedHeight: 260,
             pinned: true,
             leading: Center(
@@ -747,6 +883,40 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   ),
                 ),
               ),
+              if (_contextRole == 'public')
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: _HeaderActionButton(
+                      icon: Icons.more_vert,
+                      tooltip: 'Signaler cet événement',
+                      onPressed: _showReportSheet,
+                    ),
+                  ),
+                ),
+              if (event.status == EventStatus.completed &&
+                  currentUserId != null && currentUserId == event.creatorId)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: _HeaderActionButton(
+                      icon: Icons.add_circle_outline_rounded,
+                      tooltip: 'Créer une nouvelle édition',
+                      onPressed: _createNextEdition,
+                    ),
+                  ),
+                ),
+              if (event.status == EventStatus.completed)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: _HeaderActionButton(
+                      icon: Icons.route_rounded,
+                      tooltip: 'Revoir mon programme',
+                      onPressed: _openArchivedItinerary,
+                    ),
+                  ),
+                ),
               if (canScan)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -767,11 +937,15 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   child: Center(
                     child: _HeaderActionButton(
                       icon: Icons.settings_outlined,
-                      tooltip: 'Paramètres',
-                      onPressed: () => Get.toNamed(
-                        AppPages.eventSettings.replaceFirst(':id', event.id),
-                        arguments: event,
-                      ),
+                      tooltip: event.status == EventStatus.draft
+                          ? 'Paramètres indisponibles pendant la validation'
+                          : 'Paramètres',
+                      onPressed: event.status == EventStatus.draft
+                          ? null
+                          : () => Get.toNamed(
+                              AppPages.eventSettings.replaceFirst(':id', event.id),
+                              arguments: event,
+                            ),
                     ),
                   ),
                 ),
@@ -869,13 +1043,19 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
+                      Flexible(
+                        fit: FlexFit.loose,
                         child: Text(
                           event.name,
                           style: GoogleFonts.spaceGrotesk(fontSize: 26, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 22),
+                      const SizedBox(width: 5),
+                      EntityCertifiedBadge(
+                        entityType: 'event',
+                        entityId: event.id,
+                        size: 22,
+                      ),
                     ],
                   ),
                   Text(
@@ -956,6 +1136,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                                 'tickets': preview.tickets,
                                 'activities': preview.activitiesLiees,
                                 'cheapestTicket': preview.cheapestTicket,
+                                'eventId': event.id,
                               },
                             );
                           },
@@ -1049,207 +1230,34 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                     ),
                   ],
 
-                  // Section Activités liées
+                  // Les activités sont consultables sur une page dédiée.
                   if (preview.activitiesLiees.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Text('Activités liées', style: AppTextStyles.h4),
-                    const SizedBox(height: 8),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: preview.activitiesLiees.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final act = preview.activitiesLiees[index];
-                        final isFree = act.converted.amount <= 0;
-                        final priceText = isFree
-                            ? 'Gratuit'
-                            : NumberFormatter.formatPrice(act.converted.amount, act.converted.symbol);
-
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              Get.toNamed(
-                                AppPages.eventActivities.replaceFirst(':id', _eventId ?? ''),
-                                arguments: {'activity': act, 'event': preview.event},
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: isFree
-                                          ? AppColors.success.withValues(alpha: 0.12)
-                                          : AppColors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.local_activity_rounded,
-                                      color: isFree ? AppColors.success : AppColors.primary,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          act.name,
-                                          style: GoogleFonts.spaceGrotesk(
-                                            color: colorScheme.onSurface,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Activité de l\'événement',
-                                          style: AppTextStyles.caption.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: isFree
-                                              ? AppColors.success.withValues(alpha: 0.12)
-                                              : AppColors.primary.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Text(
-                                          priceText,
-                                          style: GoogleFonts.spaceGrotesk(
-                                            color: isFree ? AppColors.success : AppColors.primary,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        size: 14,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Get.to(
+                            () => EventActivitiesListScreen(
+                              activities: preview.activitiesLiees,
                             ),
+                            transition: Transition.rightToLeft,
+                          );
+                        },
+                        icon: const Icon(Icons.local_activity_outlined),
+                        label: Text(
+                          'event_detail_activities'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
-                  ],
-
-                  const SizedBox(height: 20),
-
-                  // Context Public (Actions: Like, Noter, Partager)
-                  if (!isOwnerOrCoFounder && (_contextRole == 'public' || _contextRole == null)) ...[
-                    Row(
-                      children: [
-                        // 1. LIKE
-                        Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: (_isLikeLoading || !preview.canLike) ? null : _toggleLike,
-                              icon: Icon(
-                                preview.isLikedByMe ? Icons.favorite : Icons.favorite_border,
-                                size: 16,
-                                color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
-                              ),
-                              label: Text(
-                                NumberFormatter.formatCount(preview.likesCount),
-                                style: TextStyle(
-                                  color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                side: BorderSide(
-                                  color: preview.isLikedByMe
-                                      ? AppColors.error.withValues(alpha: 0.5)
-                                      : colorScheme.outlineVariant.withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 24,
-                              child: IgnorePointer(
-                                child: Lottie.asset(
-                                  'assets/lotties/head.json',
-                                  controller: _heartsAnimationController,
-                                  width: 140,
-                                  height: 140,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-
-                        // 2. NOTER
-                        OutlinedButton.icon(
-                          onPressed: preview.canRate ? _openRatingSheet : null,
-                          icon: Icon(Icons.star_outline_rounded, size: 16, color: colorScheme.onSurface),
-                          label: Text(
-                            'Noter',
-                            style: TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // 3. PARTAGER
-                        OutlinedButton.icon(
-                          onPressed: preview.canShare ? _shareEvent : null,
-                          icon: Icon(Icons.share_outlined, size: 16, color: colorScheme.onSurface),
-                          label: Text(
-                            NumberFormatter.formatCount(preview.shareCount),
-                            style: TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                   ],
 
                   // Description avec 'Voir plus' (max 3 lignes)
@@ -1268,7 +1276,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           ),
         ],
       ),
-      bottomNavigationBar: !preview.canAddToCalendar
+      bottomNavigationBar: (widget.archiveTabMode || event.status == EventStatus.completed ||
+              (!showCalendarAction && !showPublicInteractions))
           ? null
           : Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -1285,27 +1294,124 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
               ),
               child: SafeArea(
                 top: false,
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isCalendarLoading ? null : _handleCalendarAction,
-                        icon: Icon(preview.isInMyCalendar ? Icons.check : Icons.calendar_today, size: 18),
-                        label: Text(
-                          preview.isInMyCalendar
-                              ? 'event_added_to_calendar'.tr
-                              : 'event_add_to_calendar'.tr,
-                          style: AppTextStyles.buttonSmall.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: preview.isInMyCalendar ? AppColors.success : AppColors.primary,
-                          foregroundColor: AppColors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
+                    if (showCalendarAction)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isCalendarLoading ? null : _handleCalendarAction,
+                          icon: Icon(preview.isInMyCalendar ? Icons.check : Icons.calendar_today, size: 18),
+                          label: Text(
+                            preview.isInMyCalendar
+                                ? 'event_added_to_calendar'.tr
+                                : 'event_add_to_calendar'.tr,
+                            style: AppTextStyles.buttonSmall.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: preview.isInMyCalendar ? AppColors.success : AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
                         ),
                       ),
-                    ),
+                    if (showCalendarAction && showPublicInteractions)
+                      const SizedBox(height: 10),
+                    if (showPublicInteractions)
+                      Row(
+                        children: [
+                          // 1. J'AIME
+                          Expanded(
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: (_isLikeLoading || !preview.canLike) ? null : _toggleLike,
+                                    icon: Icon(
+                                      preview.isLikedByMe ? Icons.favorite : Icons.favorite_border,
+                                      size: 16,
+                                      color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
+                                    ),
+                                    label: Text(
+                                      NumberFormatter.formatCount(preview.likesCount),
+                                      style: AppTextStyles.buttonSmall.copyWith(
+                                        color: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: preview.isLikedByMe ? AppColors.error : colorScheme.onSurface,
+                                      side: BorderSide(
+                                        color: preview.isLikedByMe
+                                            ? AppColors.error.withValues(alpha: 0.4)
+                                            : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 24,
+                                  child: IgnorePointer(
+                                    child: Lottie.asset(
+                                      'assets/lotties/head.json',
+                                      controller: _heartsAnimationController,
+                                      width: 140,
+                                      height: 140,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 2. NOTER
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: preview.canRate ? _openRatingSheet : null,
+                              icon: Icon(Icons.star_outline_rounded, size: 16, color: colorScheme.onSurface),
+                              label: Text(
+                                'event_detail_rate'.tr,
+                                style: AppTextStyles.buttonSmall.copyWith(color: colorScheme.onSurface),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colorScheme.onSurface,
+                                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 3. PARTAGER
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: preview.canShare ? _shareEvent : null,
+                              icon: Icon(Icons.share_outlined, size: 16, color: colorScheme.onSurface),
+                              label: Text(
+                                NumberFormatter.formatCount(preview.shareCount),
+                                style: AppTextStyles.buttonSmall.copyWith(color: colorScheme.onSurface),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colorScheme.onSurface,
+                                side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -1481,7 +1587,25 @@ class _RestrictedPreviewView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [Expanded(child: Text(event.name.isNotEmpty ? event.name : 'Aperçu restreint', maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18)]),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                event.name.isNotEmpty ? event.name : 'Aperçu restreint',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            EntityCertifiedBadge(
+              entityType: 'event',
+              entityId: event.id,
+              size: 18,
+            ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Get.back(),

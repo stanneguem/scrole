@@ -40,14 +40,18 @@ class ChatMediaCache {
 
   static bool _isR2ObjectKey(String value) =>
       value.startsWith('messages/') || value.startsWith('stories/') ||
-      value.startsWith('private/') || value.startsWith('bug-reports/');
+      value.startsWith('private/') || value.startsWith('bug-reports/') ||
+      value.startsWith('salon-messages/');
 
   String _fileName(String remoteUrl) {
     final sourcePath = isHttpUrl(remoteUrl)
         ? (Uri.tryParse(remoteUrl)?.path ?? remoteUrl)
         : remoteUrl;
     final extension = p.extension(sourcePath.split('?').first);
-    return '${sha256.convert(remoteUrl.codeUnits)}${extension.isEmpty ? '.bin' : extension}';
+    final stableRef = isHttpUrl(remoteUrl)
+        ? Uri.tryParse(remoteUrl)?.replace(query: '', fragment: '').toString() ?? remoteUrl
+        : remoteUrl;
+    return '${sha256.convert(stableRef.codeUnits)}${extension.isEmpty ? '.bin' : extension}';
   }
 
   Future<String?> localPathFor(String remoteUrl) async {
