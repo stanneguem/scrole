@@ -1276,7 +1276,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           ),
         ],
       ),
-      bottomNavigationBar: (widget.archiveTabMode || (!showCalendarAction && !showPublicInteractions))
+      bottomNavigationBar: (widget.archiveTabMode || event.status == EventStatus.completed ||
+              (!showCalendarAction && !showPublicInteractions))
           ? null
           : Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
