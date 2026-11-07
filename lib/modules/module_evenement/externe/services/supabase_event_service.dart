@@ -1499,6 +1499,17 @@ class SupabaseEventService {
     return [];
   }
 
+  Future<Set<String>> fetchDismissedHomeEventSuggestionIds() async {
+    final rows = await _client
+        .from('event_suggestion_dismissals')
+        .select('event_id');
+    return rows.map((row) => row['event_id'].toString()).toSet();
+  }
+
+  Future<void> dismissHomeEventSuggestion(String eventId) async {
+    await _client.rpc('dismiss_home_event_suggestion', params: {'p_event_id': eventId});
+  }
+
   Future<List<Map<String, dynamic>>> fetchSuggestedEvents({int limit = 50}) async {
     try {
       final response = await _client.rpc('get_home_event_suggestions', params: {
