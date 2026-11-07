@@ -2804,6 +2804,7 @@ class _StoryVideoPlayerState extends State<_StoryVideoPlayer> {
             AppCachedImage(
               imageUrl: widget.thumbnailObjectKey!,
               fit: BoxFit.cover,
+              cacheUntil: widget.expiresAt,
               errorWidget: _buildFallbackBackground(),
             )
           else
