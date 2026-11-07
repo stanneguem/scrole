@@ -510,6 +510,7 @@ class _StoriesRow extends GetView<StoriesController> {
                                         width: 56,
                                         height: 56,
                                         fit: BoxFit.cover,
+                                        cacheUntil: ownLatestStory?.expiresAt,
                                         errorWidget: Container(
                                           color: colorScheme.surfaceContainerHighest,
                                           alignment: Alignment.center,
@@ -617,6 +618,7 @@ class _StoriesRow extends GetView<StoriesController> {
                                   width: 56,
                                   height: 56,
                                   fit: BoxFit.cover,
+                                  cacheUntil: latestStory?.expiresAt,
                                   errorWidget: Container(
                                     color: colorScheme.surfaceContainerHighest,
                                     alignment: Alignment.center,
