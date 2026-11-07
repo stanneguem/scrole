@@ -1177,7 +1177,6 @@ class _EventDetailPageState extends State<EventDetailPage> with SingleTickerProv
                           const SizedBox(height: 20),
                         ],
 
-                        const SizedBox(height: 120),
                       ],
                     ),
                   ),
