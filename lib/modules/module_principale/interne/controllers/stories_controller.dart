@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -207,34 +208,73 @@ class StoriesController extends GetxController {
     fetchStories();
   }
 
-  Future<void> fetchStories() async {
-    isLoading.value = true;
+  Future<File> _storyTrayCacheFile() async {
+    final directory = await getApplicationSupportDirectory();
+    return File(p.join(directory.path, 'stories_tray_cache.json'));
+  }
+
+  bool get _hasStoryGroups =>
+      ownGroup.value != null || followingGroups.isNotEmpty || suggestedGroups.isNotEmpty;
+
+  void _applyStoryTray(Map<String, dynamic> data) {
+    if (data['own'] != null) {
+      ownGroup.value = EventStoryGroup.fromMap(Map<String, dynamic>.from(data['own']));
+    } else {
+      ownGroup.value = null;
+    }
+
+    if (data['following'] is List) {
+      followingGroups.assignAll((data['following'] as List)
+          .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
+          .where((g) => g.stories.isNotEmpty));
+    }
+
+    if (data['suggested'] is List) {
+      suggestedGroups.assignAll((data['suggested'] as List)
+          .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
+          .where((g) => g.stories.isNotEmpty));
+    }
+  }
+
+  Future<void> _restoreStoryTrayCache() async {
+    if (_hasStoryGroups) return;
     try {
-      debugPrint('[STORY] [Controller] Fetching stories tray');
+      final file = await _storyTrayCacheFile();
+      if (!await file.exists()) return;
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is Map) {
+        _applyStoryTray(Map<String, dynamic>.from(decoded));
+        debugPrint('[STORY_CACHE] Restored story tray from local cache');
+      }
+    } catch (e) {
+      debugPrint('[STORY_CACHE] Unable to restore story tray: $e');
+    }
+  }
+
+  Future<void> _persistStoryTray(Map<String, dynamic> data) async {
+    try {
+      final file = await _storyTrayCacheFile();
+      await file.writeAsString(jsonEncode(data), flush: true);
+      debugPrint('[STORY_CACHE] Story tray metadata saved locally');
+    } catch (e) {
+      debugPrint('[STORY_CACHE] Unable to persist story tray: $e');
+    }
+  }
+
+  Future<void> fetchStories() async {
+    // Show cached author/story metadata immediately; never wait for network
+    // before rendering the story tray.
+    await _restoreStoryTrayCache();
+    isLoading.value = false;
+    try {
+      debugPrint('[STORY] [Controller] Refreshing stories tray in background');
       final data = await _repo.getStoriesTray();
-      
-      if (data['own'] != null) {
-        ownGroup.value = EventStoryGroup.fromMap(Map<String, dynamic>.from(data['own']));
-      } else {
-        ownGroup.value = null;
-      }
-
-      if (data['following'] is List) {
-        followingGroups.value = (data['following'] as List)
-            .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
-            .where((g) => g.stories.isNotEmpty)
-            .toList();
-      }
-
-      if (data['suggested'] is List) {
-        suggestedGroups.value = (data['suggested'] as List)
-            .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
-            .where((g) => g.stories.isNotEmpty)
-            .toList();
-      }
-      debugPrint('[STORY] [Controller] Stories tray fetched successfully.');
+      _applyStoryTray(data);
+      await _persistStoryTray(data);
+      debugPrint('[STORY] [Controller] Stories tray synchronized successfully.');
     } catch (e, st) {
-      debugPrint('[STORY] [Controller] Error fetching stories: $e\n$st');
+      // Keep the last known story metadata/media available while offline.
+      debugPrint('[STORY] [Controller] Background refresh failed; using local tray: $e\\n$st');
     } finally {
       isLoading.value = false;
     }
