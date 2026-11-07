@@ -143,13 +143,13 @@ class _MediaFullScreenPageState extends State<MediaFullScreenPage> with SingleTi
           ? await SaverGallery.saveFile(
               filePath: file.path,
               fileName: fileName,
-              albumPath: 'Scrole/videos',
+              androidRelativePath: 'Movies/Scrole',
               skipIfExists: false,
             )
           : await SaverGallery.saveImage(
               Uint8List.fromList(bytes),
               fileName: fileName,
-              albumPath: 'Scrole/images',
+              androidRelativePath: 'Pictures/Scrole',
               skipIfExists: false,
             );
       if (!mounted) return;
