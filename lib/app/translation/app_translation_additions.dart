@@ -5,10 +5,6 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
-      'event_budget_save_error_title': "Impossible d’enregistrer le budget",
-      'event_budget_save_error_missing_event': "Événement introuvable.",
-      'event_budget_save_error_auth': "Connectez-vous pour enregistrer cette simulation.",
-      'event_budget_save_error_message': "Impossible d’enregistrer la simulation. Vérifiez votre connexion et réessayez.",
       'event_budget_history_reuse': "Réutiliser",
       'event_budget_insights_least_activity': "Activité la moins choisie",
       'event_budget_history_title': "Mes budgets enregistrés",
@@ -2998,9 +2994,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Sending videos is not allowed in this chat.",
 
 },
-      'event_budget_save_error_title': "Unable to save budget",
-      'event_budget_save_error_missing_event': "Event not found.",
-      'event_budget_save_error_auth': "Sign in to save this simulation.",
       'event_budget_save_error_message': "Your simulation could not be saved. Check your connection and try again.",
     'es': {
       'event_budget_save_error_title': "No se pudo guardar el presupuesto",
@@ -4398,10 +4391,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "No se permite enviar vídeos en este chat.",
 
 },
-      'event_budget_save_error_title': "No se pudo guardar el presupuesto",
-      'event_budget_save_error_missing_event': "No se encontró el evento.",
-      'event_budget_save_error_auth': "Inicia sesión para guardar esta simulación.",
-      'event_budget_save_error_message': "No se pudo guardar la simulación. Comprueba tu conexión e inténtalo de nuevo.",
     'de': {
       'event_budget_save_error_title': "Budget konnte nicht gespeichert werden",
       'event_budget_save_error_missing_event': "Veranstaltung nicht gefunden.",
@@ -5781,10 +5770,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Das Senden von Videos ist in diesem Chat nicht erlaubt.",
 
 },
-      'event_budget_save_error_title': "Budget konnte nicht gespeichert werden",
-      'event_budget_save_error_missing_event': "Veranstaltung nicht gefunden.",
-      'event_budget_save_error_auth': "Melde dich an, um diese Simulation zu speichern.",
-      'event_budget_save_error_message': "Die Simulation konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
     'it': {
       'event_budget_save_error_title': "Impossibile salvare il budget",
       'event_budget_save_error_missing_event': "Evento non trovato.",
@@ -7162,10 +7147,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "L’invio di video non è consentito in questa chat.",
 
 },
-      'event_budget_save_error_title': "Impossibile salvare il budget",
-      'event_budget_save_error_missing_event': "Evento non trovato.",
-      'event_budget_save_error_auth': "Accedi per salvare questa simulazione.",
-      'event_budget_save_error_message': "Impossibile salvare la simulazione. Controlla la connessione e riprova.",
     'pt': {
       'event_budget_save_error_title': "Não foi possível guardar o orçamento",
       'event_budget_save_error_missing_event': "Evento não encontrado.",
@@ -8543,10 +8524,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "O envio de vídeos não é permitido neste chat.",
 
 },
-      'event_budget_save_error_title': "Não foi possível guardar o orçamento",
-      'event_budget_save_error_missing_event': "Evento não encontrado.",
-      'event_budget_save_error_auth': "Inicie sessão para guardar esta simulação.",
-      'event_budget_save_error_message': "Não foi possível guardar a simulação. Verifique a ligação e tente novamente.",
     'zh': {
       'event_budget_save_error_title': "无法保存预算",
       'event_budget_save_error_missing_event': "未找到活动。",
@@ -9926,10 +9903,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "此聊天室不允许发送视频。",
 
 },
-      'event_budget_save_error_title': "无法保存预算",
-      'event_budget_save_error_missing_event': "未找到活动。",
-      'event_budget_save_error_auth': "请登录以保存此预算模拟。",
-      'event_budget_save_error_message': "无法保存此模拟。请检查网络连接后重试。",
     'ja': {
       'event_budget_save_error_title': "予算を保存できませんでした",
       'event_budget_save_error_missing_event': "イベントが見つかりません。",
@@ -11302,10 +11275,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "このチャットでは動画を送信できません。",
 
 },
-      'event_budget_save_error_title': "予算を保存できません",
-      'event_budget_save_error_missing_event': "イベントが見つかりません。",
-      'event_budget_save_error_auth': "このシミュレーションを保存するにはログインしてください。",
-      'event_budget_save_error_message': "シミュレーションを保存できませんでした。接続を確認して再試行してください。",
     'ru': {
       'event_budget_save_error_title': "Не удалось сохранить бюджет",
       'event_budget_save_error_missing_event': "Мероприятие не найдено.",
