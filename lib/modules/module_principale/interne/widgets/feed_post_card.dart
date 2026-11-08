@@ -30,6 +30,39 @@ import '../../../module_evenement/centre/repositories/event_repository.dart';
 import '../../../module_evenement/interne/pages/event_preview_screen.dart';
 import '../../../module_evenement/interne/pages/profile_event_series_screen.dart';
 
+String _localizedSponsoredCtaLabel(String? rawLabel) {
+  final raw = rawLabel?.trim() ?? '';
+  if (raw.isEmpty) return 'cta_learn_more'.tr;
+  const legacyLabels = <String, String>{
+    'en savoir plus': 'cta_learn_more',
+    'learn more': 'cta_learn_more',
+    's’inscrire': 'cta_sign_up',
+    "s'inscrire": 'cta_sign_up',
+    'sign up': 'cta_sign_up',
+    'réserver': 'cta_book_now',
+    'reserver': 'cta_book_now',
+    'book now': 'cta_book_now',
+    'acheter': 'cta_buy_now',
+    'buy now': 'cta_buy_now',
+    'commander': 'cta_order_now',
+    'participer': 'cta_join_now',
+    'découvrir': 'cta_discover',
+    'decouvrir': 'cta_discover',
+    'télécharger': 'cta_download',
+    'telecharger': 'cta_download',
+    'installer': 'cta_install',
+    'contacter': 'cta_contact',
+    'appeler': 'cta_call_now',
+    'envoyer un message': 'cta_send_message',
+    'suivre': 'cta_follow',
+    'voir l’offre': 'cta_view_offer',
+    "voir l'offre": 'cta_view_offer',
+    'obtenir maintenant': 'cta_get_now',
+  };
+  final key = legacyLabels[raw.toLowerCase()] ?? raw;
+  return key.startsWith('cta_') ? key.tr : raw;
+}
+
 /// Composant de texte extensible avec bouton "Voir plus" / "Voir moins"
 class ExpandableTextWidget extends StatefulWidget {
   final String text;
@@ -343,7 +376,7 @@ class FeedPostCard extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
                     ),
-                    child: Text((post.ctaLabel?.trim().isNotEmpty ?? false) ? post.ctaLabel!.trim().tr : 'cta_learn_more'.tr),
+                    child: Text(_localizedSponsoredCtaLabel(post.ctaLabel)),
                   ),
                 ),
               ),
