@@ -39,7 +39,10 @@ class EventCityInfo {
 
 class EventModel {
   final String id;
+  /// User profile owner ID. Empty for events created by the Admin profile.
   final String creatorId;
+  final String creatorProfileType;
+  final String? creatorAdminProfileId;
   final String name;
   final String slug;
   final String? description;
@@ -87,6 +90,8 @@ class EventModel {
   EventModel({
     required this.id,
     required this.creatorId,
+    this.creatorProfileType = 'user',
+    this.creatorAdminProfileId,
     required this.name,
     required this.slug,
     this.description,
@@ -129,6 +134,8 @@ class EventModel {
     this.seriesId,
     this.editionNumber = 1,
   });
+
+  bool get isAdminCreated => creatorProfileType == 'admin' || (creatorAdminProfileId?.isNotEmpty ?? false);
 
   DateTime get dateOnly => DateTime(startsAt.year, startsAt.month, startsAt.day);
 
@@ -222,6 +229,9 @@ class EventModel {
 
       final idStr = (json['id'] ?? json['evenement_id'] ?? '').toString();
       final creatorIdStr = (json['created_by'] ?? json['creator_id'] ?? '').toString();
+      final creatorProfileType = (json['creator_profile_type'] ??
+          (json['creator_admin_profile_id'] != null ? 'admin' : 'user')).toString();
+      final creatorAdminProfileId = json['creator_admin_profile_id']?.toString();
 
       final countryObj = json['country'] is Map
           ? EventCountryInfo.fromJson(Map<String, dynamic>.from(json['country'] as Map))
@@ -240,6 +250,8 @@ class EventModel {
       return EventModel(
         id: idStr,
         creatorId: creatorIdStr,
+        creatorProfileType: creatorProfileType,
+        creatorAdminProfileId: creatorAdminProfileId,
         name: (json['nom'] ?? json['name'] ?? json['title'] ?? 'Événement sans nom').toString(),
         slug: (json['slug'] ?? '').toString(),
         description: json['description']?.toString(),
@@ -296,6 +308,8 @@ class EventModel {
     return {
       'id': id,
       'created_by': creatorId,
+      'creator_profile_type': creatorProfileType,
+      'creator_admin_profile_id': creatorAdminProfileId,
       'nom': name,
       'slug': slug,
       'description': description,
@@ -320,6 +334,8 @@ class EventModel {
   EventModel copyWith({
     String? id,
     String? creatorId,
+    String? creatorProfileType,
+    String? creatorAdminProfileId,
     String? name,
     String? slug,
     String? description,
@@ -359,6 +375,8 @@ class EventModel {
     return EventModel(
       id: id ?? this.id,
       creatorId: creatorId ?? this.creatorId,
+      creatorProfileType: creatorProfileType ?? this.creatorProfileType,
+      creatorAdminProfileId: creatorAdminProfileId ?? this.creatorAdminProfileId,
       name: name ?? this.name,
       slug: slug ?? this.slug,
       description: description ?? this.description,
