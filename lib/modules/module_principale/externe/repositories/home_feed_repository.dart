@@ -196,6 +196,16 @@ class HomeFeedRepository {
     }
   }
 
+  Future<bool> recordPromotionImpression(String campaignId) async {
+    try { final result = await client.rpc('record_promotion_impression', params: {'p_campaign_id': campaignId}); return result == true; }
+    catch (e) { debugPrint('[PROMOTIONS] Impression failed: $e'); return false; }
+  }
+
+  Future<bool> recordPromotionInteraction(String campaignId, String type) async {
+    try { final result = await client.rpc('record_promotion_interaction', params: {'p_campaign_id': campaignId, 'p_interaction_type': type}); return result == true; }
+    catch (e) { debugPrint('[PROMOTIONS] Interaction failed: $e'); return false; }
+  }
+
   Future<void> hidePost(String postId) async {
     try {
       debugPrint('[HOME_FEED] Calling RPC hide_post with p_post_id=$postId');
