@@ -43,10 +43,6 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
       final selectedDays = await _repository.getMyEventCalendarDays(widget.event.id);
       final days = selectedDays.map((d) => DateTime(d.date.year, d.date.month, d.date.day)).toList()
         ..sort((a, b) => a.compareTo(b));
-      if (days.isEmpty) {
-        final start = widget.event.startsAt;
-        days.add(DateTime(start.year, start.month, start.day));
-      }
       final validatedIds = await _repository.getMyValidatedActivityIds(widget.event.id);
       final activities = (await _repository.getEventActivities(widget.event.id))
           .where((a) => a.status.toLowerCase() == 'validee' || a.status.toLowerCase() == 'validated' || a.status.toLowerCase() == 'active')
