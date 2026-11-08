@@ -87,3 +87,6 @@ Le moteur annonce toujours `ready_for_messages = false`. Le test Rust deux membr
 Les migrations `20261108240000` à `20261108244000` ont été appliquées au projet Supabase actif. Les groupes et messages MLS sont des tables séparées des messages legacy ; RLS n'autorise la lecture qu'aux appareils membres qui restent autorisés dans la conversation/salon. Les RPC d'envoi n'acceptent que des bytes ciphertext et n'écrivent aucun aperçu.
 
 Le dépôt Flutter `E2eeTransportRepository` appelle ces RPC, mais il reste volontairement isolé des écrans legacy jusqu'à ce que le moteur OpenMLS natif fournisse des messages chiffrés et déchiffrés réels. La présence de la table de transport ne signifie pas que les conversations actuelles sont E2EE.
+
+
+Le registre des appareils publics a également été restreint : les credentials ne sont visibles que par leur propriétaire et les personnes partageant une conversation directe ou un salon. La découverte globale des appareils par tout utilisateur connecté a été supprimée.
