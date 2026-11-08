@@ -16,6 +16,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
 
     return WillPopScope(
       onWillPop: () async {
+        if (controller.isSaving.value) return false;
         await controller.flushAnalytics();
         return true;
       },
