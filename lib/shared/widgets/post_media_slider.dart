@@ -21,6 +21,7 @@ class PostMediaSlider extends StatefulWidget {
   final int commentsCount;
   final int sharesCount;
   final VoidCallback? onVideoQualifiedView;
+  final double qualifiedViewPercent;
 
   const PostMediaSlider({
     super.key,
@@ -34,6 +35,7 @@ class PostMediaSlider extends StatefulWidget {
     this.commentsCount = 0,
     this.sharesCount = 0,
     this.onVideoQualifiedView,
+    this.qualifiedViewPercent = 0.5,
   });
 
   @override
@@ -203,6 +205,7 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
                       autoplayPostId: widget.autoplayPostId,
                       forceAutoplay: widget.forceAutoplayVideos,
                       onQualifiedView: widget.onVideoQualifiedView,
+                      qualifiedViewPercent: widget.qualifiedViewPercent,
                       onPlaybackOverlayOpacityChanged: (opacity) {
                         if (!mounted || (_videoOverlayOpacity - opacity).abs() < 0.03) return;
                         setState(() => _videoOverlayOpacity = opacity);
@@ -380,6 +383,7 @@ class _InlineFeedVideo extends StatefulWidget {
   final bool forceAutoplay;
   final ValueChanged<double>? onPlaybackOverlayOpacityChanged;
   final VoidCallback? onQualifiedView;
+  final double qualifiedViewPercent;
   final String url;
   final String? thumbnailUrl;
   final VoidCallback onOpenFullScreen;
@@ -390,6 +394,7 @@ class _InlineFeedVideo extends StatefulWidget {
     this.forceAutoplay = false,
     this.onPlaybackOverlayOpacityChanged,
     this.onQualifiedView,
+    this.qualifiedViewPercent = 0.5,
     required this.url,
     required this.thumbnailUrl,
     required this.onOpenFullScreen,
@@ -485,7 +490,7 @@ class _InlineFeedVideoState extends State<_InlineFeedVideo> {
       }
       final duration = value.duration;
       if (duration > Duration.zero &&
-          _accumulatedPlayback >= Duration(microseconds: duration.inMicroseconds ~/ 2)) {
+          _accumulatedPlayback >= Duration(microseconds: (duration.inMicroseconds * widget.qualifiedViewPercent).round())) {
         _qualifiedViewSent = true;
         widget.onQualifiedView?.call();
       }
