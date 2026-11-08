@@ -2,7 +2,7 @@
 
 **Périmètre :** application Flutter utilisateurs + Supabase (Postgres, Realtime, Edge Functions, R2).  
 **Branche étudiée :** `feature/story-video-post-reshare`  
-**État :** audit en lecture seule et conception. Aucune migration, aucun déploiement et aucune dépendance cryptographique ajoutés à la production.
+**État :** audit réalisé ; registre public des appareils MLS déployé ; droits de consommation des KeyPackages durcis. Aucun message n'est encore chiffré et aucune activation E2EE n'est autorisée.
 
 ## 1. Décision de sécurité
 
@@ -12,9 +12,9 @@ Le chiffrement TLS de Supabase reste nécessaire, mais il ne remplace pas le chi
 
 La cible retenue est **Messaging Layer Security (MLS, RFC 9420)** pour les conversations privées à deux comme pour les salons communautaires. MLS est conçu pour des groupes de deux à des milliers de membres, avec confidentialité persistante et sécurité post-compromission. L'implémentation de référence retenue est **OpenMLS (Rust)**, sous licence MIT. La suite initiale recommandée est X25519 / AES-128-GCM / SHA-256 / Ed25519 ; les suites post-quantiques expérimentales ne seront pas activées en production.
 
-Le wrapper Dart/Flutter `openmls_dart` existe et expose une API riche, mais son package pub.dev est publié par un uploader non vérifié et le dépôt est encore jeune. Il est utile comme référence d'intégration, mais je ne recommande pas d'embarquer ses binaires précompilés dans Scrole sans audit de code et de chaîne d'approvisionnement. La voie retenue est donc d'intégrer le crate OpenMLS officiel via une liaison Rust/Flutter contrôlée par Scrole, avec versions Rust verrouillées, CI reproductible, vérification des sommes de contrôle et notices de licences tierces.
+Le crate OpenMLS officiel est publié en version 0.9.2 (22 octobre 2026). Les cibles Android AArch64 et iOS AArch64 sont indiquées comme « unsupported, but built on CI » : elles compilent dans la CI upstream mais ne sont pas testées par le projet. Pour la liaison Flutter/Rust, `flutter_rust_bridge` 2.13.0 est une version stable récente compatible avec Dart 3.9+ ; Scrole utilise Dart 3.12.2. La voie retenue est une intégration Rust contrôlée par Scrole, avec versions épinglées et CI mobile propre.
 
-**Réserve de sécurité :** la licence MIT, l'activité du dépôt OpenMLS et sa politique de divulgation de vulnérabilités sont vérifiées. Les sources consultées ne suffisent toutefois pas à affirmer qu'OpenMLS a passé un audit cryptographique indépendant. Une revue de sécurité indépendante est requise avant l'activation générale. La politique de sécurité upstream et les tests de protocole ne remplacent pas un audit.
+**Réserve de sécurité :** OpenMLS est une implémentation de RFC 9420 maintenue par Phoenix R&D et Cryspen. Les sources consultées ne suffisent pas à affirmer qu'OpenMLS 0.9.2 a passé un audit cryptographique indépendant. Une revue indépendante est requise avant l'activation générale. Les cibles mobiles ne sont pas testées upstream.
 
 ### Modèle MLS
 
@@ -133,8 +133,8 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 
 ## 8. Ordre de réalisation
 
-1. **Choix juridique et technique du SDK cryptographique** (bloquant).
-2. Intégrer le moteur OpenMLS natif, le stockage MLS chiffré et les clés de stockage liées au Keychain / Android Keystore ; tests de reprise après crash/rollback.
+1. **Choix juridique et technique du SDK cryptographique** : décision prise pour OpenMLS 0.9.2 + `flutter_rust_bridge` 2.13.0, sous réserve de validation CI Android/iOS et revue de sécurité.
+2. Intégrer le moteur OpenMLS natif via `flutter_rust_bridge`, le stockage MLS chiffré et les clés de stockage liées au Keychain / Android Keystore ; tests de reprise après crash/rollback. Ne pas livrer tant que les builds Android/iOS ne sont pas verts.
 3. Ajouter les tables/RPC de publication des bundles et de distribution chiffrée ; RLS stricte par utilisateur/appareil et membre du salon.
 4. Adapter les modèles Flutter, le dépôt direct et la conversation de salon pour chiffrer avant toute écriture réseau et déchiffrer après lecture.
 5. Remplacer les aperçus et notifications contenant du texte ; enlever les chemins serveur qui lisent le contenu.
@@ -143,3 +143,12 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 8. Tests sécurité, tests d'intégration, audit des politiques/RPC/Storage/Realtime, puis activation progressive.
 
 **Critère de réussite :** en inspectant Postgres, Realtime, Storage/R2, Edge Functions, FCM et les journaux, aucune personne autre que les appareils autorisés ne peut reconstituer un message ou un média à partir des données serveur.
+
+
+## 9. État opérationnel au 8 novembre 2026
+
+- Migration `20261108230000_e2ee_mls_device_registry.sql` : registre des appareils et KeyPackages publics déployés.
+- Migration `20261108231000_harden_e2ee_key_package_claims.sql` : retrait de l'UPDATE direct sur les KeyPackages ; consommation atomique exécutée par une fonction privée `SECURITY DEFINER` avec `search_path` vide, derrière une fonction publique `SECURITY INVOKER`.
+- Vérification SQL effectuée : `authenticated` ne peut plus faire `UPDATE` sur `e2ee_key_packages`, `anon` ne peut pas appeler la fonction de consommation, `authenticated` peut l'appeler, wrapper public invoker et worker privé definer.
+- Les anciens messages, RPC d'envoi, notifications et caches ne sont pas modifiés. Le chiffrement E2EE n'est pas actif.
+- Les Security Advisors Supabase remontent aussi des avertissements historiques globaux (fonctions SECURITY DEFINER accessibles aux rôles publics et tables RLS sans politique) ; ils ne sont pas tous liés à E2EE et doivent faire l'objet d'un audit distinct avant l'activation de la messagerie chiffrée.
