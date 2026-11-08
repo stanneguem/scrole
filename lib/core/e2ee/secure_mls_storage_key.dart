@@ -13,6 +13,7 @@ class SecureMlsStorageKey {
       : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
+  final Map<String, Future<Uint8List>> _pendingCreations = {};
 
   String _storageKey(String userId, String deviceId) {
     if (userId.trim().isEmpty || deviceId.trim().isEmpty) {
@@ -23,14 +24,26 @@ class SecureMlsStorageKey {
 
   /// Returns the existing 256-bit database key or creates it once.
   ///
-  /// The key is persisted through Android Keystore-backed encrypted storage
-  /// and iOS Keychain. The caller must supply a stable, app-generated device
-  /// identifier; do not use a push token or a mutable device name.
+  /// Calls made concurrently through this instance are serialized per key.
+  /// Keep this service as an application-level singleton.
+  ///
+  /// The key is persisted through the platform secure-storage plugin. This
+  /// Dart API is a bootstrap stage only: do not pass the key to production MLS
+  /// code until the native bridge can keep and zeroize it on the Rust side.
   Future<Uint8List> getOrCreate({
     required String userId,
     required String deviceId,
-  }) async {
+  }) {
     final key = _storageKey(userId, deviceId);
+    final pending = _pendingCreations[key];
+    if (pending != null) return pending;
+
+    final creation = _readOrCreate(key);
+    _pendingCreations[key] = creation;
+    return creation.whenComplete(() => _pendingCreations.remove(key));
+  }
+
+  Future<Uint8List> _readOrCreate(String key) async {
     final encoded = await _storage.read(key: key);
     if (encoded != null) {
       final bytes = base64Url.decode(base64Url.normalize(encoded));
