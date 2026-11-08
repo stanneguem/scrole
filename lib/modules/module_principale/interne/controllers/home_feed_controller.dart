@@ -32,6 +32,7 @@ class HomeFeedController extends GetxController {
 
   final Rx<HomeFeedState> state = HomeFeedState.initial.obs;
   final RxList<CommunityPost> posts = <CommunityPost>[].obs;
+  final RxList<CommunityPost> sponsoredPosts = <CommunityPost>[].obs;
   final RxList<SuggestedProfileModel> suggestedProfiles = <SuggestedProfileModel>[].obs;
   final RxList<EventModel> suggestedEvents = <EventModel>[].obs;
   final RxString errorMessage = ''.obs;
@@ -366,6 +367,17 @@ class HomeFeedController extends GetxController {
         debugPrint('[HOME_FEED] Suggested events count: ${events.length}');
       } catch (e) {
         debugPrint('[HOME_FEED] Error fetching suggested events: $e');
+      }
+
+      // Ads are loaded separately from organic posts. Targeting and expiry
+      // are enforced by get_targeted_promotion_campaigns() in PostgreSQL.
+      try {
+        final campaigns = await _feedRepo.getTargetedPromotionCampaigns(limit: 10);
+        sponsoredPosts.assignAll(campaigns);
+        debugPrint('[PROMOTIONS] Loaded ${campaigns.length} eligible campaigns');
+      } catch (e) {
+        debugPrint('[PROMOTIONS] Campaign loading skipped: $e');
+        sponsoredPosts.clear();
       }
 
       state.value = posts.isEmpty ? HomeFeedState.empty : HomeFeedState.loaded;
