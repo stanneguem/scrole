@@ -283,3 +283,13 @@ L'audit RLS a révélé que la première policy de lecture du registre exposait 
 - Lecture autorisée uniquement au propriétaire, aux participants partageant une conversation directe, ou aux membres partageant un salon.
 - Policy large supprimée et remplacée par cette policy scopée.
 - Vérification SQL après migration : RLS activé sur les cinq tables E2EE ; aucun SELECT anon ; les KeyPackages ne sont pas lisibles directement ; les tables messages/groupes/appareils sont lisibles par authenticated uniquement sous RLS ; les écritures passent par RPC ou la policy d'insertion KeyPackage.
+
+
+## 21. Liaison du commit à l'appareil émetteur et push sans contenu (8 novembre 2026)
+
+- Le RPC `e2ee_apply_group_commit` exige désormais `p_sender_device_id` et vérifie que cet appareil précis appartient à l'utilisateur authentifié et au groupe courant. Le commit est enregistré avec l'identité exacte de l'appareil ; il ne choisit plus arbitrairement un appareil du compte.
+- Signature déployée : `e2ee_apply_group_commit(uuid, bigint, uuid, bytea, uuid[])`. Vérification SQL : exécution anon refusée, authenticated autorisé.
+- `E2eeTransportRepository.applyCommit` transmet l'identifiant de l'appareil émetteur.
+- Edge Function `send-fcm-notification` déployée en version 40. Pour les notifications marquées E2EE, elle supprime les champs de texte, aperçu, légende, URL audio et URL média, puis force un titre générique et un corps localisé « message chiffré ». Les données FCM ne contiennent plus le texte du message.
+- Les notifications E2EE ne sont toutefois pas encore émises par le client : le transport n'est pas encore raccordé au moteur MLS ni aux écrans de conversation.
+- CI après l'ajout du repository de transport a révélé un problème dans le mock Supabase du test (type PostgREST), pas dans le code du repository. Le test a été simplifié en testant le codec bytea pur ; le nouveau run est en attente.
