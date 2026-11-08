@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../app/local_storage/fast/fast_cache_key.dart';
+import '../../../../app/local_storage/fast/fast_cache_service.dart';
 import 'package:get/get.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import '../../../module_discussion_direct/centre/services/chat_service.dart';
@@ -36,6 +38,9 @@ class ExternalProfileController extends GetxController {
   late final String userId;
   RealtimeChannel? _relationshipChannel;
 
+  FastCacheService? get _profileCache =>
+      Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
+
   @override
   void onInit() {
     super.onInit();
@@ -53,12 +58,29 @@ class ExternalProfileController extends GetxController {
 
 
   Future<void> _initializeProfile() async {
-    await loadProfile();
-    // Do not request posts/events/liked content until the relationship check
-    // confirms that this profile is visible to the current user.
-    if (profileState.value == ProfileScreenState.loaded &&
-        profile.value?.relationshipState != 'blocked') {
-      await loadProfileTab(0);
+    final cached = _repository.getCachedProfile(userId);
+    if (cached != null) {
+      profile.value = cached;
+      profileState.value = ProfileScreenState.loaded;
+      isLoading.value = false;
+    }
+    await _restoreProfileTabsFromCache();
+    unawaited(loadProfile());
+  }
+
+  Future<void> _restoreProfileTabsFromCache() async {
+    final viewerId = Supabase.instance.client.auth.currentUser?.id ?? 'anonymous';
+    final cache = _profileCache;
+    if (cache == null || !cache.isReady) return;
+    const tabs = {0: 'posts', 1: 'events', 2: 'liked'};
+    for (final entry in tabs.entries) {
+      final raw = cache.get<List<dynamic>>(
+        FastCacheKey.externalProfileTab(viewerId, userId, entry.value),
+      );
+      if (raw == null) continue;
+      profileTabItems[entry.key] = raw.whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row)).toList();
+      loadedProfileTabs.add(entry.key);
     }
   }
 
@@ -77,7 +99,7 @@ class ExternalProfileController extends GetxController {
 
   Future<void> selectProfileTab(int index) async {
     selectedTab.value = index;
-    await loadProfileTab(index);
+    await loadProfileTab(index, forceRefresh: true);
   }
 
   Future<void> loadProfileTab(int index, {bool forceRefresh = false}) async {
@@ -100,6 +122,11 @@ class ExternalProfileController extends GetxController {
         offset: 0,
       );
       profileTabItems[index] = items;
+      final viewerId = Supabase.instance.client.auth.currentUser?.id ?? 'anonymous';
+      await _profileCache?.set(
+        FastCacheKey.externalProfileTab(viewerId, userId, _profileTabRpcName(index)),
+        items,
+      );
       loadedProfileTabs.add(index);
     } catch (e, stack) {
       debugPrint('[ExternalProfileController] loadProfileTab($index) failed: $e\\n$stack');
@@ -142,9 +169,12 @@ class ExternalProfileController extends GetxController {
   }
 
   Future<void> loadProfile() async {
-    isLoading.value = true;
+    final hasCachedProfile = profile.value != null;
+    if (!hasCachedProfile) {
+      isLoading.value = true;
+      profileState.value = ProfileScreenState.loading;
+    }
     error.value = '';
-    profileState.value = ProfileScreenState.loading;
 
     try {
       final result = await _repository.getProfileResult(userId);
@@ -261,6 +291,7 @@ class ExternalProfileController extends GetxController {
             );
             profile.value = updated;
             isFollowing.value = updated.isFollowing;
+            await _repository.updateCachedProfile(updated);
           } else {
             profileState.value = ProfileScreenState.error;
             error.value = 'Impossible de charger ce profil.';
