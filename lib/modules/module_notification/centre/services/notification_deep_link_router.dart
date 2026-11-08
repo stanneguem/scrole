@@ -92,6 +92,17 @@ class NotificationDeepLinkRouter {
         return;
       }
 
+      // An activity completion must open the user's itinerary for this
+      // specific event so the freshly validated activity is visible there.
+      if (type == 'event_activity_completed' && eventId != null) {
+        Get.toNamed(
+          AppPages.userAgenda,
+          arguments: {'openEventId': eventId},
+        );
+        return;
+      }
+
+      // Attendance confirmation and itinerary reminders open the event preview.
       if (eventId != null) {
         Get.toNamed(
           AppPages.eventPreview.replaceFirst(':id', eventId),
