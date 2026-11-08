@@ -8,7 +8,8 @@ This crate is the Rust boundary for Scrole's MLS implementation.
 - `hook/build.dart` invokes `FlutterRustBridgeNativeAssetsBuilder` for the `rust/` crate so Flutter build hooks can compile and bundle the native library for supported targets.
 - `lib/core/e2ee/secure_mls_storage_key.dart` creates a per-user/per-installation 256-bit database wrapping key using `Random.secure()` and stores it through the platform secure-storage plugin (Android encrypted storage backed by Keystore; iOS Keychain).
 
-- Pins OpenMLS 0.9.2 and the stable Flutter Rust Bridge 2.13.0.
+- Pins OpenMLS 0.9.2, Rust 1.91.1 (OpenMLS' minimum supported compiler) and Flutter Rust Bridge 2.13.0.
+- `rust/rust-toolchain.toml` declares Android ARM64, iOS ARM64 and Linux host targets required by the native build hook.
 - Declares the RFC 9420 mandatory-to-implement X25519/AES-128-GCM/SHA-256/Ed25519 ciphersuite.
 - Exposes metadata only, explicitly reporting that message encryption is not ready.
 
@@ -79,3 +80,15 @@ the target-specific C compiler variables required by C dependencies such as
 `dart-sys`. The check is considered valid only when the full Cargo build
 completes for `aarch64-linux-android`; installing the NDK alone is not a
 successful compile check.
+
+
+## Native build prerequisites
+
+The build hook validates `rust/rust-toolchain.toml` before invoking Cargo.
+Keep the Rust version pinned to a concrete release (not the floating
+`stable` channel) and list every target used by Flutter builds. The workflow
+runs Flutter tests with Rust installed because Flutter executes package build
+hooks during `flutter test` as well as app builds.
+
+Android's NDK compiler variables are passed with `env` because target triples
+contain hyphens and cannot be written as ordinary shell variable names.
