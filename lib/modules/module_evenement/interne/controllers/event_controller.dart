@@ -201,8 +201,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
       managedEvents[mIdx] = updatedEvent;
     } else {
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (updatedEvent.creatorId == currentUserId ||
-          updatedEvent.userRole == 'fondateur' ||
+      if ((!updatedEvent.isAdminCreated && updatedEvent.creatorId == currentUserId) ||
+          (!updatedEvent.isAdminCreated && updatedEvent.userRole == 'fondateur') ||
           updatedEvent.userRole == 'co_createur' ||
           updatedEvent.userRole == 'owner' ||
           updatedEvent.userRole == 'managed') {
