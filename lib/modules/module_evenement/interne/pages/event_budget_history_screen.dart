@@ -6,6 +6,7 @@ import '../../../../app/routes/app_pages.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../../../shared/utils/number_formatter.dart';
+import '../../centre/repositories/event_repository.dart';
 
 class EventBudgetHistoryScreen extends StatefulWidget {
   const EventBudgetHistoryScreen({super.key});
@@ -17,6 +18,7 @@ class _EventBudgetHistoryScreenState extends State<EventBudgetHistoryScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _sessions = [];
+  String? _reusingSessionId;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -65,6 +67,35 @@ class _EventBudgetHistoryScreenState extends State<EventBudgetHistoryScreen> {
     );
   }
 
+  Future<void> _reuseSession(Map<String, dynamic> item) async {
+    final sessionId = (item['session_id'] ?? '').toString();
+    final eventId = (item['event_id'] ?? '').toString();
+    if (eventId.isEmpty || _reusingSessionId != null) return;
+    setState(() => _reusingSessionId = sessionId);
+    try {
+      final preview = await Get.find<EventRepository>().getEventPreview(eventId);
+      final activities = item['activities'] is List ? item['activities'] as List : <dynamic>[];
+      if (!mounted) return;
+      await Get.toNamed(
+        AppPages.eventBudget.replaceFirst(':id', eventId),
+        arguments: {
+          'eventId': eventId,
+          'tickets': preview.tickets,
+          'activities': preview.activitiesLiees,
+          'cheapestTicket': preview.cheapestTicket,
+          'selectedTicketId': item['ticket_id']?.toString(),
+          'selectedActivityIds': activities.whereType<Map>()
+              .map((activity) => activity['activity_id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty).toList(),
+        },
+      );
+    } catch (e) {
+      if (mounted) Get.snackbar('Erreur', 'Impossible de réutiliser ce budget. Vérifiez que l’événement est toujours accessible.');
+    } finally {
+      if (mounted) setState(() => _reusingSessionId = null);
+    }
+  }
+
   Widget _sessionCard(Map<String, dynamic> item, ColorScheme colors) {
     final activities = item['activities'] is List
       ? (item['activities'] as List).whereType<Map>().toList() : <Map>[];
@@ -102,8 +133,17 @@ class _EventBudgetHistoryScreenState extends State<EventBudgetHistoryScreen> {
             const Divider(height: 22),
             _line('event_budget_history_total'.tr, NumberFormatter.formatPrice(amount, currency), colors, emphasize: true),
             const SizedBox(height: 8),
-            Align(alignment: Alignment.centerRight, child: Text('event_budget_history_open_event'.tr,
-              style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700))),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              TextButton(onPressed: eventId.isEmpty ? null : () => Get.toNamed(AppPages.eventPreviewPath(eventId)),
+                child: Text('event_budget_history_open_event'.tr)),
+              TextButton.icon(
+                onPressed: _reusingSessionId == null ? () => _reuseSession(item) : null,
+                icon: _reusingSessionId == (item['session_id'] ?? '').toString()
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.replay_rounded, size: 16),
+                label: Text('event_budget_history_reuse'.tr),
+              ),
+            ]),
           ])),
       ),
     );
