@@ -37,7 +37,7 @@ class EventStatsDashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'event_budget_insights_title'.tr,
+          'Statistiques de l\'événement',
           style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -357,7 +357,7 @@ class EventStatsDashboardScreen extends StatelessWidget {
               const SizedBox(height: 20),
 
               // SIMULATIONS DE BUDGET
-              _sectionHeader(colors, Icons.calculate_outlined, 'Simulations de budget'),
+              _sectionHeader(colors, Icons.calculate_outlined, 'event_budget_insights_title'.tr),
               const SizedBox(height: 10),
               GridView.count(
                 shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
