@@ -21,15 +21,19 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
         return true;
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'event_budget_title'.tr,
-          style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 16),
+        appBar: AppBar(
+          title: Text(
+            'event_budget_title'.tr,
+            style: GoogleFonts.spaceGrotesk(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              fontSize: 16,
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
+        body: Column(
+          children: [
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(20),
@@ -263,8 +267,8 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                 : Text('event_budget_done'.tr),
           )),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
