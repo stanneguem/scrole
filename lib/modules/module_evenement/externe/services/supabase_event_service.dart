@@ -1509,23 +1509,14 @@ class SupabaseEventService {
   }
 
   Future<Set<String>> fetchMyValidatedActivityIds(String eventId) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null || userId.isEmpty) return <String>{};
-
-    final response = await _client
-        .from('event_checkins')
-        .select('activity_id, created_at')
-        .eq('event_id', eventId)
-        .eq('user_id', userId)
-        .eq('status', 'valid')
-        .not('activity_id', 'is', null);
-
-    return response.map((row) {
-      final activityId = row['activity_id']?.toString() ?? '';
-      final createdAt = DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal();
-      if (activityId.isEmpty || createdAt == null) return '';
-      final day = '${createdAt.year.toString().padLeft(4, '0')}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
-      return '$day|$activityId';
+    final response = await _client.rpc('get_my_validated_event_activity_ids', params: {
+      'p_event_id': eventId,
+    });
+    if (response is! List) return <String>{};
+    return response.whereType<Map>().map((row) {
+      final date = (row['planned_date'] ?? '').toString();
+      final activityId = (row['activity_id'] ?? '').toString();
+      return date.isNotEmpty && activityId.isNotEmpty ? '$date|$activityId' : '';
     }).where((key) => key.isNotEmpty).toSet();
   }
 
