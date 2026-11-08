@@ -146,6 +146,12 @@ class CommunityFeedController extends GetxController {
     await _feedRepo.recordPromotionInteraction(id, type);
   }
 
+  /// Removes a post reported by the current user from this active community feed.
+  /// The report RPC already persists the per-user hide on the server.
+  void onPostReported(String postId) {
+    posts.removeWhere((post) => post.id == postId);
+  }
+
   List<CommunityPost> get displayPosts {
     if (!adsAllowed.value || sponsoredPosts.isEmpty) return posts.toList();
     final result = <CommunityPost>[];
