@@ -150,7 +150,11 @@ class EventController extends GetxController with WidgetsBindingObserver {
 
       final sIdx = staffEvents.indexWhere((e) => e.id == eventId);
       if (sIdx != -1) {
-        staffEvents[sIdx] = updatedEvent;
+        if (_isVisibleInStaffEvents(updatedEvent)) {
+          staffEvents[sIdx] = updatedEvent;
+        } else {
+          staffEvents.removeAt(sIdx);
+        }
       }
 
       final evIdx = events.indexWhere((e) => e.id == eventId);
@@ -208,7 +212,11 @@ class EventController extends GetxController with WidgetsBindingObserver {
 
     final sIdx = staffEvents.indexWhere((e) => e.id == eventId);
     if (sIdx != -1) {
-      staffEvents[sIdx] = updatedEvent;
+      if (_isVisibleInStaffEvents(updatedEvent)) {
+        staffEvents[sIdx] = updatedEvent;
+      } else {
+        staffEvents.removeAt(sIdx);
+      }
     }
 
     final evIdx = events.indexWhere((e) => e.id == eventId);
@@ -372,7 +380,7 @@ class EventController extends GetxController with WidgetsBindingObserver {
   Future<void> refreshStaffEvents() async {
     try {
       final remoteStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(remoteStaff);
+      staffEvents.assignAll(remoteStaff.where(_isVisibleInStaffEvents));
       debugPrint('[EventController] refreshStaffEvents: ${remoteStaff.length} events loaded');
     } catch (e) {
       debugPrint('[Error] EventController.refreshStaffEvents: $e');
@@ -382,6 +390,11 @@ class EventController extends GetxController with WidgetsBindingObserver {
   bool _isVisibleInMyEvents(EventModel event) =>
       event.status != EventStatus.deleted &&
       event.status != EventStatus.pendingDeletion;
+
+  // Les événements terminés disparaissent de la liste du staff simple.
+  // Les créations/co-créations restent dans managedEvents sans ce filtre.
+  bool _isVisibleInStaffEvents(EventModel event) =>
+      _isVisibleInMyEvents(event) && event.status != EventStatus.completed;
 
   Future<void> fetchMyEvents() async {
     if (isLoadingMyEvents.value) {
@@ -402,7 +415,7 @@ class EventController extends GetxController with WidgetsBindingObserver {
         }
         try {
           final localStaff = (await _repository.getStaffEventsLocal())
-              .where(_isVisibleInMyEvents).toList();
+              .where(_isVisibleInStaffEvents).toList();
           staffEvents.assignAll(localStaff);
         } catch (e) {
           debugPrint('[Cache] Unable to read staff events snapshot: $e');
@@ -421,7 +434,7 @@ class EventController extends GetxController with WidgetsBindingObserver {
       }
       try {
         final remoteStaff = (await _repository.getStaffEvents())
-            .where(_isVisibleInMyEvents).toList();
+            .where(_isVisibleInStaffEvents).toList();
         staffEvents.assignAll(remoteStaff);
       } catch (e) {
         debugPrint('[Error] EventController staff events sync: $e');
