@@ -111,7 +111,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
     if (!_eventHasStarted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Vous pourrez noter cet événement dès qu’il aura commencé.'),
+          content: Text('event_rating_error_not_started'.tr),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
@@ -166,39 +166,39 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
   Map<String, String> _getSatisfactionInfo(int? score) {
     if (score == null) {
       return {
-        'title': 'Choisissez une note',
-        'desc': 'Appuyez sur un chiffre de 1 à 10 pour évaluer l\'événement.',
+        'title': 'event_rating_choose'.tr,
+        'desc': 'event_rating_description_empty'.tr,
         'color': '0xFF9CA3AF',
       };
     }
     if (score <= 3) {
       return {
-        'title': 'Très insatisfait',
-        'desc': 'L\'expérience était largement en dessous de vos attentes.',
+        'title': 'event_rating_sentiment_1'.tr,
+        'desc': 'event_rating_description_1'.tr,
         'color': '0xFFEF4444',
       };
     } else if (score <= 5) {
       return {
-        'title': 'Insatisfait',
-        'desc': 'Certains aspects n\'étaient pas à la hauteur.',
+        'title': 'event_rating_sentiment_2'.tr,
+        'desc': 'event_rating_description_2'.tr,
         'color': '0xFFF97316',
       };
     } else if (score <= 7) {
       return {
-        'title': 'Satisfait',
-        'desc': 'Une expérience globale positive.',
+        'title': 'event_rating_sentiment_3'.tr,
+        'desc': 'event_rating_description_3'.tr,
         'color': '0xFFEAB308',
       };
     } else if (score <= 9) {
       return {
-        'title': 'Très satisfait',
-        'desc': 'Une excellente expérience, très bien organisée !',
+        'title': 'event_rating_sentiment_4'.tr,
+        'desc': 'event_rating_description_4'.tr,
         'color': '0xFF10B981',
       };
     } else {
       return {
-        'title': 'Exceptionnel',
-        'desc': 'Absolument parfait, un moment inoubliable !',
+        'title': 'event_rating_sentiment_5'.tr,
+        'desc': 'event_rating_description_5'.tr,
         'color': '0xFF3B82F6',
       };
     }
