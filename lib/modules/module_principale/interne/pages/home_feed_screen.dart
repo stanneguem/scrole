@@ -34,10 +34,30 @@ class HomeFeedScreen extends StatefulWidget {
   State<HomeFeedScreen> createState() => _HomeFeedScreenState();
 }
 
-class _HomeFeedScreenState extends State<HomeFeedScreen> {
+class HomeFeedScreenState extends State<HomeFeedScreen> {
   final ScrollController _scrollController = ScrollController();
   final RxBool _showScrollToTop = false.obs;
   bool _notificationTargetHandled = false;
+
+  Future<void> scrollToTopAndRefresh() async {
+    if (!_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+    if (!mounted) return;
+    final feedController = Get.isRegistered<HomeFeedController>()
+        ? Get.find<HomeFeedController>()
+        : Get.put(HomeFeedController(), permanent: true);
+    final storiesController = Get.isRegistered<StoriesController>()
+        ? Get.find<StoriesController>()
+        : Get.put(StoriesController(), permanent: true);
+    await Future.wait([
+      feedController.fetchFeed(refresh: true),
+      storiesController.fetchStories(),
+    ]);
+  }
 
   Future<void> _openNotificationTarget() async {
     if (_notificationTargetHandled) return;
