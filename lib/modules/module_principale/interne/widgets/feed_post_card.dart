@@ -773,6 +773,7 @@ class FeedPostCard extends StatelessWidget {
               color: colorScheme.onSurfaceVariant,
             ),
           ),
+          ),
         ],
       ],
     );
