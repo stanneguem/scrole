@@ -92,3 +92,18 @@ hooks during `flutter test` as well as app builds.
 
 Android's NDK compiler variables are passed with `env` because target triples
 contain hyphens and cannot be written as ordinary shell variable names.
+
+
+## Authenticated storage-record codec (experimental, not wired to OpenMLS)
+
+- `rust/src/storage_crypto.rs` implements a versioned `SCM1` record envelope
+  using XChaCha20-Poly1305 with a fresh 192-bit nonce per write.
+- The OpenMLS storage slot identifier is authenticated as associated data,
+  preventing ciphertext records from being moved between storage keys.
+- The wrapping key is represented by a native-only `StorageKey` backed by
+  `Zeroizing<[u8; 32]>`; it is not exposed in FRB/Dart APIs.
+- Unit tests cover round-trip, nonce uniqueness, wrong-key rejection,
+  tampering, malformed records and storage-slot substitution.
+- This codec is not yet an OpenMLS `StorageProvider`: the SQLx provider,
+  transaction boundary, native Keystore/Keychain key loading and deletion of
+  obsolete epoch material still need integration and mobile verification.
