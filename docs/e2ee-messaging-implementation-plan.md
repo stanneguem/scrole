@@ -195,3 +195,14 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Le stockage SQLite standard ne sera pas assimilé à du stockage chiffré. Évaluer SQLCipher côté Rust (ou une enveloppe AEAD par enregistrement avec authentification des métadonnées et transactions atomiques) et démontrer la résistance à la restauration d'un ancien état avant d'activer MLS.
 - Le pont FRB reste une génération/validation CI ; l'intégration des bibliothèques natives dans les paquets Android/iOS et leur initialisation au démarrage restent à faire.
 - Aucun flux de messages directs ou communautaires n'est encore chiffré par MLS.
+
+
+## 14. Premier échange MLS vérifié (8 novembre 2026)
+
+- Ajout de `rust/tests/mls_two_member_flow.rs` avec deux fournisseurs OpenMLS isolés et le ciphersuite MLS 1.0 X25519/AES-128-GCM/SHA-256/Ed25519.
+- Le test crée les identités de signature, crée un groupe, publie le KeyPackage de Bob dans le flux de test, ajoute Bob, valide son Welcome, compare les authentificateurs d'époque, chiffre un message applicatif, sérialise/désérialise le message MLS et vérifie le texte après déchiffrement côté Bob.
+- Le test retire ensuite Bob, applique le commit de retrait côté Bob, vérifie l'état inactif et vérifie qu'un envoi depuis le membre retiré est refusé.
+- Résultat observé sur le job Rust hôte du commit `3066684540dbf350bbd1bad9a6430e92579e3df6` : 2 tests unitaires Rust et 1 test d'intégration MLS réussis ; `cargo check` réussi.
+- Le contrôle iOS ARM64 a également terminé avec succès sur ce run. Le contrôle Android ARM64 était encore en cours au moment de la mise à jour.
+- L'analyse Dart ciblée a réussi. La suite Flutter avait 10 tests réussis et 1 test échoué à cause du test qui attendait incorrectement une exception synchrone via `expectLater`; le matcher a été corrigé et une nouvelle exécution est en attente.
+- Ce test utilise volontairement le fournisseur mémoire OpenMLS. Il prouve l'échange cryptographique, pas la persistance, la protection des clés, la livraison Supabase, la synchronisation multi-appareils, ni la sécurité de production. Le moteur garde `ready_for_messages = false`.
