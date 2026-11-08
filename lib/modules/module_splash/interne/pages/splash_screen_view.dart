@@ -44,16 +44,6 @@ class SplashScreenView extends StatelessWidget {
               const SizedBox(),
               const SizedBox(),
 
-              // Loading
-              SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: colors.primary,
-                ),
-              ),
-
               const SizedBox(height: 20),
 
               // Powered by
@@ -69,7 +59,7 @@ class SplashScreenView extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "Scrole inc.",
+                    "Scrole",
                     style: TextStyle(
                       color: colors.onSurface,
                     ),
