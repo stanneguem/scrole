@@ -163,3 +163,13 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Workflow GitHub Actions initial ajouté pour `cargo test` et `cargo check` sur Linux.
 - Les bindings Dart générés, le `Cargo.lock`, l'initialisation native, le stockage persistant MLS et les builds Android/iOS ne sont pas encore validés. L'environnement GitHub distant utilisé pour les modifications ne permet pas d'exécuter Flutter/Cargo.
 - Aucune messagerie ne consomme encore ce moteur ; les RPC, notifications et caches existants continuent de fonctionner comme avant. Ne pas activer E2EE sur des conversations réelles.
+
+
+## 11. Identité d'installation et préparation locale (8 novembre 2026)
+
+- `E2eeDeviceIdentity` ajoute un UUIDv4 aléatoire, distinct par compte Scrole sur une installation et stocké dans le coffre de la plateforme.
+- Les appels concurrents via la même instance sont sérialisés par compte ; le service doit être enregistré comme singleton applicatif. Les identifiants ne sont pas des empreintes matérielles.
+- `E2eeLocalKeyManager` coordonne l'identité et la clé locale de chiffrement de la future base MLS ; il n'est pas encore branché au démarrage.
+- Tests unitaires ajoutés pour l'identité persistée, sa création, le rejet d'une valeur corrompue et la lecture sans création.
+- Les tests ne sont pas exécutés dans l'environnement d'édition GitHub. Ils doivent être lancés localement avec `flutter test test/core/e2ee/e2ee_device_identity_test.dart`.
+- Le wrapper Dart `openmls` 3.3.0 a été examiné. Il apporte un moteur complet, SQLCipher et des correctifs OpenMLS récents, mais sa propre documentation reconnaît que la clé de base de données passe par le tas Dart et ne peut pas être effacée de façon garantie. L'éditeur pub.dev n'est pas vérifié. Il n'est donc pas ajouté comme dépendance de production à ce stade ; il reste une piste à auditer, pas une approbation de sécurité.
