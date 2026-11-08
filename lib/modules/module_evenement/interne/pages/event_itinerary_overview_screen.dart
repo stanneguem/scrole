@@ -25,6 +25,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
   String? _error;
   final Map<String, Map<String, dynamic>> _plans = {};
   final Map<String, String> _activityNames = {};
+  final Set<String> _validatedActivityIds = <String>{};
 
   @override
   void initState() {
@@ -38,11 +39,15 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
     try {
       final plans = await _repository.getMyEventItineraryPlans(widget.event.id);
       final activities = await _repository.getEventActivities(widget.event.id);
+      final validatedActivityIds = await _repository.getMyValidatedActivityIds(widget.event.id);
       if (!mounted) return;
       setState(() {
         _plans
           ..clear()
           ..addAll(plans);
+        _validatedActivityIds
+          ..clear()
+          ..addAll(validatedActivityIds);
         _activityNames
           ..clear()
           ..addEntries(activities.map((activity) => MapEntry(
@@ -263,12 +268,13 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
               final end = (item['end_time'] ?? '10:00').toString();
               final now = DateTime.now();
               final endAt = _timeOn(date, end);
+              final isValidated = _validatedActivityIds.contains(id);
               final isPast = endAt != null && now.isAfter(endAt);
               final isFuture = endAt != null && now.isBefore(endAt);
               // Status is read-only. We only show missed after its scheduled end;
               // a completed check requires a trusted attendance/check-in record.
-              final statusIcon = isPast ? Icons.close_rounded : isFuture ? Icons.schedule_rounded : Icons.radio_button_unchecked_rounded;
-              final statusColor = isPast ? colors.error : AppColors.primary;
+              final statusIcon = isValidated ? Icons.check_circle_rounded : isPast ? Icons.close_rounded : isFuture ? Icons.schedule_rounded : Icons.radio_button_unchecked_rounded;
+              final statusColor = isValidated ? Colors.green : isPast ? colors.error : AppColors.primary;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -318,7 +324,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                               Text('$start – $end', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
                               const Spacer(),
                               Text(
-                                isPast ? 'event_itinerary_not_confirmed'.tr : isFuture ? 'event_itinerary_upcoming'.tr : 'event_itinerary_in_progress'.tr,
+                                isValidated ? 'event_itinerary_activity_validated'.tr : isPast ? 'event_itinerary_not_confirmed'.tr : isFuture ? 'event_itinerary_upcoming'.tr : 'event_itinerary_in_progress'.tr,
                                 style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600),
                               ),
                             ],
