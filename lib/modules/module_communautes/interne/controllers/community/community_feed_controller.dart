@@ -302,7 +302,7 @@ class CommunityFeedController extends GetxController {
       posts.assignAll(byId.values);
       errorMessage.value = '';
 
-      if (posts.isEmpty) {
+      if (posts.isEmpty && sponsoredPosts.isEmpty) {
         feedState.value = CommunityFeedState.empty;
       } else {
         feedState.value = CommunityFeedState.loaded;
