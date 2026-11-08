@@ -472,7 +472,7 @@ class FeedPostCard extends StatelessWidget {
   }) {
     final photoUrl = post.authorObj?.photoUrl;
     return GestureDetector(
-      onTap: () => _onAuthorTap(post),
+      onTap: post.isPlatformPromotion ? null : () => _onAuthorTap(post),
       child: ClipOval(
         child: post.isPlatformPromotion
             ? Image.asset('assets/logos/img.png', width: size, height: size, fit: BoxFit.cover)
@@ -703,7 +703,7 @@ class FeedPostCard extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: GestureDetector(
-            onTap: () => _onAuthorTap(post),
+            onTap: post.isPlatformPromotion ? null : () => _onAuthorTap(post),
             child: Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 4,
@@ -758,9 +758,10 @@ class FeedPostCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 4),
-        InkWell(
-          borderRadius: BorderRadius.circular(20),
+        if (!post.isSponsored) ...[
+          const SizedBox(width: 4),
+          InkWell(
+            borderRadius: BorderRadius.circular(20),
           onTap: post.isPublishing
               ? null
               : (onMoreTap ?? () => _showPostOptions(context, post)),
@@ -772,7 +773,7 @@ class FeedPostCard extends StatelessWidget {
               color: colorScheme.onSurfaceVariant,
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -956,12 +957,13 @@ class FeedPostCard extends StatelessWidget {
               ),
             ),
           ),
-          InkWell(
-            onTap: post.isPublishing
-                ? null
-                : (onMoreTap ?? () => _showPostOptions(context, post)),
-            child: const Icon(Icons.more_vert_rounded, color: Colors.white),
-          ),
+          if (!post.isSponsored)
+            InkWell(
+              onTap: post.isPublishing
+                  ? null
+                  : (onMoreTap ?? () => _showPostOptions(context, post)),
+              child: const Icon(Icons.more_vert_rounded, color: Colors.white),
+            ),
         ],
       ),
     );
