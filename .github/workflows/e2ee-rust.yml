@@ -92,16 +92,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
-      - uses: android-actions/setup-android@v3
       - name: Install Android NDK
-        run: sdkmanager "ndk;27.2.12479018"
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
       - name: Check Android ARM64 target
         working-directory: rust
         run: |
-          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
           cargo generate-lockfile
           cargo check --locked --target aarch64-linux-android
