@@ -69,12 +69,12 @@ void main() {
     });
 
     test('rejects empty account or device identifiers', () async {
-      await expectLater(
-        manager.getOrCreate(userId: ' ', deviceId: 'device-a'),
+      expect(
+        () => manager.getOrCreate(userId: ' ', deviceId: 'device-a'),
         throwsArgumentError,
       );
-      await expectLater(
-        manager.getOrCreate(userId: 'user-a', deviceId: ''),
+      expect(
+        () => manager.getOrCreate(userId: 'user-a', deviceId: ''),
         throwsArgumentError,
       );
       verifyNever(() => storage.read(key: any(named: 'key')));
