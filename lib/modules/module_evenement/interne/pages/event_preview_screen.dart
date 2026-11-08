@@ -47,6 +47,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
   EventPreviewModel? _preview;
   bool _isLoading = true;
   bool _isCalendarLoading = false;
+  bool _isActionBarVisible = true;
   String? _eventId;
   String? _contextRole;
   List<Map<String, dynamic>> _seriesEditions = [];
@@ -946,7 +947,16 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     final totalAdded = preview.attendeeCount > 0 ? preview.attendeeCount : event.totalAddedCount;
 
     return Scaffold(
-      body: CustomScrollView(
+      body: NotificationListener<UserScrollNotification>(
+        onNotification: (notification) {
+          if (notification.direction == ScrollDirection.reverse && _isActionBarVisible) {
+            setState(() => _isActionBarVisible = false);
+          } else if (notification.direction == ScrollDirection.forward && !_isActionBarVisible) {
+            setState(() => _isActionBarVisible = true);
+          }
+          return false;
+        },
+        child: CustomScrollView(
         slivers: [
           if (!widget.archiveTabMode) SliverAppBar(
             expandedHeight: 260,
@@ -1498,11 +1508,17 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
             ),
           ),
         ],
+        ),
       ),
       bottomNavigationBar: (widget.archiveTabMode || event.status == EventStatus.completed ||
               (!showCalendarAction && !showPublicInteractions))
           ? null
-          : Container(
+          : AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: _isActionBarVisible
+                  ? Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               decoration: BoxDecoration(
                 color: colorScheme.surface,
@@ -1638,6 +1654,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                   ],
                 ),
               ),
+                  : const SizedBox.shrink(),
             ),
     );
   }
