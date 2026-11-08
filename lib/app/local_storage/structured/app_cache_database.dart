@@ -867,28 +867,32 @@ class AppDatabase {
     )''');
   }
 
+  /// Purge l'ensemble des données locales lors d'une déconnexion.
+  /// Plusieurs tables de cache/outbox ne sont pas indexées par user_id ;
+  /// vider toutes les lignes évite qu'un compte suivant récupère ces données.
   Future<void> clearUserData(String userId) async {
     final db = await database;
-    await db.transaction((txn) async {
-      // Tables avec user_id
-      await txn.delete('notifications', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_conversations', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_messages', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_outbox', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_contacts', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_read_cursors', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_deleted_messages', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('deleted_notifications', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('direct_chat_media_cache', where: 'user_id = ?', whereArgs: [userId]);
-      await txn.delete('community_members', where: 'user_id = ?', whereArgs: [userId]);
-      
-      // Note: On peut garder la table 'communities' car elle est globale, 
-      // mais on a supprimé l'appartenance de l'utilisateur via community_members.
-    });
-    // Salon conversations live in their own SQLite file; purge that file's
-    // account-scoped rows as part of the same logout/account-switch workflow.
+    try {
+      await db.execute('PRAGMA foreign_keys = OFF');
+      await db.transaction((txn) async {
+        final rows = await txn.rawQuery(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        );
+        for (final row in rows) {
+          final table = row['name']?.toString();
+          if (table == null || !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(table)) {
+            continue;
+          }
+          await txn.delete(table);
+        }
+      });
+      debugPrint('[Database] Toutes les tables locales ont été purgées après déconnexion de $userId');
+    } finally {
+      await db.execute('PRAGMA foreign_keys = ON');
+    }
+    // Les conversations de salon utilisent un fichier SQLite séparé.
     await SalonChatDatabase.instance.clearUserData(userId);
-    debugPrint('[Database] Données locales purgées pour l\'utilisateur : $userId');
   }
 
   Future<void> close() async {
