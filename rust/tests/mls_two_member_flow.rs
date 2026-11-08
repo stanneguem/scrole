@@ -26,7 +26,7 @@ fn credential(
     (
         CredentialWithKey {
             credential: credential.into(),
-            signature_key: signature_keys.public().into(),
+            signature_key: signature_keys.to_public_vec().into(),
         },
         signature_keys,
     )
@@ -81,9 +81,10 @@ fn two_members_exchange_ciphertext_and_removed_member_is_excluded() {
         .expect("merge Alice add-member commit");
 
     // Bob joins only from the Welcome and the public ratchet tree extension.
-    let welcome = MlsMessageIn::from(welcome)
-        .into_welcome()
-        .expect("Welcome message");
+    let welcome = match MlsMessageIn::from(welcome).extract() {
+        MlsMessageBodyIn::Welcome(welcome) => welcome,
+        other => panic!("expected Welcome message, got {other:?}"),
+    };
     let mut bob_group = StagedWelcome::new_from_welcome(
         &bob_provider,
         create_config.join_config(),
@@ -135,8 +136,8 @@ fn two_members_exchange_ciphertext_and_removed_member_is_excluded() {
         .merge_pending_commit(&alice_provider)
         .expect("merge Alice removal commit");
 
-    let inbound_remove = remove_commit
-        .into_protocol_message()
+    let inbound_remove = MlsMessageIn::from(remove_commit)
+        .try_into_protocol_message()
         .expect("removal protocol message");
     let processed_remove = bob_group
         .process_message(&bob_provider, inbound_remove)
