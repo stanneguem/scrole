@@ -7,7 +7,7 @@ use openmls::prelude::*;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::signatures::Signer;
-use tls_codec::Serialize;
+use tls_codec::{Deserialize, Serialize};
 
 const SUITE: Ciphersuite =
     Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
@@ -97,7 +97,10 @@ fn two_members_exchange_ciphertext_and_removed_member_is_excluded() {
 
     assert_eq!(alice_group.members().count(), 2);
     assert_eq!(bob_group.members().count(), 2);
-    assert_eq!(alice_group.epoch_authenticator(), bob_group.epoch_authenticator());
+    assert_eq!(
+        alice_group.epoch_authenticator().as_slice(),
+        bob_group.epoch_authenticator().as_slice(),
+    );
 
     // The wire payload is an MLS ciphertext, not the application plaintext.
     let plaintext = b"Scrole E2EE integration test";
