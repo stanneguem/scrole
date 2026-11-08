@@ -96,7 +96,7 @@ class AppRoutes {
     GetPage(name: AppPages.createEvent, page: () => const EventCreationScreen(), binding: CreateEventBinding()),
     GetPage(name: AppPages.myEvents, page: () => const MyEventsScreen(), binding: MainEventBinding()),
     GetPage(name: AppPages.eventPreview, page: () => const EventPreviewScreen()),
-    GetPage(name: AppPages.eventBudgetHistory, page: () => const EventBudgetHistoryScreen()),
+    GetPage(name: AppPages.eventBudgetHistory, page: () => const EventBudgetHistoryScreen(), binding: MainEventBinding()),
     GetPage(name: AppPages.eventEdit, page: () => const EditEventScreen(), binding: EditEventBinding()),
     GetPage(name: AppPages.eventSettings, page: () => const EventSettingsScreen()),
     GetPage(name: AppPages.eventVisibility, page: () => const EventVisibilityScreen()),
