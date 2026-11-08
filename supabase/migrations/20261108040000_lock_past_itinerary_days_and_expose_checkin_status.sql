@@ -74,7 +74,14 @@ DO $$
 DECLARE
   v_definition text;
   v_old text := 'v_is_manager := public.is_event_owner(p_event_id);';
-  v_new text := 'v_is_manager := public.is_event_owner(p_event_id) OR public.is_admin_or_above();';
+  v_new text := $manager$ v_is_manager := public.is_event_owner(p_event_id)
+    OR EXISTS (
+      SELECT 1 FROM public.event_co_creators cc
+      WHERE cc.event_id = p_event_id
+        AND cc.user_id = auth.uid()
+        AND cc.status = 'acceptee'
+    )
+    OR public.is_admin_or_above(); $manager$;
 BEGIN
   v_definition := pg_get_functiondef('public.checkin_scan(uuid,uuid,uuid,integer)'::regprocedure);
   IF position(v_old in v_definition) = 0 THEN
