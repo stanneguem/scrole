@@ -62,6 +62,18 @@ Deno.serve(async (req: Request) => {
 
     const type = String(record.type ?? "info").toLowerCase();
     const recordData = record.data && typeof record.data === "object" ? { ...record.data } : {};
+    const isE2eeMessage = type === "e2ee_message_received" ||
+      recordData.e2ee === true || recordData.encryption_mode === "e2ee";
+    if (isE2eeMessage) {
+      // E2EE push notifications are wake-up hints only. Never forward plaintext,
+      // previews, attachment URLs, or user-controlled message copy to FCM.
+      for (const key of [
+        "content", "text", "message", "body", "preview", "last_message_text",
+        "message_text", "caption", "audio_url", "media_url", "media_urls",
+        "attachment_url", "file_url",
+      ]) delete recordData[key];
+      recordData.e2ee = "true";
+    }
     if (type === "community_salon_message") {
       const salonId = String(recordData.salon_id ?? "");
       if (!salonId) return json({ ok: true, sent: 0, reason: "missing_salon_id" });
@@ -138,6 +150,21 @@ Deno.serve(async (req: Request) => {
     const fallback = genericCopy[language] ?? genericCopy.fr;
     let title = String(localized?.title || fallback.title);
     let body = String(localized?.body || fallback.body);
+    if (isE2eeMessage) {
+      const safeCopy: Record<string, string> = {
+        fr: "Vous avez reçu un message chiffré.",
+        en: "You received an encrypted message.",
+        es: "Has recibido un mensaje cifrado.",
+        de: "Du hast eine verschlüsselte Nachricht erhalten.",
+        it: "Hai ricevuto un messaggio crittografato.",
+        pt: "Você recebeu uma mensagem criptografada.",
+        zh: "你收到了一条加密消息。",
+        ja: "暗号化されたメッセージを受信しました。",
+        ru: "Вы получили зашифрованное сообщение.",
+      };
+      title = "Scrole";
+      body = safeCopy[language] ?? safeCopy.fr;
+    }
     if (type === "app_version_published") {
       const version = String(recordData.version ?? "");
       const message = String(recordData.message ?? "").trim();
