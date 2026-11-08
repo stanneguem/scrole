@@ -253,3 +253,23 @@ Le fournisseur SQLx prend en charge SQLite et permet de partager une transaction
 - un fournisseur OpenMLS personnalisé dont les opérations de lecture/écriture reçoivent explicitement une clé native par instance.
 
 La décision ne doit pas être contournée avec une clé globale, une clé en dur, ou une clé exposée via Dart. Le codec AEAD `SCM1` reste un composant cryptographique testé et indépendant, mais n'est pas branché au provider SQLx tant qu'une architecture d'injection de clé correcte n'est pas retenue.
+
+
+## 19. Transport Supabase, sécurité du roster et état déployé (8 novembre 2026)
+
+- Migrations E2EE déployées sur le projet Supabase `djvmxrwfchnqdtzayhwf` :
+  - registre des appareils et KeyPackages ;
+  - durcissement du claim atomique ;
+  - groupes MLS, appareils membres, messages ciphertext ;
+  - RLS par membre et vérification de l'appartenance courante ;
+  - roster MLS limité aux appareils déjà membres ou provisionnés par KeyPackage ;
+  - claim KeyPackage limité au scope direct/salon ;
+  - révocation de l'exécution RPC directe des fonctions de trigger ;
+  - rekey uniquement lors de l'arrivée d'un nouvel appareil, pas au renouvellement du KeyPackage d'un appareil déjà membre.
+- Vérification SQL après déploiement : tables `e2ee_groups`, `e2ee_group_devices`, `e2ee_messages` et RPC commit/send/claim présentes. Les fonctions E2EE exposées refusent l'exécution anon ; les fonctions trigger-only refusent anon et authenticated. Les RPC SECURITY DEFINER exposées à authenticated sont attendues et contrôlent auth.uid(), la portée et le membership.
+- Ajout de `E2eeTransportRepository` côté Flutter : inscription d'appareil, publication/claim de KeyPackage, création de groupe, commit d'époque, envoi de ciphertext, lecture des ciphertexts et révocation. Le repository refuse les textes/aperçus : ses méthodes d'envoi acceptent uniquement des octets.
+- Tests ajoutés pour la validation des scopes, la non-duplication des appareils et l'envoi bytea opaque. CI en cours au moment de cette mise à jour.
+- Le repository de transport n'est PAS branché aux écrans legacy. L'API native Rust ne fournit encore que les capacités et `ready_for_messages=false`. Il n'existe pas encore de flux Rust complet pour créer/traiter les KeyPackages, créer un groupe, produire/traiter les commits, chiffrer/déchiffrer les messages et persister l'état OpenMLS.
+- Le codec `SCM1` n'est pas raccordé à un StorageProvider OpenMLS persistant. La clé de stockage actuelle côté Flutter Secure Storage est un bootstrap et ne doit pas être passée au moteur depuis Dart.
+- Les médias R2 ne sont pas encore chiffrés côté client ; le cache SQLite direct et le cache des salons n'ont pas encore été migrés ; les notifications existantes et l'outbox legacy ne sont pas neutralisées pour une conversation E2EE, car aucun écran n'active encore ce mode.
+- Conclusion sécurité : la fondation serveur et le transport opaque sont en place, mais E2EE n'est pas activé et aucun utilisateur ne doit voir un indicateur de conversation chiffrée à ce stade. Les conversations legacy continuent de fonctionner en clair. Ne pas modifier `ready_for_messages=false` avant intégration native et tests multi-appareils réels.
