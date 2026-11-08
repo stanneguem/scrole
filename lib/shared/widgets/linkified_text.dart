@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../modules/module_principale/interne/pages/sponsored_webview_page.dart';
 
 /// Renders URLs as tappable links while preserving normal text and entity mentions.
 class LinkifiedText extends StatefulWidget {
@@ -118,9 +119,13 @@ class _LinkifiedTextState extends State<LinkifiedText> {
           final uri = Uri.tryParse(normalized);
           if (uri == null || !{'http', 'https'}.contains(uri.scheme) || uri.host.isEmpty) return;
           try {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SponsoredWebViewPage(url: uri.toString()),
+              ),
+            );
           } catch (error) {
-            debugPrint('[LINK] Could not open $uri: $error');
+            debugPrint('[LINK] Could not open $uri in the in-app browser: $error');
           }
         };
       _recognizers.add(recognizer);
