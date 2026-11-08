@@ -8,6 +8,7 @@ import '../../modules/module_authentification/centre/services/auth_service.dart'
 import '../../modules/module_creation_de_compte/centre/services/user_service.dart';
 import '../local_storage/structured/app_cache_database.dart';
 import '../../modules/module_discussion_direct/centre/services/chat_media_cache.dart';
+import '../../modules/module_principale/interne/controllers/stories_controller.dart';
 import '../../shared/models/user_models.dart';
 import 'preferences_service.dart';
 import 'privacy_service.dart';
@@ -66,6 +67,14 @@ class SessionService extends GetxService {
 
   Future<void> stopSession() async {
     final uid = _activeUserId;
+    // Stories are stored in a separate JSON file outside Hive and SQLite.
+    // Delete that account-scoped file before dropping the old user ID.
+    if (uid != null) {
+      await StoriesController.clearLocalCacheForUser(uid);
+    }
+    if (Get.isRegistered<StoriesController>()) {
+      Get.find<StoriesController>().clearInMemorySessionData();
+    }
     _activeUserId = null;
     _cleanup();
     _prefsService.clearCache();
