@@ -1,4 +1,12 @@
 -- Unified platform moderation for post, profile, community, story and comment reports.
+-- Reserve explicit lifecycle states for platform-level moderation.
+alter table public.community_posts drop constraint if exists community_posts_status_check;
+alter table public.community_posts add constraint community_posts_status_check
+  check (status = any (array['en_attente'::text,'active'::text,'rejected'::text,'deleted'::text,'spam_suspect'::text,'shadowbanned'::text]));
+alter table public.communities drop constraint if exists communities_status_check;
+alter table public.communities add constraint communities_status_check
+  check (status = any (array['active'::text,'pending_deletion'::text,'deleted'::text,'suspended'::text]));
+
 -- A reporter immediately hides their own reported post; moderation actions are audited.
 create table if not exists public.admin_content_moderation_actions (
   id uuid primary key default gen_random_uuid(),
@@ -204,7 +212,7 @@ begin
           where c.id=n.target_id)
         when 'story' then (
           select jsonb_build_object('id',st.id,'kind',st.kind,'content',st.content,'image_url',st.image_url,
-            'video_url',st.video_url,'created_at',st.created_at,'expires_at',st.expires_at,
+            'thumbnail_url',st.thumbnail_url,'created_at',st.created_at,'expires_at',st.expires_at,
             'author',jsonb_build_object('user_id',a.user_id,'username',a.username,'first_name',a.first_name,
               'last_name',a.last_name,'photo_url',a.photo_url))
           from public.stories st
