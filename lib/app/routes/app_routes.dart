@@ -45,6 +45,7 @@ import '../../modules/module_evenement/interne/pages/add_activity_screen.dart';
 import '../../modules/module_evenement/interne/pages/user_agenda_screen.dart';
 import '../../modules/module_evenement/interne/pages/qr_scan_screen.dart';
 import '../../modules/module_evenement/interne/pages/event_budget_calculator_screen.dart';
+import '../../modules/module_evenement/interne/pages/event_budget_history_screen.dart';
 import '../../modules/module_evenement/interne/pages/transfer_ownership_screen.dart';
 import '../../modules/module_evenement/interne/pages/event_pricing_screen.dart';
 import '../../modules/module_evenement/interne/pages/event_stats_dashboard_screen.dart';
@@ -95,6 +96,7 @@ class AppRoutes {
     GetPage(name: AppPages.createEvent, page: () => const EventCreationScreen(), binding: CreateEventBinding()),
     GetPage(name: AppPages.myEvents, page: () => const MyEventsScreen(), binding: MainEventBinding()),
     GetPage(name: AppPages.eventPreview, page: () => const EventPreviewScreen()),
+    GetPage(name: AppPages.eventBudgetHistory, page: () => const EventBudgetHistoryScreen()),
     GetPage(name: AppPages.eventEdit, page: () => const EditEventScreen(), binding: EditEventBinding()),
     GetPage(name: AppPages.eventSettings, page: () => const EventSettingsScreen()),
     GetPage(name: AppPages.eventVisibility, page: () => const EventVisibilityScreen()),
