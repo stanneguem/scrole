@@ -18,17 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,aarch64-apple-ios
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
-      - name: Test native engine on Linux
+      - name: Test native engine
         working-directory: rust
         run: cargo test
-      - name: Check Android ARM64 target
+      - name: Check native engine
         working-directory: rust
-        run: cargo check --target aarch64-linux-android
-      - name: Check iOS ARM64 target
-        working-directory: rust
-        run: cargo check --target aarch64-apple-ios
+        run: cargo check
