@@ -79,6 +79,11 @@ jobs:
             echo "Generated Rust/Dart bridge is already up to date."
           else
             git commit -m "chore(e2ee): commit generated Rust bridge bindings"
+            # Another workflow may have advanced the branch after checkout.
+            # Rebase the generated-only commit instead of failing with a
+            # non-fast-forward push; never force-push over application work.
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}"
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
       - name: Publish generated bridge as a review artifact
