@@ -168,7 +168,6 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                                   itemBuilder: (context, index) {
                                     final day = _days[index];
                                     final selected = index == _selectedDayIndex;
-                                    final isPast = _isPastDay(day);
                                     return ChoiceChip(
                                       selected: selected,
                                       label: Text(DateFormat('EEE d MMM', Get.locale?.languageCode ?? 'fr').format(day)),
@@ -248,7 +247,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     final key = activity.activityId.isNotEmpty ? activity.activityId : activity.id;
     final selected = plan.activities.containsKey(key);
     final isPastDay = _isPastDay(_days[_selectedDayIndex]);
-    final isValidated = _validatedActivityIds.contains(key);
+    final isValidated = _validatedActivityIds.contains('${_dateKey(_days[_selectedDayIndex])}|$key');
     final activityPlan = plan.activities[key] ?? _ActivityPlan();
     final borderColor = selected ? AppColors.primary : colors.outlineVariant.withValues(alpha: 0.55);
 
