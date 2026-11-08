@@ -687,7 +687,14 @@ class EventStatsDashboardScreen extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: AppColors.primary),
         const SizedBox(width: 8),
-        Text(title, style: AppTextStyles.h4.copyWith(color: colors.onSurface)),
+        Expanded(
+          child: Text(
+            title,
+            style: AppTextStyles.h4.copyWith(color: colors.onSurface),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
