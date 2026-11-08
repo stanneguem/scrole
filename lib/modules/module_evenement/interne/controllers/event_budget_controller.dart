@@ -63,6 +63,15 @@ class EventBudgetController extends GetxController {
       if (args['cheapestTicket'] is EventPreviewTicket) {
         selectedTicket.value = args['cheapestTicket'] as EventPreviewTicket;
       }
+      final savedTicketId = args['selectedTicketId']?.toString();
+      if (savedTicketId != null && savedTicketId.isNotEmpty) {
+        selectedTicket.value = tickets.firstWhereOrNull((ticket) => ticket.id == savedTicketId) ?? selectedTicket.value;
+      }
+      final savedActivityIds = args['selectedActivityIds'];
+      if (savedActivityIds is List) {
+        selectedActivityIds.addAll(savedActivityIds.map((id) => id.toString())
+          .where((id) => activities.any((activity) => activity.activityId == id)));
+      }
     }
 
     if (selectedTicket.value == null && tickets.isNotEmpty) {
