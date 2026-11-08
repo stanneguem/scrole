@@ -229,7 +229,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
       ),
       body: Obx(() {
         final state = controller.feedState.value;
-        final posts = controller.posts;
+        final posts = controller.displayPosts;
 
         switch (state) {
           case CommunityFeedState.initialLoading:
@@ -374,12 +374,23 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                       final eligible = info.visibleFraction >= 0.50;
                       FeedVideoAutoplayGate.updatePostVisibility(post.id, eligible);
                       if (eligible) {
-                        controller.queuePostView(post);
+                        if (post.isSponsored) {
+                          controller.recordSponsoredImpression(post);
+                        } else {
+                          controller.queuePostView(post);
+                        }
                       }
                     },
                     child: FeedPostCard(
                       post: post,
-                      onVideoQualifiedView: (postId) => controller.queueQualifiedVideoPostView(postId, post),
+                      onVideoQualifiedView: (postId) {
+                        if (post.isSponsored) {
+                          controller.recordSponsoredImpression(post);
+                        } else {
+                          controller.queueQualifiedVideoPostView(postId, post);
+                        }
+                      },
+                      onSponsoredInteraction: () => controller.recordSponsoredInteraction(post),
                       currentCommunityId: communityId,
                       onRetryPublishing: () => controller.retryQueuedPost(post.id),
                       onReactionTap: (reaction) => controller.handleReaction(post.id, reaction),
