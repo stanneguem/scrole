@@ -107,6 +107,7 @@ class ProfileController extends GetxController {
       unawaited(_loadFollowStats());
     });
     unawaited(_loadFollowStats());
+    unawaited(_loadEngagementStats());
     _subscribeToRelationshipChanges();
 
   }
