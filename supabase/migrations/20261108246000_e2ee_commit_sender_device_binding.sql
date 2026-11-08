@@ -196,11 +196,6 @@ begin
 end;
 $function$;
 
-revoke all on function public.e2ee_apply_group_commit(uuid, bigint, bytea, uuid[])
-  from public, anon;
-grant execute on function public.e2ee_apply_group_commit(uuid, bigint, bytea, uuid[])
-  to authenticated;
-
 -- Publishing a KeyPackage is the point at which a new device becomes eligible
 -- for MLS membership. Existing groups must rekey before continuing to send.
 
