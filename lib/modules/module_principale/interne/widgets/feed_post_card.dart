@@ -470,20 +470,20 @@ class FeedPostCard extends StatelessWidget {
     required Color textColor,
     double fontSize = 16,
   }) {
-    final photoUrl = post.isPlatformPromotion
-        ? 'https://raw.githubusercontent.com/stanneguem/scrole/feature/story-video-post-reshare/assets/logos/img.png'
-        : post.authorObj?.photoUrl;
+    final photoUrl = post.authorObj?.photoUrl;
     return GestureDetector(
       onTap: () => _onAuthorTap(post),
       child: ClipOval(
-        child: (photoUrl != null && photoUrl.isNotEmpty)
-            ? AppCachedImage(
-          imageUrl: photoUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-        )
-            : Container(
+        child: post.isPlatformPromotion
+            ? Image.asset('assets/logos/img.png', width: size, height: size, fit: BoxFit.cover)
+            : (photoUrl != null && photoUrl.isNotEmpty)
+                ? AppCachedImage(
+                    imageUrl: photoUrl,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
           width: size,
           height: size,
           color: background,
@@ -917,21 +917,33 @@ class FeedPostCard extends StatelessWidget {
                           fontSize: 14,
                         ),
                       ),
-                      if (post.authorObj?.isCertified == true)
+                      if (post.authorObj?.isCertified == true || post.isPlatformPromotion)
                         UserCertifiedBadge(
                           size: 14,
-                          userId: post.authorObj?.userId,
+                          userId: post.isPlatformPromotion ? null : post.authorObj?.userId,
                         ),
                     ],
                   ),
-                  Text(
-                    '${username.isNotEmpty ? '@$username · ' : ''}${_formatShortTime(post.timeAgo)}',
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 7,
+                    children: [
+                      Text(
+                        '${username.isNotEmpty ? '@$username · ' : ''}${_formatShortTime(post.timeAgo)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 11.5,
-                    ),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 11.5,
+                        ),
+                      ),
+                      if (post.isSponsored)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(5)),
+                          child: const Text('Publicité', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                        ),
+                    ],
                   ),
                   if (post.isSuggested) ...[
                     const SizedBox(height: 5),
