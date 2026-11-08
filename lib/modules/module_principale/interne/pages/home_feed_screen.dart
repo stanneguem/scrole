@@ -168,7 +168,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 );
               }
 
-              if (state == HomeFeedState.empty || feedController.posts.isEmpty) {
+              if (state == HomeFeedState.empty || (feedController.posts.isEmpty && feedController.sponsoredPosts.isEmpty)) {
                 return ListView(
                   controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -202,9 +202,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 );
               }
 
-              // Interleave profile and event recommendations in the same feed
-              // stream: after 3 posts, after 3 more, then every 10 posts,
-              // alternating profile -> event -> profile -> event.
+              // Organic feed stays primary: one sponsored card after 5 posts,
+              // then one every 8 additional organic posts. Ads never consume the
+              // normal-post pagination cursor.
               final suggestionSlots = <MapEntry<int, bool>>[];
               final thresholds = <int>[3, 6];
               for (var threshold = 16; threshold <= feedController.posts.length; threshold += 10) {
@@ -219,11 +219,23 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 }
               }
 
+              final adSlots = <MapEntry<int, int>>[];
+              for (var adIndex = 0; adIndex < feedController.sponsoredPosts.length; adIndex++) {
+                final afterPostCount = adIndex == 0 ? 5 : 5 + (adIndex * 8);
+                if (afterPostCount <= feedController.posts.length) {
+                  adSlots.add(MapEntry(afterPostCount, adIndex));
+                }
+              }
+              final insertionSlots = <MapEntry<int, Object>>[
+                ...suggestionSlots.map((slot) => MapEntry<int, Object>(slot.key, slot.value)),
+                ...adSlots.map((slot) => MapEntry<int, Object>(slot.key, slot.value)),
+              ]..sort((a, b) => a.key.compareTo(b.key));
+
               return ListView.builder(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 120),
-                itemCount: feedController.posts.length + suggestionSlots.length + 1,
+                itemCount: feedController.posts.length + insertionSlots.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return Column(
@@ -241,12 +253,45 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   }
 
                   var insertedBefore = 0;
-                  for (var slotIndex = 0; slotIndex < suggestionSlots.length; slotIndex++) {
-                    final visualIndex = suggestionSlots[slotIndex].key + slotIndex + 1;
+                  for (var slotIndex = 0; slotIndex < insertionSlots.length; slotIndex++) {
+                    final slot = insertionSlots[slotIndex];
+                    final visualIndex = slot.key + slotIndex + 1;
                     if (index == visualIndex) {
-                      return suggestionSlots[slotIndex].value
-                          ? _SuggestedProfilesCarousel(controller: feedController)
-                          : _SuggestedEventsCarousel(controller: feedController);
+                      if (slot.value is bool) {
+                        return slot.value == true
+                            ? _SuggestedProfilesCarousel(controller: feedController)
+                            : _SuggestedEventsCarousel(controller: feedController);
+                      }
+                      final sponsored = feedController.sponsoredPosts[slot.value as int];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.campaign_rounded, size: 15, color: Color(0xFFB7791F)),
+                                const SizedBox(width: 6),
+                                Text('PUBLICITÉ', style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                )),
+                              ],
+                            ),
+                          ),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            child: FeedPostCard(
+                              post: sponsored,
+                              onReactionTap: (_) {},
+                              onCommentTap: () {},
+                              onHidePost: () {},
+                            ),
+                          ),
+                        ],
+                      );
                     }
                     if (visualIndex < index) insertedBefore++;
                   }
