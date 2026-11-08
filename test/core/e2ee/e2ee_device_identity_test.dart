@@ -79,5 +79,50 @@ void main() {
             value: any(named: 'value'),
           ));
     });
+
+    test('serializes concurrent creation for the same account', () async {
+      var reads = 0;
+      when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async {
+        reads++;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        return null;
+      });
+      when(() => storage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenAnswer((_) async {});
+
+      final results = await Future.wait([
+        identity.getOrCreate(userId: 'same-user'),
+        identity.getOrCreate(userId: 'same-user'),
+      ]);
+
+      expect(results[0], results[1]);
+      expect(reads, 1);
+      verify(() => storage.write(
+            key: 'scrole.e2ee.device_identity.v1.same-user',
+            value: results.first,
+          )).called(1);
+    });
+
+    test('keeps identities separate between accounts', () async {
+      final values = <String, String>{};
+      when(() => storage.read(key: any(named: 'key'))).thenAnswer((invocation) async {
+        return values[invocation.namedArguments[#key] as String];
+      });
+      when(() => storage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenAnswer((invocation) async {
+        values[invocation.namedArguments[#key] as String] =
+            invocation.namedArguments[#value] as String;
+      });
+
+      final first = await identity.getOrCreate(userId: 'account-a');
+      final second = await identity.getOrCreate(userId: 'account-b');
+
+      expect(first, isNot(second));
+      expect(values, hasLength(2));
+    });
   });
 }
