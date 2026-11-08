@@ -62,6 +62,7 @@ jobs:
       - name: Generate bindings from the checked-in configuration
         run: flutter_rust_bridge_codegen generate
       - name: Commit generated bindings to the feature branch
+        if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
