@@ -1505,7 +1505,6 @@ class AppTranslationAdditions {
       'event_budget_save_error_title': "Could not save budget",
       'event_budget_save_error_missing_event': "Event not found.",
       'event_budget_save_error_auth': "Sign in to save this simulation.",
-      'event_budget_save_error_message': "Could not save the simulation. Check your connection and try again.",
       'event_budget_history_reuse': "Reuse",
       'event_budget_insights_least_activity': "Least selected activity",
       'event_budget_history_title': "My saved budgets",
