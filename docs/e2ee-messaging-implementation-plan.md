@@ -216,3 +216,17 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Choix candidat pour la persistance : `openmls_sqlx_storage 0.3.0`, qui est compatible avec `openmls_traits 0.6.0` et prend en charge les transactions SQLx. Ce fournisseur écrit cependant les données via un Codec et ne chiffre pas automatiquement le contenu. Une implémentation de Codec AEAD, avec nonce unique, authentification du type et de la clé de stockage, et effacement effectif des données supprimées, doit être conçue et testée avant de l'adopter.
 - OpenMLS considère le stockage comme fiable et recommande une protection d'intégrité/authentification ; sa documentation rappelle également que les suppressions doivent être effectives pour préserver la forward secrecy. Le simple chiffrement de fichiers ou la sauvegarde SQLite ne suffit pas.
 - Aucun message de production n'est encore routé vers le moteur ; `ready_for_messages` reste faux.
+
+
+## 16. Audit des flux applicatifs et enveloppe de transport (8 novembre 2026)
+
+- Audit du dépôt Flutter et du schéma Supabase effectué en lecture seule.
+- Le chemin direct actuel appelle `insert_direct_message` avec texte, URL audio et URLs média ; les fonctions de liste renvoient `last_message_text` pour les aperçus. Le cache SQLite direct stocke des objets `Message` et le cache média copie les octets téléchargés en clair.
+- La table `community_salon_messages` contient actuellement `content`, `audio_url`, `media_object_key(s)`. Le cache local `salon_chat_local.db` stocke chaque message sous forme de JSON dans `salon_messages.payload`. Les notifications SQL construisent aujourd'hui des aperçus à partir de `community_salon_messages.content`.
+- Aucun changement n'a été appliqué au schéma hébergé Supabase. Une note d'audit dédiée détaille les RPC, les caches et le plan de migration.
+- Ajout de `E2eeMessageEnvelope`, DTO de transport opaque contenant seulement les identifiants de routage, le groupe, l'appareil expéditeur, l'époque, la version, le ciphersuite et le ciphertext MLS. Le DTO n'expose aucun champ de texte, de prévisualisation ou d'URL média. Le buffer ciphertext est copié à la construction.
+- Tests ajoutés pour la sérialisation/désérialisation, le rejet des versions inconnues, des ciphersuites non supportées, des époques négatives et des ciphertexts vides. Le résultat CI de ce nouveau test est en attente.
+- Les contrôles CI sur le commit `73661f920fb9ed53b96136892f5bd800d3f5c028` ont réussi pour les tests Rust hôte, la compilation Android ARM64, la compilation iOS ARM64 et les tests/analyse Dart. La génération FRB était encore en cours.
+- Une erreur ultérieure dans le workflow Android venait d'un échappement de continuation de ligne mal formé dans la commande `env`; elle a été remplacée par une invocation `env KEY=value ... cargo check` sur une seule ligne. Le run déclenché par le correctif est en attente.
+- `rust/rust-toolchain.toml` est maintenant épinglé à Rust 1.91.1, le MSRV d'OpenMLS 0.9, et liste les cibles Android ARM64, iOS ARM64 et Linux host.
+- L'enveloppe est une préparation de transport uniquement. Aucune écriture de messages existante n'est routée à travers elle et `ready_for_messages` demeure faux.
