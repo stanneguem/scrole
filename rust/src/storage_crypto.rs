@@ -26,7 +26,6 @@ impl StorageKey {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum StorageCryptoError {
-    InvalidKey,
     InvalidRecord,
     RandomnessUnavailable,
     AuthenticationFailed,
@@ -35,7 +34,6 @@ pub(crate) enum StorageCryptoError {
 impl core::fmt::Display for StorageCryptoError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::InvalidKey => f.write_str("invalid MLS storage key"),
             Self::InvalidRecord => f.write_str("invalid encrypted MLS storage record"),
             Self::RandomnessUnavailable => f.write_str("secure randomness unavailable"),
             Self::AuthenticationFailed => f.write_str("MLS storage record authentication failed"),
@@ -63,7 +61,7 @@ pub(crate) fn seal_record(
     plaintext: &[u8],
 ) -> Result<Vec<u8>, StorageCryptoError> {
     let cipher = XChaCha20Poly1305::new_from_slice(&key.0[..])
-        .map_err(|_| StorageCryptoError::InvalidKey)?;
+        .expect("StorageKey always contains exactly 32 bytes");
     let mut nonce_bytes = [0u8; NONCE_LEN];
     getrandom::fill(&mut nonce_bytes)
         .map_err(|_| StorageCryptoError::RandomnessUnavailable)?;
@@ -99,7 +97,7 @@ pub(crate) fn open_record(
     let nonce = XNonce::from_slice(&record[nonce_start..ciphertext_start]);
     let aad = associated_data(storage_key);
     let cipher = XChaCha20Poly1305::new_from_slice(&key.0[..])
-        .map_err(|_| StorageCryptoError::InvalidKey)?;
+        .expect("StorageKey always contains exactly 32 bytes");
 
     cipher
         .decrypt(
@@ -170,16 +168,8 @@ mod tests {
     #[test]
     fn rejects_malformed_records_and_keys() {
         assert_eq!(
-            seal_record(&StorageKey::from_bytes([1; KEY_LEN]), b"key", b"value"),
-            Err(StorageCryptoError::InvalidRecord)
-        );
-        assert_eq!(
             open_record(&test_key(), b"key", b"short"),
             Err(StorageCryptoError::InvalidRecord)
-        );
-        assert_eq!(
-            open_record(&StorageKey::from_bytes([1; KEY_LEN]), b"key", &[0; 64]),
-            Err(StorageCryptoError::InvalidKey)
         );
     }
 }
