@@ -27,6 +27,7 @@ class MainLayoutPage extends StatefulWidget {
 }
 
 class _MainLayoutPageState extends State<MainLayoutPage> {
+  final GlobalKey<HomeFeedScreenState> _homeFeedKey = GlobalKey<HomeFeedScreenState>();
   int _currentIndex = 0;
   final List<bool> _visited = [true, false, false]; // Home, Community, Events
   bool _isBottomNavVisible = true;
@@ -53,7 +54,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
   }
 
   final List<Widget> _pages = const [
-    HomeFeedScreen(),     // 0. Accueil
+    HomeFeedScreen(key: _homeFeedKey), // 0. Accueil
     CommunityScreen(),    // 1. Communautés
     EventScreen(),        // 2. Événements
   ];
@@ -78,6 +79,8 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
       stackIndex = 0;
     }
 
+    final wasAlreadyOnSelectedTab = _currentIndex == stackIndex;
+
     setState(() {
       _currentIndex = stackIndex;
       _visited[stackIndex] = true;
@@ -86,6 +89,10 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
 
     if (Get.isRegistered<MainLayoutController>()) {
       Get.find<MainLayoutController>().currentTab.value = index;
+    }
+
+    if (index == 0 && wasAlreadyOnSelectedTab) {
+      _homeFeedKey.currentState?.scrollToTopAndRefresh();
     }
 
     // The community tab is kept alive in the page stack, so onInit alone
