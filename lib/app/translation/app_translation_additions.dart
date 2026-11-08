@@ -5,6 +5,13 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'event_report_title': "Signaler l’événement",
+      'event_report_reason_fraud': "Arnaque / fraude",
+      'event_report_reason_danger': "Dangereux / risqué",
+      'event_report_reason_counterfeit': "Copie / contrefaçon",
+      'event_report_reason_other': "Autre raison",
+      'event_report_describe_reason': "Décrivez la raison...",
+      'event_report_submit': "Envoyer le signalement",
       'event_share_attending_badge': "J'y vais",
       'event_share_attending_intro': "Je participe à",
       'event_share_discovery_intro': "À découvrir",
@@ -1534,6 +1541,13 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'event_report_title': "Report event",
+      'event_report_reason_fraud': "Scam / fraud",
+      'event_report_reason_danger': "Dangerous / risky",
+      'event_report_reason_counterfeit': "Copy / counterfeit",
+      'event_report_reason_other': "Other reason",
+      'event_report_describe_reason': "Describe the reason...",
+      'event_report_submit': "Submit report",
       'event_share_attending_badge': "I'm going",
       'event_share_attending_intro': "I'm attending",
       'event_share_discovery_intro': "Discover",
@@ -3059,6 +3073,13 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'event_report_title': "Denunciar evento",
+      'event_report_reason_fraud': "Estafa / fraude",
+      'event_report_reason_danger': "Peligroso / arriesgado",
+      'event_report_reason_counterfeit': "Copia / falsificación",
+      'event_report_reason_other': "Otro motivo",
+      'event_report_describe_reason': "Describe el motivo...",
+      'event_report_submit': "Enviar denuncia",
       'event_share_attending_badge': "Asistiré",
       'event_share_attending_intro': "Voy a asistir a",
       'event_share_discovery_intro': "Descubre",
@@ -4487,6 +4508,13 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'event_report_title': "Veranstaltung melden",
+      'event_report_reason_fraud': "Betrug / Täuschung",
+      'event_report_reason_danger': "Gefährlich / riskant",
+      'event_report_reason_counterfeit': "Kopie / Fälschung",
+      'event_report_reason_other': "Anderer Grund",
+      'event_report_describe_reason': "Grund beschreiben...",
+      'event_report_submit': "Meldung senden",
       'event_share_attending_badge': "Ich bin dabei",
       'event_share_attending_intro': "Ich nehme teil an",
       'event_share_discovery_intro': "Entdecken",
@@ -5898,6 +5926,13 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'event_report_title': "Segnala evento",
+      'event_report_reason_fraud': "Truffa / frode",
+      'event_report_reason_danger': "Pericoloso / rischioso",
+      'event_report_reason_counterfeit': "Copia / contraffazione",
+      'event_report_reason_other': "Altro motivo",
+      'event_report_describe_reason': "Descrivi il motivo...",
+      'event_report_submit': "Invia segnalazione",
       'event_share_attending_badge': "Ci sarò",
       'event_share_attending_intro': "Partecipo a",
       'event_share_discovery_intro': "Da scoprire",
@@ -7307,6 +7342,13 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'event_report_title': "Denunciar evento",
+      'event_report_reason_fraud': "Burla / fraude",
+      'event_report_reason_danger': "Perigoso / arriscado",
+      'event_report_reason_counterfeit': "Cópia / contrafação",
+      'event_report_reason_other': "Outro motivo",
+      'event_report_describe_reason': "Descreve o motivo...",
+      'event_report_submit': "Enviar denúncia",
       'event_share_attending_badge': "Vou participar",
       'event_share_attending_intro': "Vou participar em",
       'event_share_discovery_intro': "Descobre",
@@ -8716,6 +8758,13 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'event_report_title': "举报活动",
+      'event_report_reason_fraud': "诈骗 / 欺诈",
+      'event_report_reason_danger': "危险 / 存在风险",
+      'event_report_reason_counterfeit': "抄袭 / 假冒",
+      'event_report_reason_other': "其他原因",
+      'event_report_describe_reason': "请描述原因...",
+      'event_report_submit': "提交举报",
       'event_share_attending_badge': "我会参加",
       'event_share_attending_intro': "我将参加",
       'event_share_discovery_intro': "活动推荐",
@@ -10127,6 +10176,13 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'event_report_title': "イベントを報告",
+      'event_report_reason_fraud': "詐欺 / 不正行為",
+      'event_report_reason_danger': "危険 / リスクがある",
+      'event_report_reason_counterfeit': "コピー / 模倣品",
+      'event_report_reason_other': "その他の理由",
+      'event_report_describe_reason': "理由を説明してください...",
+      'event_report_submit': "報告を送信",
       'event_share_attending_badge': "参加します",
       'event_share_attending_intro': "参加予定：",
       'event_share_discovery_intro': "おすすめイベント",
@@ -11531,6 +11587,13 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'event_report_title': "Пожаловаться на мероприятие",
+      'event_report_reason_fraud': "Мошенничество / обман",
+      'event_report_reason_danger': "Опасно / рискованно",
+      'event_report_reason_counterfeit': "Копия / подделка",
+      'event_report_reason_other': "Другая причина",
+      'event_report_describe_reason': "Опишите причину...",
+      'event_report_submit': "Отправить жалобу",
       'event_share_attending_badge': "Я иду",
       'event_share_attending_intro': "Я участвую в",
       'event_share_discovery_intro': "Рекомендуем",
