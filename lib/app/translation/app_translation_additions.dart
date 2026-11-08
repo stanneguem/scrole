@@ -1544,6 +1544,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Compte officiel",
       'event_platform_third_party_notice': "Cet événement n’appartient pas à la plateforme. Si vous en êtes le propriétaire, contactez l’administration à support@scrole.fun en fournissant des justificatifs afin de vérifier votre propriété et de récupérer la gestion de l’événement.",
+      'event_admin_creator': "Administrateur Scrole",
 },
     'en': {
       'event_report_title': "Report event",
@@ -3081,6 +3082,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Official account",
       'event_platform_third_party_notice': "This event is not owned by the platform. If you are its owner, contact the administration at support@scrole.fun and provide proof of ownership to verify your claim and recover control of the event.",
+      'event_admin_creator': "Scrole administrator",
 },
     'es': {
       'event_report_title': "Denunciar evento",
@@ -4519,6 +4521,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Cuenta oficial",
       'event_platform_third_party_notice': "Este evento no pertenece a la plataforma. Si eres su propietario, contacta con la administración en support@scrole.fun y aporta pruebas de propiedad para verificar tu solicitud y recuperar la gestión del evento.",
+      'event_admin_creator': "Administrador de Scrole",
 },
     'de': {
       'event_report_title': "Veranstaltung melden",
@@ -5940,6 +5943,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Offizielles Konto",
       'event_platform_third_party_notice': "Dieses Event gehört nicht der Plattform. Wenn Sie der Eigentümer sind, kontaktieren Sie die Administration unter support@scrole.fun und legen Sie Eigentumsnachweise vor, um Ihren Anspruch prüfen zu lassen und die Verwaltung des Events zu übernehmen.",
+      'event_admin_creator': "Scrole-Administrator",
 },
     'it': {
       'event_report_title': "Segnala evento",
@@ -7359,6 +7363,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Account ufficiale",
       'event_platform_third_party_notice': "Questo evento non appartiene alla piattaforma. Se ne sei il proprietario, contatta l’amministrazione all’indirizzo support@scrole.fun e fornisci una prova di proprietà per verificare la richiesta e ottenere la gestione dell’evento.",
+      'event_admin_creator': "Amministratore Scrole",
 },
     'pt': {
       'event_report_title': "Denunciar evento",
@@ -8778,6 +8783,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Conta oficial",
       'event_platform_third_party_notice': "Este evento não pertence à plataforma. Se você é o proprietário, entre em contato com a administração pelo endereço support@scrole.fun e apresente comprovativos de propriedade para validar a solicitação e recuperar a gestão do evento.",
+      'event_admin_creator': "Administrador da Scrole",
 },
     'zh': {
       'event_report_title': "举报活动",
@@ -10199,6 +10205,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "官方账号",
       'event_platform_third_party_notice': "此活动不属于平台。如果您是活动所有者，请发送所有权证明至 support@scrole.fun 联系平台管理团队，以便核实您的身份并移交活动管理权限。",
+      'event_admin_creator': "Scrole 管理员",
 },
     'ja': {
       'event_report_title': "イベントを報告",
@@ -11613,6 +11620,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "公式アカウント",
       'event_platform_third_party_notice': "このイベントはプラットフォームの所有物ではありません。所有者である場合は、所有権を証明する資料を添えて support@scrole.fun まで管理チームにご連絡ください。確認後、イベントの管理権限を移管できます。",
+      'event_admin_creator': "Scrole 管理者",
 },
     'ru': {
       'event_report_title': "Пожаловаться на мероприятие",
@@ -13028,6 +13036,7 @@ class AppTranslationAdditions {
 
       'event_platform_account': "Официальный аккаунт",
       'event_platform_third_party_notice': "Это мероприятие не принадлежит платформе. Если вы его владелец, свяжитесь с администрацией по адресу support@scrole.fun и предоставьте подтверждение права собственности, чтобы подтвердить заявку и получить управление мероприятием.",
+      'event_admin_creator': "Администратор Scrole",
 },
   };
 
