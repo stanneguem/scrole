@@ -14,7 +14,12 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        await controller.flushAnalytics();
+        return true;
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(
           'event_budget_title'.tr,
@@ -258,6 +263,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                 : Text('event_budget_done'.tr),
           )),
         ],
+      ),
       ),
     );
   }
