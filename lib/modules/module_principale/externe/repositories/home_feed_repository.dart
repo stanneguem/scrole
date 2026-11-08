@@ -180,6 +180,10 @@ class HomeFeedRepository {
           commentsEnabled: false,
           sharingEnabled: false,
           isSponsored: true,
+          isPlatformPromotion: true,
+          ctaEnabled: row['cta_enabled'] == true || row['cta_enabled'] == 1,
+          ctaLabel: row['cta_label']?.toString(),
+          ctaUrl: row['cta_url']?.toString(),
         ));
       }
       return campaigns.take(limit).toList(growable: false);
