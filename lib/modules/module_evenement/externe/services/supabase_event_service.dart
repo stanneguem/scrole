@@ -1514,16 +1514,19 @@ class SupabaseEventService {
 
     final response = await _client
         .from('event_checkins')
-        .select('activity_id')
+        .select('activity_id, created_at')
         .eq('event_id', eventId)
         .eq('user_id', userId)
         .eq('status', 'valid')
         .not('activity_id', 'is', null);
 
-    return response
-        .map((row) => row['activity_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet();
+    return response.map((row) {
+      final activityId = row['activity_id']?.toString() ?? '';
+      final createdAt = DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal();
+      if (activityId.isEmpty || createdAt == null) return '';
+      final day = '${createdAt.year.toString().padLeft(4, '0')}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
+      return '$day|$activityId';
+    }).where((key) => key.isNotEmpty).toSet();
   }
 
   Future<List<Map<String, dynamic>>> fetchEventCheckinsTree(String eventId) async {
