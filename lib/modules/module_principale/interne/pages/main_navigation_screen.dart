@@ -53,7 +53,7 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
     }
   }
 
-  final List<Widget> _pages = const [
+  late final List<Widget> _pages = [
     HomeFeedScreen(key: _homeFeedKey), // 0. Accueil
     CommunityScreen(),    // 1. Communautés
     EventScreen(),        // 2. Événements
