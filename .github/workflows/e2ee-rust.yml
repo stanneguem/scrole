@@ -20,6 +20,8 @@ on:
       - "test/core/e2ee/**"
       - "pubspec.yaml"
       - "pubspec.lock"
+      - "flutter_rust_bridge.yaml"
+      - "hook/**"
       - ".github/workflows/e2ee-rust.yml"
 
 permissions:
@@ -116,7 +118,10 @@ jobs:
           export CC_aarch64_linux_android="$CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
           export AR_aarch64_linux_android="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
           cargo generate-lockfile
-          cargo check --locked --target aarch64-linux-android
+          env \\
+            "CC_aarch64-linux-android=$CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER" \\
+            "AR_aarch64-linux-android=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" \\
+            cargo check --locked --target aarch64-linux-android
 
   rust-ios:
     name: OpenMLS iOS ARM64 compile check
