@@ -211,12 +211,27 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _loadFollowStats() async {
-    if (userId.value.isEmpty) return;
+    final uid = userId.value;
+    if (uid.isEmpty) return;
+    final cache = _profileCache;
+    final key = FastCacheKey.profileHeaderStats(uid);
+    final cached = cache?.get<Map<String, dynamic>>(key);
+    if (cached != null) {
+      followersCount.value = (cached['followers_count'] as num?)?.toInt() ?? followersCount.value;
+      followingCount.value = (cached['following_count'] as num?)?.toInt() ?? followingCount.value;
+      friendsCount.value = (cached['friends_count'] as num?)?.toInt() ?? friendsCount.value;
+    }
     try {
       final stats = await SocialRepository().getFollowStats();
       followersCount.value = (stats['followers_count'] as num?)?.toInt() ?? 0;
       followingCount.value = (stats['following_count'] as num?)?.toInt() ?? 0;
       friendsCount.value = (stats['friends_count'] as num?)?.toInt() ?? 0;
+      await cache?.set(key, {
+        ...?cache?.get<Map<String, dynamic>>(key),
+        'followers_count': followersCount.value,
+        'following_count': followingCount.value,
+        'friends_count': friendsCount.value,
+      });
     } catch (e, stack) {
       debugPrint('[FOLLOW] get_follow_stats self exception=$e\\n$stack');
     }
@@ -408,6 +423,18 @@ class ProfileController extends GetxController {
   Future<void> _loadEngagementStats() async {
     final uid = userId.value;
     if (uid.isEmpty) return;
+    final cache = _profileCache;
+    final cacheKey = FastCacheKey.profileHeaderStats(uid);
+    final cached = cache?.get<Map<String, dynamic>>(cacheKey);
+    if (cached != null) {
+      postsCount.value = (cached['posts_count'] as num?)?.toInt() ?? postsCount.value;
+      totalLikesReceived.value = (cached['total_likes_received'] as num?)?.toInt() ?? totalLikesReceived.value;
+      totalDislikesReceived.value = (cached['total_dislikes_received'] as num?)?.toInt() ?? totalDislikesReceived.value;
+      eventsAttendedCount.value = (cached['events_attended_count'] as num?)?.toInt() ?? eventsAttendedCount.value;
+      eventsOrganizedCount.value = (cached['events_organized_count'] as num?)?.toInt() ?? eventsOrganizedCount.value;
+      interactionsCount.value = (cached['interactions_count'] as num?)?.toInt() ?? interactionsCount.value;
+      reputation.value = (cached['reputation'] as num?)?.toDouble() ?? reputation.value;
+    }
     try {
       final raw = await Supabase.instance.client.rpc(
         'get_profile_engagement_stats',
@@ -437,6 +464,16 @@ class ProfileController extends GetxController {
             .clamp(0.0, 5.0).toDouble();
         debugPrint('[ProfileController] V2 reputation unavailable; legacy fallback used: $e');
       }
+      await cache?.set(cacheKey, {
+        ...?cache?.get<Map<String, dynamic>>(cacheKey),
+        'posts_count': postsCount.value,
+        'total_likes_received': totalLikesReceived.value,
+        'total_dislikes_received': totalDislikesReceived.value,
+        'events_attended_count': eventsAttendedCount.value,
+        'events_organized_count': eventsOrganizedCount.value,
+        'interactions_count': interactionsCount.value,
+        'reputation': reputation.value,
+      });
     } catch (e, stack) {
       debugPrint('[ProfileController] get_profile_engagement_stats failed: $e\\n$stack');
     }
