@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/app/theme/app_colors.dart';
 import 'package:share_plus/share_plus.dart';
@@ -313,6 +314,27 @@ class FeedPostCard extends StatelessWidget {
                 username: username,
               ),
             ],
+
+            if (post.isSponsored && post.ctaEnabled && (post.ctaUrl?.trim().isNotEmpty ?? false))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 12, 15, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton(
+                    onPressed: () async {
+                      final uri = Uri.tryParse(post.ctaUrl!.trim());
+                      if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                    ),
+                    child: Text((post.ctaLabel?.trim().isNotEmpty ?? false) ? post.ctaLabel!.trim() : 'En savoir plus'),
+                  ),
+                ),
+              ),
 
             // ───────── Partie basse (avec marges latérales) ─────────
             Padding(
