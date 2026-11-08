@@ -407,11 +407,14 @@ class FeedPostCard extends StatelessWidget {
                   // Sondage
                   if (post.poll != null) ...[
                     const SizedBox(height: 10),
-                    PollCardWidget(
-                      poll: post.poll!,
-                      postId: post.id,
-                      controller: null,
-                    ),
+                    if (post.isSponsored)
+                      _SponsoredPollPreview(poll: post.poll!)
+                    else
+                      PollCardWidget(
+                        poll: post.poll!,
+                        postId: post.id,
+                        controller: null,
+                      ),
                   ],
 
                   const SizedBox(height: 12),
@@ -3224,6 +3227,62 @@ class _SharePostToStorySheetState extends State<_SharePostToStorySheet> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sponsored campaign polls are rendered as a clear preview until the
+/// campaign voting/analytics endpoint is enabled; never call the organic
+/// community-poll RPC with a synthetic campaign ID.
+class _SponsoredPollPreview extends StatelessWidget {
+  const _SponsoredPollPreview({required this.poll});
+  final dynamic poll;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = poll is Map ? Map<String, dynamic>.from(poll) : <String, dynamic>{};
+    final rawOptions = data['options'];
+    final options = rawOptions is List ? rawOptions : const [];
+    if (options.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    final question = (data['question'] ?? '').toString().trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: .6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.poll_rounded, color: colors.primary, size: 18),
+            const SizedBox(width: 7),
+            Text('Sondage', style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w800)),
+          ]),
+          if (question.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(question, style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w600)),
+          ],
+          const SizedBox(height: 10),
+          for (final option in options)
+            if (option is Map && ((option['label'] ?? '').toString().trim().isNotEmpty))
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.outlineVariant.withValues(alpha: .7)),
+                ),
+                child: Text(option['label'].toString(), style: TextStyle(color: colors.onSurface)),
+              ),
+          Text('Les votes seront bientôt disponibles.', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 11)),
         ],
       ),
     );
