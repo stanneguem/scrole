@@ -2,258 +2,269 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:scrole/app/theme/app_colors.dart';
-import 'package:scrole/shared/utils/number_formatter.dart';
-import 'package:scrole/shared/widgets/app_cached_image.dart';
-import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import '../../centre/models/event_preview_model.dart';
 
-/// Widget d'affiche promotionnelle événementielle (Format 9:16 Réseaux Sociaux).
+/// Story-first event share artwork. The visual adapts to the app's current theme.
 class EventSharePosterWidget extends StatelessWidget {
   final EventPreviewModel preview;
+  final bool isAttending;
+  final String? profilePhotoUrl;
+  final Brightness brightness;
 
   const EventSharePosterWidget({
     super.key,
     required this.preview,
+    required this.isAttending,
+    required this.profilePhotoUrl,
+    required this.brightness,
   });
 
   @override
   Widget build(BuildContext context) {
     final event = preview.event;
-    final cheapest = preview.cheapestTicket;
-    final isFree = (cheapest == null || cheapest.converted.amount <= 0) && event.isFree;
+    final dark = brightness == Brightness.dark;
+    final background = dark ? const Color(0xFF10131D) : const Color(0xFFF5F2EC);
+    final foreground = dark ? const Color(0xFFF9FAFB) : const Color(0xFF171923);
+    final muted = dark ? const Color(0xFFCFD2DC) : const Color(0xFF555968);
+    final accent = const Color(0xFF8067F2);
+    final start = event.startsAt.toLocal();
+    final end = event.endsAt?.toLocal();
+    final locale = Intl.getCurrentLocale();
+    final date = DateFormat('EEE d MMM', locale).format(start);
+    final time = DateFormat('HH:mm', locale).format(start);
+    final dateLabel = end == null
+        ? '$date · $time'
+        : '$date · $time — ${DateFormat('EEE d MMM · HH:mm', locale).format(end)}';
+    final place = event.locationDisplay.trim();
 
-    final priceText = isFree
-        ? 'Gratuit'
-        : (cheapest != null
-            ? 'À partir de ${NumberFormatter.formatPrice(cheapest.converted.amount, cheapest.converted.symbol)}'
-            : (event.isFree ? 'Gratuit' : event.priceDisplay));
-
-    final dateStr = _formatFrenchDate(event.startsAt, event.endsAt);
+    Widget heroImage() {
+      final imageUrl = isAttending ? (profilePhotoUrl ?? '').trim() : (event.coverImageUrl ?? '').trim();
+      if (imageUrl.isEmpty) {
+        return Container(
+          color: dark ? const Color(0xFF28253D) : const Color(0xFFE6E0F3),
+          alignment: Alignment.center,
+          child: Icon(
+            isAttending ? Icons.person_rounded : Icons.event_rounded,
+            size: 120,
+            color: accent.withValues(alpha: .8),
+          ),
+        );
+      }
+      return Image.network(
+        imageUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          color: dark ? const Color(0xFF28253D) : const Color(0xFFE6E0F3),
+          alignment: Alignment.center,
+          child: Icon(
+            isAttending ? Icons.person_rounded : Icons.event_rounded,
+            size: 120,
+            color: accent.withValues(alpha: .8),
+          ),
+        ),
+      );
+    }
 
     return Container(
       width: 540,
       height: 960,
-      padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF0F172A), // Slate 900
-            Color(0xFF1E1B4B), // Indigo 950
-            Color(0xFF0F172A),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: .08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      color: background,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          // ─── HEADER: PARTICIPE À ───
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
-                ),
-                child: Text(
-                  'PARTICIPE À L\'ÉVÉNEMENT',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-              // Logo Scrole
-              Row(
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 640,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(42)),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  SvgPicture.asset(
-                    'assets/svg_icons/logo.svg',
-                    width: 24,
-                    height: 24,
-                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  heroImage(),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: .36),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: .78),
+                        ],
+                        stops: const [0, .38, 1],
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Scrole',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  Positioned(
+                    left: 34,
+                    right: 34,
+                    top: 48,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: .32),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.white.withValues(alpha: .22)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/svg_icons/logo.svg',
+                                width: 25,
+                                height: 25,
+                                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                              ),
+                              const SizedBox(width: 9),
+                              Text(
+                                'SCROLE',
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 2.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (isAttending)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: accent,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Text(
+                              'event_share_attending_badge'.tr.toUpperCase(),
+                              style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .8,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 38,
+                    right: 38,
+                    bottom: 42,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isAttending
+                              ? 'event_share_attending_intro'.tr
+                              : 'event_share_discovery_intro'.tr,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: Colors.white.withValues(alpha: .92),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: .3,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          event.name,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: Colors.white,
+                            fontSize: 43,
+                            height: 1.04,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -.8,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-
-          const SizedBox(height: 20),
-
-          // ─── TITRE ÉVÉNEMENT ───
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  event.name,
-                  style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    height: 1.15,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 24),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // ─── VISUEL / COUVERTURE ───
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(26),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                child: event.coverImageUrl != null && event.coverImageUrl!.isNotEmpty
-                    ? AppCachedImage(
-                        imageUrl: event.coverImageUrl!,
-                        fit: BoxFit.cover,
-                      )
-                    : Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.event, size: 64, color: Colors.white.withValues(alpha: 0.3)),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Scrole Événement',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                            ),
-                          ],
+          Positioned(
+            left: 38,
+            right: 38,
+            bottom: 50,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.calendar_month_rounded, color: accent, size: 25),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Text(
+                        dateLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.spaceGrotesk(
+                          color: foreground,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ─── CARTES INFO: DATE, LIEU, PRIX ───
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B).withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: Column(
-              children: [
-                _PosterInfoRow(
-                  icon: Icons.calendar_month_rounded,
-                  iconColor: const Color(0xFF38BDF8),
-                  text: dateStr,
+                    ),
+                  ],
                 ),
-                const Divider(height: 20, color: Colors.white12),
-                _PosterInfoRow(
-                  icon: Icons.location_on_rounded,
-                  iconColor: const Color(0xFFF43F5E),
-                  text: event.locationDisplay,
+                if (place.isNotEmpty) ...[
+                  const SizedBox(height: 19),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.location_on_rounded, color: accent, size: 25),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Text(
+                          place,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: muted,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 27),
+                Container(
+                  height: 2,
+                  width: 66,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                const Divider(height: 20, color: Colors.white12),
-                _PosterInfoRow(
-                  icon: Icons.confirmation_number_rounded,
-                  iconColor: const Color(0xFF10B981),
-                  text: priceText,
+                const SizedBox(height: 17),
+                Text(
+                  'event_share_footer'.tr,
+                  style: GoogleFonts.spaceGrotesk(
+                    color: muted.withValues(alpha: .85),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: .3,
+                  ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // ─── FOOTER BRANDING ───
-          Center(
-            child: Text(
-              'Retrouve cet événement et d\'autres sur l\'application Scrole',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
         ],
       ),
-    );
-  }
-
-  String _formatFrenchDate(DateTime startsAt, DateTime? endsAt) {
-    try {
-      final startLocal = startsAt.toLocal();
-      final dateStr = DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(startLocal);
-      final timeStr = DateFormat('HH:mm').format(startLocal);
-      final capitalizedDate = dateStr.isNotEmpty ? dateStr[0].toUpperCase() + dateStr.substring(1) : dateStr;
-      return '$capitalizedDate à $timeStr';
-    } catch (_) {
-      return DateFormat('dd/MM/yyyy HH:mm').format(startsAt);
-    }
-  }
-}
-
-class _PosterInfoRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String text;
-
-  const _PosterInfoRow({
-    required this.icon,
-    required this.iconColor,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Text(
-            text,
-            style: GoogleFonts.spaceGrotesk(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
     );
   }
 }
