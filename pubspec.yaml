@@ -45,6 +45,8 @@ dependencies:
   path_provider: ^2.1.0
   path: ^1.9.1
   crypto: ^3.0.6
+  flutter_rust_bridge: ^2.13.0
+  flutter_secure_storage: ^11.2.0
   image_picker: ^1.2.3
   image_cropper: ^8.1.0
   flutter_image_compress: ^2.3.0
