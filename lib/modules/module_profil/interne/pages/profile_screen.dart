@@ -156,6 +156,11 @@ class ProfileScreen extends GetView<ProfileController> {
                 Row(
                   children: [
                     CircleButtonWidget(
+                      icon: Icons.account_balance_wallet_outlined,
+                      onTap: () => Get.toNamed(AppPages.eventBudgetHistory),
+                    ),
+                    const SizedBox(width: 8),
+                    CircleButtonWidget(
                       icon: Icons.calendar_today_outlined,
                       onTap: () => Get.toNamed(AppPages.userAgenda),
                     ),
