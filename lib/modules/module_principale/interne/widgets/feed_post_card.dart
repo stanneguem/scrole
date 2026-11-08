@@ -14,6 +14,7 @@ import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import 'package:scrole/modules/module_authentification/centre/services/auth_service.dart';
 import 'package:scrole/app/routes/app_pages.dart';
+import '../pages/sponsored_webview_page.dart';
 import '../../centre/models/community_post.dart';
 import '../../../../modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 import '../../../../shared/widgets/post_media_slider.dart';
@@ -317,7 +318,7 @@ class FeedPostCard extends StatelessWidget {
               ),
             ],
 
-            if (post.isSponsored && post.ctaEnabled && (post.ctaUrl?.trim().isNotEmpty ?? false))
+            if (post.isSponsored && post.ctaEnabled && (post.ctaDestinationType == 'internal' || (post.ctaUrl?.trim().isNotEmpty ?? false)))
               Padding(
                 padding: const EdgeInsets.fromLTRB(15, 12, 15, 0),
                 child: Align(
@@ -335,14 +336,14 @@ class FeedPostCard extends StatelessWidget {
                       }
                       final uri = Uri.tryParse(post.ctaUrl?.trim() ?? '');
                       if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
-                      await launchUrl(uri, mode: LaunchMode.inAppWebView);
+                      await Get.to(() => SponsoredWebViewPage(url: uri.toString()));
                     },
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                       visualDensity: VisualDensity.compact,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
                     ),
-                    child: Text((post.ctaLabel?.trim().isNotEmpty ?? false) ? post.ctaLabel!.trim() : 'En savoir plus'),
+                    child: Text((post.ctaLabel?.trim().isNotEmpty ?? false) ? post.ctaLabel!.trim().tr : 'cta_learn_more'.tr),
                   ),
                 ),
               ),
