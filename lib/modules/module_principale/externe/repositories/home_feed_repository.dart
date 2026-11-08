@@ -173,6 +173,7 @@ class HomeFeedRepository {
           timeAgo: (row['created_at'] ?? DateTime.now().toIso8601String()).toString(),
           content: (row['content'] ?? '').toString(),
           media: media,
+          viewCount: (row['unique_views_count'] as num?)?.toInt() ?? 0,
           poll: postType == 'poll' && options.isNotEmpty
               ? <String, dynamic>{'question': (row['title'] ?? '').toString(), 'options': options}
               : null,
