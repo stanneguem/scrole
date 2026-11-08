@@ -5,6 +5,10 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'event_budget_save_error_title': "Impossible d\u{2019}enregistrer le budget",
+      'event_budget_save_error_missing_event': "\u{c9}v\u{e9}nement introuvable.",
+      'event_budget_save_error_auth': "Connectez-vous pour enregistrer cette simulation.",
+      'event_budget_save_error_message': "Votre simulation n\u{2019}a pas pu \u{ea}tre enregistr\u{e9}e. V\u{e9}rifiez votre connexion et r\u{e9}essayez.",
       'event_budget_history_reuse': "Réutiliser",
       'event_budget_insights_least_activity': "Activité la moins choisie",
       'event_budget_history_title': "Mes budgets enregistrés",
@@ -1497,14 +1501,11 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "L’envoi de vidéos n’est pas autorisé dans ce salon.",
 
 },
-      'event_budget_save_error_title': "Impossible d’enregistrer le budget",
-      'event_budget_save_error_missing_event': "Événement introuvable.",
-      'event_budget_save_error_auth': "Connectez-vous pour enregistrer cette simulation.",
-      'event_budget_save_error_message': "Votre simulation n’a pas pu être enregistrée. Vérifiez votre connexion et réessayez.",
     'en': {
       'event_budget_save_error_title': "Could not save budget",
       'event_budget_save_error_missing_event': "Event not found.",
       'event_budget_save_error_auth': "Sign in to save this simulation.",
+      'event_budget_save_error_message': "Your simulation could not be saved. Check your connection and try again.",
       'event_budget_history_reuse': "Reuse",
       'event_budget_insights_least_activity': "Least selected activity",
       'event_budget_history_title': "My saved budgets",
@@ -2993,12 +2994,11 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Sending videos is not allowed in this chat.",
 
 },
-      'event_budget_save_error_message': "Your simulation could not be saved. Check your connection and try again.",
     'es': {
       'event_budget_save_error_title': "No se pudo guardar el presupuesto",
       'event_budget_save_error_missing_event': "Evento no encontrado.",
-      'event_budget_save_error_auth': "Inicia sesión para guardar esta simulación.",
-      'event_budget_save_error_message': "No se pudo guardar la simulación. Comprueba tu conexión e inténtalo de nuevo.",
+      'event_budget_save_error_auth': "Inicia sesi\u{f3}n para guardar esta simulaci\u{f3}n.",
+      'event_budget_save_error_message': "No se pudo guardar la simulaci\u{f3}n. Comprueba tu conexi\u{f3}n e int\u{e9}ntalo de nuevo.",
       'event_budget_history_reuse': "Reutilizar",
       'event_budget_insights_least_activity': "Actividad menos elegida",
       'event_budget_history_title': "Mis presupuestos guardados",
@@ -4394,7 +4394,7 @@ class AppTranslationAdditions {
       'event_budget_save_error_title': "Budget konnte nicht gespeichert werden",
       'event_budget_save_error_missing_event': "Veranstaltung nicht gefunden.",
       'event_budget_save_error_auth': "Melde dich an, um diese Simulation zu speichern.",
-      'event_budget_save_error_message': "Simulation konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
+      'event_budget_save_error_message': "Die Simulation konnte nicht gespeichert werden. Pr\u{fc}fe deine Verbindung und versuche es erneut.",
       'event_budget_history_reuse': "Wiederverwenden",
       'event_budget_insights_least_activity': "Am seltensten gewählte Aktivität",
       'event_budget_history_title': "Meine gespeicherten Budgets",
@@ -7147,10 +7147,10 @@ class AppTranslationAdditions {
 
 },
     'pt': {
-      'event_budget_save_error_title': "Não foi possível guardar o orçamento",
-      'event_budget_save_error_missing_event': "Evento não encontrado.",
-      'event_budget_save_error_auth': "Inicie sessão para guardar esta simulação.",
-      'event_budget_save_error_message': "Não foi possível guardar a simulação. Verifique a ligação e tente novamente.",
+      'event_budget_save_error_title': "N\u{e3}o foi poss\u{ed}vel guardar o or\u{e7}amento",
+      'event_budget_save_error_missing_event': "Evento n\u{e3}o encontrado.",
+      'event_budget_save_error_auth': "Inicie sess\u{e3}o para guardar esta simula\u{e7}\u{e3}o.",
+      'event_budget_save_error_message': "N\u{e3}o foi poss\u{ed}vel guardar a simula\u{e7}\u{e3}o. Verifique a liga\u{e7}\u{e3}o e tente novamente.",
       'event_budget_history_reuse': "Reutilizar",
       'event_budget_insights_least_activity': "Atividade menos escolhida",
       'event_budget_history_title': "Meus orçamentos guardados",
@@ -8524,10 +8524,10 @@ class AppTranslationAdditions {
 
 },
     'zh': {
-      'event_budget_save_error_title': "无法保存预算",
-      'event_budget_save_error_missing_event': "未找到活动。",
-      'event_budget_save_error_auth': "登录后即可保存此模拟预算。",
-      'event_budget_save_error_message': "无法保存模拟预算。请检查网络连接后重试。",
+      'event_budget_save_error_title': "\u{65e0}\u{6cd5}\u{4fdd}\u{5b58}\u{9884}\u{7b97}",
+      'event_budget_save_error_missing_event': "\u{672a}\u{627e}\u{5230}\u{6d3b}\u{52a8}\u{3002}",
+      'event_budget_save_error_auth': "\u{767b}\u{5f55}\u{540e}\u{5373}\u{53ef}\u{4fdd}\u{5b58}\u{6b64}\u{6a21}\u{62df}\u{9884}\u{7b97}\u{3002}",
+      'event_budget_save_error_message': "\u{65e0}\u{6cd5}\u{4fdd}\u{5b58}\u{6a21}\u{62df}\u{9884}\u{7b97}\u{3002}\u{8bf7}\u{68c0}\u{67e5}\u{7f51}\u{7edc}\u{8fde}\u{63a5}\u{540e}\u{91cd}\u{8bd5}\u{3002}",
       'event_budget_history_reuse': "重新使用",
       'event_budget_insights_least_activity': "选择最少的活动",
       'event_budget_history_title': "我保存的预算",
@@ -9903,10 +9903,10 @@ class AppTranslationAdditions {
 
 },
     'ja': {
-      'event_budget_save_error_title': "予算を保存できませんでした",
-      'event_budget_save_error_missing_event': "イベントが見つかりません。",
-      'event_budget_save_error_auth': "このシミュレーションを保存するにはログインしてください。",
-      'event_budget_save_error_message': "シミュレーションを保存できませんでした。接続を確認して再試行してください。",
+      'event_budget_save_error_title': "\u{4e88}\u{7b97}\u{3092}\u{4fdd}\u{5b58}\u{3067}\u{304d}\u{307e}\u{305b}\u{3093}\u{3067}\u{3057}\u{305f}",
+      'event_budget_save_error_missing_event': "\u{30a4}\u{30d9}\u{30f3}\u{30c8}\u{304c}\u{898b}\u{3064}\u{304b}\u{308a}\u{307e}\u{305b}\u{3093}\u{3002}",
+      'event_budget_save_error_auth': "\u{3053}\u{306e}\u{30b7}\u{30df}\u{30e5}\u{30ec}\u{30fc}\u{30b7}\u{30e7}\u{30f3}\u{3092}\u{4fdd}\u{5b58}\u{3059}\u{308b}\u{306b}\u{306f}\u{30ed}\u{30b0}\u{30a4}\u{30f3}\u{3057}\u{3066}\u{304f}\u{3060}\u{3055}\u{3044}\u{3002}",
+      'event_budget_save_error_message': "\u{30b7}\u{30df}\u{30e5}\u{30ec}\u{30fc}\u{30b7}\u{30e7}\u{30f3}\u{3092}\u{4fdd}\u{5b58}\u{3067}\u{304d}\u{307e}\u{305b}\u{3093}\u{3067}\u{3057}\u{305f}\u{3002}\u{63a5}\u{7d9a}\u{3092}\u{78ba}\u{8a8d}\u{3057}\u{3066}\u{518d}\u{8a66}\u{884c}\u{3057}\u{3066}\u{304f}\u{3060}\u{3055}\u{3044}\u{3002}",
       'event_budget_history_reuse': "再利用する",
       'event_budget_insights_least_activity': "最も選択されなかったアクティビティ",
       'event_budget_history_title': "保存した予算",
@@ -11275,10 +11275,10 @@ class AppTranslationAdditions {
 
 },
     'ru': {
-      'event_budget_save_error_title': "Не удалось сохранить бюджет",
-      'event_budget_save_error_missing_event': "Мероприятие не найдено.",
-      'event_budget_save_error_auth': "Войдите, чтобы сохранить эту симуляцию.",
-      'event_budget_save_error_message': "Не удалось сохранить симуляцию. Проверьте подключение и повторите попытку.",
+      'event_budget_save_error_title': "\u{41d}\u{435} \u{443}\u{434}\u{430}\u{43b}\u{43e}\u{441}\u{44c} \u{441}\u{43e}\u{445}\u{440}\u{430}\u{43d}\u{438}\u{442}\u{44c} \u{431}\u{44e}\u{434}\u{436}\u{435}\u{442}",
+      'event_budget_save_error_missing_event': "\u{41c}\u{435}\u{440}\u{43e}\u{43f}\u{440}\u{438}\u{44f}\u{442}\u{438}\u{435} \u{43d}\u{435} \u{43d}\u{430}\u{439}\u{434}\u{435}\u{43d}\u{43e}.",
+      'event_budget_save_error_auth': "\u{412}\u{43e}\u{439}\u{434}\u{438}\u{442}\u{435}, \u{447}\u{442}\u{43e}\u{431}\u{44b} \u{441}\u{43e}\u{445}\u{440}\u{430}\u{43d}\u{438}\u{442}\u{44c} \u{44d}\u{442}\u{443} \u{441}\u{438}\u{43c}\u{443}\u{43b}\u{44f}\u{446}\u{438}\u{44e}.",
+      'event_budget_save_error_message': "\u{41d}\u{435} \u{443}\u{434}\u{430}\u{43b}\u{43e}\u{441}\u{44c} \u{441}\u{43e}\u{445}\u{440}\u{430}\u{43d}\u{438}\u{442}\u{44c} \u{441}\u{438}\u{43c}\u{443}\u{43b}\u{44f}\u{446}\u{438}\u{44e}. \u{41f}\u{440}\u{43e}\u{432}\u{435}\u{440}\u{44c}\u{442}\u{435} \u{43f}\u{43e}\u{434}\u{43a}\u{43b}\u{44e}\u{447}\u{435}\u{43d}\u{438}\u{435} \u{438} \u{43f}\u{43e}\u{432}\u{442}\u{43e}\u{440}\u{438}\u{442}\u{435} \u{43f}\u{43e}\u{43f}\u{44b}\u{442}\u{43a}\u{443}.",
       'event_budget_history_reuse': "Использовать снова",
       'event_budget_insights_least_activity': "Наименее выбираемая активность",
       'event_budget_history_title': "Мои сохранённые бюджеты",
