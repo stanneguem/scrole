@@ -63,7 +63,8 @@ Deno.serve(async (req: Request) => {
     const type = String(record.type ?? "info").toLowerCase();
     const recordData = record.data && typeof record.data === "object" ? { ...record.data } : {};
     const isE2eeMessage = type === "e2ee_message_received" ||
-      recordData.e2ee === true || recordData.encryption_mode === "e2ee";
+      recordData.e2ee === true || recordData.e2ee === "true" ||
+      String(recordData.encryption_mode ?? "").toLowerCase() === "e2ee";
     if (isE2eeMessage) {
       // E2EE push notifications are wake-up hints only. Never forward plaintext,
       // previews, attachment URLs, or user-controlled message copy to FCM.
