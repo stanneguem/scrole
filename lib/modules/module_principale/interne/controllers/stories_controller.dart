@@ -278,7 +278,7 @@ class StoriesController extends GetxController {
 
   Future<void> _persistStoryTray(String userId, Map<String, dynamic> data) async {
     try {
-      final file = await _storyTrayCacheFile();
+      final file = await _storyTrayCacheFile(userId);
       await file.writeAsString(jsonEncode(data), flush: true);
       debugPrint('[STORY_CACHE] Story tray metadata saved locally');
     } catch (e) {
