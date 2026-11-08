@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import 'package:get/get.dart';
 import '../../centre/models/community_model.dart';
 import '../../centre/services/community_service.dart';
@@ -338,8 +339,8 @@ class _CommunityPreviewSheetState extends State<CommunityPreviewSheet> {
 
                           if (description.isNotEmpty) ...[
                             const SizedBox(height: 14),
-                            Text(
-                              description,
+                            LinkifiedText(
+                              text: description,
                               style: TextStyle(fontSize: 14.5, height: 1.4, color: colorScheme.onSurface),
                             ),
                           ],
