@@ -435,6 +435,13 @@ class HomeFeedController extends GetxController {
     }
   }
 
+  /// Removes a post that has just been reported. The report_content RPC
+  /// already persisted the per-user hide, so this only updates memory/cache.
+  void onPostReported(String postId) {
+    posts.removeWhere((post) => post.id == postId);
+    unawaited(_cacheCurrentFeed());
+  }
+
   Future<void> hidePost(String postId) async {
     try {
       debugPrint('[HOME_FEED] Hiding post $postId locally and calling RPC hide_post');
