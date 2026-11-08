@@ -123,6 +123,7 @@ class E2eeTransportRepository {
   Future<int> applyCommit({
     required String groupId,
     required int expectedEpoch,
+    required String senderDeviceId,
     required Uint8List commitCiphertext,
     required List<String> activeDeviceIds,
   }) async {
@@ -139,6 +140,7 @@ class E2eeTransportRepository {
       params: {
         'p_group_id': groupId,
         'p_expected_epoch': expectedEpoch,
+        'p_sender_device_id': senderDeviceId,
         'p_commit_ciphertext': encodePostgresBytea(commitCiphertext),
         'p_active_device_ids': activeDeviceIds,
       },
