@@ -173,3 +173,15 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Tests unitaires ajoutés pour l'identité persistée, sa création, le rejet d'une valeur corrompue et la lecture sans création.
 - Les tests ne sont pas exécutés dans l'environnement d'édition GitHub. Ils doivent être lancés localement avec `flutter test test/core/e2ee/e2ee_device_identity_test.dart`.
 - Le wrapper Dart `openmls` 3.3.0 a été examiné. Il apporte un moteur complet, SQLCipher et des correctifs OpenMLS récents, mais sa propre documentation reconnaît que la clé de base de données passe par le tas Dart et ne peut pas être effacée de façon garantie. L'éditeur pub.dev n'est pas vérifié. Il n'est donc pas ajouté comme dépendance de production à ce stade ; il reste une piste à auditer, pas une approbation de sécurité.
+
+
+## 12. Correctifs et validation préparatoire (8 novembre 2026)
+
+- Suppression d'une seconde déclaration dupliquée de `getExisting()` dans `E2eeDeviceIdentity`, qui empêchait l'analyse Dart.
+- Sérialisation des créations concurrentes de l'identité d'appareil et de la clé locale de base MLS, à condition que les gestionnaires soient des singletons applicatifs.
+- Tests supplémentaires : concurrence de création, séparation des comptes, clé de stockage existante, création, taille invalide et paramètres vides.
+- Configuration `flutter_rust_bridge.yaml` ajoutée et génération des bindings épinglée sur `flutter_rust_bridge_codegen 2.13.0`. La CI génère les bindings et publie un artefact de revue ; les bindings générés ne sont pas encore commités ni utilisés par Flutter.
+- CI étendue : analyse/tests Dart ciblés, tests Rust hôte, compilation de contrôle Android ARM64 et iOS ARM64.
+- Aucun résultat CI n'est présumé : les workflows doivent terminer avant de considérer ces contrôles validés.
+- Le crate upstream `openmls_sqlite_storage 0.3.0` fournit un stockage SQLite basé sur rusqlite, mais cela ne signifie pas que la base est chiffrée. Il ne sera pas utilisé tel quel pour les secrets MLS. Il faut intégrer SQLCipher ou un stockage chiffré équivalent, puis tester les transactions et la résistance au rollback.
+- Le code de clé Dart est toujours une préparation : la clé de base traverse le tas Dart et ne doit pas être transmise au moteur MLS en production. La prochaine étape doit faire la gestion et la dérivation de la clé dans une frontière native, puis valider le stockage persistant.
