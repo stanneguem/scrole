@@ -11,22 +11,32 @@ class EventBudgetController extends GetxController {
   late final DateTime _openedAt;
   final RxBool isSaving = false.obs;
 
+  Future<void> _analyticsQueue = Future<void>.value();
+
   Future<void> _recordAnalytics(
     String action, {
     Map<String, dynamic> metadata = const {},
-  }) async {
+  }) {
     final client = Supabase.instance.client;
-    if (_eventId == null || _eventId!.isEmpty || client.auth.currentUser == null) return;
-    try {
-      await client.rpc('record_event_analytics_event', params: {
-        'p_event_id': _eventId,
-        'p_action': action,
-        'p_metadata': {'session_id': _sessionId, ...metadata},
-      });
-    } catch (error) {
-      debugPrint('[EventBudgetController] analytics $action failed: $error');
+    if (_eventId == null || _eventId!.isEmpty || client.auth.currentUser == null) {
+      return Future<void>.value();
     }
+    final pending = _analyticsQueue.then((_) async {
+      try {
+        await client.rpc('record_event_analytics_event', params: {
+          'p_event_id': _eventId,
+          'p_action': action,
+          'p_metadata': {'session_id': _sessionId, ...metadata},
+        });
+      } catch (error) {
+        debugPrint('[EventBudgetController] analytics $action failed: $error');
+      }
+    });
+    _analyticsQueue = pending;
+    return pending;
   }
+
+  Future<void> flushAnalytics() => _analyticsQueue;
 
   final List<EventPreviewTicket> tickets = <EventPreviewTicket>[];
   final List<EventPreviewActivity> activities = <EventPreviewActivity>[];
