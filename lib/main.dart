@@ -47,6 +47,12 @@ import 'package:scrole/modules/module_discussion_direct/externe/services/fcm_not
 import 'package:scrole/modules/module_discussion_direct/centre/services/chat_service.dart';
 
 void main() {
+  // En production, désactive les logs Flutter debugPrint dans toute l'application.
+  // En debug/profile, les journaux restent disponibles pour le diagnostic.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   WidgetsFlutterBinding.ensureInitialized();
   // Register Android App Links before the heavier bootstrap work. On a cold
   // start, delaying this until the first rendered frame can lose the incoming
