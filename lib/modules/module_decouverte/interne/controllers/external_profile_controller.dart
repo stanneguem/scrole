@@ -65,6 +65,9 @@ class ExternalProfileController extends GetxController {
       isLoading.value = false;
     }
     await _restoreProfileTabsFromCache();
+    // Charger Posts dès l'ouverture, en parallèle de la synchronisation
+    // des informations du profil. Les deux autres onglets restent à la demande.
+    unawaited(loadProfileTab(0, forceRefresh: true));
     unawaited(loadProfile());
   }
 
