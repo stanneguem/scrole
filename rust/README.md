@@ -4,7 +4,8 @@ This crate is the Rust boundary for Scrole's MLS implementation.
 
 ## Current scope
 
-- Flutter declares `flutter_rust_bridge: ^2.13.0` and `flutter_secure_storage: ^11.2.0`.
+- Flutter declares `flutter_rust_bridge: ^2.13.0`, `flutter_rust_bridge_hooks: ^2.13.0` and `flutter_secure_storage: ^11.2.0`.
+- `hook/build.dart` invokes `FlutterRustBridgeNativeAssetsBuilder` for the `rust/` crate so Flutter build hooks can compile and bundle the native library for supported targets.
 - `lib/core/e2ee/secure_mls_storage_key.dart` creates a per-user/per-installation 256-bit database wrapping key using `Random.secure()` and stores it through the platform secure-storage plugin (Android encrypted storage backed by Keystore; iOS Keychain).
 
 - Pins OpenMLS 0.9.2 and the stable Flutter Rust Bridge 2.13.0.
@@ -69,3 +70,12 @@ explicit zeroization. A SQLCipher database/provider, authenticated storage
 format, rollback-safe commits and device recovery are still required.
 
 No direct or community message repository has been switched to this engine.
+
+
+## Android cross-compilation CI
+
+The Android Rust check installs the NDK and exports both the Cargo linker and
+the target-specific C compiler variables required by C dependencies such as
+`dart-sys`. The check is considered valid only when the full Cargo build
+completes for `aarch64-linux-android`; installing the NDK alone is not a
+successful compile check.
