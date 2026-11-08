@@ -4,6 +4,9 @@ This crate is the Rust boundary for Scrole's MLS implementation.
 
 ## Current scope
 
+- Flutter declares `flutter_rust_bridge: ^2.13.0` and `flutter_secure_storage: ^11.2.0`.
+- `lib/core/e2ee/secure_mls_storage_key.dart` creates a per-user/per-installation 256-bit database wrapping key using `Random.secure()` and stores it through the platform secure-storage plugin (Android encrypted storage backed by Keystore; iOS Keychain).
+
 - Pins OpenMLS 0.9.2 and the stable Flutter Rust Bridge 2.13.0.
 - Declares the RFC 9420 mandatory-to-implement X25519/AES-128-GCM/SHA-256/Ed25519 ciphersuite.
 - Exposes metadata only, explicitly reporting that message encryption is not ready.
@@ -39,9 +42,13 @@ the supported Flutter SDK and Android/iOS targets; do not assume desktop success
 
 ```bash
 cd rust
-cargo test --locked
-cargo check --locked
+cargo test
+cargo check
 ```
 
-A committed Cargo.lock is required before shipping; it is intentionally not fabricated by this
-repository-only integration step.
+A committed Cargo.lock is required before shipping. Generate it in a Rust-enabled environment, review the resolved dependency tree and licenses, then commit it. The repository-only GitHub editing environment cannot run Cargo or generate a trustworthy lockfile.
+
+
+## Current limitation
+
+The Flutter key manager is not yet called by application startup and no `MlsEngine` is instantiated. The Rust API intentionally reports `ready_for_messages = false`. The next implementation slice must add durable device identity, invoke the secure key manager, initialize the native engine, and test its storage lifecycle before any messaging repository can use it.
