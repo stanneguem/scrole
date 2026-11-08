@@ -27,16 +27,20 @@ serialized private state, KeyPackages' private bundles, or cryptographic secrets
 
 ## Flutter bridge generation
 
-From the repository root, after installing Rust and the FRB code generator:
+The checked-in `flutter_rust_bridge.yaml` pins the source/output layout.
+Use the exact generator version matching the Rust runtime:
 
 ```bash
-cargo install flutter_rust_bridge_codegen --version 2.13.0
-flutter_rust_bridge_codegen integrate --rust-root rust --rust-input rust/src/api.rs --dart-output lib/core/e2ee/bridge
-flutter_rust_bridge_codegen generate --rust-root rust --rust-input rust/src/api.rs --dart-output lib/core/e2ee/bridge
+cargo install --locked --version 2.13.0 flutter_rust_bridge_codegen
+flutter pub get
+flutter_rust_bridge_codegen generate
 ```
 
-Review generated output before committing. Native linking/build-hook integration must be completed for
-the supported Flutter SDK and Android/iOS targets; do not assume desktop success proves mobile support.
+Review and commit the generated `lib/core/e2ee/bridge/` Dart bindings and
+`rust/src/frb_generated.rs`. The GitHub Actions workflow also generates these
+files and publishes them as a review artifact. This generation step does not
+yet integrate native library packaging into Android/iOS app builds; native
+assets/build-hook integration and platform smoke tests remain separate gates.
 
 ## Validation
 
@@ -52,3 +56,16 @@ A committed Cargo.lock is required before shipping. Generate it in a Rust-enable
 ## Current limitation
 
 The Flutter key manager is not yet called by application startup and no `MlsEngine` is instantiated. The Rust API intentionally reports `ready_for_messages = false`. The next implementation slice must add durable device identity, invoke the secure key manager, initialize the native engine, and test its storage lifecycle before any messaging repository can use it.
+
+
+## Current limitation
+
+The Flutter key manager is not called by application startup and no persistent
+OpenMLS provider is instantiated. The Rust API intentionally reports
+`ready_for_messages = false`. The wrapping key currently crosses into Dart
+as a byte array; it must not be passed into production MLS operations until
+the native integration can keep key material in Rust-owned memory and apply
+explicit zeroization. A SQLCipher database/provider, authenticated storage
+format, rollback-safe commits and device recovery are still required.
+
+No direct or community message repository has been switched to this engine.
