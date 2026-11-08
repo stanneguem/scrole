@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:scrole/app/theme/app_colors.dart';
@@ -72,21 +73,37 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
 
   bool get _eventHasStarted => !DateTime.now().isBefore(widget.event.startsAt);
 
+  String get _selectedEmoji {
+    final score = _selectedScore;
+    if (score == null) return '🤔';
+    if (score <= 3) return '😡';
+    if (score <= 5) return '😕';
+    if (score <= 7) return '😐';
+    if (score <= 9) return '😊';
+    return '🤩';
+  }
+
+  void _selectScore(int score) {
+    if (!_eventHasStarted || _isSaving) return;
+    HapticFeedback.selectionClick();
+    setState(() => _selectedScore = score);
+  }
+
   String _friendlyRatingError(Object error) {
     final message = error.toString().toLowerCase();
     if (message.contains('pourrez noter') || message.contains('aura commencé')) {
-      return 'Vous pourrez noter cet événement dès qu’il aura commencé.';
+      return 'event_rating_error_not_started'.tr;
     }
     if (message.contains('équipe de l') || message.contains('team')) {
-      return 'Les organisateurs et les membres de l’équipe ne peuvent pas noter cet événement.';
+      return 'event_rating_error_team'.tr;
     }
     if (message.contains('conditions d’accès') || message.contains('conditions d\'accès') || message.contains('accès à cet événement')) {
-      return 'Votre profil ne remplit pas les conditions d’accès à cet événement.';
+      return 'event_rating_error_access'.tr;
     }
     if (message.contains('authentification')) {
-      return 'Connectez-vous pour pouvoir noter cet événement.';
+      return 'event_rating_error_auth'.tr;
     }
-    return 'Impossible d’enregistrer votre note. Vérifiez votre accès à l’événement et réessayez.';
+    return 'event_rating_error_generic'.tr;
   }
 
   Future<void> _submitRating() async {
@@ -114,7 +131,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Votre note de $_selectedScore/10 a été enregistrée avec succès !',
+              'event_rating_saved'.trParams({'score': _selectedScore.toString()}),
               style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
             ),
             backgroundColor: AppColors.primary,
@@ -204,7 +221,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
           onPressed: () => Get.back(),
         ),
         title: Text(
-          'Noter cet événement',
+          'event_rating_title'.tr,
           style: GoogleFonts.spaceGrotesk(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
@@ -236,7 +253,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                         color: AppColors.primary,
                       ),
                     )
-                  : Text(_myExistingRating != null ? 'Modifier ma note' : 'Valider ma note'),
+                  : Text(_myExistingRating != null ? 'event_rating_update'.tr : 'event_rating_submit'.tr),
             ),
           ),
         ],
@@ -283,7 +300,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                       Text(
                         _ratingsCount > 0
                             ? '${_ratingAverage.toStringAsFixed(1)} / 10'
-                            : 'Aucune note pour le moment',
+                            : 'event_rating_no_ratings'.tr,
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -308,7 +325,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Votre note actuelle : $_myExistingRating/10',
+                        'event_rating_current'.trParams({'score': _myExistingRating.toString()}),
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -335,7 +352,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'La notation sera disponible dès le début de l’événement.',
+                              'event_rating_waiting'.tr,
                               style: AppTextStyles.bodySmall.copyWith(color: colorScheme.onTertiaryContainer, height: 1.35),
                             ),
                           ),
@@ -357,6 +374,19 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                     ),
                     child: Column(
                       children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          transitionBuilder: (child, animation) => ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(opacity: animation, child: child),
+                          ),
+                          child: Text(
+                            _selectedEmoji,
+                            key: ValueKey(_selectedEmoji),
+                            style: const TextStyle(fontSize: 58, height: 1.2),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           _selectedScore != null ? '$_selectedScore / 10' : '- / 10',
                           style: GoogleFonts.spaceGrotesk(
@@ -389,7 +419,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                   const SizedBox(height: 28),
 
                   Text(
-                    'Sélectionnez votre note',
+                    'event_rating_select_prompt'.tr,
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -408,7 +438,7 @@ class _EventRatingScreenState extends State<EventRatingScreen> {
                       final isSelected = score == _selectedScore;
 
                       return InkWell(
-                        onTap: _eventHasStarted ? () => setState(() => _selectedScore = score) : null,
+                        onTap: _eventHasStarted ? () => _selectScore(score) : null,
                         borderRadius: BorderRadius.circular(14),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
