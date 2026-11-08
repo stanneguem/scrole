@@ -4,16 +4,18 @@ import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Stores only the random wrapping key used by the native MLS database.
+/// Provisions a random 256-bit value in the platform secure-storage plugin.
 ///
-/// The MLS database itself remains owned by the Rust engine. Never store MLS
-/// signing private keys, KeyPackages, group secrets or plaintext messages here.
+/// IMPORTANT: this is only a bootstrap reservation. It deliberately never
+/// returns key bytes to application code. The Rust MLS provider is not allowed
+/// to use this value until a native Keystore/Keychain bridge can unwrap it
+/// without exposing it to Dart.
 class SecureMlsStorageKey {
   SecureMlsStorageKey({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
-  final Map<String, Future<Uint8List>> _pendingCreations = {};
+  final Map<String, Future<void>> _pendingCreations = {};
 
   String _storageKey(String userId, String deviceId) {
     if (userId.trim().isEmpty || deviceId.trim().isEmpty) {
@@ -22,15 +24,11 @@ class SecureMlsStorageKey {
     return 'scrole.e2ee.mls.storage_key.v1.$userId.$deviceId';
   }
 
-  /// Returns the existing 256-bit database key or creates it once.
+  /// Ensures a 256-bit placeholder key exists without returning its bytes.
   ///
-  /// Calls made concurrently through this instance are serialized per key.
-  /// Keep this service as an application-level singleton.
-  ///
-  /// The key is persisted through the platform secure-storage plugin. This
-  /// Dart API is a bootstrap stage only: do not pass the key to production MLS
-  /// code until the native bridge can keep and zeroize it on the Rust side.
-  Future<Uint8List> getOrCreate({
+  /// This is not yet the production native key lifecycle. Do not connect it to
+  /// OpenMLS until Android Keystore/iOS Keychain native wrapping is implemented.
+  Future<void> ensureProvisioned({
     required String userId,
     required String deviceId,
   }) {
@@ -43,14 +41,14 @@ class SecureMlsStorageKey {
     return creation.whenComplete(() => _pendingCreations.remove(key));
   }
 
-  Future<Uint8List> _readOrCreate(String key) async {
+  Future<void> _readOrCreate(String key) async {
     final encoded = await _storage.read(key: key);
     if (encoded != null) {
       final bytes = base64Url.decode(base64Url.normalize(encoded));
       if (bytes.length != 32) {
         throw StateError('Stored MLS database key has an invalid length.');
       }
-      return Uint8List.fromList(bytes);
+      return;
     }
 
     final random = Random.secure();
@@ -58,12 +56,11 @@ class SecureMlsStorageKey {
       List<int>.generate(32, (_) => random.nextInt(256), growable: false),
     );
     await _storage.write(key: key, value: base64UrlEncode(bytes));
-    return Uint8List.fromList(bytes);
+    bytes.fillRange(0, bytes.length, 0);
   }
 
-  /// Deletes the local database wrapping key. This makes the corresponding
-  /// encrypted MLS database unrecoverable unless a separately designed,
-  /// authenticated recovery mechanism exists.
+  /// Deletes the placeholder. Production revocation must also destroy the
+  /// native wrapped key and encrypted MLS database in a coordinated operation.
   Future<void> delete({
     required String userId,
     required String deviceId,
