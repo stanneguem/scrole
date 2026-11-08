@@ -5,6 +5,10 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'event_share_attending_badge': "J'y vais",
+      'event_share_attending_intro': "Je participe à",
+      'event_share_discovery_intro': "À découvrir",
+      'event_share_footer': "L'événement à retrouver sur Scrole",
       'event_rating_title': "Noter cet événement",
       'event_rating_update': "Modifier",
       'event_rating_submit': "Valider",
@@ -1530,6 +1534,10 @@ class AppTranslationAdditions {
 
 },
     'en': {
+      'event_share_attending_badge': "I'm going",
+      'event_share_attending_intro': "I'm attending",
+      'event_share_discovery_intro': "Discover",
+      'event_share_footer': "Find this event on Scrole",
       'event_rating_title': "Rate this event",
       'event_rating_update': "Update",
       'event_rating_submit': "Submit",
@@ -3051,6 +3059,10 @@ class AppTranslationAdditions {
 
 },
     'es': {
+      'event_share_attending_badge': "Asistiré",
+      'event_share_attending_intro': "Voy a asistir a",
+      'event_share_discovery_intro': "Descubre",
+      'event_share_footer': "Encuentra este evento en Scrole",
       'event_rating_title': "Valorar este evento",
       'event_rating_update': "Actualizar",
       'event_rating_submit': "Enviar",
@@ -4475,6 +4487,10 @@ class AppTranslationAdditions {
 
 },
     'de': {
+      'event_share_attending_badge': "Ich bin dabei",
+      'event_share_attending_intro': "Ich nehme teil an",
+      'event_share_discovery_intro': "Entdecken",
+      'event_share_footer': "Dieses Event auf Scrole finden",
       'event_rating_title': "Diese Veranstaltung bewerten",
       'event_rating_update': "Ändern",
       'event_rating_submit': "Senden",
@@ -5882,6 +5898,10 @@ class AppTranslationAdditions {
 
 },
     'it': {
+      'event_share_attending_badge': "Ci sarò",
+      'event_share_attending_intro': "Partecipo a",
+      'event_share_discovery_intro': "Da scoprire",
+      'event_share_footer': "Trova questo evento su Scrole",
       'event_rating_title': "Valuta questo evento",
       'event_rating_update': "Modifica",
       'event_rating_submit': "Invia",
@@ -7287,6 +7307,10 @@ class AppTranslationAdditions {
 
 },
     'pt': {
+      'event_share_attending_badge': "Vou participar",
+      'event_share_attending_intro': "Vou participar em",
+      'event_share_discovery_intro': "Descobre",
+      'event_share_footer': "Encontra este evento no Scrole",
       'event_rating_title': "Avaliar este evento",
       'event_rating_update': "Alterar",
       'event_rating_submit': "Enviar",
@@ -8692,6 +8716,10 @@ class AppTranslationAdditions {
 
 },
     'zh': {
+      'event_share_attending_badge': "我会参加",
+      'event_share_attending_intro': "我将参加",
+      'event_share_discovery_intro': "活动推荐",
+      'event_share_footer': "在 Scrole 上查看此活动",
       'event_rating_title': "评价此活动",
       'event_rating_update': "修改",
       'event_rating_submit': "提交",
@@ -10099,6 +10127,10 @@ class AppTranslationAdditions {
 
 },
     'ja': {
+      'event_share_attending_badge': "参加します",
+      'event_share_attending_intro': "参加予定：",
+      'event_share_discovery_intro': "おすすめイベント",
+      'event_share_footer': "このイベントはScroleでチェック",
       'event_rating_title': "イベントを評価",
       'event_rating_update': "変更",
       'event_rating_submit': "送信",
@@ -11499,6 +11531,10 @@ class AppTranslationAdditions {
 
 },
     'ru': {
+      'event_share_attending_badge': "Я иду",
+      'event_share_attending_intro': "Я участвую в",
+      'event_share_discovery_intro': "Рекомендуем",
+      'event_share_footer': "Найдите это мероприятие в Scrole",
       'event_rating_title': "Оценить мероприятие",
       'event_rating_update': "Изменить",
       'event_rating_submit': "Отправить",
