@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
@@ -889,11 +890,24 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
     final isOwnerOrCoFounder = (_contextRole == 'owner' || _contextRole == 'managed' ||
         event.userRole == 'fondateur' || event.userRole == 'co_createur' ||
         (currentUserId != null && currentUserId.isNotEmpty && event.creatorId == currentUserId));
-    final canManageActivities = isOwnerOrCoFounder || _contextRole == 'staff' ||
-        event.userRole == 'staff' || preview.viewerRole == 'owner' ||
-        preview.viewerRole == 'cofounder' || preview.viewerRole == 'staff';
+    final normalizedRoles = <String>{
+      (_contextRole ?? '').trim().toLowerCase(),
+      (event.userRole ?? '').trim().toLowerCase(),
+      (preview.viewerRole ?? '').trim().toLowerCase(),
+    };
+    final isStaffMember = normalizedRoles.any((role) => const {
+      'staff', 'member_staff', 'membre_staff', 'staff_member',
+      'membre du staff', 'event_staff',
+    }.contains(role));
+    final canManageActivities = isOwnerOrCoFounder || isStaffMember ||
+        normalizedRoles.any((role) => const {
+          'owner', 'creator', 'fondateur', 'cofounder', 'co_founder',
+          'co_createur', 'co_creator', 'managed',
+        }.contains(role));
 
-    final canScan = isOwnerOrCoFounder || _contextRole == 'staff' || event.userRole == 'staff';
+    // Le scan est disponible aux organisateurs/co-fondateurs et à tout
+    // membre du staff confirmé, quel que soit le point d'entrée de la preview.
+    final canScan = isOwnerOrCoFounder || isStaffMember;
 
     final showCalendarAction = preview.canAddToCalendar && !isOwnerOrCoFounder;
     final showPublicInteractions = !isOwnerOrCoFounder &&
@@ -1185,7 +1199,14 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(creator.fullName, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
-                              Text('@${creator.username}', style: AppTextStyles.bodySmall),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('@${creator.username}', style: AppTextStyles.bodySmall),
+                                  const SizedBox(width: 6),
+                                  _CreatorCertificationBadge(userId: creator.userId),
+                                ],
+                              ),
                             ],
                           ),
                         ],
@@ -1880,6 +1901,67 @@ class _HeaderActionButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+/// Affiche le niveau réel de certification du profil créateur.
+class _CreatorCertificationBadge extends StatelessWidget {
+  const _CreatorCertificationBadge({required this.userId});
+
+  final String userId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (userId.isEmpty) return const SizedBox.shrink();
+    return FutureBuilder<dynamic>(
+      future: Supabase.instance.client.rpc(
+        'get_public_profile_certification_level',
+        params: {'p_user_id': userId},
+      ),
+      builder: (context, snapshot) {
+        final level = (snapshot.data ?? '').toString().trim().toLowerCase();
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            !const {'basique', 'pro', 'premium'}.contains(level)) {
+          return const SizedBox.shrink();
+        }
+
+        final label = switch (level) {
+          'premium' => 'Premium',
+          'pro' => 'Pro',
+          _ => 'Basique',
+        };
+        return Tooltip(
+          message: 'Profil certifié · $label',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1877F2).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF1877F2).withValues(alpha: 0.24),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.verified_rounded,
+                    size: 13, color: Color(0xFF1877F2)),
+                const SizedBox(width: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF1877F2),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
