@@ -392,12 +392,20 @@ class EventController extends GetxController with WidgetsBindingObserver {
     try {
       // Premier rendu : lire les deux snapshots locaux sans attendre le réseau.
       if (!hasLoadedMyEvents.value && userId != null) {
-        final localManaged = (await _repository.getManagedEventsLocal())
-            .where(_isVisibleInMyEvents).toList();
-        final localStaff = (await _repository.getStaffEventsLocal())
-            .where(_isVisibleInMyEvents).toList();
-        managedEvents.assignAll(localManaged);
-        staffEvents.assignAll(localStaff);
+        try {
+          final localManaged = (await _repository.getManagedEventsLocal())
+              .where(_isVisibleInMyEvents).toList();
+          managedEvents.assignAll(localManaged);
+        } catch (e) {
+          debugPrint('[Cache] Unable to read managed events snapshot: $e');
+        }
+        try {
+          final localStaff = (await _repository.getStaffEventsLocal())
+              .where(_isVisibleInMyEvents).toList();
+          staffEvents.assignAll(localStaff);
+        } catch (e) {
+          debugPrint('[Cache] Unable to read staff events snapshot: $e');
+        }
         hasLoadedMyEvents.value = true;
       }
 
