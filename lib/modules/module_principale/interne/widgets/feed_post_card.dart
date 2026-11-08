@@ -1155,6 +1155,21 @@ class FeedPostCard extends StatelessWidget {
                     : detailsController.text.trim(),
               });
               if (!sheetContext.mounted) return;
+
+              // The report RPC already persisted post_hides transactionally.
+              // Remove the card from every currently mounted feed immediately.
+              try {
+                if (Get.isRegistered<HomeFeedController>()) {
+                  Get.find<HomeFeedController>().onPostReported(post.id);
+                }
+              } catch (_) {}
+              try {
+                if (Get.isRegistered<CommunityFeedController>()) {
+                  final communityFeed = Get.find<CommunityFeedController>();
+                  communityFeed.posts.removeWhere((item) => item.id == post.id);
+                }
+              } catch (_) {}
+
               Navigator.of(sheetContext).pop();
               messenger.showSnackBar(
                 SnackBar(content: Text('report_post_success'.tr)),
