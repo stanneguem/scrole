@@ -87,6 +87,10 @@ class CommunityPost {
   final String? communityLogoUrl;
   final bool isSuggested;
   final bool isSponsored;
+  final bool isPlatformPromotion;
+  final bool ctaEnabled;
+  final String? ctaLabel;
+  final String? ctaUrl;
   final String? reasonSubtitle;
 
   const CommunityPost({
@@ -128,6 +132,10 @@ class CommunityPost {
     this.communityLogoUrl,
     this.isSuggested = false,
     this.isSponsored = false,
+    this.isPlatformPromotion = false,
+    this.ctaEnabled = false,
+    this.ctaLabel,
+    this.ctaUrl,
     this.reasonSubtitle,
   });
 
@@ -296,6 +304,10 @@ class CommunityPost {
       communityLogoUrl: map['community'] is Map ? map['community']['photo_profile']?.toString() : map['community_logo_url']?.toString(),
       isSuggested: map['is_suggested'] == true || map['is_suggested'] == 1,
       isSponsored: map['is_sponsored'] == true || map['is_sponsored'] == 1,
+      isPlatformPromotion: map['is_platform_promotion'] == true || map['is_platform_promotion'] == 1,
+      ctaEnabled: map['cta_enabled'] == true || map['cta_enabled'] == 1,
+      ctaLabel: map['cta_label']?.toString(),
+      ctaUrl: map['cta_url']?.toString(),
       reasonSubtitle: map['reason_subtitle']?.toString(),
     );
   }
@@ -370,6 +382,10 @@ class CommunityPost {
           },
         'is_suggested': isSuggested,
         'is_sponsored': isSponsored,
+        'is_platform_promotion': isPlatformPromotion,
+        'cta_enabled': ctaEnabled,
+        'cta_label': ctaLabel,
+        'cta_url': ctaUrl,
         'reason_subtitle': reasonSubtitle,
       };
 
@@ -392,6 +408,10 @@ class CommunityPost {
     String? communityLogoUrl,
     bool? isSuggested,
     bool? isSponsored,
+    bool? isPlatformPromotion,
+    bool? ctaEnabled,
+    String? ctaLabel,
+    String? ctaUrl,
     String? reasonSubtitle,
     List<CommunityPostMention>? mentionedUsers,
     List<CommunityPostMention>? influencerReactions,
@@ -436,6 +456,10 @@ class CommunityPost {
       communityLogoUrl: communityLogoUrl ?? this.communityLogoUrl,
       isSuggested: isSuggested ?? this.isSuggested,
       isSponsored: isSponsored ?? this.isSponsored,
+      isPlatformPromotion: isPlatformPromotion ?? this.isPlatformPromotion,
+      ctaEnabled: ctaEnabled ?? this.ctaEnabled,
+      ctaLabel: ctaLabel ?? this.ctaLabel,
+      ctaUrl: ctaUrl ?? this.ctaUrl,
       reasonSubtitle: reasonSubtitle ?? this.reasonSubtitle,
     );
   }
