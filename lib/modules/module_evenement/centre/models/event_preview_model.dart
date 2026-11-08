@@ -1,7 +1,10 @@
 import 'event_model.dart';
 
 class EventCreatorInfo {
+  /// Populated only for a real user profile. Admin profiles are not user profiles.
   final String userId;
+  final String profileId;
+  final String profileType;
   final String username;
   final String fullName;
   final String? photoUrl;
@@ -9,6 +12,8 @@ class EventCreatorInfo {
 
   const EventCreatorInfo({
     required this.userId,
+    this.profileId = '',
+    this.profileType = 'user',
     required this.username,
     required this.fullName,
     this.photoUrl,
@@ -16,12 +21,19 @@ class EventCreatorInfo {
   });
 
   factory EventCreatorInfo.fromJson(Map<String, dynamic> json) {
+    final profileType = (json['profile_type'] ?? 'user').toString();
+    final isAdmin = json['is_admin_creator'] == true || profileType == 'admin';
+    final username = (json['username'] ?? (isAdmin ? 'scrole' : 'Créateur')).toString();
+    final fullName = (json['display_name'] ?? json['full_name'] ??
+        (isAdmin ? 'Scrole' : username)).toString();
     return EventCreatorInfo(
-      userId: (json['user_id'] ?? json['id'] ?? '').toString(),
-      username: (json['username'] ?? 'Créateur').toString(),
-      fullName: (json['full_name'] ?? json['username'] ?? 'Créateur').toString(),
+      userId: isAdmin ? '' : (json['user_id'] ?? json['id'] ?? '').toString(),
+      profileId: (json['profile_id'] ?? '').toString(),
+      profileType: profileType,
+      username: username,
+      fullName: fullName,
       photoUrl: json['photo_url']?.toString(),
-      isAdminCreator: json['is_admin_creator'] == true,
+      isAdminCreator: isAdmin,
     );
   }
 }
