@@ -75,6 +75,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
               _preview = EventPreviewModel(
                 event: updatedEvent,
                 creator: _preview!.creator,
+                isPlatformEvent: _preview!.isPlatformEvent,
+                isThirdPartyEvent: _preview!.isThirdPartyEvent,
                 canView: _preview!.canView,
                 canViewPublicPreview: _preview!.canViewPublicPreview,
                 viewerRole: _preview!.viewerRole,
@@ -330,6 +332,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       _preview = EventPreviewModel(
         event: _preview!.event,
         creator: _preview!.creator,
+                isPlatformEvent: _preview!.isPlatformEvent,
+                isThirdPartyEvent: _preview!.isThirdPartyEvent,
         canView: _preview!.canView,
         canViewPublicPreview: _preview!.canViewPublicPreview,
         viewerRole: _preview!.viewerRole,
@@ -432,6 +436,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
         _preview = EventPreviewModel(
           event: _preview!.event,
           creator: _preview!.creator,
+                isPlatformEvent: _preview!.isPlatformEvent,
+                isThirdPartyEvent: _preview!.isThirdPartyEvent,
           canView: _preview!.canView,
           canViewPublicPreview: _preview!.canViewPublicPreview,
           viewerRole: _preview!.viewerRole,
@@ -545,6 +551,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       _preview = EventPreviewModel(
         event: _preview!.event,
         creator: _preview!.creator,
+                isPlatformEvent: _preview!.isPlatformEvent,
+                isThirdPartyEvent: _preview!.isThirdPartyEvent,
         canView: _preview!.canView,
         canViewPublicPreview: _preview!.canViewPublicPreview,
         viewerRole: _preview!.viewerRole,
@@ -590,6 +598,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           _preview = EventPreviewModel(
             event: _preview!.event,
             creator: _preview!.creator,
+                isPlatformEvent: _preview!.isPlatformEvent,
+                isThirdPartyEvent: _preview!.isThirdPartyEvent,
             canView: _preview!.canView,
             canViewPublicPreview: _preview!.canViewPublicPreview,
             viewerRole: _preview!.viewerRole,
@@ -627,6 +637,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           _preview = EventPreviewModel(
             event: _preview!.event,
             creator: _preview!.creator,
+                isPlatformEvent: _preview!.isPlatformEvent,
+                isThirdPartyEvent: _preview!.isThirdPartyEvent,
             canView: _preview!.canView,
             canViewPublicPreview: _preview!.canViewPublicPreview,
             viewerRole: _preview!.viewerRole,
@@ -1174,8 +1186,50 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
 
                   const SizedBox(height: 16),
 
-                  // Carte Créateur
-                  if (creator != null)
+                  // Identité de la plateforme ou créateur réel de l'événement.
+                  if (preview.isPlatformEvent)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          ClipOval(
+                            child: Image.asset(
+                              'assets/logos/img.png',
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 44,
+                                height: 44,
+                                color: AppColors.primary,
+                                child: const Icon(Icons.business_rounded, color: Colors.white, size: 22),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Scrole', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('event_platform_account'.tr, style: AppTextStyles.bodySmall),
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF1877F2)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (creator != null)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -1217,6 +1271,32 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                         ],
                       ),
                     ),
+
+                  if (preview.isThirdPartyEvent) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: colorScheme.primary, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'event_platform_third_party_notice'.tr,
+                              style: AppTextStyles.bodySmall.copyWith(height: 1.45),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 16),
 
