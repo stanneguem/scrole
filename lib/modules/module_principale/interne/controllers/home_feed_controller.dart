@@ -12,6 +12,8 @@ import 'package:scrole/modules/module_evenement/centre/models/event_model.dart';
 import 'package:scrole/modules/module_authentification/centre/services/auth_service.dart';
 import 'package:scrole/modules/module_communautes/centre/services/community_outbox_processor.dart';
 import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
+import 'package:scrole/app/local_storage/fast/fast_cache_key.dart';
+import 'package:scrole/app/local_storage/fast/fast_cache_service.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/app/utils/supabase_error_mapper.dart';
 import 'package:scrole/modules/module_discussion_direct/externe/repositories/social_repository.dart';
@@ -24,6 +26,9 @@ class HomeFeedController extends GetxController {
   late final EventRepository _eventRepo;
   final AuthService _authService = Get.find<AuthService>();
   final AppDatabase _db = Get.find<AppDatabase>();
+  FastCacheService? get _fastCache =>
+      Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
+  static const int _homeFeedCacheLimit = 15;
 
   final Rx<HomeFeedState> state = HomeFeedState.initial.obs;
   final RxList<CommunityPost> posts = <CommunityPost>[].obs;
@@ -340,7 +345,7 @@ class HomeFeedController extends GetxController {
       }
       posts.value = uniqueMap.values.toList();
 
-      // Cache fetched items locally
+      // Keep the first 15 complete cards available for the next cold start.
       await _cacheFeedItems(userId, remoteItems);
 
       // Fetch suggested profiles and suggested events
@@ -392,6 +397,7 @@ class HomeFeedController extends GetxController {
         final existingIds = posts.map((p) => p.id).toSet();
         final newItems = moreItems.where((p) => !existingIds.contains(p.id)).toList();
         posts.addAll(newItems);
+        unawaited(_cacheCurrentFeed());
       }
     } catch (e) {
       debugPrint('[HOME_FEED] Error in loadMore: $e');
@@ -405,6 +411,7 @@ class HomeFeedController extends GetxController {
       debugPrint('[HOME_FEED] Hiding post $postId locally and calling RPC hide_post');
       posts.removeWhere((p) => p.id == postId);
       await _feedRepo.hidePost(postId);
+      await _cacheCurrentFeed();
       Get.snackbar('Succès', 'Publication masquée', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       debugPrint('[HOME_FEED] Error hiding post $postId: $e');
@@ -415,46 +422,37 @@ class HomeFeedController extends GetxController {
 
   Future<void> _loadCachedFeedAndOutbox(String userId) async {
     try {
-      final db = await _db.database;
-      final cachedRows = await db.query(
-        'home_feed_cache',
-        where: 'user_id = ?',
-        whereArgs: [userId],
-        orderBy: 'cached_at DESC',
-        limit: 30,
+      final cachedRows = _fastCache?.get<List<dynamic>>(
+        FastCacheKey.homeFeed(userId),
       );
-
-      final List<CommunityPost> cachedPosts = [];
-      for (final row in cachedRows) {
-        try {
-          final dataMap = jsonDecode(row['data'].toString()) as Map<String, dynamic>;
-          cachedPosts.add(CommunityPost(
-            id: dataMap['id']?.toString() ?? '',
-            authorName: dataMap['author_name']?.toString() ?? 'Utilisateur',
-            authorId: dataMap['author_id']?.toString() ?? '',
-            authorColor: Colors.deepPurple,
-            authorRole: CommunityRole.member,
-            timeAgo: dataMap['time_ago']?.toString() ?? 'Récemment',
-            content: dataMap['content']?.toString() ?? '',
-            communityId: dataMap['community_id']?.toString(),
-            communityName: dataMap['community_name']?.toString(),
-            isSuggested: dataMap['is_suggested'] == true,
-            reasonSubtitle: dataMap['reason_subtitle']?.toString(),
-            likeCount: (dataMap['like_count'] as num?)?.toInt() ?? 0,
-            commentCount: (dataMap['comment_count'] as num?)?.toInt() ?? 0,
-          ));
-        } catch (_) {}
+      final cachedPosts = <CommunityPost>[];
+      if (cachedRows != null) {
+        for (final row in cachedRows.take(_homeFeedCacheLimit)) {
+          if (row is! Map) continue;
+          try {
+            final data = Map<String, dynamic>.from(row);
+            final post = CommunityPost.fromMap(data);
+            if (post.id.isNotEmpty) cachedPosts.add(post);
+          } catch (e) {
+            debugPrint('[HOME_FEED] Ignoring invalid cached post: $e');
+          }
+        }
       }
 
       final pendingPosts = await _getPendingOutboxPosts(userId);
-      if (pendingPosts.isNotEmpty || cachedPosts.isNotEmpty) {
-        final combined = <CommunityPost>[...pendingPosts, ...cachedPosts];
-        posts.assignAll(combined);
-        state.value = HomeFeedState.loaded;
-        debugPrint('[HOME_FEED] Loaded ${cachedPosts.length} cached posts and ${pendingPosts.length} outbox posts.');
+      final unique = <String, CommunityPost>{};
+      for (final post in [...pendingPosts, ...cachedPosts]) {
+        unique[post.id] = post;
       }
-    } catch (e) {
-      debugPrint('[HOME_FEED] Error loading cached feed: $e');
+      if (unique.isNotEmpty) {
+        posts.assignAll(unique.values);
+        state.value = HomeFeedState.loaded;
+        debugPrint(
+          '[HOME_FEED] Restored ${cachedPosts.length}/$_homeFeedCacheLimit complete cached cards and ${pendingPosts.length} pending posts.',
+        );
+      }
+    } catch (e, st) {
+      debugPrint('[HOME_FEED] Error loading complete cached feed: $e\\n$st');
     }
   }
 
@@ -504,35 +502,28 @@ class HomeFeedController extends GetxController {
 
   Future<void> _cacheFeedItems(String userId, List<CommunityPost> items) async {
     try {
-      final db = await _db.database;
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      for (final p in items) {
-        await db.insert(
-          'home_feed_cache',
-          {
-            'id': p.id,
-            'user_id': userId,
-            'data': jsonEncode({
-              'id': p.id,
-              'content': p.content,
-              'author_name': p.authorName,
-              'author_id': p.authorId,
-              'time_ago': p.timeAgo,
-              'community_id': p.communityId,
-              'community_name': p.communityName,
-              'is_suggested': p.isSuggested,
-              'reason_subtitle': p.reasonSubtitle,
-              'like_count': p.likeCount,
-              'comment_count': p.commentCount,
-            }),
-            'cached_at': nowMs,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+      final unique = <String, CommunityPost>{};
+      for (final post in items) {
+        if (post.id.isNotEmpty && !post.isPublishing) unique[post.id] = post;
       }
-    } catch (e) {
-      debugPrint('[HOME_FEED] Error caching feed items: $e');
+      final snapshot = unique.values
+          .take(_homeFeedCacheLimit)
+          .map((post) => post.toCacheMap())
+          .toList(growable: false);
+      await _fastCache?.set(FastCacheKey.homeFeed(userId), snapshot);
+      debugPrint(
+        '[HOME_FEED] Saved ${snapshot.length} complete cards in the offline cache.',
+      );
+    } catch (e, st) {
+      debugPrint('[HOME_FEED] Error caching complete feed cards: $e\\n$st');
     }
+  }
+
+  Future<void> _cacheCurrentFeed() async {
+    final userId = _authService.userId;
+    if (userId == null) return;
+    final visiblePosts = posts.where((post) => !post.isPublishing).toList();
+    await _cacheFeedItems(userId, visiblePosts);
   }
 
   final Map<String, Timer> _reactionDebouncers = {};
@@ -589,6 +580,7 @@ class HomeFeedController extends GetxController {
       dislikeCount: dislikes,
     );
     posts.refresh();
+    unawaited(_cacheCurrentFeed());
 
     _reactionDebouncers[postId]?.cancel();
 
@@ -604,6 +596,7 @@ class HomeFeedController extends GetxController {
           if (curIdx != -1) {
             posts[curIdx] = post;
             posts.refresh();
+            unawaited(_cacheCurrentFeed());
           }
           Get.snackbar('Erreur', e.toString().replaceFirst('Exception: ', '').tr, snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
         }
@@ -644,11 +637,13 @@ class HomeFeedController extends GetxController {
 
     try {
       await _feedRepo.deletePost(postId, reason: reason);
+      await _cacheCurrentFeed();
       Get.snackbar('Succès', 'Publication supprimée', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       debugPrint('[DELETE] [Controller] Error deleting post: $e');
       posts.value = oldPosts;
       posts.refresh();
+      unawaited(_cacheCurrentFeed());
       Get.snackbar('Erreur', e.toString().replaceFirst('Exception: ', '').tr, snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
