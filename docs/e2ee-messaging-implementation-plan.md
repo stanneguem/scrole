@@ -75,26 +75,24 @@ Supabase :
 
 Créer un identifiant stable par installation Flutter et un registre serveur de clés publiques :
 - `e2ee_devices` : utilisateur, appareil, version du protocole, clé publique d'identité, statut/révocation, dates ;
-- `e2ee_signed_prekeys` : clé publique signée, identifiant, signature et date d'expiration ;
-- `e2ee_one_time_prekeys` : clés publiques à usage unique, consommées atomiquement ;
-- éventuellement pré-clés post-quantiques selon le SDK retenu.
+- `e2ee_key_packages` : KeyPackages MLS publics, à usage unique et consommés atomiquement ;
+- les clés privées de signature et secrets de stockage MLS restent exclusivement sur l'appareil.
 
 Les clés privées et états de sessions ne quittent jamais l'appareil. Le serveur ne stocke que les clés publiques et les enveloppes chiffrées. Les clés privées sont protégées par Keychain iOS / Android Keystore via un stockage sécurisé. Les états sérialisés des ratchets sont chiffrés localement et écrits de façon durable et atomique.
 
 ### Direct
 
-1. Chaque appareil publie son bundle de pré-clés publiques.
-2. L'expéditeur récupère les bundles des appareils du destinataire et établit une session Signal avec chacun.
-3. Le message est chiffré pour chaque appareil destinataire et pour les autres appareils de l'expéditeur.
-4. Supabase ne reçoit que des enveloppes chiffrées, avec l'identifiant du message, les horodatages et les métadonnées minimales.
-5. Chaque appareil déchiffre localement et met à jour son état de ratchet de manière durable avant de considérer l'envoi comme confirmé.
+1. Chaque appareil publie un KeyPackage MLS public.
+2. Les appareils établissent le groupe MLS de la conversation directe et distribuent le Welcome chiffré au second participant.
+3. Les deux utilisateurs et leurs autres appareils autorisés rejoignent le même groupe MLS ; chaque appareil conserve son propre état local.
+4. Le contenu applicatif est chiffré avec MLS avant envoi. Supabase ne reçoit que des enveloppes chiffrées et des métadonnées minimales.
+5. Chaque appareil traite les messages et commits dans l'ordre et persiste atomiquement son état MLS chiffré.
 
 ### Salon communautaire
 
-1. Chaque appareil membre possède des sessions directes établies avec les appareils des autres membres.
-2. Chaque expéditeur crée une Sender Key de groupe et distribue son état initial à chaque appareil membre via ces sessions directes.
-3. Le corps de chaque message est chiffré une seule fois avec la Sender Key de l'expéditeur ; l'enveloppe contient l'identifiant de l'époque et les informations nécessaires au déchiffrement.
-4. Lorsqu'un membre est ajouté, retiré ou quitte le salon, une nouvelle époque est créée et les Sender Keys sont renouvelées/distribuées aux membres restants. Aucun nouveau message ne doit partir avec une clé de l'ancienne époque.
+1. Chaque appareil membre rejoint le groupe MLS du salon à l'aide d'un KeyPackage et d'un Welcome chiffré.
+2. Les messages applicatifs sont chiffrés une fois par l'appareil expéditeur et relayés comme enveloppes MLS opaques.
+3. Lorsqu'un membre est ajouté, retiré ou quitte le salon, un Commit MLS avance l'époque et renouvelle les secrets du groupe. Aucun message ne doit partir avec l'état d'une époque obsolète.
 5. Un nouveau membre ne reçoit pas les anciennes clés : l'historique antérieur à son adhésion reste illisible, sauf partage d'historique explicite décidé séparément.
 6. Un membre retiré ne peut plus lire les messages futurs. Il reste impossible de lui faire « oublier » les anciens messages qu'il a déjà reçus.
 
@@ -102,7 +100,7 @@ Les clés privées et états de sessions ne quittent jamais l'appareil. Le serve
 
 - Registre des appareils et pré-clés publiques.
 - Enveloppes de messages directs par appareil destinataire.
-- État/époque de chiffrement par salon et enveloppes de distribution de Sender Keys par appareil.
+- Identifiant MLS et événements Commit/Welcome/Application chiffrés par conversation ; état MLS privé conservé uniquement sur les appareils.
 - Colonnes explicites `encryption_version`, `ciphertext`/enveloppes et métadonnées de protocole.
 - Les colonnes historiques en clair sont conservées uniquement pour compatibilité/migration des anciens messages ; les RPC de nouvelle version doivent refuser tout message en clair après activation E2EE.
 - Les RPC de lecture et d'écriture gardent les contrôles d'appartenance existants ; le serveur valide les membres et les appareils, mais ne déchiffre jamais.
@@ -136,7 +134,7 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 ## 8. Ordre de réalisation
 
 1. **Choix juridique et technique du SDK cryptographique** (bloquant).
-2. Implémenter les stores durables et sécurisés des identités, sessions, pré-clés et Sender Keys ; tests de reprise après crash/rollback.
+2. Intégrer le moteur OpenMLS natif, le stockage MLS chiffré et les clés de stockage liées au Keychain / Android Keystore ; tests de reprise après crash/rollback.
 3. Ajouter les tables/RPC de publication des bundles et de distribution chiffrée ; RLS stricte par utilisateur/appareil et membre du salon.
 4. Adapter les modèles Flutter, le dépôt direct et la conversation de salon pour chiffrer avant toute écriture réseau et déchiffrer après lecture.
 5. Remplacer les aperçus et notifications contenant du texte ; enlever les chemins serveur qui lisent le contenu.
