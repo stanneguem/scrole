@@ -25,6 +25,10 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
   List<EventActivityModel> _activities = [];
   int _selectedDayIndex = 0;
   final Map<String, _DayPlan> _plans = {};
+  final Set<String> _validatedActivityIds = <String>{};
+  DateTime get _today => DateTime.now();
+  bool _isPastDay(DateTime day) => DateUtils.dateOnly(day).isBefore(DateUtils.dateOnly(_today));
+  bool get _hasEditableDay => _days.any((day) => !_isPastDay(day));
 
   @override
   void initState() {
@@ -43,6 +47,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
         final start = widget.event.startsAt;
         days.add(DateTime(start.year, start.month, start.day));
       }
+      final validatedIds = await _repository.getMyValidatedActivityIds(widget.event.id);
       final activities = (await _repository.getEventActivities(widget.event.id))
           .where((a) => a.status.toLowerCase() == 'validee' || a.status.toLowerCase() == 'validated' || a.status.toLowerCase() == 'active')
           .toList()
@@ -52,6 +57,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
       setState(() {
         _days = days;
         _activities = activities;
+        _validatedActivityIds
+          ..clear()
+          ..addAll(validatedIds);
         for (final day in days) {
           final key = _dateKey(day);
           final saved = storedPlans[key];
@@ -78,10 +86,11 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || _days.isEmpty) return;
+    if (_saving || _days.isEmpty || !_hasEditableDay) return;
     setState(() => _saving = true);
     try {
       for (final day in _days) {
+        if (_isPastDay(day)) continue;
         final key = _dateKey(day);
         await _repository.saveMyEventItineraryPlan(
           eventId: widget.event.id,
@@ -110,7 +119,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
         title: Text('event_itinerary_edit'.tr, style: AppTextStyles.h4.copyWith(fontSize: 18)),
         actions: [
           TextButton(
-            onPressed: _loading || _saving || _days.isEmpty ? null : _save,
+            onPressed: _loading || _saving || !_hasEditableDay ? null : _save,
             child: _saving
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                 : Text('event_itinerary_save'.tr, style: TextStyle(fontWeight: FontWeight.bold)),
@@ -159,6 +168,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                                   itemBuilder: (context, index) {
                                     final day = _days[index];
                                     final selected = index == _selectedDayIndex;
+                                    final isPast = _isPastDay(day);
                                     return ChoiceChip(
                                       selected: selected,
                                       label: Text(DateFormat('EEE d MMM', Get.locale?.languageCode ?? 'fr').format(day)),
@@ -176,13 +186,20 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                           child: ListView(
                             padding: const EdgeInsets.all(16),
                             children: [
+                              if (_isPastDay(_days[_selectedDayIndex]))
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                                  child: Row(children: [Icon(Icons.lock_clock_rounded, size: 18, color: colors.onSurfaceVariant), const SizedBox(width: 8), Expanded(child: Text('event_itinerary_past_day_locked'.tr, style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant))) ]),
+                                ),
                               Text('event_itinerary_my_times'.tr, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
-                                  Expanded(child: _timeCard('event_itinerary_day_start'.tr, _currentPlan().dayStart, Icons.wb_sunny_outlined, (value) => setState(() => _currentPlan().dayStart = value), 'event_itinerary_choose_start'.tr)),
+                                  Expanded(child: _timeCard('event_itinerary_day_start'.tr, _currentPlan().dayStart, Icons.wb_sunny_outlined, (value) => setState(() => _currentPlan().dayStart = value), 'event_itinerary_choose_start'.tr, enabled: !_isPastDay(_days[_selectedDayIndex]))),
                                   const SizedBox(width: 10),
-                                  Expanded(child: _timeCard('event_itinerary_day_end'.tr, _currentPlan().dayEnd, Icons.nightlight_outlined, (value) => setState(() => _currentPlan().dayEnd = value), 'event_itinerary_choose_end'.tr)),
+                                  Expanded(child: _timeCard('event_itinerary_day_end'.tr, _currentPlan().dayEnd, Icons.nightlight_outlined, (value) => setState(() => _currentPlan().dayEnd = value), 'event_itinerary_choose_end'.tr, enabled: !_isPastDay(_days[_selectedDayIndex]))),
                                 ],
                               ),
                               const SizedBox(height: 22),
@@ -203,10 +220,10 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     );
   }
 
-  Widget _timeCard(String title, String value, IconData icon, ValueChanged<String> onChanged, String helpText) {
+  Widget _timeCard(String title, String value, IconData icon, ValueChanged<String> onChanged, String helpText, {bool enabled = true}) {
     final colors = Theme.of(context).colorScheme;
     return InkWell(
-      onTap: () => _pickTime(title: helpText, initial: value, onPicked: onChanged),
+      onTap: enabled ? () => _pickTime(title: helpText, initial: value, onPicked: onChanged) : null,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -230,6 +247,8 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     final plan = _currentPlan();
     final key = activity.activityId.isNotEmpty ? activity.activityId : activity.id;
     final selected = plan.activities.containsKey(key);
+    final isPastDay = _isPastDay(_days[_selectedDayIndex]);
+    final isValidated = _validatedActivityIds.contains(key);
     final activityPlan = plan.activities[key] ?? _ActivityPlan();
     final borderColor = selected ? AppColors.primary : colors.outlineVariant.withValues(alpha: 0.55);
 
@@ -249,7 +268,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () => setState(() {
+          onTap: isPastDay ? null : () => setState(() {
             if (selected) {
               plan.activities.remove(key);
             } else {
@@ -309,6 +328,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                 ),
                 if (selected) ...[
                   const SizedBox(height: 14),
+                  if (isValidated) Text('event_itinerary_activity_validated'.tr, style: AppTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
                   Divider(height: 1, color: colors.outlineVariant.withValues(alpha: 0.6)),
                   const SizedBox(height: 12),
                   Row(
@@ -326,9 +346,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: _smallTimeButton('event_itinerary_start'.tr, activityPlan.start, (v) => setState(() => activityPlan.start = v))),
+                      Expanded(child: _smallTimeButton('event_itinerary_start'.tr, activityPlan.start, (v) => setState(() => activityPlan.start = v), enabled: !isPastDay)),
                       const SizedBox(width: 10),
-                      Expanded(child: _smallTimeButton('event_itinerary_end'.tr, activityPlan.end, (v) => setState(() => activityPlan.end = v))),
+                      Expanded(child: _smallTimeButton('event_itinerary_end'.tr, activityPlan.end, (v) => setState(() => activityPlan.end = v), enabled: !isPastDay)),
                     ],
                   ),
                 ],
@@ -340,9 +360,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     );
   }
 
-  Widget _smallTimeButton(String label, String value, ValueChanged<String> onChanged) {
+  Widget _smallTimeButton(String label, String value, ValueChanged<String> onChanged, {bool enabled = true}) {
     return OutlinedButton(
-      onPressed: () => _pickTime(title: 'event_itinerary_activity_time'.trParams({'label': label}), initial: value, onPicked: onChanged),
+      onPressed: enabled ? () => _pickTime(title: 'event_itinerary_activity_time'.trParams({'label': label}), initial: value, onPicked: onChanged) : null,
       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11), visualDensity: VisualDensity.compact, side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.access_time_rounded, size: 14, color: AppColors.primary), const SizedBox(width: 5), Flexible(child: Text('$label · $value', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600)))]),
     );
