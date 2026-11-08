@@ -86,6 +86,7 @@ class CommunityPost {
   final String? communityName;
   final String? communityLogoUrl;
   final bool isSuggested;
+  final bool isSponsored;
   final String? reasonSubtitle;
 
   const CommunityPost({
@@ -126,6 +127,7 @@ class CommunityPost {
     this.communityName,
     this.communityLogoUrl,
     this.isSuggested = false,
+    this.isSponsored = false,
     this.reasonSubtitle,
   });
 
@@ -293,6 +295,7 @@ class CommunityPost {
       communityName: map['community'] is Map ? map['community']['name']?.toString() : map['community_name']?.toString(),
       communityLogoUrl: map['community'] is Map ? map['community']['photo_profile']?.toString() : map['community_logo_url']?.toString(),
       isSuggested: map['is_suggested'] == true || map['is_suggested'] == 1,
+      isSponsored: map['is_sponsored'] == true || map['is_sponsored'] == 1,
       reasonSubtitle: map['reason_subtitle']?.toString(),
     );
   }
@@ -366,6 +369,7 @@ class CommunityPost {
             'allow_post_sharing': communitySharingEnabled,
           },
         'is_suggested': isSuggested,
+        'is_sponsored': isSponsored,
         'reason_subtitle': reasonSubtitle,
       };
 
@@ -387,6 +391,7 @@ class CommunityPost {
     String? communityName,
     String? communityLogoUrl,
     bool? isSuggested,
+    bool? isSponsored,
     String? reasonSubtitle,
     List<CommunityPostMention>? mentionedUsers,
     List<CommunityPostMention>? influencerReactions,
@@ -430,6 +435,7 @@ class CommunityPost {
       communityName: communityName ?? this.communityName,
       communityLogoUrl: communityLogoUrl ?? this.communityLogoUrl,
       isSuggested: isSuggested ?? this.isSuggested,
+      isSponsored: isSponsored ?? this.isSponsored,
       reasonSubtitle: reasonSubtitle ?? this.reasonSubtitle,
     );
   }
