@@ -91,6 +91,9 @@ class CommunityPost {
   final bool ctaEnabled;
   final String? ctaLabel;
   final String? ctaUrl;
+  final String ctaDestinationType;
+  final String? ctaInternalType;
+  final String? ctaInternalId;
   final String? reasonSubtitle;
 
   const CommunityPost({
@@ -136,6 +139,9 @@ class CommunityPost {
     this.ctaEnabled = false,
     this.ctaLabel,
     this.ctaUrl,
+    this.ctaDestinationType = 'external',
+    this.ctaInternalType,
+    this.ctaInternalId,
     this.reasonSubtitle,
   });
 
@@ -308,6 +314,9 @@ class CommunityPost {
       ctaEnabled: map['cta_enabled'] == true || map['cta_enabled'] == 1,
       ctaLabel: map['cta_label']?.toString(),
       ctaUrl: map['cta_url']?.toString(),
+      ctaDestinationType: map['cta_destination_type']?.toString() ?? 'external',
+      ctaInternalType: map['cta_internal_type']?.toString(),
+      ctaInternalId: map['cta_internal_id']?.toString(),
       reasonSubtitle: map['reason_subtitle']?.toString(),
     );
   }
@@ -386,6 +395,9 @@ class CommunityPost {
         'cta_enabled': ctaEnabled,
         'cta_label': ctaLabel,
         'cta_url': ctaUrl,
+        'cta_destination_type': ctaDestinationType,
+        'cta_internal_type': ctaInternalType,
+        'cta_internal_id': ctaInternalId,
         'reason_subtitle': reasonSubtitle,
       };
 
@@ -412,6 +424,9 @@ class CommunityPost {
     bool? ctaEnabled,
     String? ctaLabel,
     String? ctaUrl,
+    String? ctaDestinationType,
+    String? ctaInternalType,
+    String? ctaInternalId,
     String? reasonSubtitle,
     List<CommunityPostMention>? mentionedUsers,
     List<CommunityPostMention>? influencerReactions,
@@ -460,6 +475,9 @@ class CommunityPost {
       ctaEnabled: ctaEnabled ?? this.ctaEnabled,
       ctaLabel: ctaLabel ?? this.ctaLabel,
       ctaUrl: ctaUrl ?? this.ctaUrl,
+      ctaDestinationType: ctaDestinationType ?? this.ctaDestinationType,
+      ctaInternalType: ctaInternalType ?? this.ctaInternalType,
+      ctaInternalId: ctaInternalId ?? this.ctaInternalId,
       reasonSubtitle: reasonSubtitle ?? this.reasonSubtitle,
     );
   }
