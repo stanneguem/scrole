@@ -13,6 +13,7 @@ import '../../../../shared/utils/number_formatter.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
 import '../../../../shared/widgets/scrole_bottom_sheet.dart';
 import '../../../../shared/widgets/entity_certified_badge.dart';
+import '../../../../shared/widgets/user_certified_badge.dart';
 import '../../../../shared/widgets/expandable_text_widget.dart';
 import '../../../../app/utils/supabase_error_mapper.dart';
 import '../../centre/models/event_model.dart';
@@ -1204,7 +1205,11 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                                 children: [
                                   Text('@${creator.username}', style: AppTextStyles.bodySmall),
                                   const SizedBox(width: 6),
-                                  _CreatorCertificationBadge(userId: creator.userId),
+                                  UserCertifiedBadge(
+                                    userId: creator.userId,
+                                    type: CertificationBadgeType.basic,
+                                    size: 16,
+                                  ),
                                 ],
                               ),
                             ],
@@ -1901,67 +1906,6 @@ class _HeaderActionButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-
-/// Affiche le niveau réel de certification du profil créateur.
-class _CreatorCertificationBadge extends StatelessWidget {
-  const _CreatorCertificationBadge({required this.userId});
-
-  final String userId;
-
-  @override
-  Widget build(BuildContext context) {
-    if (userId.isEmpty) return const SizedBox.shrink();
-    return FutureBuilder<dynamic>(
-      future: Supabase.instance.client.rpc(
-        'get_public_profile_certification_level',
-        params: {'p_user_id': userId},
-      ),
-      builder: (context, snapshot) {
-        final level = (snapshot.data ?? '').toString().trim().toLowerCase();
-        if (snapshot.connectionState == ConnectionState.waiting ||
-            !const {'basique', 'pro', 'premium'}.contains(level)) {
-          return const SizedBox.shrink();
-        }
-
-        final label = switch (level) {
-          'premium' => 'Premium',
-          'pro' => 'Pro',
-          _ => 'Basique',
-        };
-        return Tooltip(
-          message: 'Profil certifié · $label',
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1877F2).withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF1877F2).withValues(alpha: 0.24),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.verified_rounded,
-                    size: 13, color: Color(0xFF1877F2)),
-                const SizedBox(width: 3),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF1877F2),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
