@@ -31,7 +31,7 @@ class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
 
   @override
-  State<HomeFeedScreen> createState() => _HomeFeedScreenState();
+  State<HomeFeedScreen> createState() => HomeFeedScreenState();
 }
 
 class HomeFeedScreenState extends State<HomeFeedScreen> {
