@@ -242,17 +242,21 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
               )),
             ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              controller.completeSimulation();
-              Get.back();
-            },
+          Obx(() => ElevatedButton(
+            onPressed: controller.isSaving.value
+                ? null
+                : () async {
+                    final saved = await controller.completeSimulation();
+                    if (saved) Get.back();
+                  },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            child: Text('event_budget_done'.tr),
-          ),
+            child: controller.isSaving.value
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('event_budget_done'.tr),
+          )),
         ],
       ),
     );
