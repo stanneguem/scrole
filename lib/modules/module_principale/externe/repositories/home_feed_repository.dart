@@ -134,9 +134,9 @@ class HomeFeedRepository {
 
   /// Returns only active campaigns whose targeting matches the current user.
   /// The database RPC enforces status, dates and audience filters server-side.
-  Future<List<CommunityPost>> getTargetedPromotionCampaigns({int limit = 10}) async {
+  Future<List<CommunityPost>> getTargetedPromotionCampaigns({int limit = 10, String? communityId}) async {
     try {
-      final response = await client.rpc('get_targeted_promotion_campaigns');
+      final response = await client.rpc('get_targeted_promotion_campaigns', params: {'p_community_id': communityId});
       if (response is! List) return const [];
       final campaigns = <CommunityPost>[];
       for (final entry in response) {
