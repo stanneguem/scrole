@@ -481,6 +481,14 @@ class _NotificationTile extends StatelessWidget {
   ({IconData icon, Color color}) _getVisual(String rawType) {
     final type = rawType.toLowerCase();
     switch (type) {
+      case 'event_presence_validated':
+        return (icon: Icons.location_on_rounded, color: AppColors.success);
+      case 'event_activity_completed':
+        return (icon: Icons.emoji_events_rounded, color: AppColors.success);
+      case 'event_arrival_reminder':
+        return (icon: Icons.login_rounded, color: AppColors.primary);
+      case 'event_departure_reminder':
+        return (icon: Icons.logout_rounded, color: AppColors.primary);
       case 'activite_validee':
       case 'activity_validated':
       case 'evenement_valide':
