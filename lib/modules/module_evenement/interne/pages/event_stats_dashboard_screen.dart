@@ -366,8 +366,8 @@ class EventStatsDashboardScreen extends StatelessWidget {
                   _statCard(colors, Icons.open_in_new_rounded, 'Ouvertures', NumberFormatter.formatCount(_metric(simulation, 'sessions_started')), AppColors.primary),
                   _statCard(colors, Icons.people_alt_outlined, 'Simulateurs uniques', NumberFormatter.formatCount(_metric(simulation, 'unique_users')), Colors.blue),
                   _statCard(colors, Icons.check_circle_outline, 'Simulations terminées', NumberFormatter.formatCount(_metric(simulation, 'sessions_confirmed')), AppColors.success),
-                  _statCard(colors, Icons.confirmation_number_outlined, 'Choix de billets', NumberFormatter.formatCount(_metric(simulation, 'ticket_selections')), Colors.purple),
-                  _statCard(colors, Icons.local_activity_outlined, 'Choix d’activités', NumberFormatter.formatCount(_metric(simulation, 'activity_selections')), Colors.orange),
+                  _statCard(colors, Icons.confirmation_number_outlined, 'Choix de billets', NumberFormatter.formatCount(((simulation['ticket_choices'] as List?)?.fold<int>(0, (sum, item) => sum + _metric(Map<String, dynamic>.from(item as Map), 'selection_count')) ?? 0)), Colors.purple),
+                  _statCard(colors, Icons.local_activity_outlined, 'Choix d’activités', NumberFormatter.formatCount(((simulation['activity_choices'] as List?)?.fold<int>(0, (sum, item) => sum + _metric(Map<String, dynamic>.from(item as Map), 'selection_interactions')) ?? 0)), Colors.orange),
                 ],
               ),
               Container(
@@ -401,19 +401,19 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 12),
-              if (simulation['ticket_breakdown'] is List && (simulation['ticket_breakdown'] as List).isNotEmpty) ...[
+              if (simulation['ticket_choices'] is List && (simulation['ticket_choices'] as List).isNotEmpty) ...[
                 _sectionHeader(colors, Icons.confirmation_number_outlined, 'Billets les plus simulés'),
                 const SizedBox(height: 8),
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)), child: Column(children: [
-                  ...(simulation['ticket_breakdown'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Billet'}', _metric(item.cast<String, dynamic>(), 'selections'))),
+                  ...(simulation['ticket_choices'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Billet'}', _metric(item.cast<String, dynamic>(), 'selection_count'))),
                 ])),
                 const SizedBox(height: 16),
               ],
-              if (simulation['activity_breakdown'] is List && (simulation['activity_breakdown'] as List).isNotEmpty) ...[
+              if (simulation['activity_choices'] is List && (simulation['activity_choices'] as List).isNotEmpty) ...[
                 _sectionHeader(colors, Icons.local_activity_outlined, 'Activités les plus simulées'),
                 const SizedBox(height: 8),
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)), child: Column(children: [
-                  ...(simulation['activity_breakdown'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Activité'}', _metric(item.cast<String, dynamic>(), 'selections'))),
+                  ...(simulation['activity_choices'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Activité'}', _metric(item.cast<String, dynamic>(), 'selection_interactions'))),
                 ])),
                 const SizedBox(height: 16),
               ],
