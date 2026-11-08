@@ -65,15 +65,6 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
     }
   }
 
-  DateTime? _timeOn(DateTime day, String time) {
-    final parts = time.split(':');
-    if (parts.length < 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-    return DateTime(day.year, day.month, day.day, hour, minute);
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -214,7 +205,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList()
-      ..sort((a, b) => (a['start_time'] ?? '99:99').toString().compareTo((b['start_time'] ?? '99:99').toString()));
+;
     final dayStart = (plan['day_start'] ?? '09:00').toString();
     final dayEnd = (plan['day_end'] ?? '18:00').toString();
 
@@ -264,17 +255,9 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
               final item = activities[index];
               final id = (item['activity_id'] ?? '').toString();
               final name = _activityNames[id] ?? 'event_itinerary_activity'.tr;
-              final start = (item['start_time'] ?? '09:00').toString();
-              final end = (item['end_time'] ?? '10:00').toString();
-              final now = DateTime.now();
-              final endAt = _timeOn(date, end);
               final isValidated = _validatedActivityIds.contains('$key|$id');
-              final isPast = endAt != null && now.isAfter(endAt);
-              final isFuture = endAt != null && now.isBefore(endAt);
-              // Status is read-only. We only show missed after its scheduled end;
-              // a completed check requires a trusted attendance/check-in record.
-              final statusIcon = isValidated ? Icons.check_circle_rounded : isPast ? Icons.close_rounded : isFuture ? Icons.schedule_rounded : Icons.radio_button_unchecked_rounded;
-              final statusColor = isValidated ? Colors.green : isPast ? colors.error : AppColors.primary;
+              final statusIcon = isValidated ? Icons.check_circle_rounded : Icons.event_available_rounded;
+              final statusColor = isValidated ? Colors.green : AppColors.primary;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -316,15 +299,13 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(name, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 7),
                           Row(
                             children: [
-                              Icon(Icons.schedule_outlined, size: 14, color: colors.onSurfaceVariant),
-                              const SizedBox(width: 5),
-                              Text('$start – $end', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
-                              const Spacer(),
+                              Icon(statusIcon, size: 15, color: statusColor),
+                              const SizedBox(width: 6),
                               Text(
-                                isValidated ? 'event_itinerary_activity_validated'.tr : isPast ? 'event_itinerary_not_confirmed'.tr : isFuture ? 'event_itinerary_upcoming'.tr : 'event_itinerary_in_progress'.tr,
+                                isValidated ? 'event_itinerary_activity_validated'.tr : 'external_event_itinerary_activity_planned'.tr,
                                 style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600),
                               ),
                             ],
