@@ -35,6 +35,7 @@ class AppPages {
   static const userAgenda = "/events/agenda";
   static const eventScan = "/events/scan/:id";
   static const eventBudget = "/events/budget/:id";
+  static const eventBudgetHistory = "/events/budget-history";
   static const eventTransfer = "/events/transfer/:id";
   static const eventPricing = "/events/pricing/:id";
   static const eventStatistics = "/events/stats/:id";
