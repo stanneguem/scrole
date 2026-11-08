@@ -76,18 +76,17 @@ class _SponsoredWebViewPageState extends State<SponsoredWebViewPage> {
     final scheme = uri.scheme.toLowerCase();
     final isHttp = scheme == 'http' || scheme == 'https';
 
-    // Keep ordinary websites inside Scrole. WhatsApp universal links are
-    // handed to the operating system so the installed app can claim them.
-    if (isHttp && !_isWhatsAppUrl(uri)) {
+    // All HTTP(S) destinations, including wa.me and whatsapp.com, stay
+    // inside Scrole's WebView. Do not hand universal links to Android: doing
+    // so can minimize Scrole and open the external browser.
+    if (isHttp) {
       return NavigationDecision.navigate;
     }
 
-    // Only allow well-known user-facing app schemes. In particular, do not
-    // forward arbitrary schemes such as intent:, javascript: or file:.
+    // Only explicit communication schemes are handed to their native apps.
+    // Unknown schemes (including intent:, javascript: and file:) are blocked.
     const externalSchemes = {'mailto', 'tel', 'sms', 'whatsapp'};
-    if (_isWhatsAppUrl(uri) || externalSchemes.contains(scheme)) {
-      // NavigationDelegate should answer immediately; launching an external
-      // app must not hold the Android WebView navigation callback open.
+    if (externalSchemes.contains(scheme)) {
       unawaited(_launchExternal(uri));
     }
 
