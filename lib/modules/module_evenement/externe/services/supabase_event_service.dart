@@ -1508,6 +1508,24 @@ class SupabaseEventService {
     return CheckinScanResult.fromJson(response);
   }
 
+  Future<Set<String>> fetchMyValidatedActivityIds(String eventId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return <String>{};
+
+    final response = await _client
+        .from('event_checkins')
+        .select('activity_id')
+        .eq('event_id', eventId)
+        .eq('user_id', userId)
+        .eq('status', 'valid')
+        .not('activity_id', 'is', null);
+
+    return response
+        .map((row) => row['activity_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
   Future<List<Map<String, dynamic>>> fetchEventCheckinsTree(String eventId) async {
     try {
       final response = await _client
