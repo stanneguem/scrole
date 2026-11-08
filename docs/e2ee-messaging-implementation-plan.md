@@ -10,20 +10,24 @@ Objectif : le serveur ne doit jamais recevoir le texte lisible, les clés de con
 
 Le chiffrement TLS de Supabase reste nécessaire, mais il ne remplace pas le chiffrement de bout en bout.
 
-Ne pas développer un protocole cryptographique maison. La cible protocolaire est le **Signal Protocol** :
-- conversations directes : X3DH/PQXDH pour établir les sessions, puis Double Ratchet pour les messages ;
-- salons communautaires : Sender Keys pour éviter de chiffrer N fois le corps de chaque message, avec distribution des clés de groupe au moyen des sessions directes ;
-- clés d'identité propres à chaque appareil, pré-clés signées et pré-clés à usage unique ;
-- empreinte/safety number, épinglage TOFU et avertissement explicite lors d'un changement d'identité ;
-- fan-out vers les autres appareils du même utilisateur, et pas seulement vers son téléphone courant.
+La cible retenue est **Messaging Layer Security (MLS, RFC 9420)** pour les conversations privées à deux comme pour les salons communautaires. MLS est conçu pour des groupes de deux à des milliers de membres, avec confidentialité persistante et sécurité post-compromission. L'implémentation de référence retenue est **OpenMLS (Rust)**, sous licence MIT. La suite initiale recommandée est X25519 / AES-128-GCM / SHA-256 / Ed25519 ; les suites post-quantiques expérimentales ne seront pas activées en production.
 
-### Blocage avant choix de la bibliothèque
+Le wrapper Dart/Flutter `openmls_dart` existe et expose une API riche, mais son package pub.dev est publié par un uploader non vérifié et le dépôt est encore jeune. Il est utile comme référence d'intégration, mais je ne recommande pas d'embarquer ses binaires précompilés dans Scrole sans audit de code et de chaîne d'approvisionnement. La voie retenue est donc d'intégrer le crate OpenMLS officiel via une liaison Rust/Flutter contrôlée par Scrole, avec versions Rust verrouillées, CI reproductible, vérification des sommes de contrôle et notices de licences tierces.
 
-L'application n'a actuellement aucune bibliothèque E2EE. Le package Dart `libsignal` existe et fournit une liaison Rust/Flutter avec Double Ratchet et Sender Keys, mais son dépôt est non vérifié comme éditeur pub.dev et il est sous **AGPL-3.0**. Le dépôt officiel Signal `libsignal` est lui aussi sous AGPL-3.0. Il ne faut donc pas ajouter cette dépendance sans validation explicite de la compatibilité de cette licence avec la distribution et le modèle de Scrole.
+**Réserve de sécurité :** la licence MIT, l'activité du dépôt OpenMLS et sa politique de divulgation de vulnérabilités sont vérifiées. Les sources consultées ne suffisent toutefois pas à affirmer qu'OpenMLS a passé un audit cryptographique indépendant. Une revue de sécurité indépendante est requise avant l'activation générale. La politique de sécurité upstream et les tests de protocole ne remplacent pas un audit.
 
-L'alternative `dart_signal_protocol` est annoncée comme une implémentation pure Dart de Signal, mais sa version publique consultée est alpha, son propre README indique qu'aucun audit externe n'a été effectué et documente des risques d'intégration importants (durabilité/rollback du ratchet, épinglage d'identité à implémenter, etc.). Elle ne doit pas être considérée comme prête à la production.
+### Modèle MLS
 
-**Décision requise :** validation juridique de l'AGPL, ou sélection d'un SDK Signal/MLS maintenu et audité avec une licence compatible, éventuellement commercial. Ne pas remplacer cela par un assemblage maison de X25519 + AES qui perdrait la confidentialité persistante et la sécurité post-compromission.
+- Un groupe MLS par conversation directe et par salon communautaire.
+- Chaque appareil d'un utilisateur est une identité MLS distincte.
+- Clés privées et état MLS uniquement sur l'appareil, dans un stockage chiffré dont la clé est protégée par Keychain / Android Keystore.
+- KeyPackages publics publiés sur Supabase ; leurs clés privées restent sur l'appareil.
+- Messages MLS Application et événements Commit/Welcome transmis comme enveloppes opaques.
+- Ajout/retrait des membres par Commit MLS ; les appareils retirés ne reçoivent pas les secrets des époques suivantes.
+- Vérification d'identité par empreinte et avertissement explicite lors d'un changement de clé.
+- Pas de retour silencieux au texte en clair une fois une conversation activée.
+
+Ne pas implémenter un protocole cryptographique maison ni mélanger des clés X25519 et AES sans mécanisme MLS.
 
 ## 2. Architecture actuelle observée
 
