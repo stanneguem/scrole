@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -127,6 +128,12 @@ class _SponsoredWebViewPageState extends State<SponsoredWebViewPage> {
     if (uri != null) await _launchExternal(uri);
   }
 
+  Future<void> _shareCurrentLink() async {
+    final uri = await _activeUri();
+    if (uri == null) return;
+    await SharePlus.instance.share(ShareParams(uri: uri));
+  }
+
   Future<bool> _handleBack() async {
     if (await _controller.canGoBack()) {
       await _controller.goBack();
@@ -176,6 +183,9 @@ class _SponsoredWebViewPageState extends State<SponsoredWebViewPage> {
                   case 'copy':
                     await _copyCurrentLink();
                     break;
+                  case 'share':
+                    await _shareCurrentLink();
+                    break;
                   case 'back':
                     if (await _controller.canGoBack()) {
                       await _controller.goBack();
@@ -206,6 +216,14 @@ class _SponsoredWebViewPageState extends State<SponsoredWebViewPage> {
                     dense: true,
                     leading: Icon(Icons.copy),
                     title: Text('Copier le lien'),
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'share',
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.share),
+                    title: Text('Partager le lien'),
                   ),
                 ),
                 const PopupMenuDivider(),
