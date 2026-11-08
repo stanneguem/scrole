@@ -242,3 +242,14 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Tests unitaires ajoutés : aller-retour, nonce distinct, mauvaise clé, altération, substitution de slot, format invalide.
 - Important : ce module est un codec de bas niveau, pas encore un `StorageProvider` OpenMLS. Il n'est pas raccordé à SQLite/SQLx. Le fournisseur complet doit appliquer le codec à chaque valeur et clé sensible, avec transactions atomiques, index non sensibles explicitement justifiés et suppression effective des secrets d'époques expirées.
 - Le test CI est en attente ; aucune réussite de compilation n'est revendiquée pour ce nouveau module.
+
+
+## 18. Décision de persistance après inspection de l'API SQLx OpenMLS (8 novembre 2026)
+
+L'inspection du code source d'`openmls_sqlx_storage 0.3.0` révèle que son trait `Codec` utilise des méthodes statiques `to_vec` / `from_slice` et exige `Default + Send + Sync`, sans instance de codec ni contexte de base de données. Une clé par compte ne peut donc pas être injectée proprement dans ce codec. Un singleton global de clé serait dangereux lors des changements de compte et des accès concurrents ; cette approche est rejetée.
+
+Le fournisseur SQLx prend en charge SQLite et permet de partager une transaction SQLx avec les écritures applicatives, ce qui reste intéressant pour l'atomicité. La stratégie de stockage doit donc être tranchée entre :
+- SQLite chiffré au niveau fichier/page (SQLCipher ou équivalent compatible Android/iOS), avec une clé de base distincte par installation/compte gardée dans Keystore/Keychain ; ou
+- un fournisseur OpenMLS personnalisé dont les opérations de lecture/écriture reçoivent explicitement une clé native par instance.
+
+La décision ne doit pas être contournée avec une clé globale, une clé en dur, ou une clé exposée via Dart. Le codec AEAD `SCM1` reste un composant cryptographique testé et indépendant, mais n'est pas branché au provider SQLx tant qu'une architecture d'injection de clé correcte n'est pas retenue.
