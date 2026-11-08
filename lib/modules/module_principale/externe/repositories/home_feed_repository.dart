@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
+import 'package:scrole/shared/models/post_media.dart';
 
 class SuggestedProfileModel {
   final String id;
@@ -128,6 +129,65 @@ class HomeFeedRepository {
     } catch (e, st) {
       debugPrint('[HOME_FEED] Unexpected error in get_home_feed: $e\n$st');
       rethrow;
+    }
+  }
+
+  /// Returns only active campaigns whose targeting matches the current user.
+  /// The database RPC enforces status, dates and audience filters server-side.
+  Future<List<CommunityPost>> getTargetedPromotionCampaigns({int limit = 10}) async {
+    try {
+      final response = await client.rpc('get_targeted_promotion_campaigns');
+      if (response is! List) return const [];
+      final campaigns = <CommunityPost>[];
+      for (final entry in response) {
+        if (entry is! Map) continue;
+        final row = Map<String, dynamic>.from(entry);
+        final campaignId = (row['id'] ?? '').toString();
+        if (campaignId.isEmpty) continue;
+        final mediaUrls = row['media_urls'] is List
+            ? (row['media_urls'] as List).map((value) => value.toString()).where((value) => value.trim().isNotEmpty).toList()
+            : <String>[];
+        final postType = (row['post_type'] ?? 'text').toString().toLowerCase();
+        final media = mediaUrls.map((url) => PostMedia(
+          type: postType == 'video' ? 'video' : 'photo',
+          url: url,
+        )).toList();
+        final rawOptions = row['poll_options'];
+        final options = rawOptions is List
+            ? rawOptions.map((option) {
+                if (option is Map) {
+                  final item = Map<String, dynamic>.from(option);
+                  return <String, dynamic>{'label': (item['label'] ?? item['text'] ?? '').toString()};
+                }
+                return <String, dynamic>{'label': option.toString()};
+              }).where((item) => (item['label'] as String).trim().isNotEmpty).toList()
+            : <Map<String, dynamic>>[];
+        campaigns.add(CommunityPost(
+          id: 'promotion_$campaignId',
+          authorName: 'Scrole',
+          authorId: 'scrole_promotion',
+          authorObj: const CommunityPostAuthor(
+            userId: 'scrole_promotion',
+            username: 'Scrole',
+          ),
+          timeAgo: (row['created_at'] ?? DateTime.now().toIso8601String()).toString(),
+          content: (row['content'] ?? '').toString(),
+          media: media,
+          poll: postType == 'poll' && options.isNotEmpty
+              ? <String, dynamic>{'question': (row['title'] ?? '').toString(), 'options': options}
+              : null,
+          reactionsEnabled: false,
+          commentsEnabled: false,
+          sharingEnabled: false,
+        ));
+      }
+      return campaigns.take(limit).toList(growable: false);
+    } on PostgrestException catch (e) {
+      debugPrint('[PROMOTIONS] Unable to load targeted campaigns: ${e.code} ${e.message}');
+      return const [];
+    } catch (e, st) {
+      debugPrint('[PROMOTIONS] Unexpected campaign loading error: $e\\n$st');
+      return const [];
     }
   }
 
