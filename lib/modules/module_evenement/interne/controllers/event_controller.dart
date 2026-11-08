@@ -140,11 +140,12 @@ class EventController extends GetxController with WidgetsBindingObserver {
       debugPrint('[Cache] event updated');
       debugPrint('[SQLite] event updated');
 
+      // Une mise à jour de la ligne events ne prouve pas que l'utilisateur
+      // possède encore un rôle. Ne jamais réintroduire ici un événement absent
+      // des listes personnelles : seul le snapshot RPC peut accorder ce droit.
       final mIdx = managedEvents.indexWhere((e) => e.id == eventId);
       if (mIdx != -1) {
         managedEvents[mIdx] = updatedEvent;
-      } else {
-        managedEvents.insert(0, updatedEvent);
       }
 
       final sIdx = staffEvents.indexWhere((e) => e.id == eventId);
