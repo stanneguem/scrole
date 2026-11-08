@@ -134,6 +134,101 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     }
   }
 
+  Future<void> _showReportCommunitySheet() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final response = await Supabase.instance.client
+          .from('signalement_raison')
+          .select('id, nom, code, description')
+          .eq('est_actif', true)
+          .order('nom');
+      final reasons = (response as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      if (!mounted || reasons.isEmpty) return;
+
+      String? selectedReasonId;
+      final detailsController = TextEditingController();
+      bool submitting = false;
+      String? error;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (sheetContext, setSheetState) => Padding(
+            padding: EdgeInsets.fromLTRB(20, 18, 20, MediaQuery.viewInsetsOf(sheetContext).bottom + 20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Signaler cette communauté', style: Theme.of(sheetContext).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  Text(widget.communityName, style: Theme.of(sheetContext).textTheme.bodyMedium),
+                  const SizedBox(height: 16),
+                  ...reasons.map((reason) {
+                    final id = reason['id'].toString();
+                    return RadioListTile<String>(
+                      value: id,
+                      groupValue: selectedReasonId,
+                      title: Text((reason['nom'] ?? '').toString()),
+                      onChanged: (value) => setSheetState(() => selectedReasonId = value),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    );
+                  }),
+                  TextField(
+                    controller: detailsController,
+                    maxLength: 1000,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Précisions (facultatif)'),
+                  ),
+                  if (error != null) Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(error!, style: TextStyle(color: Theme.of(sheetContext).colorScheme.error)),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: submitting || selectedReasonId == null ? null : () async {
+                        setSheetState(() { submitting = true; error = null; });
+                        try {
+                          await Supabase.instance.client.rpc('report_content', params: {
+                            'p_target_type': 'community',
+                            'p_target_id': widget.communityId,
+                            'p_reason_id': selectedReasonId,
+                            'p_description': detailsController.text.trim().isEmpty ? null : detailsController.text.trim(),
+                          });
+                          if (!sheetContext.mounted) return;
+                          Navigator.of(sheetContext).pop();
+                          messenger.showSnackBar(const SnackBar(content: Text('Signalement envoyé. Merci.')));
+                        } catch (e) {
+                          if (!sheetContext.mounted) return;
+                          setSheetState(() {
+                            submitting = false;
+                            error = 'Impossible d’envoyer le signalement. Réessaie.';
+                          });
+                        }
+                      },
+                      child: submitting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Text('Envoyer le signalement'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      detailsController.dispose();
+    } catch (e) {
+      if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Impossible de charger les motifs de signalement.')));
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -214,6 +309,11 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                     communityName: communityName,
                   ));
             },
+          ),
+          IconButton(
+            icon: Icon(Icons.flag_outlined, color: colorScheme.error),
+            tooltip: 'Signaler la communauté',
+            onPressed: _showReportCommunitySheet,
           ),
           IconButton(
             icon: Icon(Icons.add_rounded, color: colorScheme.primary, size: 28),
