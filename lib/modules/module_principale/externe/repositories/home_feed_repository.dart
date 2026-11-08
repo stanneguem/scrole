@@ -179,6 +179,7 @@ class HomeFeedRepository {
           reactionsEnabled: false,
           commentsEnabled: false,
           sharingEnabled: false,
+          isSponsored: true,
         ));
       }
       return campaigns.take(limit).toList(growable: false);
