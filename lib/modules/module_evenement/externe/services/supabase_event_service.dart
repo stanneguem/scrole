@@ -1434,13 +1434,10 @@ class SupabaseEventService {
   }
 
   Future<List<Map<String, dynamic>>> fetchManagedEvents() async {
-    try {
-      final response = await _client.rpc('get_my_managed_events');
-      if (response is List) return response.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-    } catch (_) {}
-
-    final response = await _client.rpc('get_mes_evenements_geres');
-    if (response is! List) return [];
+    final response = await _client.rpc('get_my_managed_events');
+    if (response is! List) {
+      throw StateError('get_my_managed_events returned an invalid response');
+    }
     return response.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
@@ -1454,78 +1451,11 @@ class SupabaseEventService {
   }
 
   Future<List<Map<String, dynamic>>> fetchStaffActivities() async {
-    try {
-      final response = await _client.rpc('get_my_staffed_events');
-      if (response is List && response.isNotEmpty) {
-        return List<Map<String, dynamic>>.from(response);
-      }
-    } catch (e) {
-      debugPrint('[SupabaseEventService] get_my_staffed_events RPC failed: $e');
+    final response = await _client.rpc('get_my_staffed_events');
+    if (response is! List) {
+      throw StateError('get_my_staffed_events returned an invalid response');
     }
-
-    try {
-      final response = await _client.rpc('get_mes_evenements_staff');
-      if (response is List && response.isNotEmpty) {
-        return List<Map<String, dynamic>>.from(response);
-      }
-    } catch (_) {}
-
-    try {
-      final response = await _client.rpc('get_mes_activites_staff');
-      if (response is List && response.isNotEmpty) {
-        return List<Map<String, dynamic>>.from(response);
-      }
-    } catch (_) {}
-
-    // Fallback direct table queries on event_staff and event_co_creators
-    try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId != null) {
-        final List<Map<String, dynamic>> list = [];
-        
-        try {
-          final staffRes = await _client
-              .from('event_staff')
-              .select('*, events(*)')
-              .eq('user_id', userId)
-              .inFilter('status', ['acceptee', 'accepted', 'actif', 'active']);
-          for (final row in staffRes) {
-            if (row['events'] is Map) {
-              final evMap = Map<String, dynamic>.from(row['events'] as Map);
-              if (!list.any((e) => e['id'] == evMap['id'])) {
-                list.add(evMap);
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('[SupabaseEventService] fetchStaffActivities event_staff query error: $e');
-        }
-
-        try {
-          final coCreatorRes = await _client
-              .from('event_co_creators')
-              .select('*, events(*)')
-              .eq('user_id', userId)
-              .inFilter('status', ['acceptee', 'accepted', 'actif', 'active']);
-          for (final row in coCreatorRes) {
-            if (row['events'] is Map) {
-              final evMap = Map<String, dynamic>.from(row['events'] as Map);
-              if (!list.any((e) => e['id'] == evMap['id'])) {
-                list.add(evMap);
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('[SupabaseEventService] fetchStaffActivities event_co_creators query error: $e');
-        }
-
-        return list;
-      }
-    } catch (e) {
-      debugPrint('[SupabaseEventService] fetchStaffActivities fallback query failed: $e');
-    }
-
-    return [];
+    return response.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   Future<List<Map<String, dynamic>>> fetchSuggestedEvents({int limit = 50}) async {
