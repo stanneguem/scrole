@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1653,7 +1654,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                       ),
                   ],
                 ),
-              ),
+              )
                   : const SizedBox.shrink(),
             ),
     );
