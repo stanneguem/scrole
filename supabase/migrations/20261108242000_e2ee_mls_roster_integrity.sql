@@ -180,17 +180,44 @@ begin
     raise exception 'Duplicate E2EE device in group roster' using errcode = '22023';
   end if;
 
+  -- Existing MLS devices plus devices that have published at least one
+  -- KeyPackage for this scope. Merely registering an unused installation must
+  -- not let it freeze every conversation the account belongs to.
   if v_group.scope_type = 'direct' then
     select count(*) into v_expected_count
     from public.e2ee_devices d
     join public.direct_conversations dc
       on d.user_id in (dc.user_one_id, dc.user_two_id)
-    where dc.id = v_group.scope_id and d.revoked_at is null;
+    where dc.id = v_group.scope_id
+      and d.revoked_at is null
+      and (
+        exists (
+          select 1 from public.e2ee_group_devices current_member
+          where current_member.group_id = p_group_id
+            and current_member.device_id = d.id
+        )
+        or exists (
+          select 1 from public.e2ee_key_packages kp
+          where kp.device_id = d.id
+        )
+      );
   else
     select count(*) into v_expected_count
     from public.e2ee_devices d
     join public.community_salon_members sm on sm.user_id = d.user_id
-    where sm.salon_id = v_group.scope_id and d.revoked_at is null;
+    where sm.salon_id = v_group.scope_id
+      and d.revoked_at is null
+      and (
+        exists (
+          select 1 from public.e2ee_group_devices current_member
+          where current_member.group_id = p_group_id
+            and current_member.device_id = d.id
+        )
+        or exists (
+          select 1 from public.e2ee_key_packages kp
+          where kp.device_id = d.id
+        )
+      );
   end if;
 
   if v_expected_count <> v_device_count then
@@ -205,14 +232,36 @@ begin
       on d.user_id in (dc.user_one_id, dc.user_two_id)
     where dc.id = v_group.scope_id
       and d.revoked_at is null
-      and d.id = any(p_active_device_ids);
+      and d.id = any(p_active_device_ids)
+      and (
+        exists (
+          select 1 from public.e2ee_group_devices current_member
+          where current_member.group_id = p_group_id
+            and current_member.device_id = d.id
+        )
+        or exists (
+          select 1 from public.e2ee_key_packages kp
+          where kp.device_id = d.id
+        )
+      );
   else
     select count(*) into v_valid_count
     from public.e2ee_devices d
     join public.community_salon_members sm on sm.user_id = d.user_id
     where sm.salon_id = v_group.scope_id
       and d.revoked_at is null
-      and d.id = any(p_active_device_ids);
+      and d.id = any(p_active_device_ids)
+      and (
+        exists (
+          select 1 from public.e2ee_group_devices current_member
+          where current_member.group_id = p_group_id
+            and current_member.device_id = d.id
+        )
+        or exists (
+          select 1 from public.e2ee_key_packages kp
+          where kp.device_id = d.id
+        )
+      );
   end if;
 
   if v_valid_count <> v_expected_count then
