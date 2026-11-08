@@ -79,5 +79,30 @@ void main() {
       );
       verifyNever(() => storage.read(key: any(named: 'key')));
     });
+
+    test('serializes concurrent key creation for the same device', () async {
+      var reads = 0;
+      when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async {
+        reads++;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        return null;
+      });
+      when(() => storage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          )).thenAnswer((_) async {});
+
+      final results = await Future.wait([
+        manager.getOrCreate(userId: 'user-b', deviceId: 'device-b'),
+        manager.getOrCreate(userId: 'user-b', deviceId: 'device-b'),
+      ]);
+
+      expect(results[0], results[1]);
+      expect(reads, 1);
+      verify(() => storage.write(
+            key: 'scrole.e2ee.mls.storage_key.v1.user-b.device-b',
+            value: base64UrlEncode(results.first),
+          )).called(1);
+    });
   });
 }
