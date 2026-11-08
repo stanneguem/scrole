@@ -298,13 +298,22 @@ class ExternalProfileController extends GetxController {
           }
           break;
         case ProfileResultStatus.error:
-          profileState.value = ProfileScreenState.error;
-          error.value = result.errorMessage ?? 'Impossible de charger ce profil.';
+          if (profile.value != null) {
+            // En cas de panne réseau, conserver le profil en cache visible.
+            profileState.value = ProfileScreenState.loaded;
+          } else {
+            profileState.value = ProfileScreenState.error;
+            error.value = result.errorMessage ?? 'Impossible de charger ce profil.';
+          }
           break;
       }
     } catch (_) {
-      profileState.value = ProfileScreenState.error;
-      error.value = 'Impossible de charger ce profil.';
+      if (profile.value != null) {
+        profileState.value = ProfileScreenState.loaded;
+      } else {
+        profileState.value = ProfileScreenState.error;
+        error.value = 'Impossible de charger ce profil.';
+      }
     } finally {
       isLoading.value = false;
       update(['profile_initial']);
