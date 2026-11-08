@@ -178,6 +178,20 @@ class HomeFeedController extends GetxController {
     }
   }
 
+  String? _campaignIdFromSponsoredPost(String postId) => postId.startsWith('promotion_') ? postId.substring('promotion_'.length) : null;
+
+  Future<void> recordSponsoredImpression(CommunityPost post) async {
+    final id = _campaignIdFromSponsoredPost(post.id);
+    if (!post.isSponsored || id == null || id.isEmpty) return;
+    await _feedRepo.recordPromotionImpression(id);
+  }
+
+  Future<void> recordSponsoredInteraction(CommunityPost post, {String type = 'click'}) async {
+    final id = _campaignIdFromSponsoredPost(post.id);
+    if (!post.isSponsored || id == null || id.isEmpty) return;
+    await _feedRepo.recordPromotionInteraction(id, type);
+  }
+
   Future<void> _refreshVisibleCounters() async {
     if (_refreshingVisibleCounters || posts.isEmpty || state.value != HomeFeedState.loaded) return;
     final ids = posts.take(50).map((p) => p.id).toSet().toList();
