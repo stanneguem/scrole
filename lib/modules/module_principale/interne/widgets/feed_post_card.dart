@@ -244,33 +244,6 @@ class FeedPostCard extends StatelessWidget {
                   ),
                 ),
               ),
-            if (post.isSponsored)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: colorScheme.tertiaryContainer.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.campaign_rounded, size: 13, color: colorScheme.onTertiaryContainer),
-                          const SizedBox(width: 5),
-                          Text('Publicité', style: TextStyle(
-                            color: colorScheme.onTertiaryContainer,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          )),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             const SizedBox(height: 12),
 
             // ───────── Partie haute (avec marges latérales) ─────────
@@ -475,7 +448,9 @@ class FeedPostCard extends StatelessWidget {
     required Color textColor,
     double fontSize = 16,
   }) {
-    final photoUrl = post.authorObj?.photoUrl;
+    final photoUrl = post.isPlatformPromotion
+        ? 'https://raw.githubusercontent.com/stanneguem/scrole/feature/story-video-post-reshare/assets/logos/img.png'
+        : post.authorObj?.photoUrl;
     return GestureDetector(
       onTap: () => _onAuthorTap(post),
       child: ClipOval(
@@ -729,10 +704,10 @@ class FeedPostCard extends StatelessWidget {
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
-                if (post.authorObj?.isCertified == true)
+                if (post.authorObj?.isCertified == true || post.isPlatformPromotion)
                   UserCertifiedBadge(
                     size: 14,
-                    userId: post.authorObj?.userId,
+                    userId: post.isPlatformPromotion ? null : post.authorObj?.userId,
                   ),
                 Text(
                   '· ${_formatShortTime(post.timeAgo)}',
@@ -742,6 +717,21 @@ class FeedPostCard extends StatelessWidget {
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (post.isSponsored) ...[
+                  const SizedBox(width: 7),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiaryContainer.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text('Publicité', style: TextStyle(
+                      color: colorScheme.onTertiaryContainer,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    )),
+                  ),
+                ],
               ],
             ),
           ),
