@@ -120,6 +120,7 @@ class FeedPostCard extends StatelessWidget {
   final VoidCallback? onRetryPublishing;
   final String? currentCommunityId;
   final ValueChanged<String>? onVideoQualifiedView;
+  final VoidCallback? onSponsoredInteraction;
 
   /// Enables inline video autoplay when this card is embedded in a story.
   final bool autoplayVideos;
@@ -137,6 +138,7 @@ class FeedPostCard extends StatelessWidget {
     this.onRetryPublishing,
     this.currentCommunityId,
     this.onVideoQualifiedView,
+    this.onSponsoredInteraction,
     this.autoplayVideos = false,
     this.margin = const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
   });
@@ -324,6 +326,7 @@ class FeedPostCard extends StatelessWidget {
                     onPressed: () async {
                       final uri = Uri.tryParse(post.ctaUrl!.trim());
                       if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
+                      onSponsoredInteraction?.call();
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     },
                     style: FilledButton.styleFrom(
@@ -836,6 +839,7 @@ class FeedPostCard extends StatelessWidget {
             heroTagPrefix: 'post_${post.id}',
             forceAutoplayVideos: autoplayVideos,
             onVideoQualifiedView: () => onVideoQualifiedView?.call(post.id),
+            qualifiedViewPercent: post.isSponsored ? 0.10 : 0.50,
             media: post.media,
             likesCount: post.likeCount,
             dislikesCount: post.dislikeCount,
