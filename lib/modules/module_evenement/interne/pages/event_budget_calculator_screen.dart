@@ -218,6 +218,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
         ],
       ),
       bottomSheet: _buildBudgetBar(context),
+      ),
     );
   }
 
@@ -269,7 +270,6 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
           )),
           ],
         ),
-      ),
     );
   }
 }
