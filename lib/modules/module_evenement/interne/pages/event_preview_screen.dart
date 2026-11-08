@@ -244,7 +244,9 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
 
             final role = preview.viewerRole ?? preview.event.userRole;
       final normalizedRole = (role ?? '').toLowerCase();
-      if (normalizedRole == 'fondateur' ||
+      final isUserOwnedEvent = !preview.event.isAdminCreated;
+      if ((isUserOwnedEvent && (
+          normalizedRole == 'fondateur' ||
           normalizedRole == 'co_createur' ||
           normalizedRole == 'cofounder' ||
           normalizedRole == 'co_founder' ||
@@ -253,7 +255,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
           normalizedRole == 'managed' ||
           (currentUserId != null &&
               currentUserId.isNotEmpty &&
-              preview.event.creatorId == currentUserId)) {
+              preview.event.creatorId == currentUserId)))) {
         _contextRole = 'owner';
       } else if (normalizedRole == 'staff' || normalizedRole == 'member_staff') {
         _contextRole = 'staff';
