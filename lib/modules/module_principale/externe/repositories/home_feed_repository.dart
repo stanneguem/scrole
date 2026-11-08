@@ -184,6 +184,9 @@ class HomeFeedRepository {
           ctaEnabled: row['cta_enabled'] == true || row['cta_enabled'] == 1,
           ctaLabel: row['cta_label']?.toString(),
           ctaUrl: row['cta_url']?.toString(),
+          ctaDestinationType: (row['cta_destination_type'] ?? 'external').toString(),
+          ctaInternalType: row['cta_internal_type']?.toString(),
+          ctaInternalId: row['cta_internal_id']?.toString(),
         ));
       }
       return campaigns.take(limit).toList(growable: false);
