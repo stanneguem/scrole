@@ -37,7 +37,7 @@ class EventStatsDashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Statistiques de l\'événement',
+          'event_budget_insights_title'.tr,
           style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -364,10 +364,10 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.55,
                 children: [
                   _statCard(colors, Icons.open_in_new_rounded, 'Ouvertures', NumberFormatter.formatCount(_metric(simulation, 'sessions_started')), AppColors.primary),
-                  _statCard(colors, Icons.people_alt_outlined, 'Simulateurs uniques', NumberFormatter.formatCount(_metric(simulation, 'unique_users')), Colors.blue),
-                  _statCard(colors, Icons.check_circle_outline, 'Simulations terminées', NumberFormatter.formatCount(_metric(simulation, 'sessions_confirmed')), AppColors.success),
-                  _statCard(colors, Icons.confirmation_number_outlined, 'Choix de billets', NumberFormatter.formatCount(((simulation['ticket_choices'] as List?)?.fold<int>(0, (sum, item) => sum + _metric(Map<String, dynamic>.from(item as Map), 'selection_count')) ?? 0)), Colors.purple),
-                  _statCard(colors, Icons.local_activity_outlined, 'Choix d’activités', NumberFormatter.formatCount(((simulation['activity_choices'] as List?)?.fold<int>(0, (sum, item) => sum + _metric(Map<String, dynamic>.from(item as Map), 'selection_interactions')) ?? 0)), Colors.orange),
+                  _statCard(colors, Icons.people_alt_outlined, 'event_budget_insights_unique'.tr, NumberFormatter.formatCount(_metric(simulation, 'unique_budget_users')), Colors.blue),
+                  _statCard(colors, Icons.check_circle_outline, 'event_budget_insights_confirmed'.tr, NumberFormatter.formatCount(_metric(simulation, 'sessions_confirmed')), AppColors.success),
+                  _statCard(colors, Icons.confirmation_number_outlined, 'event_budget_insights_tickets'.tr, NumberFormatter.formatCount(((simulation['ticket_choices'] as List?)?.fold<int>(0, (sum, item) => sum + _metric(Map<String, dynamic>.from(item as Map), 'selection_count')) ?? 0)), Colors.purple),
+                  _statCard(colors, Icons.local_activity_outlined, 'event_budget_insights_activities'.tr, NumberFormatter.formatCount(((simulation['activity_choices'] as List?)?.fold<int>(0, (sum, item) => sum + _metric(Map<String, dynamic>.from(item as Map), 'selection_interactions')) ?? 0)), Colors.orange),
                 ],
               ),
               Container(
@@ -402,7 +402,7 @@ class EventStatsDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               if (simulation['ticket_choices'] is List && (simulation['ticket_choices'] as List).isNotEmpty) ...[
-                _sectionHeader(colors, Icons.confirmation_number_outlined, 'Billets les plus simulés'),
+                _sectionHeader(colors, Icons.confirmation_number_outlined, 'event_budget_insights_tickets'.tr),
                 const SizedBox(height: 8),
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)), child: Column(children: [
                   ...(simulation['ticket_choices'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Billet'}', _metric(item.cast<String, dynamic>(), 'selection_count'))),
@@ -410,7 +410,7 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 const SizedBox(height: 16),
               ],
               if (simulation['activity_choices'] is List && (simulation['activity_choices'] as List).isNotEmpty) ...[
-                _sectionHeader(colors, Icons.local_activity_outlined, 'Activités les plus simulées'),
+                _sectionHeader(colors, Icons.local_activity_outlined, 'event_budget_insights_activities'.tr),
                 const SizedBox(height: 8),
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)), child: Column(children: [
                   ...(simulation['activity_choices'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Activité'}', _metric(item.cast<String, dynamic>(), 'selection_interactions'))),
