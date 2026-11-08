@@ -682,6 +682,8 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
       context: context,
       preview: _preview!,
       repository: Get.find<EventRepository>(),
+      isAttending: _preview!.isInMyCalendar,
+      profilePhotoUrl: (Get.find<AppController>().profile.value?['photo_url'] ?? '').toString(),
       onShareSuccess: (_) {
         if (mounted) {
           setState(() {});
