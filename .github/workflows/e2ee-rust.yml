@@ -8,6 +8,8 @@ on:
       - "test/core/e2ee/**"
       - "pubspec.yaml"
       - "pubspec.lock"
+      - "flutter_rust_bridge.yaml"
+      - "hook/**"
       - ".github/workflows/e2ee-rust.yml"
   push:
     branches:
