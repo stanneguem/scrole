@@ -1197,6 +1197,23 @@ class EventRepository {
     return data.map((e) => CheckinModel.fromJson(e)).toList();
   }
 
+  /// Returns only activities actually validated for the currently signed-in participant.
+  /// RLS limits this query to the participant's own check-ins unless they manage the event.
+  Future<Set<String>> getMyValidatedActivityIds(String eventId) async {
+    final currentUserId = _remote.client.auth.currentUser?.id;
+    if (currentUserId == null || currentUserId.isEmpty) return <String>{};
+
+    final checkins = await getEventCheckinsTree(eventId);
+    return checkins
+        .where((checkin) =>
+            checkin.userId == currentUserId &&
+            checkin.status == CheckinStatus.valid &&
+            checkin.activityId != null &&
+            checkin.activityId!.isNotEmpty)
+        .map((checkin) => checkin.activityId!)
+        .toSet();
+  }
+
   Future<CheckinScanResult> scanCheckinOptimistic({
     required String eventId,
     required String targetUserId,
