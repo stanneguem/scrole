@@ -91,6 +91,8 @@ class SalonChatDatabase {
     await db.transaction((txn) async {
       await txn.delete('salon_messages', where: 'user_id = ?', whereArgs: [userId]);
       await txn.delete('salon_sync_cursors', where: 'user_id = ?', whereArgs: [userId]);
+      // Cache metadata is not account-specific and must not survive logout.
+      await txn.delete('salon_cache_metadata');
     });
   }
 
