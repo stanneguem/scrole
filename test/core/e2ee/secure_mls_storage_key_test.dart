@@ -17,18 +17,16 @@ void main() {
       manager = SecureMlsStorageKey(storage: storage);
     });
 
-    test('returns the existing 256-bit key', () async {
+    test('accepts an existing 256-bit key without returning its bytes', () async {
       final expected = List<int>.generate(32, (i) => i);
       when(() => storage.read(key: any(named: 'key'))).thenAnswer(
         (_) async => base64UrlEncode(expected),
       );
 
-      final actual = await manager.getOrCreate(
-        userId: 'user-a',
-        deviceId: 'device-a',
+      await expectLater(
+        manager.ensureProvisioned(userId: 'user-a', deviceId: 'device-a'),
+        completes,
       );
-
-      expect(actual, expected);
       verify(() => storage.read(
             key: 'scrole.e2ee.mls.storage_key.v1.user-a.device-a',
           )).called(1);
@@ -38,7 +36,7 @@ void main() {
           ));
     });
 
-    test('creates and persists a 32-byte key when missing', () async {
+    test('creates and persists a 32-byte key without returning it', () async {
       when(() => storage.read(key: any(named: 'key')))
           .thenAnswer((_) async => null);
       when(() => storage.write(
@@ -46,16 +44,13 @@ void main() {
             value: any(named: 'value'),
           )).thenAnswer((_) async {});
 
-      final key = await manager.getOrCreate(
-        userId: 'user-a',
-        deviceId: 'device-a',
-      );
+      await manager.ensureProvisioned(userId: 'user-a', deviceId: 'device-a');
 
-      expect(key, hasLength(32));
-      verify(() => storage.write(
+      final captured = verify(() => storage.write(
             key: 'scrole.e2ee.mls.storage_key.v1.user-a.device-a',
-            value: base64UrlEncode(key),
-          )).called(1);
+            value: captureAny(named: 'value'),
+          )).captured.single as String;
+      expect(base64Url.decode(captured), hasLength(32));
     });
 
     test('rejects a stored key with the wrong length', () async {
@@ -63,18 +58,18 @@ void main() {
           .thenAnswer((_) async => base64UrlEncode([1, 2, 3]));
 
       await expectLater(
-        manager.getOrCreate(userId: 'user-a', deviceId: 'device-a'),
+        manager.ensureProvisioned(userId: 'user-a', deviceId: 'device-a'),
         throwsA(isA<StateError>()),
       );
     });
 
-    test('rejects empty account or device identifiers', () async {
+    test('rejects empty account or device identifiers', () {
       expect(
-        () => manager.getOrCreate(userId: ' ', deviceId: 'device-a'),
+        () => manager.ensureProvisioned(userId: ' ', deviceId: 'device-a'),
         throwsArgumentError,
       );
       expect(
-        () => manager.getOrCreate(userId: 'user-a', deviceId: ''),
+        () => manager.ensureProvisioned(userId: 'user-a', deviceId: ''),
         throwsArgumentError,
       );
       verifyNever(() => storage.read(key: any(named: 'key')));
@@ -92,16 +87,15 @@ void main() {
             value: any(named: 'value'),
           )).thenAnswer((_) async {});
 
-      final results = await Future.wait([
-        manager.getOrCreate(userId: 'user-b', deviceId: 'device-b'),
-        manager.getOrCreate(userId: 'user-b', deviceId: 'device-b'),
+      await Future.wait([
+        manager.ensureProvisioned(userId: 'user-b', deviceId: 'device-b'),
+        manager.ensureProvisioned(userId: 'user-b', deviceId: 'device-b'),
       ]);
 
-      expect(results[0], results[1]);
       expect(reads, 1);
       verify(() => storage.write(
             key: 'scrole.e2ee.mls.storage_key.v1.user-b.device-b',
-            value: base64UrlEncode(results.first),
+            value: any(named: 'value'),
           )).called(1);
     });
   });
