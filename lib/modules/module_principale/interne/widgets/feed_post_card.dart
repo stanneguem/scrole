@@ -324,10 +324,18 @@ class FeedPostCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: FilledButton(
                     onPressed: () async {
-                      final uri = Uri.tryParse(post.ctaUrl!.trim());
-                      if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
                       onSponsoredInteraction?.call();
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      if (post.ctaDestinationType == 'internal') {
+                        final destinationId = post.ctaInternalId?.trim();
+                        if (destinationId == null || destinationId.isEmpty) return;
+                        if (post.ctaInternalType == 'event') {
+                          Get.toNamed(AppPages.eventPreviewPath(destinationId));
+                        }
+                        return;
+                      }
+                      final uri = Uri.tryParse(post.ctaUrl?.trim() ?? '');
+                      if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
+                      await launchUrl(uri, mode: LaunchMode.inAppWebView);
                     },
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
