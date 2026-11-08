@@ -39,6 +39,8 @@ class CommunityFeedController extends GetxController {
 
   final RxString communityName = 'evenement'.obs;
   final RxList<CommunityPost> posts = <CommunityPost>[].obs;
+  final RxList<CommunityPost> sponsoredPosts = <CommunityPost>[].obs;
+  final RxBool adsAllowed = true.obs;
   final Rx<CommunityFeedState> feedState = CommunityFeedState.initialLoading.obs;
   final RxString errorMessage = ''.obs;
   String? nextCursor;
@@ -127,6 +129,37 @@ class CommunityFeedController extends GetxController {
     } catch (e) {
       debugPrint('[POST_ACTIONS] [CommunityFeed] Error flushing view batch: $e');
     }
+  }
+
+  String? _campaignIdFromSponsoredPost(String postId) =>
+      postId.startsWith('promotion_') ? postId.substring('promotion_'.length) : null;
+
+  Future<void> recordSponsoredImpression(CommunityPost post) async {
+    final id = _campaignIdFromSponsoredPost(post.id);
+    if (!post.isSponsored || id == null || id.isEmpty) return;
+    await _feedRepo.recordPromotionImpression(id);
+  }
+
+  Future<void> recordSponsoredInteraction(CommunityPost post, {String type = 'click'}) async {
+    final id = _campaignIdFromSponsoredPost(post.id);
+    if (!post.isSponsored || id == null || id.isEmpty) return;
+    await _feedRepo.recordPromotionInteraction(id, type);
+  }
+
+  List<CommunityPost> get displayPosts {
+    if (!adsAllowed.value || sponsoredPosts.isEmpty) return posts.toList();
+    final result = <CommunityPost>[];
+    var organicSinceAd = 0;
+    var adIndex = 0;
+    for (final post in posts) {
+      result.add(post);
+      organicSinceAd++;
+      if (organicSinceAd >= 5 && adIndex < sponsoredPosts.length) {
+        result.add(sponsoredPosts[adIndex++]);
+        organicSinceAd = 0;
+      }
+    }
+    return result;
   }
 
   Future<List<CommunityPost>> _getPendingOutboxPosts(String userId) async {
@@ -238,6 +271,23 @@ class CommunityFeedController extends GetxController {
         posts.assignAll(previewById.values);
         feedState.value = CommunityFeedState.loaded;
       }
+      final certificationRows = await Supabase.instance.client
+          .from('community_certifications')
+          .select('id')
+          .eq('community_id', communityId!)
+          .eq('status', 'active')
+          .isFilter('suspended_at', null)
+          .or('valid_until.is.null,valid_until.gt.${DateTime.now().toUtc().toIso8601String()}')
+          .limit(1);
+      final certifiedCommunity = certificationRows.isNotEmpty;
+      adsAllowed.value = !certifiedCommunity;
+      if (certifiedCommunity) {
+        sponsoredPosts.clear();
+      } else {
+        final campaigns = await _feedRepo.getTargetedPromotionCampaigns(limit: 10, communityId: communityId);
+        sponsoredPosts.assignAll(campaigns);
+      }
+
       final result = await _feedRepo.getCommunityFeed(communityId!);
       final items = result['items'] as List<CommunityPost>;
       nextCursor = result['next_cursor']?.toString();
