@@ -83,6 +83,8 @@ class EventBudgetController extends GetxController {
       if (initialTicket != null) {
         _recordAnalytics('simulation_ticket_selected', metadata: {
           'ticket_id': initialTicket.id,
+          'estimated_total': totalBudget,
+          'currency': currency,
         });
       }
     }
@@ -93,6 +95,8 @@ class EventBudgetController extends GetxController {
     selectedTicket.value = ticket;
     _recordAnalytics('simulation_ticket_selected', metadata: {
       'ticket_id': ticket.id,
+      'estimated_total': totalBudget,
+      'currency': currency,
     });
   }
 
@@ -105,7 +109,11 @@ class EventBudgetController extends GetxController {
     }
     _recordAnalytics(
       wasSelected ? 'simulation_activity_deselected' : 'simulation_activity_selected',
-      metadata: {'activity_ids': [activityId]},
+      metadata: {
+        'activity_ids': [activityId],
+        'estimated_total': totalBudget,
+        'currency': currency,
+      },
     );
   }
 
