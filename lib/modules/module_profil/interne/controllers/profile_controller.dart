@@ -14,6 +14,8 @@ import 'package:scrole/modules/module_principale/centre/models/community_post.da
 import 'package:scrole/modules/module_principale/interne/enums/community_role_enum.dart';
 import 'package:scrole/shared/models/post_media.dart';
 import '../../../module_discussion_direct/externe/repositories/social_repository.dart';
+import '../../../../app/local_storage/fast/fast_cache_key.dart';
+import '../../../../app/local_storage/fast/fast_cache_service.dart';
 
 class ProfileController extends GetxController {
   late final AppController _appController;
@@ -86,6 +88,9 @@ class ProfileController extends GetxController {
   Worker? _profileWorker;
   RealtimeChannel? _relationshipChannel;
 
+  FastCacheService? get _profileCache =>
+      Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
+
   @override
   void onInit() {
     super.onInit();
@@ -94,23 +99,42 @@ class ProfileController extends GetxController {
     _interestService = Get.find<InterestService>();
     _storageRepository = StorageRepository();
     
-    unawaited(_applyProfileOrDefaults(_appController.profile.value));
+    unawaited(_applyProfileOrDefaults(_appController.profile.value).then((_) {
+      _restoreProfileTabsFromCache();
+    }));
     _profileWorker = ever(_appController.profile, (data) {
       unawaited(_applyProfileOrDefaults(data));
       unawaited(_loadFollowStats());
-      unawaited(_loadProfileTab(selectedTab.value, forceRefresh: true));
     });
     unawaited(_loadFollowStats());
     _subscribeToRelationshipChanges();
 
-    unawaited(_loadProfileTab(0));
-
   }
 
+  Future<void> _restoreProfileTabsFromCache() async {
+    final uid = userId.value;
+    final cache = _profileCache;
+    if (uid.isEmpty || cache == null || !cache.isReady) return;
+    const tabs = {0: 'posts', 1: 'events', 2: 'liked'};
+    for (final entry in tabs.entries) {
+      final raw = cache.get<List<dynamic>>(FastCacheKey.profileTab(uid, entry.value));
+      if (raw == null) continue;
+      final rows = raw.whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row)).toList();
+      if (entry.key == 0) {
+        userPosts.assignAll(rows.map(CommunityPost.fromMap));
+      } else if (entry.key == 1) {
+        userEvents.assignAll(rows);
+      } else {
+        savedPosts.assignAll(rows.map(CommunityPost.fromMap));
+      }
+      loadedProfileTabs.add(entry.key);
+    }
+  }
 
   Future<void> selectProfileTab(int index) async {
     selectedTab.value = index;
-    await _loadProfileTab(index);
+    await _loadProfileTab(index, forceRefresh: true);
   }
 
   Future<void> _loadProfileTab(int index, {bool forceRefresh = false}) async {
@@ -144,6 +168,8 @@ class ProfileController extends GetxController {
       final rows = response is List
           ? response.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
           : <Map<String, dynamic>>[];
+
+      await _profileCache?.set(FastCacheKey.profileTab(uid, tab), rows);
 
       if (index == 0) {
         // Sur le profil personnel, afficher toutes les publications de l'utilisateur,
