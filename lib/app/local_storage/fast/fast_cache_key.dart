@@ -11,6 +11,8 @@ class FastCacheKey {
       "external_profile_${viewerId}_$userId";
   static String profileTab(String userId, String tab) =>
       "profile_tab_${userId}_$tab";
+  static String profileHeaderStats(String userId) =>
+      "profile_header_stats_$userId";
   static String externalProfileTab(String viewerId, String userId, String tab) =>
       "external_profile_tab_${viewerId}_${userId}_$tab";
   static String activityDetail(String activityId) => "activity_$activityId";
