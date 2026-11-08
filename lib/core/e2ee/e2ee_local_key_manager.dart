@@ -41,7 +41,8 @@ class E2eeLocalKeyManager {
   /// local reset. Deleting the key without a recoverable backup destroys
   /// access to the encrypted MLS state on this installation.
   Future<void> deleteAccountMaterial({required String userId}) async {
-    final deviceId = await _identity.getOrCreate(userId: userId);
+    final deviceId = await _identity.getExisting(userId: userId);
+    if (deviceId == null) return;
     await _storageKey.delete(userId: userId, deviceId: deviceId);
     await _identity.delete(userId: userId);
   }
