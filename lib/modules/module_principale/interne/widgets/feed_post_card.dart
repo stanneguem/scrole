@@ -244,6 +244,33 @@ class FeedPostCard extends StatelessWidget {
                   ),
                 ),
               ),
+            if (post.isSponsored)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: colorScheme.tertiaryContainer.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.campaign_rounded, size: 13, color: colorScheme.onTertiaryContainer),
+                          const SizedBox(width: 5),
+                          Text('Publicité', style: TextStyle(
+                            color: colorScheme.onTertiaryContainer,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          )),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 12),
 
             // ───────── Partie haute (avec marges latérales) ─────────
