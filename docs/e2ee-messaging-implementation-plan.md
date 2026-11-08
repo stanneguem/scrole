@@ -1,0 +1,143 @@
+# Scrole — plan d'implémentation du chiffrement de bout en bout (E2EE)
+
+**Périmètre :** application Flutter utilisateurs + Supabase (Postgres, Realtime, Edge Functions, R2).  
+**Branche étudiée :** `feature/story-video-post-reshare`  
+**État :** audit en lecture seule et conception. Aucune migration, aucun déploiement et aucune dépendance cryptographique ajoutés à la production.
+
+## 1. Décision de sécurité
+
+Objectif : le serveur ne doit jamais recevoir le texte lisible, les clés de contenu, ni les octets lisibles des pièces jointes. Le chiffrement et le déchiffrement se font sur les appareils Flutter.
+
+Le chiffrement TLS de Supabase reste nécessaire, mais il ne remplace pas le chiffrement de bout en bout.
+
+Ne pas développer un protocole cryptographique maison. La cible protocolaire est le **Signal Protocol** :
+- conversations directes : X3DH/PQXDH pour établir les sessions, puis Double Ratchet pour les messages ;
+- salons communautaires : Sender Keys pour éviter de chiffrer N fois le corps de chaque message, avec distribution des clés de groupe au moyen des sessions directes ;
+- clés d'identité propres à chaque appareil, pré-clés signées et pré-clés à usage unique ;
+- empreinte/safety number, épinglage TOFU et avertissement explicite lors d'un changement d'identité ;
+- fan-out vers les autres appareils du même utilisateur, et pas seulement vers son téléphone courant.
+
+### Blocage avant choix de la bibliothèque
+
+L'application n'a actuellement aucune bibliothèque E2EE. Le package Dart `libsignal` existe et fournit une liaison Rust/Flutter avec Double Ratchet et Sender Keys, mais son dépôt est non vérifié comme éditeur pub.dev et il est sous **AGPL-3.0**. Le dépôt officiel Signal `libsignal` est lui aussi sous AGPL-3.0. Il ne faut donc pas ajouter cette dépendance sans validation explicite de la compatibilité de cette licence avec la distribution et le modèle de Scrole.
+
+L'alternative `dart_signal_protocol` est annoncée comme une implémentation pure Dart de Signal, mais sa version publique consultée est alpha, son propre README indique qu'aucun audit externe n'a été effectué et documente des risques d'intégration importants (durabilité/rollback du ratchet, épinglage d'identité à implémenter, etc.). Elle ne doit pas être considérée comme prête à la production.
+
+**Décision requise :** validation juridique de l'AGPL, ou sélection d'un SDK Signal/MLS maintenu et audité avec une licence compatible, éventuellement commercial. Ne pas remplacer cela par un assemblage maison de X25519 + AES qui perdrait la confidentialité persistante et la sécurité post-compromission.
+
+## 2. Architecture actuelle observée
+
+### Messages directs (deux utilisateurs)
+
+Flutter :
+- `module_discussion_direct/centre/models/message.dart` expose `content`, `mediaUrls` et `audioUrl` en clair.
+- `SupabaseMessagingService.insertMessage()` appelle `insert_direct_message` avec `p_text`, `p_audio_url` et `p_media_urls`.
+- `MessagingRepository.sendMessage()` met en cache le message local puis l'envoie ; `sendMediaMessage()` téléverse les fichiers avant l'envoi.
+- `MessagesDao` persiste actuellement le texte et les URL lisibles dans SQLite (`direct_chat_messages`).
+
+Supabase :
+- `public.direct_messages.text`, `audio_url` et `media_urls` contiennent le contenu ou les références de médias.
+- RPC concernées : `insert_direct_message`, `send_direct_message`, `get_direct_messages`, `get_direct_messages_after`, `edit_direct_message`, `get_my_direct_conversations`.
+- `get_my_direct_conversations` retourne `last_message_text` à la liste des conversations.
+- Le trigger `notify_direct_message_push` construit actuellement le corps de notification à partir de `new.text` pour les messages texte. C'est une fuite de contenu à corriger.
+- Les accusés de réception, curseurs de lecture, suppressions et dates peuvent rester des métadonnées non chiffrées.
+
+### Salons de discussion des communautés (plusieurs membres)
+
+Flutter :
+- La conversation est implémentée dans `module_communautes/interne/pages/community_chat_groups_screen.dart`, classe `CommunityChatGroupConversation`.
+- Les messages sont envoyés via `send_salon_message` ; les synchronisations initiale, incrémentale et Realtime utilisent `get_salon_messages`, `get_salon_messages_since` et `get_salon_message_delta`.
+- `SalonChatLocalCache` enregistre le JSON complet des messages dans SQLite (`salon_messages.payload`).
+- Texte, audio, images et vidéos suivent des chemins d'envoi différents dans le même écran.
+
+Supabase :
+- `public.community_salon_messages.content`, `audio_url`, `media_object_key` et `media_object_keys` stockent le texte ou les références de fichiers.
+- RPC concernées : `send_salon_message`, `get_salon_messages`, `get_salon_messages_since`, `get_salon_message_delta`, `get_salon_messages_around`, `edit_salon_message`, `list_community_chat_groups_with_preview`.
+- `list_community_chat_groups_with_preview` retourne actuellement `latest.content` comme aperçu du dernier message.
+- Le trigger de notification communautaire envoie déjà un texte générique, sans inclure le contenu du message. Il faut conserver ce comportement.
+- Les règles `joined_at` limitent déjà l'historique accessible à un membre à sa date d'adhésion ; elles devront rester cohérentes avec les époques de clés.
+
+### Médias et transport
+
+- Les directs passent par `r2-media-upload` et stockent des références de médias.
+- Les salons communautaires téléversent leurs médias via `R2MediaRepository`, catégorie `salon_message_media`.
+- Le bucket Storage `chat-media` est public dans le projet inspecté : il ne doit pas être utilisé pour les nouveaux médias E2EE.
+- Le bucket `group-chat-media` est privé, mais le code des salons inspecté utilise actuellement le chemin R2. L'accès aux octets chiffrés devra rester authentifié et limité aux membres.
+- Les notifications, aperçus de conversations, réponses citées, journaux, caches et noms de fichiers doivent être audités : chiffrer seulement la colonne texte ne suffit pas.
+
+## 3. Modèle de clés proposé
+
+### Identité par appareil
+
+Créer un identifiant stable par installation Flutter et un registre serveur de clés publiques :
+- `e2ee_devices` : utilisateur, appareil, version du protocole, clé publique d'identité, statut/révocation, dates ;
+- `e2ee_signed_prekeys` : clé publique signée, identifiant, signature et date d'expiration ;
+- `e2ee_one_time_prekeys` : clés publiques à usage unique, consommées atomiquement ;
+- éventuellement pré-clés post-quantiques selon le SDK retenu.
+
+Les clés privées et états de sessions ne quittent jamais l'appareil. Le serveur ne stocke que les clés publiques et les enveloppes chiffrées. Les clés privées sont protégées par Keychain iOS / Android Keystore via un stockage sécurisé. Les états sérialisés des ratchets sont chiffrés localement et écrits de façon durable et atomique.
+
+### Direct
+
+1. Chaque appareil publie son bundle de pré-clés publiques.
+2. L'expéditeur récupère les bundles des appareils du destinataire et établit une session Signal avec chacun.
+3. Le message est chiffré pour chaque appareil destinataire et pour les autres appareils de l'expéditeur.
+4. Supabase ne reçoit que des enveloppes chiffrées, avec l'identifiant du message, les horodatages et les métadonnées minimales.
+5. Chaque appareil déchiffre localement et met à jour son état de ratchet de manière durable avant de considérer l'envoi comme confirmé.
+
+### Salon communautaire
+
+1. Chaque appareil membre possède des sessions directes établies avec les appareils des autres membres.
+2. Chaque expéditeur crée une Sender Key de groupe et distribue son état initial à chaque appareil membre via ces sessions directes.
+3. Le corps de chaque message est chiffré une seule fois avec la Sender Key de l'expéditeur ; l'enveloppe contient l'identifiant de l'époque et les informations nécessaires au déchiffrement.
+4. Lorsqu'un membre est ajouté, retiré ou quitte le salon, une nouvelle époque est créée et les Sender Keys sont renouvelées/distribuées aux membres restants. Aucun nouveau message ne doit partir avec une clé de l'ancienne époque.
+5. Un nouveau membre ne reçoit pas les anciennes clés : l'historique antérieur à son adhésion reste illisible, sauf partage d'historique explicite décidé séparément.
+6. Un membre retiré ne peut plus lire les messages futurs. Il reste impossible de lui faire « oublier » les anciens messages qu'il a déjà reçus.
+
+## 4. Schéma de données cible (à transformer en migrations après validation)
+
+- Registre des appareils et pré-clés publiques.
+- Enveloppes de messages directs par appareil destinataire.
+- État/époque de chiffrement par salon et enveloppes de distribution de Sender Keys par appareil.
+- Colonnes explicites `encryption_version`, `ciphertext`/enveloppes et métadonnées de protocole.
+- Les colonnes historiques en clair sont conservées uniquement pour compatibilité/migration des anciens messages ; les RPC de nouvelle version doivent refuser tout message en clair après activation E2EE.
+- Les RPC de lecture et d'écriture gardent les contrôles d'appartenance existants ; le serveur valide les membres et les appareils, mais ne déchiffre jamais.
+
+Les tables de clés privées, secrets de conversation et clés de fichiers ne doivent jamais être créées côté serveur.
+
+## 5. Médias, notifications et caches
+
+- Chiffrer le fichier sur l'appareil avant le téléversement. Utiliser une clé aléatoire par fichier, un format AEAD/streaming authentifié et un nom d'objet opaque. La clé et le nonce sont inclus dans le payload chiffré du message, jamais dans R2.
+- Ne pas charger le fichier complet en mémoire pour les vidéos volumineuses ; utiliser un chiffrement par blocs authentifiés et vérifier chaque bloc à la lecture.
+- Les messages directs et communautaires ne doivent plus inclure de texte dans les push. Notification générique : « Nouveau message », avec navigation vers la conversation seulement.
+- Les aperçus de liste, recherches, réponses citées et notifications sont générés après déchiffrement sur le téléphone. Le serveur ne renvoie plus `last_message_text` ou `latest.content`.
+- Stocker les messages locaux sous forme chiffrée ; ne pas laisser le texte déchiffré dans SQLite, le cache média ou les logs.
+- Nettoyer les fichiers temporaires en clair après chiffrement/déchiffrement, et ne jamais mettre en cache les URL présignées avec des clés de déchiffrement.
+
+## 6. Conséquences fonctionnelles à accepter
+
+- Scrole, Supabase, les Edge Functions et les administrateurs React.js ne peuvent pas lire les messages ou pièces jointes E2EE.
+- La modération serveur ne peut plus analyser le contenu. Un signalement de message doit permettre à l'utilisateur de joindre volontairement une preuve déchiffrée et les métadonnées nécessaires, avec consentement clair.
+- La recherche plein texte côté serveur, les aperçus de message dans les notifications, et toute modération automatique du texte ne seront plus possibles.
+- Un appareil perdu/réinstallé ne pourra pas retrouver les anciens messages sans transfert d'appareil ou sauvegarde de clés chiffrée par un secret connu uniquement de l'utilisateur. Aucune clé de récupération en clair ne doit être conservée par Scrole.
+- Les utilisateurs doivent avoir une version compatible ; pas de retour silencieux au clair après activation. Les salons nécessitent une transition coordonnée de tous les membres actifs.
+
+## 7. Compatibilité et migration
+
+- Les anciens messages déjà enregistrés en clair ne peuvent pas être rendus rétroactivement secrets : le serveur et ses sauvegardes ont déjà détenu leur contenu. Ils seront marqués comme historiques non E2EE ou supprimés selon une décision produit distincte.
+- Déployer en phases : infrastructure des appareils et pré-clés ; conversations directes en environnement de test ; salons avec rotation de clés ; médias ; caches/notifications ; activation progressive.
+- Une conversation ne passe en mode E2EE obligatoire qu'après vérification que les appareils participants sont prêts. Une fois activée, les RPC refusent les payloads non chiffrés.
+- Prévoir tests de messages hors ordre, appareils multiples, pré-clés consommées simultanément, ratchet interrompu, restauration de sauvegarde, changement de clé d'identité, membre ajouté/retiré, hors ligne, pièces jointes volumineuses, suppressions/édition et notification push.
+
+## 8. Ordre de réalisation
+
+1. **Choix juridique et technique du SDK cryptographique** (bloquant).
+2. Implémenter les stores durables et sécurisés des identités, sessions, pré-clés et Sender Keys ; tests de reprise après crash/rollback.
+3. Ajouter les tables/RPC de publication des bundles et de distribution chiffrée ; RLS stricte par utilisateur/appareil et membre du salon.
+4. Adapter les modèles Flutter, le dépôt direct et la conversation de salon pour chiffrer avant toute écriture réseau et déchiffrer après lecture.
+5. Remplacer les aperçus et notifications contenant du texte ; enlever les chemins serveur qui lisent le contenu.
+6. Chiffrer tous les médias avant R2 et verrouiller l'accès aux objets.
+7. Chiffrer les caches SQLite et ajouter l'interface de vérification d'identité, transfert/récupération d'appareil et avertissements.
+8. Tests sécurité, tests d'intégration, audit des politiques/RPC/Storage/Realtime, puis activation progressive.
+
+**Critère de réussite :** en inspectant Postgres, Realtime, Storage/R2, Edge Functions, FCM et les journaux, aucune personne autre que les appareils autorisés ne peut reconstituer un message ou un média à partir des données serveur.
