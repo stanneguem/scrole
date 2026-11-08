@@ -204,6 +204,8 @@ class EventRestrictionsInfo {
 class EventPreviewModel {
   final EventModel event;
   final EventCreatorInfo? creator;
+  final bool isPlatformEvent;
+  final bool isThirdPartyEvent;
   final bool canView;
   final bool canViewPublicPreview;
   final String? viewerRole;
@@ -235,6 +237,8 @@ class EventPreviewModel {
   const EventPreviewModel({
     required this.event,
     this.creator,
+    this.isPlatformEvent = false,
+    this.isThirdPartyEvent = false,
     this.canView = true,
     this.canViewPublicPreview = true,
     this.viewerRole,
@@ -268,6 +272,8 @@ class EventPreviewModel {
     return EventPreviewModel(
       event: event,
       creator: creator,
+      isPlatformEvent: isPlatformEvent,
+      isThirdPartyEvent: isThirdPartyEvent,
       canView: canView,
       canViewPublicPreview: canViewPublicPreview,
       viewerRole: viewerRole,
@@ -357,6 +363,8 @@ class EventPreviewModel {
     return EventPreviewModel(
       event: EventModel.fromJson(eventMap),
       creator: json['creator'] is Map ? EventCreatorInfo.fromJson(Map<String, dynamic>.from(json['creator'] as Map)) : null,
+      isPlatformEvent: json['is_platform_event'] == true,
+      isThirdPartyEvent: json['is_third_party_event'] == true,
       canView: json['can_view'] != false,
       canViewPublicPreview: json['can_view_public_preview'] != false,
       viewerRole: json['viewer_role']?.toString(),
