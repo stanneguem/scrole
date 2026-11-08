@@ -1,19 +1,47 @@
-name: E2EE Rust engine checks
+name: E2EE native and Flutter checks
 
 on:
   pull_request:
     paths:
       - "rust/**"
+      - "lib/core/e2ee/**"
+      - "test/core/e2ee/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
       - ".github/workflows/e2ee-rust.yml"
   push:
     branches:
       - feature/story-video-post-reshare
     paths:
       - "rust/**"
+      - "lib/core/e2ee/**"
+      - "test/core/e2ee/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
       - ".github/workflows/e2ee-rust.yml"
 
+permissions:
+  contents: read
+
 jobs:
-  rust:
+  flutter:
+    name: Flutter E2EE unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Analyze E2EE Dart code
+        run: dart analyze lib/core/e2ee test/core/e2ee
+      - name: Run E2EE unit tests
+        run: flutter test test/core/e2ee
+
+  rust-host:
+    name: OpenMLS host tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,9 +49,52 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+      - name: Resolve pinned Rust dependency graph
+        working-directory: rust
+        run: cargo generate-lockfile
       - name: Test native engine
         working-directory: rust
-        run: cargo test
+        run: cargo test --locked
       - name: Check native engine
         working-directory: rust
-        run: cargo check
+        run: cargo check --locked
+
+  rust-android:
+    name: OpenMLS Android ARM64 compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: android-actions/setup-android@v3
+      - name: Install Android NDK
+        run: sdkmanager "ndk;27.2.12479018"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Check Android ARM64 target
+        working-directory: rust
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
+        run: |
+          cargo generate-lockfile
+          cargo check --locked --target aarch64-linux-android
+
+  rust-ios:
+    name: OpenMLS iOS ARM64 compile check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Check iOS ARM64 target
+        working-directory: rust
+        run: |
+          cargo generate-lockfile
+          cargo check --locked --target aarch64-apple-ios
