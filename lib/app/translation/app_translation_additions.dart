@@ -14,7 +14,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "Aucune activité payante liée",
       'event_budget_transport_note': "Note : cette somme ne comprend pas les frais de transport. Prévoyez un budget supplémentaire selon votre trajet.",
       'event_budget_total_label': "Somme à prévoir",
-      'event_budget_done': "C’est noté !",
+      'event_budget_done': "Confirmer",
       'event_detail_start': 'Début',
       'event_detail_end': 'Fin',
       'event_detail_no_days': 'Aucun jour défini',
@@ -1473,6 +1473,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "L’envoi de vidéos n’est pas autorisé dans ce salon.",
 
 },
+      'event_budget_save_error_title': "Impossible d’enregistrer le budget",
+      'event_budget_save_error_missing_event': "Événement introuvable.",
+      'event_budget_save_error_auth': "Connectez-vous pour enregistrer cette simulation.",
+      'event_budget_save_error_message': "Votre simulation n’a pas pu être enregistrée. Vérifiez votre connexion et réessayez.",
     'en': {
       'event_budget_title': "Calculate my budget",
       'event_budget_ticket_section': "1. Choose your ticket",
@@ -1483,7 +1487,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "No paid activities linked",
       'event_budget_transport_note': "Note: This amount does not include transportation costs. Plan an additional budget according to your journey.",
       'event_budget_total_label': "Estimated total",
-      'event_budget_done': "Got it!",
+      'event_budget_done': "Confirm",
       'event_detail_start': 'Start',
       'event_detail_end': 'End',
       'event_detail_no_days': 'No days specified',
@@ -2938,6 +2942,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Sending videos is not allowed in this chat.",
 
 },
+      'event_budget_save_error_title': "Unable to save budget",
+      'event_budget_save_error_missing_event': "Event not found.",
+      'event_budget_save_error_auth': "Sign in to save this simulation.",
+      'event_budget_save_error_message': "Your simulation could not be saved. Check your connection and try again.",
     'es': {
       'event_budget_title': "Calcular mi presupuesto",
       'event_budget_ticket_section': "1. Elige tu entrada",
@@ -2948,7 +2956,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "No hay actividades de pago asociadas",
       'event_budget_transport_note': "Nota: Esta cantidad no incluye los gastos de transporte. Prevé un presupuesto adicional según tu trayecto.",
       'event_budget_total_label': "Total previsto",
-      'event_budget_done': "¡Entendido!",
+      'event_budget_done': "Confirmar",
       'event_detail_start': 'Inicio',
       'event_detail_end': 'Fin',
       'event_detail_no_days': 'No hay días definidos',
@@ -4306,6 +4314,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "No se permite enviar vídeos en este chat.",
 
 },
+      'event_budget_save_error_title': "No se pudo guardar el presupuesto",
+      'event_budget_save_error_missing_event': "No se encontró el evento.",
+      'event_budget_save_error_auth': "Inicia sesión para guardar esta simulación.",
+      'event_budget_save_error_message': "No se pudo guardar la simulación. Comprueba tu conexión e inténtalo de nuevo.",
     'de': {
       'event_budget_title': "Mein Budget berechnen",
       'event_budget_ticket_section': "1. Wähle dein Ticket",
@@ -4316,7 +4328,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "Keine kostenpflichtigen Aktivitäten verknüpft",
       'event_budget_transport_note': "Hinweis: Dieser Betrag enthält keine Transportkosten. Plane je nach Anreise ein zusätzliches Budget ein.",
       'event_budget_total_label': "Voraussichtlicher Gesamtbetrag",
-      'event_budget_done': "Alles klar!",
+      'event_budget_done': "Bestätigen",
       'event_detail_start': 'Beginn',
       'event_detail_end': 'Ende',
       'event_detail_no_days': 'Keine Tage festgelegt',
@@ -5657,6 +5669,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Das Senden von Videos ist in diesem Chat nicht erlaubt.",
 
 },
+      'event_budget_save_error_title': "Budget konnte nicht gespeichert werden",
+      'event_budget_save_error_missing_event': "Veranstaltung nicht gefunden.",
+      'event_budget_save_error_auth': "Melde dich an, um diese Simulation zu speichern.",
+      'event_budget_save_error_message': "Die Simulation konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
     'it': {
       'event_budget_title': "Calcola il mio budget",
       'event_budget_ticket_section': "1. Scegli il tuo biglietto",
@@ -5667,7 +5683,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "Nessuna attività a pagamento associata",
       'event_budget_transport_note': "Nota: questo importo non include le spese di trasporto. Prevedi un budget aggiuntivo in base al tragitto.",
       'event_budget_total_label': "Totale previsto",
-      'event_budget_done': "Va bene!",
+      'event_budget_done': "Conferma",
       'event_detail_start': 'Inizio',
       'event_detail_end': 'Fine',
       'event_detail_no_days': 'Nessun giorno definito',
@@ -7006,6 +7022,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "L’invio di video non è consentito in questa chat.",
 
 },
+      'event_budget_save_error_title': "Impossibile salvare il budget",
+      'event_budget_save_error_missing_event': "Evento non trovato.",
+      'event_budget_save_error_auth': "Accedi per salvare questa simulazione.",
+      'event_budget_save_error_message': "Impossibile salvare la simulazione. Controlla la connessione e riprova.",
     'pt': {
       'event_budget_title': "Calcular o meu orçamento",
       'event_budget_ticket_section': "1. Escolha o seu bilhete",
@@ -7016,7 +7036,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "Nenhuma atividade paga associada",
       'event_budget_transport_note': "Nota: este valor não inclui os custos de transporte. Reserve um orçamento adicional de acordo com o seu trajeto.",
       'event_budget_total_label': "Total previsto",
-      'event_budget_done': "Combinado!",
+      'event_budget_done': "Confirmar",
       'event_detail_start': 'Início',
       'event_detail_end': 'Fim',
       'event_detail_no_days': 'Nenhum dia definido',
@@ -8355,6 +8375,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "O envio de vídeos não é permitido neste chat.",
 
 },
+      'event_budget_save_error_title': "Não foi possível guardar o orçamento",
+      'event_budget_save_error_missing_event': "Evento não encontrado.",
+      'event_budget_save_error_auth': "Inicie sessão para guardar esta simulação.",
+      'event_budget_save_error_message': "Não foi possível guardar a simulação. Verifique a ligação e tente novamente.",
     'zh': {
       'event_budget_title': "计算我的预算",
       'event_budget_ticket_section': "1. 选择门票",
@@ -8365,7 +8389,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "没有关联的付费活动",
       'event_budget_transport_note': "注意：此金额不包含交通费用。请根据行程预留额外预算。",
       'event_budget_total_label': "预计总额",
-      'event_budget_done': "知道了！",
+      'event_budget_done': "确认",
       'event_detail_start': '开始',
       'event_detail_end': '结束',
       'event_detail_no_days': '未指定日期',
@@ -9706,6 +9730,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "此聊天室不允许发送视频。",
 
 },
+      'event_budget_save_error_title': "无法保存预算",
+      'event_budget_save_error_missing_event': "未找到活动。",
+      'event_budget_save_error_auth': "请登录以保存此预算模拟。",
+      'event_budget_save_error_message': "无法保存此模拟。请检查网络连接后重试。",
     'ja': {
       'event_budget_title': "予算を計算する",
       'event_budget_ticket_section': "1. チケットを選択",
@@ -9716,7 +9744,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "関連する有料アクティビティはありません",
       'event_budget_transport_note': "注意：この金額に交通費は含まれていません。移動経路に応じて別途予算をご用意ください。",
       'event_budget_total_label': "予定合計額",
-      'event_budget_done': "了解！",
+      'event_budget_done': "確認する",
       'event_detail_start': '開始',
       'event_detail_end': '終了',
       'event_detail_no_days': '日程未設定',
@@ -11050,6 +11078,10 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "このチャットでは動画を送信できません。",
 
 },
+      'event_budget_save_error_title': "予算を保存できません",
+      'event_budget_save_error_missing_event': "イベントが見つかりません。",
+      'event_budget_save_error_auth': "このシミュレーションを保存するにはログインしてください。",
+      'event_budget_save_error_message': "シミュレーションを保存できませんでした。接続を確認して再試行してください。",
     'ru': {
       'event_budget_title': "Рассчитать мой бюджет",
       'event_budget_ticket_section': "1. Выберите билет",
@@ -11060,7 +11092,7 @@ class AppTranslationAdditions {
       'event_budget_no_paid_activity': "Нет связанных платных активностей",
       'event_budget_transport_note': "Примечание: эта сумма не включает транспортные расходы. Предусмотрите дополнительный бюджет с учётом маршрута.",
       'event_budget_total_label': "Итого к оплате",
-      'event_budget_done': "Понятно!",
+      'event_budget_done': "Подтвердить",
       'event_detail_start': 'Начало',
       'event_detail_end': 'Окончание',
       'event_detail_no_days': 'Дни не указаны',
@@ -12395,6 +12427,11 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Отправка видео в этом чате запрещена.",
 
 },
+      'event_budget_save_error_title': "Не удалось сохранить бюджет",
+      'event_budget_save_error_missing_event': "Мероприятие не найдено.",
+      'event_budget_save_error_auth': "Войдите, чтобы сохранить эту симуляцию.",
+      'event_budget_save_error_message': "Не удалось сохранить симуляцию. Проверьте подключение и повторите попытку.",
+
   };
 
   static void register() => Get.addTranslations(keys);
