@@ -217,10 +217,25 @@ class StoriesController extends GetxController {
     fetchStories();
   }
 
-  Future<File> _storyTrayCacheFile() async {
+  Future<File> _storyTrayCacheFile(String userId) async {
     final directory = await getApplicationSupportDirectory();
-    final userId = _repo.client.auth.currentUser?.id ?? 'anonymous';
     return File(p.join(directory.path, 'stories_tray_cache_$userId.json'));
+  }
+
+  static Future<void> clearLocalCacheForUser(String userId) async {
+    if (userId.isEmpty) return;
+    final directory = await getApplicationSupportDirectory();
+    final file = File(p.join(directory.path, 'stories_tray_cache_$userId.json'));
+    if (await file.exists()) await file.delete();
+    debugPrint('[STORY_CACHE] Local cache purged for user $userId');
+  }
+
+  void clearInMemorySessionData() {
+    ownGroup.value = null;
+    followingGroups.clear();
+    suggestedGroups.clear();
+    isLoading.value = false;
+    isPublishingStory.value = false;
   }
 
   bool get _hasStoryGroups =>
@@ -246,10 +261,10 @@ class StoriesController extends GetxController {
     }
   }
 
-  Future<void> _restoreStoryTrayCache() async {
+  Future<void> _restoreStoryTrayCache(String userId) async {
     if (_hasStoryGroups) return;
     try {
-      final file = await _storyTrayCacheFile();
+      final file = await _storyTrayCacheFile(userId);
       if (!await file.exists()) return;
       final decoded = jsonDecode(await file.readAsString());
       if (decoded is Map) {
@@ -261,7 +276,7 @@ class StoriesController extends GetxController {
     }
   }
 
-  Future<void> _persistStoryTray(Map<String, dynamic> data) async {
+  Future<void> _persistStoryTray(String userId, Map<String, dynamic> data) async {
     try {
       final file = await _storyTrayCacheFile();
       await file.writeAsString(jsonEncode(data), flush: true);
@@ -272,15 +287,22 @@ class StoriesController extends GetxController {
   }
 
   Future<void> fetchStories() async {
-    // Show cached author/story metadata immediately; never wait for network
-    // before rendering the story tray.
-    await _restoreStoryTrayCache();
+    final userId = _repo.client.auth.currentUser?.id;
+    if (userId == null) {
+      clearInMemorySessionData();
+      return;
+    }
+    // Show only this authenticated account's cached stories.
+    await _restoreStoryTrayCache(userId);
+    if (_repo.client.auth.currentUser?.id != userId) return;
     isLoading.value = false;
     try {
-      debugPrint('[STORY] [Controller] Refreshing stories tray in background');
+      debugPrint('[STORY] [Controller] Refreshing stories tray in background user=$userId');
       final data = await _repo.getStoriesTray();
+      // Prevent a late response from the previous account repopulating cache.
+      if (_repo.client.auth.currentUser?.id != userId) return;
       _applyStoryTray(data);
-      await _persistStoryTray(data);
+      await _persistStoryTray(userId, data);
       debugPrint('[STORY] [Controller] Stories tray synchronized successfully.');
     } catch (e, st) {
       // Keep the last known story metadata/media available while offline.
