@@ -36,8 +36,8 @@ class E2eeTransportRepository {
         'p_installation_id': installationId,
         'p_platform': platform,
         'p_device_label': deviceLabel,
-        'p_public_credential': _toPostgresBytea(publicCredential),
-        'p_credential_fingerprint': _toPostgresBytea(credentialFingerprint),
+        'p_public_credential': encodePostgresBytea(publicCredential),
+        'p_credential_fingerprint': encodePostgresBytea(credentialFingerprint),
       },
     );
     if (result is! String || result.isEmpty) {
@@ -66,8 +66,8 @@ class E2eeTransportRepository {
     await _client.from('e2ee_key_packages').insert({
       'device_id': deviceId,
       'ciphersuite': ciphersuite,
-      'key_package': _toPostgresBytea(keyPackage),
-      'package_hash': _toPostgresBytea(packageHash),
+      'key_package': encodePostgresBytea(keyPackage),
+      'package_hash': encodePostgresBytea(packageHash),
       'expires_at': expiry.toIso8601String(),
     });
   }
@@ -110,7 +110,7 @@ class E2eeTransportRepository {
       params: {
         'p_scope_type': scopeType,
         'p_scope_id': scopeId,
-        'p_mls_group_id': _toPostgresBytea(mlsGroupId),
+        'p_mls_group_id': encodePostgresBytea(mlsGroupId),
         'p_creator_device_id': creatorDeviceId,
       },
     );
@@ -139,7 +139,7 @@ class E2eeTransportRepository {
       params: {
         'p_group_id': groupId,
         'p_expected_epoch': expectedEpoch,
-        'p_commit_ciphertext': _toPostgresBytea(commitCiphertext),
+        'p_commit_ciphertext': encodePostgresBytea(commitCiphertext),
         'p_active_device_ids': activeDeviceIds,
       },
     );
@@ -164,7 +164,7 @@ class E2eeTransportRepository {
         'p_group_id': groupId,
         'p_epoch': epoch,
         'p_sender_device_id': senderDeviceId,
-        'p_ciphertext': _toPostgresBytea(ciphertext),
+        'p_ciphertext': encodePostgresBytea(ciphertext),
       },
     );
     if (result is! String || result.isEmpty) {
@@ -204,7 +204,8 @@ class E2eeTransportRepository {
     }
   }
 
-  static String _toPostgresBytea(Uint8List bytes) {
+  /// Encodes bytes in PostgreSQL's canonical hex bytea input representation.
+  static String encodePostgresBytea(Uint8List bytes) {
     final buffer = StringBuffer(r'\x');
     for (final byte in bytes) {
       buffer.write(byte.toRadixString(16).padLeft(2, '0'));
