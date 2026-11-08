@@ -5,12 +5,14 @@ class EventCreatorInfo {
   final String username;
   final String fullName;
   final String? photoUrl;
+  final bool isAdminCreator;
 
   const EventCreatorInfo({
     required this.userId,
     required this.username,
     required this.fullName,
     this.photoUrl,
+    this.isAdminCreator = false,
   });
 
   factory EventCreatorInfo.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class EventCreatorInfo {
       username: (json['username'] ?? 'Créateur').toString(),
       fullName: (json['full_name'] ?? json['username'] ?? 'Créateur').toString(),
       photoUrl: json['photo_url']?.toString(),
+      isAdminCreator: json['is_admin_creator'] == true,
     );
   }
 }
