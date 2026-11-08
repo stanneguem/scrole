@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -67,21 +69,29 @@ class _SponsoredWebViewPageState extends State<SponsoredWebViewPage> {
         host == 'whatsapp.com';
   }
 
-  Future<NavigationDecision> _handleNavigationRequest(
-    NavigationRequest request,
-  ) async {
+  NavigationDecision _handleNavigationRequest(NavigationRequest request) {
     final uri = Uri.tryParse(request.url);
     if (uri == null) return NavigationDecision.prevent;
 
-    // WhatsApp universal links should be handed to Android/iOS so the
-    // installed WhatsApp app can claim them. Other non-web schemes (tel,
-    // mailto, sms, intent, etc.) must never be loaded as web pages.
-    final isWeb = uri.scheme == 'http' || uri.scheme == 'https';
-    if (!isWeb || _isWhatsAppUrl(uri)) {
-      await _launchExternal(uri);
-      return NavigationDecision.prevent;
+    final scheme = uri.scheme.toLowerCase();
+    final isHttp = scheme == 'http' || scheme == 'https';
+
+    // Keep ordinary websites inside Scrole. WhatsApp universal links are
+    // handed to the operating system so the installed app can claim them.
+    if (isHttp && !_isWhatsAppUrl(uri)) {
+      return NavigationDecision.navigate;
     }
-    return NavigationDecision.navigate;
+
+    // Only allow well-known user-facing app schemes. In particular, do not
+    // forward arbitrary schemes such as intent:, javascript: or file:.
+    const externalSchemes = {'mailto', 'tel', 'sms', 'whatsapp'};
+    if (_isWhatsAppUrl(uri) || externalSchemes.contains(scheme)) {
+      // NavigationDelegate should answer immediately; launching an external
+      // app must not hold the Android WebView navigation callback open.
+      unawaited(_launchExternal(uri));
+    }
+
+    return NavigationDecision.prevent;
   }
 
   Future<void> _launchExternal(Uri uri) async {
