@@ -211,7 +211,6 @@ class _SponsoredWebViewPageState extends State<SponsoredWebViewPage> {
                 const PopupMenuDivider(),
                 PopupMenuItem(
                   value: 'back',
-                  enabled: _controller.platform != null,
                   child: const ListTile(
                     dense: true,
                     leading: Icon(Icons.arrow_back),
