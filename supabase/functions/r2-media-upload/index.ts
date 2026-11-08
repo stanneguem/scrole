@@ -27,7 +27,7 @@ const AUDIO_TYPES: Record<string, string> = {
 };
 const CATEGORIES = new Set([
   "profile_avatar", "profile_cover", "community_avatar", "community_cover",
-  "post_media", "story_media", "comment_media", "message_media", "event_media", "bug_report", "salon_avatar", "salon_message_media",
+  "post_media", "promotion_media", "story_media", "comment_media", "message_media", "event_media", "bug_report", "salon_avatar", "salon_message_media",
 ]);
 
 Deno.serve(async (req: Request) => {
@@ -430,6 +430,13 @@ Deno.serve(async (req: Request) => {
   } else if (category === "bug_report") {
     // Diagnostic media is private to its uploader/support workflow.
     if (!privateBucket) return reply(503, { error: "private_media_bucket_not_configured" });
+  } else if (category === "promotion_media") {
+    const { data: permissions, error: permissionError } = await userClient.rpc("admin_permissions_for_current_user");
+    if (permissionError) return reply(500, { error: "admin_permission_check_failed" });
+    const canPromote = Array.isArray(permissions) && permissions.some((row: { permission?: string }) =>
+      String(row?.permission ?? "") === "settings.edit"
+    );
+    if (!canPromote) return reply(403, { error: "promotion_media_upload_denied" });
   } else if (category === "post_media") {
     if (typeof body.community_id === "string" && body.community_id.trim()) {
       const communityId = body.community_id.trim();
@@ -453,6 +460,7 @@ Deno.serve(async (req: Request) => {
     case "profile_avatar": key = `profiles/${user.id}/avatar/${uploadId}.${expectedExtension}`; break;
     case "profile_cover": key = `profiles/${user.id}/cover/${uploadId}.${expectedExtension}`; break;
     case "bug_report": key = `bug-reports/${user.id}/${uploadId}.${expectedExtension}`; break;
+    case "promotion_media": key = `promotions/${user.id}/${uploadId}.${expectedExtension}`; break;
     case "post_media": {
       const communityId = typeof body.community_id === "string" ? body.community_id.trim() : "";
       const isVideoThumbnail = body.media_role === "video_thumbnail";
