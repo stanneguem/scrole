@@ -206,3 +206,13 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Le contrôle iOS ARM64 a également terminé avec succès sur ce run. Le contrôle Android ARM64 était encore en cours au moment de la mise à jour.
 - L'analyse Dart ciblée a réussi. La suite Flutter avait 10 tests réussis et 1 test échoué à cause du test qui attendait incorrectement une exception synchrone via `expectLater`; le matcher a été corrigé et une nouvelle exécution est en attente.
 - Ce test utilise volontairement le fournisseur mémoire OpenMLS. Il prouve l'échange cryptographique, pas la persistance, la protection des clés, la livraison Supabase, la synchronisation multi-appareils, ni la sécurité de production. Le moteur garde `ready_for_messages = false`.
+
+
+## 15. Intégration de la bibliothèque native Flutter (8 novembre 2026)
+
+- Ajout de `flutter_rust_bridge_hooks: ^2.13.0` et du build hook `hook/build.dart` utilisant `FlutterRustBridgeNativeAssetsBuilder(cratePath: 'rust')`. Le but est de compiler et d'embarquer le crate Rust dans les builds Flutter, et pas seulement de générer des bindings Dart.
+- La CI continue de générer les bindings dans un artefact de revue. Le build hook ne rend pas à lui seul les opérations MLS accessibles à Flutter : les bindings générés doivent être intégrés et le chargement natif doit être vérifié dans un APK et une application iOS.
+- La vérification Android a identifié une dépendance C native (`dart-sys`) qui ne trouvait pas le compilateur cible. Les variables `CC` et `AR` spécifiques à `aarch64-linux-android` sont désormais exportées en plus du linker NDK. Le prochain run doit confirmer si ce correctif suffit.
+- Choix candidat pour la persistance : `openmls_sqlx_storage 0.3.0`, qui est compatible avec `openmls_traits 0.6.0` et prend en charge les transactions SQLx. Ce fournisseur écrit cependant les données via un Codec et ne chiffre pas automatiquement le contenu. Une implémentation de Codec AEAD, avec nonce unique, authentification du type et de la clé de stockage, et effacement effectif des données supprimées, doit être conçue et testée avant de l'adopter.
+- OpenMLS considère le stockage comme fiable et recommande une protection d'intégrité/authentification ; sa documentation rappelle également que les suppressions doivent être effectives pour préserver la forward secrecy. Le simple chiffrement de fichiers ou la sauvegarde SQLite ne suffit pas.
+- Aucun message de production n'est encore routé vers le moteur ; `ready_for_messages` reste faux.
