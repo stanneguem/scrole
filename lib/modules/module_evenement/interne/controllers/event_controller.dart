@@ -387,47 +387,40 @@ class EventController extends GetxController with WidgetsBindingObserver {
       _myEventsRefreshRequested = true;
       return;
     }
-
-    final isFirstLoad = !hasLoadedMyEvents.value;
     isLoadingMyEvents.value = true;
-
-    List<EventModel> localManaged = const [];
-    List<EventModel> localStaff = const [];
-
+    final userId = Supabase.instance.client.auth.currentUser?.id;
     try {
-      // Le cache sert de solution de secours au premier chargement seulement.
-      // Lors des actualisations suivantes, on conserve la liste déjà affichée
-      // jusqu'à réception des deux listes distantes complètes.
-      if (isFirstLoad) {
-        localManaged = (await _repository.getManagedEventsLocal())
-            .where(_isVisibleInMyEvents)
-            .toList();
-        localStaff = (await _repository.getStaffEvents())
-            .where(_isVisibleInMyEvents)
-            .toList();
-      }
-
-      final remoteManaged = (await _repository.syncManagedEventsRemote())
-          .where(_isVisibleInMyEvents)
-          .toList();
-      final remoteStaff = (await _repository.getStaffEvents())
-          .where(_isVisibleInMyEvents)
-          .toList();
-
-      // Publier les résultats ensemble évite un état intermédiaire où une
-      // partie des éditions serait visible avant l'autre.
-      managedEvents.assignAll(remoteManaged);
-      staffEvents.assignAll(remoteStaff);
-    } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents: $e');
-      // En cas d'échec réseau au premier lancement, afficher le cache en
-      // secours. L'écran applique toujours le regroupement avant le rendu.
-      if (isFirstLoad) {
+      // Premier rendu : lire les deux snapshots locaux sans attendre le réseau.
+      if (!hasLoadedMyEvents.value && userId != null) {
+        final localManaged = (await _repository.getManagedEventsLocal())
+            .where(_isVisibleInMyEvents).toList();
+        final localStaff = (await _repository.getStaffEventsLocal())
+            .where(_isVisibleInMyEvents).toList();
         managedEvents.assignAll(localManaged);
         staffEvents.assignAll(localStaff);
+        hasLoadedMyEvents.value = true;
       }
-    } finally {
+
+      // Réconciliation indépendante : un échec réseau sur une liste ne doit
+      // ni effacer son cache, ni empêcher l'autre liste d'être actualisée.
+      try {
+        final remoteManaged = (await _repository.syncManagedEventsRemote())
+            .where(_isVisibleInMyEvents).toList();
+        managedEvents.assignAll(remoteManaged);
+      } catch (e) {
+        debugPrint('[Error] EventController managed events sync: $e');
+      }
+      try {
+        final remoteStaff = (await _repository.getStaffEvents())
+            .where(_isVisibleInMyEvents).toList();
+        staffEvents.assignAll(remoteStaff);
+      } catch (e) {
+        debugPrint('[Error] EventController staff events sync: $e');
+      }
+    } catch (e) {
+      debugPrint('[Error] EventController.fetchMyEvents: $e');
       hasLoadedMyEvents.value = true;
+    } finally {
       isLoadingMyEvents.value = false;
       if (_myEventsRefreshRequested) {
         _myEventsRefreshRequested = false;
