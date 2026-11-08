@@ -161,3 +161,36 @@ BEGIN
   );
 END;
 $function$;
+
+-- A one-day event is implicitly selected when it is added to the personal agenda.
+-- Multi-day events continue to require explicit event_calendar_days selections.
+CREATE OR REPLACE FUNCTION public.get_my_event_calendar_days(p_event_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SET search_path TO ''
+AS $function$
+  SELECT coalesce(
+    jsonb_agg(jsonb_build_object('date', days.event_date) ORDER BY days.event_date),
+    '[]'::jsonb
+  )
+  FROM (
+    SELECT cd.event_date
+    FROM public.event_calendar_days cd
+    WHERE cd.user_id = (SELECT auth.uid())
+      AND cd.event_id = p_event_id
+    UNION
+    SELECT timezone('Africa/Douala', e.starts_at)::date
+    FROM public.events e
+    JOIN public.event_calendar ec
+      ON ec.event_id = e.id
+     AND ec.user_id = (SELECT auth.uid())
+    WHERE e.id = p_event_id
+      AND timezone('Africa/Douala', e.starts_at)::date =
+          timezone('Africa/Douala', e.ends_at)::date
+      AND NOT EXISTS (
+        SELECT 1 FROM public.event_calendar_days cd
+        WHERE cd.user_id = ec.user_id AND cd.event_id = e.id
+      )
+  ) AS days;
+$function$;
