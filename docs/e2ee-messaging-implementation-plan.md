@@ -12,7 +12,7 @@ Le chiffrement TLS de Supabase reste nécessaire, mais il ne remplace pas le chi
 
 La cible retenue est **Messaging Layer Security (MLS, RFC 9420)** pour les conversations privées à deux comme pour les salons communautaires. MLS est conçu pour des groupes de deux à des milliers de membres, avec confidentialité persistante et sécurité post-compromission. L'implémentation de référence retenue est **OpenMLS (Rust)**, sous licence MIT. La suite initiale recommandée est X25519 / AES-128-GCM / SHA-256 / Ed25519 ; les suites post-quantiques expérimentales ne seront pas activées en production.
 
-Le crate OpenMLS officiel est publié en version 0.9.2 (22 octobre 2026). Les cibles Android AArch64 et iOS AArch64 sont indiquées comme « unsupported, but built on CI » : elles compilent dans la CI upstream mais ne sont pas testées par le projet. Pour la liaison Flutter/Rust, `flutter_rust_bridge` 2.13.0 est une version stable récente compatible avec Dart 3.9+ ; Scrole utilise Dart 3.12.2. La voie retenue est une intégration Rust contrôlée par Scrole, avec versions épinglées et CI mobile propre.
+Le crate OpenMLS officiel est publié en version 0.9.2 (22 octobre 2026). Les cibles Android AArch64 et iOS AArch64 sont indiquées comme « unsupported, but built on CI » : elles compilent dans la CI upstream mais ne sont pas testées par le projet. Pour la liaison Flutter/Rust, `flutter_rust_bridge` 2.13.0 est une version stable récente compatible avec Dart 3.9+ ; Scrole utilise Dart 3.12.2. La voie retenue est une intégration Rust contrôlée par Scrole, avec versions épinglées et CI dédiée. Le wrapper openmls publié sur pub.dev (2.0.1) expose déjà une API MLS et un stockage SQLCipher, mais son éditeur est toujours non vérifié et le paquet a une publication très récente ; il n'est donc pas retenu comme dépendance de production sans vérification de l'éditeur, audit de chaîne d'approvisionnement et revue de son code. Sa documentation décrit toutefois des correctifs de sécurité importants dans ses versions récentes.
 
 **Réserve de sécurité :** OpenMLS est une implémentation de RFC 9420 maintenue par Phoenix R&D et Cryspen. Les sources consultées ne suffisent pas à affirmer qu'OpenMLS 0.9.2 a passé un audit cryptographique indépendant. Une revue indépendante est requise avant l'activation générale. Les cibles mobiles ne sont pas testées upstream.
 
@@ -152,3 +152,14 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Vérification SQL effectuée : `authenticated` ne peut plus faire `UPDATE` sur `e2ee_key_packages`, `anon` ne peut pas appeler la fonction de consommation, `authenticated` peut l'appeler, wrapper public invoker et worker privé definer.
 - Les anciens messages, RPC d'envoi, notifications et caches ne sont pas modifiés. Le chiffrement E2EE n'est pas actif.
 - Les Security Advisors Supabase remontent aussi des avertissements historiques globaux (fonctions SECURITY DEFINER accessibles aux rôles publics et tables RLS sans politique) ; ils ne sont pas tous liés à E2EE et doivent faire l'objet d'un audit distinct avant l'activation de la messagerie chiffrée.
+
+
+## 10. Avancement de l'intégration native (8 novembre 2026)
+
+- Crate Rust `rust/` créé avec OpenMLS 0.9.2, provider RustCrypto et Flutter Rust Bridge 2.13.0 épinglés.
+- API native de capacité créée ; elle retourne explicitement `ready_for_messages = false`. Aucun chiffrement de message n'est exposé.
+- Dépendances Flutter ajoutées : `flutter_rust_bridge ^2.13.0` et `flutter_secure_storage ^11.2.0`.
+- Gestionnaire `lib/core/e2ee/secure_mls_storage_key.dart` ajouté : crée une clé aléatoire de 256 bits par couple utilisateur/appareil et la conserve via le stockage sécurisé de la plateforme. Le code appelant doit encore fournir un identifiant d'installation stable ; la gestion du cycle de vie et la récupération ne sont pas encore intégrées.
+- Workflow GitHub Actions initial ajouté pour `cargo test` et `cargo check` sur Linux.
+- Les bindings Dart générés, le `Cargo.lock`, l'initialisation native, le stockage persistant MLS et les builds Android/iOS ne sont pas encore validés. L'environnement GitHub distant utilisé pour les modifications ne permet pas d'exécuter Flutter/Cargo.
+- Aucune messagerie ne consomme encore ce moteur ; les RPC, notifications et caches existants continuent de fonctionner comme avant. Ne pas activer E2EE sur des conversations réelles.
