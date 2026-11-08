@@ -185,3 +185,13 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Aucun résultat CI n'est présumé : les workflows doivent terminer avant de considérer ces contrôles validés.
 - Le crate upstream `openmls_sqlite_storage 0.3.0` fournit un stockage SQLite basé sur rusqlite, mais cela ne signifie pas que la base est chiffrée. Il ne sera pas utilisé tel quel pour les secrets MLS. Il faut intégrer SQLCipher ou un stockage chiffré équivalent, puis tester les transactions et la résistance au rollback.
 - Le code de clé Dart est toujours une préparation : la clé de base traverse le tas Dart et ne doit pas être transmise au moteur MLS en production. La prochaine étape doit faire la gestion et la dérivation de la clé dans une frontière native, puis valider le stockage persistant.
+
+
+## 13. Revue du pipeline CI et décision de stockage (8 novembre 2026)
+
+- La compilation iOS ARM64 OpenMLS a terminé avec succès sur le workflow observé.
+- Le job Android a échoué avant toute compilation Rust : l'action Android tentait d'installer l'ancien paquet SDK `tools`, indisponible dans l'image du runner. Le workflow a été corrigé pour accepter les licences et installer directement le NDK 27.2.12479018 avec `sdkmanager --install`. Le résultat du nouveau job doit encore être observé.
+- Décision de conception : ne pas envoyer la clé de base depuis Dart au moteur natif. La prochaine implémentation doit créer et conserver la clé de chiffrement dans Rust, puis utiliser Android Keystore/iOS Keychain via une interface native de wrapping/unwrapping, sans exposer la clé déballée à Dart.
+- Le stockage SQLite standard ne sera pas assimilé à du stockage chiffré. Évaluer SQLCipher côté Rust (ou une enveloppe AEAD par enregistrement avec authentification des métadonnées et transactions atomiques) et démontrer la résistance à la restauration d'un ancien état avant d'activer MLS.
+- Le pont FRB reste une génération/validation CI ; l'intégration des bibliothèques natives dans les paquets Android/iOS et leur initialisation au démarrage restent à faire.
+- Aucun flux de messages directs ou communautaires n'est encore chiffré par MLS.
