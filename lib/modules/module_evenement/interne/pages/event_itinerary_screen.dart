@@ -244,7 +244,6 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     final selected = plan.activities.containsKey(key);
     final isPastDay = _isPastDay(_days[_selectedDayIndex]);
     final isValidated = _validatedActivityIds.contains('${_dateKey(_days[_selectedDayIndex])}|$key');
-    final activityPlan = plan.activities[key] ?? _ActivityPlan();
     final borderColor = selected ? AppColors.primary : colors.outlineVariant.withValues(alpha: 0.55);
 
     return AnimatedContainer(
@@ -321,31 +320,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                       const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 21),
                   ],
                 ),
-                if (selected) ...[
-                  const SizedBox(height: 14),
-                  if (isValidated) Text('event_itinerary_activity_validated'.tr, style: AppTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
-                  Divider(height: 1, color: colors.outlineVariant.withValues(alpha: 0.6)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_rounded, size: 16, color: AppColors.primary),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'event_itinerary_activity_hours'.tr,
-                          style: AppTextStyles.caption.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(child: _smallTimeButton('event_itinerary_start'.tr, activityPlan.start, (v) => setState(() => activityPlan.start = v), enabled: !isPastDay)),
-                      const SizedBox(width: 10),
-                      Expanded(child: _smallTimeButton('event_itinerary_end'.tr, activityPlan.end, (v) => setState(() => activityPlan.end = v), enabled: !isPastDay)),
-                    ],
-                  ),
+                if (selected && isValidated) ...[
+                  const SizedBox(height: 10),
+                  Text('event_itinerary_activity_validated'.tr, style: AppTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
                 ],
               ],
             ),
@@ -355,13 +332,6 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     );
   }
 
-  Widget _smallTimeButton(String label, String value, ValueChanged<String> onChanged, {bool enabled = true}) {
-    return OutlinedButton(
-      onPressed: enabled ? () => _pickTime(title: 'event_itinerary_activity_time'.trParams({'label': label}), initial: value, onPicked: onChanged) : null,
-      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11), visualDensity: VisualDensity.compact, side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.access_time_rounded, size: 14, color: AppColors.primary), const SizedBox(width: 5), Flexible(child: Text('$label · $value', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600)))]),
-    );
-  }
 }
 
 class _DayPlan {
@@ -381,10 +351,7 @@ class _DayPlan {
         final map = Map<String, dynamic>.from(item);
         final id = (map['activity_id'] ?? '').toString();
         if (id.isNotEmpty) {
-          activities[id] = _ActivityPlan(
-            start: (map['start_time'] ?? '09:00').toString(),
-            end: (map['end_time'] ?? '10:00').toString(),
-          );
+          activities[id] = _ActivityPlan();
         }
       }
     }
@@ -400,14 +367,6 @@ class _DayPlan {
         'day_end': dayEnd,
         'activities': activities.entries.map((entry) => {
               'activity_id': entry.key,
-              'start_time': entry.value.start,
-              'end_time': entry.value.end,
             }).toList(),
       };
-}
-
-class _ActivityPlan {
-  String start;
-  String end;
-  _ActivityPlan({this.start = '09:00', this.end = '10:00'});
 }
