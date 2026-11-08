@@ -6,7 +6,7 @@ import 'dart:typed_data';
 /// This object intentionally has no plaintext, preview, media URL, or decrypted
 /// content field. It is a transport DTO only; it does not encrypt or decrypt.
 class E2eeMessageEnvelope {
-  const E2eeMessageEnvelope({
+  E2eeMessageEnvelope({
     required this.messageId,
     required this.conversationId,
     required this.groupId,
@@ -14,8 +14,8 @@ class E2eeMessageEnvelope {
     required this.epoch,
     required this.protocolVersion,
     required this.ciphersuite,
-    required this.ciphertext,
-  });
+    required Uint8List ciphertext,
+  }) : ciphertext = Uint8List.fromList(ciphertext);
 
   static const currentProtocolVersion = 1;
   static const currentProtocol = 'MLS/1.0';
