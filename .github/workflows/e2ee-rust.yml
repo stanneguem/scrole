@@ -25,7 +25,7 @@ on:
       - ".github/workflows/e2ee-rust.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter:
@@ -61,6 +61,19 @@ jobs:
         run: flutter pub get
       - name: Generate bindings from the checked-in configuration
         run: flutter_rust_bridge_codegen generate
+      - name: Commit generated bindings to the feature branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/core/e2ee/bridge rust/src/frb_generated.rs rust/src/lib.rs
+          if git diff --cached --quiet; then
+            echo "Generated Rust/Dart bridge is already up to date."
+          else
+            git commit -m "chore(e2ee): commit generated Rust bridge bindings"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
       - name: Publish generated bridge as a review artifact
         uses: actions/upload-artifact@v4
         with:
