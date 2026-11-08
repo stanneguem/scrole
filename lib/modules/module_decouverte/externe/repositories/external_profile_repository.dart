@@ -38,8 +38,26 @@ class ExternalProfileRepository {
       Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
 
 
+  String _viewerScopedProfileKey(String userId) {
+    final viewerId = _client.auth.currentUser?.id ?? 'anonymous';
+    return FastCacheKey.externalProfileForViewer(viewerId, userId);
+  }
+
+  ExternalProfileModel? getCachedProfile(String userId) {
+    final cached = _cache?.get<Map<String, dynamic>>(_viewerScopedProfileKey(userId));
+    if (cached == null) return null;
+    try {
+      final model = ExternalProfileModel.fromJson(cached);
+      if (model.isBlocked) return null;
+      return model;
+    } catch (e) {
+      debugPrint('[ExternalProfileRepository] cached profile decode failed: $e');
+      return null;
+    }
+  }
+
   Future<ExternalProfileResult> getProfileResult(String userId) async {
-    final cacheKey = FastCacheKey.externalProfile(userId);
+    final cacheKey = _viewerScopedProfileKey(userId);
 
     // Privacy and relationship fields depend on the current viewer and can change
     // immediately. Never serve a cached external profile before rechecking the RPC.
@@ -177,7 +195,7 @@ class ExternalProfileRepository {
 
   /// Updates local cached profile map when a relationship action is performed.
   Future<void> updateCachedProfile(ExternalProfileModel model) async {
-    final cacheKey = FastCacheKey.externalProfile(model.userId);
+    final cacheKey = _viewerScopedProfileKey(model.userId);
     await _cache?.set(cacheKey, model.toJson());
   }
 
