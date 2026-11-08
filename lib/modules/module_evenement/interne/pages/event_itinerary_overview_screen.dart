@@ -268,7 +268,7 @@ class _EventItineraryOverviewScreenState extends State<EventItineraryOverviewScr
               final end = (item['end_time'] ?? '10:00').toString();
               final now = DateTime.now();
               final endAt = _timeOn(date, end);
-              final isValidated = _validatedActivityIds.contains(id);
+              final isValidated = _validatedActivityIds.contains('$key|$id');
               final isPast = endAt != null && now.isAfter(endAt);
               final isFuture = endAt != null && now.isBefore(endAt);
               // Status is read-only. We only show missed after its scheduled end;
