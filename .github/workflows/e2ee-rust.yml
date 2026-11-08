@@ -1,5 +1,11 @@
 name: E2EE native and Flutter checks
 
+# The binding job writes generated files back to this branch. Serialize runs so
+# concurrent pushes cannot race and reject the generated commit as non-fast-forward.
+concurrency:
+  group: scrole-e2ee-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   pull_request:
     paths:
