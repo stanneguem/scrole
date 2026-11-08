@@ -1302,7 +1302,7 @@ class SupabaseEventService {
   }
 
   Future<List<Map<String, dynamic>>> fetchEvents() async {
-    const cols = 'id, name, slug, description, photo, country_id, city_id, address, is_online, online_url, starts_at, ends_at, creator_id, status, created_at';
+    const cols = 'id, name, slug, description, photo, country_id, city_id, address, is_online, online_url, starts_at, ends_at, creator_id, creator_profile_type, creator_admin_profile_id, status, created_at';
     try {
       final response = await _client
           .from('events')
