@@ -1164,9 +1164,11 @@ class FeedPostCard extends StatelessWidget {
                 }
               } catch (_) {}
               try {
-                if (Get.isRegistered<CommunityFeedController>()) {
-                  final communityFeed = Get.find<CommunityFeedController>();
-                  communityFeed.onPostReported(post.id);
+                final communityId = currentCommunityId;
+                if (communityId != null &&
+                    Get.isRegistered<CommunityFeedController>(tag: communityId)) {
+                  Get.find<CommunityFeedController>(tag: communityId)
+                      .onPostReported(post.id);
                 }
               } catch (_) {}
 
