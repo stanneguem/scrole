@@ -419,14 +419,16 @@ class FeedPostCard extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // Barre de boutons d'action / interactions
-                  _ReactionButtonsBar(
-                    post: post,
-                    onReactionTap: onReactionTap,
-                    onCommentTap: onCommentTap,
-                    onShareTap:
-                    onShareTap ?? () => _showShareSheet(context, post),
-                  ),
+                  // Sponsored actions stay hidden until campaign-specific
+                  // impression, click and engagement tracking is connected.
+                  if (!post.isSponsored)
+                    _ReactionButtonsBar(
+                      post: post,
+                      onReactionTap: onReactionTap,
+                      onCommentTap: onCommentTap,
+                      onShareTap:
+                      onShareTap ?? () => _showShareSheet(context, post),
+                    ),
                 ],
               ),
             ),
