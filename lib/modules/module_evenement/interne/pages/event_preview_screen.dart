@@ -1257,13 +1257,21 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('@${creator.username}', style: AppTextStyles.bodySmall),
-                                  const SizedBox(width: 6),
-                                  UserCertifiedBadge(
-                                    userId: creator.userId,
-                                    type: CertificationBadgeType.basic,
-                                    size: 16,
+                                  Text(
+                                    creator.isAdminCreator
+                                        ? 'event_admin_creator'.tr
+                                        : '@${creator.username}',
+                                    style: AppTextStyles.bodySmall,
                                   ),
+                                  const SizedBox(width: 6),
+                                  if (!creator.isAdminCreator)
+                                    UserCertifiedBadge(
+                                      userId: creator.userId,
+                                      type: CertificationBadgeType.basic,
+                                      size: 16,
+                                    )
+                                  else
+                                    const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF1877F2)),
                                 ],
                               ),
                             ],
