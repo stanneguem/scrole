@@ -99,8 +99,11 @@ class ProfileController extends GetxController {
     _interestService = Get.find<InterestService>();
     _storageRepository = StorageRepository();
     
-    unawaited(_applyProfileOrDefaults(_appController.profile.value).then((_) {
-      _restoreProfileTabsFromCache();
+    unawaited(_applyProfileOrDefaults(_appController.profile.value).then((_) async {
+      await _restoreProfileTabsFromCache();
+      // Le premier onglet (Posts) fait partie du chargement initial du profil.
+      // Les onglets Events et Réactions restent différés jusqu'à leur ouverture.
+      unawaited(_loadProfileTab(0, forceRefresh: true));
     }));
     _profileWorker = ever(_appController.profile, (data) {
       unawaited(_applyProfileOrDefaults(data));
