@@ -88,7 +88,9 @@ class SessionService extends GetxService {
 
     final cached = _userService.getCachedProfile();
     if (cached != null) {
+      // Cache-first: show local data immediately, then silently refresh.
       _applyProfile(cached, startSync: true);
+      unawaited(fetchProfileFromBackend(userId, silent: true));
       return;
     }
 
