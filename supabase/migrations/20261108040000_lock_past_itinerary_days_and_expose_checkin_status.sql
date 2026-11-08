@@ -194,3 +194,27 @@ AS $function$
       )
   ) AS days;
 $function$;
+
+-- Return validated activity ids tagged with the event-local date (not device timezone).
+CREATE OR REPLACE FUNCTION public.get_my_validated_event_activity_ids(p_event_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path TO ''
+AS $function$
+  SELECT coalesce(
+    jsonb_agg(jsonb_build_object(
+      'planned_date', timezone('Africa/Douala', ci.created_at)::date,
+      'activity_id', ci.activity_id
+    ) ORDER BY ci.created_at),
+    '[]'::jsonb
+  )
+  FROM public.event_checkins ci
+  WHERE ci.event_id = p_event_id
+    AND ci.user_id = (SELECT auth.uid())
+    AND ci.status = 'valid'
+    AND ci.activity_id IS NOT NULL;
+$function$;
+REVOKE ALL ON FUNCTION public.get_my_validated_event_activity_ids(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_my_validated_event_activity_ids(uuid) TO authenticated;
