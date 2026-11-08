@@ -70,16 +70,6 @@ class E2eeDeviceIdentity {
     return id;
   }
 
-  /// Returns the current identity without creating a new one.
-  Future<String?> getExisting({required String userId}) async {
-    final value = await _storage.read(key: _key(userId));
-    if (value == null) return null;
-    if (!_isUuidV4(value)) {
-      throw StateError('Stored E2EE device identity is malformed.');
-    }
-    return value;
-  }
-
   Future<void> delete({required String userId}) =>
       _storage.delete(key: _key(userId));
 
