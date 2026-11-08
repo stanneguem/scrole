@@ -168,7 +168,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 );
               }
 
-              if (state == HomeFeedState.empty || (feedController.posts.isEmpty && feedController.sponsoredPosts.isEmpty)) {
+              if ((state == HomeFeedState.empty && feedController.sponsoredPosts.isEmpty) ||
+                  (feedController.posts.isEmpty && feedController.sponsoredPosts.isEmpty)) {
                 return ListView(
                   controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -221,7 +222,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
               final adSlots = <MapEntry<int, int>>[];
               for (var adIndex = 0; adIndex < feedController.sponsoredPosts.length; adIndex++) {
-                final afterPostCount = adIndex == 0 ? 5 : 5 + (adIndex * 8);
+                final afterPostCount = feedController.posts.isEmpty ? 0 : (adIndex == 0 ? 5 : 5 + (adIndex * 8));
                 if (afterPostCount <= feedController.posts.length) {
                   adSlots.add(MapEntry(afterPostCount, adIndex));
                 }
