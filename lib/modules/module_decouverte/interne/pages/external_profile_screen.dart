@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -1028,8 +1029,8 @@ class _ExpandableBioState extends State<_ExpandableBio> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.bio,
+            LinkifiedText(
+              text: widget.bio,
               style: TextStyle(color: colors.onSurface, fontSize: 14, height: 1.4),
               maxLines: _expanded ? null : 2,
               overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
