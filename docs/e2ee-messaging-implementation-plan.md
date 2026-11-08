@@ -273,3 +273,13 @@ La décision ne doit pas être contournée avec une clé globale, une clé en du
 - Le codec `SCM1` n'est pas raccordé à un StorageProvider OpenMLS persistant. La clé de stockage actuelle côté Flutter Secure Storage est un bootstrap et ne doit pas être passée au moteur depuis Dart.
 - Les médias R2 ne sont pas encore chiffrés côté client ; le cache SQLite direct et le cache des salons n'ont pas encore été migrés ; les notifications existantes et l'outbox legacy ne sont pas neutralisées pour une conversation E2EE, car aucun écran n'active encore ce mode.
 - Conclusion sécurité : la fondation serveur et le transport opaque sont en place, mais E2EE n'est pas activé et aucun utilisateur ne doit voir un indicateur de conversation chiffrée à ce stade. Les conversations legacy continuent de fonctionner en clair. Ne pas modifier `ready_for_messages=false` avant intégration native et tests multi-appareils réels.
+
+
+## 20. Confidentialité de la découverte des appareils (8 novembre 2026)
+
+L'audit RLS a révélé que la première policy de lecture du registre exposait tous les credentials publics d'appareils à tout utilisateur authentifié. Même si ces credentials ne sont pas secrets, leur inventaire global permettait la cartographie des installations et n'était pas nécessaire.
+
+- Nouvelle fonction privée `private.e2ee_can_discover_device(uuid)`.
+- Lecture autorisée uniquement au propriétaire, aux participants partageant une conversation directe, ou aux membres partageant un salon.
+- Policy large supprimée et remplacée par cette policy scopée.
+- Vérification SQL après migration : RLS activé sur les cinq tables E2EE ; aucun SELECT anon ; les KeyPackages ne sont pas lisibles directement ; les tables messages/groupes/appareils sont lisibles par authenticated uniquement sous RLS ; les écritures passent par RPC ou la policy d'insertion KeyPackage.
