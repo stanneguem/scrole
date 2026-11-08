@@ -264,19 +264,30 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                             : _SuggestedEventsCarousel(controller: feedController);
                       }
                       final sponsored = feedController.sponsoredPosts[slot.value as int];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 760),
-                            child: FeedPostCard(
-                              post: sponsored,
-                              onReactionTap: (_) {},
-                              onCommentTap: () {},
-                              onHidePost: () {},
+                      final isVideoAd = sponsored.media.any((media) => media.isVideo);
+                      return VisibilityDetector(
+                        key: Key('promotion_vis_${sponsored.id}'),
+                        onVisibilityChanged: (info) {
+                          if (!isVideoAd && info.visibleFraction >= 0.50) {
+                            feedController.recordSponsoredImpression(sponsored);
+                          }
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 760),
+                              child: FeedPostCard(
+                                post: sponsored,
+                                onVideoQualifiedView: (_) => feedController.recordSponsoredImpression(sponsored),
+                                onSponsoredInteraction: () => feedController.recordSponsoredInteraction(sponsored),
+                                onReactionTap: (_) {},
+                                onCommentTap: () {},
+                                onHidePost: () {},
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       );
                     }
                     if (visualIndex < index) insertedBefore++;
