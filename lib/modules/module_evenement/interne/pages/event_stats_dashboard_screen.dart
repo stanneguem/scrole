@@ -98,7 +98,9 @@ class EventStatsDashboardScreen extends StatelessWidget {
         final extended = stats.extended;
         final demographics = extended.demographics;
         final calendarDays = extended.calendarDays;
-        final simulation = extended.simulation;
+        final simulation = controller.budgetInsights.isNotEmpty
+            ? Map<String, dynamic>.from(controller.budgetInsights)
+            : extended.simulation;
         final engagementDetails = extended.engagementDetails;
 
         return RefreshIndicator(
@@ -416,6 +418,21 @@ class EventStatsDashboardScreen extends StatelessWidget {
                   ...(simulation['activity_choices'] as List).whereType<Map>().map((item) => _metricRow('${item['name'] ?? 'Activité'}', _metric(item.cast<String, dynamic>(), 'selection_interactions'))),
                 ])),
                 const SizedBox(height: 16),
+                if ((simulation['activity_choices'] as List).isNotEmpty) ...[
+                  Builder(builder: (context) {
+                    final choices = (simulation['activity_choices'] as List)
+                        .whereType<Map>()
+                        .map((item) => Map<String, dynamic>.from(item))
+                        .toList()
+                      ..sort((a, b) => _metric(a, 'selection_interactions')
+                          .compareTo(_metric(b, 'selection_interactions')));
+                    final least = choices.first;
+                    return _metricRow(
+                      'event_budget_insights_least_activity'.tr,
+                      '${least['name'] ?? '—'} · ${_metric(least, 'selection_interactions')}',
+                    );
+                  }),
+                ],
               ],
 
               // DÉTAIL DES INTERACTIONS
