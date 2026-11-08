@@ -1,0 +1,1 @@
+-- Snapshot ticket price columns and conversion are finalized by the follow-up migration.
