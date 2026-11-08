@@ -230,3 +230,15 @@ Les tables de clés privées, secrets de conversation et clés de fichiers ne do
 - Une erreur ultérieure dans le workflow Android venait d'un échappement de continuation de ligne mal formé dans la commande `env`; elle a été remplacée par une invocation `env KEY=value ... cargo check` sur une seule ligne. Le run déclenché par le correctif est en attente.
 - `rust/rust-toolchain.toml` est maintenant épinglé à Rust 1.91.1, le MSRV d'OpenMLS 0.9, et liste les cibles Android ARM64, iOS ARM64 et Linux host.
 - L'enveloppe est une préparation de transport uniquement. Aucune écriture de messages existante n'est routée à travers elle et `ready_for_messages` demeure faux.
+
+
+## 17. Codec AEAD pour les enregistrements de stockage (8 novembre 2026)
+
+- Ajout de `rust/src/storage_crypto.rs`, module natif interne non exposé à Dart.
+- Format versionné `SCM1 || nonce(24 octets) || ciphertext+tag`.
+- Chiffrement authentifié XChaCha20-Poly1305 ; un nonce aléatoire neuf est généré à chaque écriture. L'identifiant du slot de stockage est inclus dans les données associées authentifiées pour bloquer les attaques de permutation entre enregistrements.
+- La clé est représentée par `StorageKey(Zeroizing<[u8; 32]>)` afin que sa copie native soit effacée à la destruction. Elle n'est pas exposée via FRB.
+- Dépendance `chacha20poly1305` épinglée à 0.11.0, release courante au moment de l'implémentation et compatible avec Rust 1.91.1. La crate fournit XChaCha20-Poly1305 et une API AEAD authentifiée.
+- Tests unitaires ajoutés : aller-retour, nonce distinct, mauvaise clé, altération, substitution de slot, format invalide.
+- Important : ce module est un codec de bas niveau, pas encore un `StorageProvider` OpenMLS. Il n'est pas raccordé à SQLite/SQLx. Le fournisseur complet doit appliquer le codec à chaque valeur et clé sensible, avec transactions atomiques, index non sensibles explicitement justifiés et suppression effective des secrets d'époques expirées.
+- Le test CI est en attente ; aucune réussite de compilation n'est revendiquée pour ce nouveau module.
