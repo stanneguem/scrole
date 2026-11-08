@@ -1,0 +1,3 @@
+-- Budget calculator interaction analytics and certified-owner aggregate insights.
+-- Confirmed simulations remain in event_preview_sessions and its activity selections.
+-- The analytics stream also records incomplete/abandoned interactions without exposing identities.
