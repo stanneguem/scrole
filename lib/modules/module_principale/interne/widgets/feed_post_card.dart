@@ -1166,7 +1166,7 @@ class FeedPostCard extends StatelessWidget {
               try {
                 if (Get.isRegistered<CommunityFeedController>()) {
                   final communityFeed = Get.find<CommunityFeedController>();
-                  communityFeed.posts.removeWhere((item) => item.id == post.id);
+                  communityFeed.onPostReported(post.id);
                 }
               } catch (_) {}
 
