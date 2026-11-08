@@ -363,9 +363,9 @@ class EventStatsDashboardScreen extends StatelessWidget {
                 shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.55,
                 children: [
-                  _statCard(colors, Icons.open_in_new_rounded, 'Ouvertures', NumberFormatter.formatCount(_metric(simulation, 'opens')), AppColors.primary),
+                  _statCard(colors, Icons.open_in_new_rounded, 'Ouvertures', NumberFormatter.formatCount(_metric(simulation, 'sessions_started')), AppColors.primary),
                   _statCard(colors, Icons.people_alt_outlined, 'Simulateurs uniques', NumberFormatter.formatCount(_metric(simulation, 'unique_users')), Colors.blue),
-                  _statCard(colors, Icons.check_circle_outline, 'Simulations terminées', NumberFormatter.formatCount(_metric(simulation, 'completed')), AppColors.success),
+                  _statCard(colors, Icons.check_circle_outline, 'Simulations terminées', NumberFormatter.formatCount(_metric(simulation, 'sessions_confirmed')), AppColors.success),
                   _statCard(colors, Icons.confirmation_number_outlined, 'Choix de billets', NumberFormatter.formatCount(_metric(simulation, 'ticket_selections')), Colors.purple),
                   _statCard(colors, Icons.local_activity_outlined, 'Choix d’activités', NumberFormatter.formatCount(_metric(simulation, 'activity_selections')), Colors.orange),
                 ],
@@ -388,6 +388,19 @@ class EventStatsDashboardScreen extends StatelessWidget {
                     Text('Les montants simulés apparaîtront ici après les premières simulations terminées.', style: AppTextStyles.caption),
                 ]),
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
+                child: Column(children: [
+                  _metricRow('event_budget_insights_rate'.tr,
+                    simulation['confirmation_rate'] == null ? '—' : '${_metricDouble(simulation, 'confirmation_rate').toStringAsFixed(1)} %'),
+                  _metricRow('event_budget_insights_abandoned'.tr, _metric(simulation, 'unconfirmed_sessions')),
+                  _metricRow('event_budget_insights_average'.tr,
+                    simulation['average_confirmed_budget'] == null ? '—' : _metricDouble(simulation, 'average_confirmed_budget').toStringAsFixed(0)),
+                ]),
+              ),
+              const SizedBox(height: 12),
               if (simulation['ticket_breakdown'] is List && (simulation['ticket_breakdown'] as List).isNotEmpty) ...[
                 _sectionHeader(colors, Icons.confirmation_number_outlined, 'Billets les plus simulés'),
                 const SizedBox(height: 8),
