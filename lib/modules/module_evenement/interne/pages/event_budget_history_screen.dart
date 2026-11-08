@@ -117,8 +117,14 @@ class _EventBudgetHistoryScreenState extends State<EventBudgetHistoryScreen> {
                 style: AppTextStyles.caption.copyWith(color: colors.onSurfaceVariant)),
             ],
             const Divider(height: 22),
-            if ((item['ticket_name'] ?? '').toString().isNotEmpty)
+            if ((item['ticket_name'] ?? '').toString().isNotEmpty) ...[
               _line('${'event_budget_history_ticket'.tr}:', item['ticket_name'].toString(), colors),
+              const SizedBox(height: 4),
+              _line('', NumberFormatter.formatPrice(
+                (item['ticket_viewer_price'] as num?)?.toDouble() ?? 0,
+                (item['ticket_viewer_currency'] ?? currency).toString(),
+              ), colors),
+            ],
             const SizedBox(height: 6),
             Text('event_budget_history_activities'.tr, style: AppTextStyles.labelLarge),
             if (activities.isEmpty)
