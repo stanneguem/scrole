@@ -298,6 +298,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
                 final name = activityNames[id] ?? (activity['name'] ?? 'event_itinerary_activity'.tr).toString();
                 final start = (activity['start_time'] ?? '—').toString();
                 final end = (activity['end_time'] ?? '—').toString();
+                final isValidated = validatedActivityKeys.contains('$dateKey|$id');
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
