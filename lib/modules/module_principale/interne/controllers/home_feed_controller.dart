@@ -442,18 +442,24 @@ class HomeFeedController extends GetxController {
         }
       }
 
-      final pendingPosts = await _getPendingOutboxPosts(userId);
-      final unique = <String, CommunityPost>{};
-      for (final post in [...pendingPosts, ...cachedPosts]) {
-        unique[post.id] = post;
+      // Render cached cards immediately; do not wait for the outbox DB read.
+      if (cachedPosts.isNotEmpty) {
+        posts.assignAll(cachedPosts);
+        state.value = HomeFeedState.loaded;
       }
-      if (unique.isNotEmpty) {
+
+      final pendingPosts = await _getPendingOutboxPosts(userId);
+      if (pendingPosts.isNotEmpty || cachedPosts.isNotEmpty) {
+        final unique = <String, CommunityPost>{};
+        for (final post in [...pendingPosts, ...cachedPosts]) {
+          unique[post.id] = post;
+        }
         posts.assignAll(unique.values);
         state.value = HomeFeedState.loaded;
-        debugPrint(
-          '[HOME_FEED] Restored ${cachedPosts.length}/$_homeFeedCacheLimit complete cached cards and ${pendingPosts.length} pending posts.',
-        );
       }
+      debugPrint(
+        '[HOME_FEED] Restored ${cachedPosts.length}/$_homeFeedCacheLimit complete cached cards and ${pendingPosts.length} pending posts.',
+      );
     } catch (e, st) {
       debugPrint('[HOME_FEED] Error loading complete cached feed: $e\\n$st');
     }
