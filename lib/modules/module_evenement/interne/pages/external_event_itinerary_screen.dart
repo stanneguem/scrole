@@ -81,8 +81,7 @@ class _ExternalEventItineraryScreenState extends State<ExternalEventItineraryScr
   List<Map<String, dynamic>> _activitiesFor(Map<String, dynamic> entry) {
     final plan = _planFor(entry);
     final raw = plan['activities'] is List ? plan['activities'] as List : const [];
-    return raw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList()
-      ..sort((a, b) => (a['start_time'] ?? '').toString().compareTo((b['start_time'] ?? '').toString()));
+    return raw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
   }
 
   String _formatDate(String key, {String pattern = 'EEEE d MMMM yyyy'}) {
@@ -296,8 +295,6 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
               ...activities.map((activity) {
                 final id = (activity['activity_id'] ?? '').toString();
                 final name = activityNames[id] ?? (activity['name'] ?? 'event_itinerary_activity'.tr).toString();
-                final start = (activity['start_time'] ?? '—').toString();
-                final end = (activity['end_time'] ?? '—').toString();
                 final isValidated = validatedActivityKeys.contains('$dateKey|$id');
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -313,10 +310,12 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
                         Text(name, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
                         Row(children: [
-                          Icon(Icons.schedule_rounded, size: 13, color: colors.onSurfaceVariant),
-                          const SizedBox(width: 5),
-                          Expanded(child: Text('$start – $end', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant))),
-                          Text(isValidated ? 'event_itinerary_activity_validated'.tr : 'event_itinerary_upcoming'.tr, style: AppTextStyles.caption.copyWith(color: isValidated ? Colors.green : AppColors.primary, fontWeight: FontWeight.w600)),
+                          Icon(isValidated ? Icons.check_circle_rounded : Icons.event_available_rounded, size: 15, color: isValidated ? Colors.green : AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            isValidated ? 'event_itinerary_activity_validated'.tr : 'external_event_itinerary_activity_planned'.tr,
+                            style: AppTextStyles.bodySmall.copyWith(color: isValidated ? Colors.green : colors.onSurfaceVariant, fontWeight: FontWeight.w600),
+                          ),
                         ]),
                       ]),
                     )),
