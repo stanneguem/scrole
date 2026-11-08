@@ -5,6 +5,10 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'event_budget_save_error_title': "Impossible d’enregistrer le budget",
+      'event_budget_save_error_missing_event': "Événement introuvable.",
+      'event_budget_save_error_auth': "Connectez-vous pour enregistrer cette simulation.",
+      'event_budget_save_error_message': "Impossible d’enregistrer la simulation. Vérifiez votre connexion et réessayez.",
       'event_budget_history_reuse': "Réutiliser",
       'event_budget_insights_least_activity': "Activité la moins choisie",
       'event_budget_history_title': "Mes budgets enregistrés",
@@ -1502,6 +1506,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "Connectez-vous pour enregistrer cette simulation.",
       'event_budget_save_error_message': "Votre simulation n’a pas pu être enregistrée. Vérifiez votre connexion et réessayez.",
     'en': {
+      'event_budget_save_error_title': "Could not save budget",
+      'event_budget_save_error_missing_event': "Event not found.",
+      'event_budget_save_error_auth': "Sign in to save this simulation.",
+      'event_budget_save_error_message': "Could not save the simulation. Check your connection and try again.",
       'event_budget_history_reuse': "Reuse",
       'event_budget_insights_least_activity': "Least selected activity",
       'event_budget_history_title': "My saved budgets",
@@ -2995,6 +3003,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "Sign in to save this simulation.",
       'event_budget_save_error_message': "Your simulation could not be saved. Check your connection and try again.",
     'es': {
+      'event_budget_save_error_title': "No se pudo guardar el presupuesto",
+      'event_budget_save_error_missing_event': "Evento no encontrado.",
+      'event_budget_save_error_auth': "Inicia sesión para guardar esta simulación.",
+      'event_budget_save_error_message': "No se pudo guardar la simulación. Comprueba tu conexión e inténtalo de nuevo.",
       'event_budget_history_reuse': "Reutilizar",
       'event_budget_insights_least_activity': "Actividad menos elegida",
       'event_budget_history_title': "Mis presupuestos guardados",
@@ -4391,6 +4403,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "Inicia sesión para guardar esta simulación.",
       'event_budget_save_error_message': "No se pudo guardar la simulación. Comprueba tu conexión e inténtalo de nuevo.",
     'de': {
+      'event_budget_save_error_title': "Budget konnte nicht gespeichert werden",
+      'event_budget_save_error_missing_event': "Veranstaltung nicht gefunden.",
+      'event_budget_save_error_auth': "Melde dich an, um diese Simulation zu speichern.",
+      'event_budget_save_error_message': "Simulation konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
       'event_budget_history_reuse': "Wiederverwenden",
       'event_budget_insights_least_activity': "Am seltensten gewählte Aktivität",
       'event_budget_history_title': "Meine gespeicherten Budgets",
@@ -5770,6 +5786,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "Melde dich an, um diese Simulation zu speichern.",
       'event_budget_save_error_message': "Die Simulation konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
     'it': {
+      'event_budget_save_error_title': "Impossibile salvare il budget",
+      'event_budget_save_error_missing_event': "Evento non trovato.",
+      'event_budget_save_error_auth': "Accedi per salvare questa simulazione.",
+      'event_budget_save_error_message': "Impossibile salvare la simulazione. Controlla la connessione e riprova.",
       'event_budget_history_reuse': "Riutilizza",
       'event_budget_insights_least_activity': "Attività meno scelta",
       'event_budget_history_title': "I miei budget salvati",
@@ -7147,6 +7167,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "Accedi per salvare questa simulazione.",
       'event_budget_save_error_message': "Impossibile salvare la simulazione. Controlla la connessione e riprova.",
     'pt': {
+      'event_budget_save_error_title': "Não foi possível guardar o orçamento",
+      'event_budget_save_error_missing_event': "Evento não encontrado.",
+      'event_budget_save_error_auth': "Inicie sessão para guardar esta simulação.",
+      'event_budget_save_error_message': "Não foi possível guardar a simulação. Verifique a ligação e tente novamente.",
       'event_budget_history_reuse': "Reutilizar",
       'event_budget_insights_least_activity': "Atividade menos escolhida",
       'event_budget_history_title': "Meus orçamentos guardados",
@@ -8524,6 +8548,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "Inicie sessão para guardar esta simulação.",
       'event_budget_save_error_message': "Não foi possível guardar a simulação. Verifique a ligação e tente novamente.",
     'zh': {
+      'event_budget_save_error_title': "无法保存预算",
+      'event_budget_save_error_missing_event': "未找到活动。",
+      'event_budget_save_error_auth': "登录后即可保存此模拟预算。",
+      'event_budget_save_error_message': "无法保存模拟预算。请检查网络连接后重试。",
       'event_budget_history_reuse': "重新使用",
       'event_budget_insights_least_activity': "选择最少的活动",
       'event_budget_history_title': "我保存的预算",
@@ -9903,6 +9931,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "请登录以保存此预算模拟。",
       'event_budget_save_error_message': "无法保存此模拟。请检查网络连接后重试。",
     'ja': {
+      'event_budget_save_error_title': "予算を保存できませんでした",
+      'event_budget_save_error_missing_event': "イベントが見つかりません。",
+      'event_budget_save_error_auth': "このシミュレーションを保存するにはログインしてください。",
+      'event_budget_save_error_message': "シミュレーションを保存できませんでした。接続を確認して再試行してください。",
       'event_budget_history_reuse': "再利用する",
       'event_budget_insights_least_activity': "最も選択されなかったアクティビティ",
       'event_budget_history_title': "保存した予算",
@@ -11275,6 +11307,10 @@ class AppTranslationAdditions {
       'event_budget_save_error_auth': "このシミュレーションを保存するにはログインしてください。",
       'event_budget_save_error_message': "シミュレーションを保存できませんでした。接続を確認して再試行してください。",
     'ru': {
+      'event_budget_save_error_title': "Не удалось сохранить бюджет",
+      'event_budget_save_error_missing_event': "Мероприятие не найдено.",
+      'event_budget_save_error_auth': "Войдите, чтобы сохранить эту симуляцию.",
+      'event_budget_save_error_message': "Не удалось сохранить симуляцию. Проверьте подключение и повторите попытку.",
       'event_budget_history_reuse': "Использовать снова",
       'event_budget_insights_least_activity': "Наименее выбираемая активность",
       'event_budget_history_title': "Мои сохранённые бюджеты",
@@ -12643,11 +12679,6 @@ class AppTranslationAdditions {
       'chat_groups_video_not_allowed': "Отправка видео в этом чате запрещена.",
 
 },
-      'event_budget_save_error_title': "Не удалось сохранить бюджет",
-      'event_budget_save_error_missing_event': "Мероприятие не найдено.",
-      'event_budget_save_error_auth': "Войдите, чтобы сохранить эту симуляцию.",
-      'event_budget_save_error_message': "Не удалось сохранить симуляцию. Проверьте подключение и повторите попытку.",
-
   };
 
   static void register() => Get.addTranslations(keys);
