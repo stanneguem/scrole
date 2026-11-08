@@ -872,6 +872,14 @@ class EventRepository {
 
       final List<EventModel> list = [];
       try {
+        final roleSnapshot = await _dao.getUserEventRoleCache(userId, 'managed');
+        if (roleSnapshot != null) {
+          for (final row in roleSnapshot) {
+            try { list.add(EventModel.fromJson(row)); } catch (_) {}
+          }
+          list.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+          return list;
+        }
         final structuredLocal = await _dao.getEventsStructured(creatorId: userId);
         debugPrint('[Sync] getManagedEventsLocal: Found ${structuredLocal.length} events in structured local DB');
         for (final row in structuredLocal) {
@@ -899,141 +907,76 @@ class EventRepository {
   }
 
   Future<List<EventModel>> syncManagedEventsRemote() async {
-    return await bootMeasureAsync('EventRepository.syncManagedEventsRemote', () async {
-      final userId = _remote.client.auth.currentUser?.id;
-      debugPrint('[Sync] syncManagedEventsRemote: Current Session UserId = $userId');
-      if (userId == null) return [];
+    final userId = _remote.client.auth.currentUser?.id;
+    if (userId == null) return [];
 
-      final Map<String, EventModel> merged = {};
-
+    // Le RPC renvoie la liste complète et autoritaire. Ne jamais fusionner
+    // cette réponse avec les anciennes lignes locales : cela ressuscite les
+    // événements supprimés ou les rôles retirés.
+    final rows = await _remote.fetchManagedEvents();
+    await _dao.saveUserEventRoleCache(userId, 'managed', rows);
+    if (rows.isNotEmpty) {
+      await _dao.upsertEventsBatch(rows);
+    }
+    final parsed = <EventModel>[];
+    for (final row in rows) {
       try {
-        debugPrint('[Sync] syncManagedEventsRemote: Fetching membership list from remote...');
-        final rawMemberships = await _remote.fetchManagedEvents();
-        debugPrint('[Sync] syncManagedEventsRemote: Found ${rawMemberships.length} memberships on remote');
-
-        final Map<String, String> roleMap = {};
-        for (final m in rawMemberships) {
-          final id = (m['evenement_id'] ?? m['id'] ?? '').toString();
-          if (id.isNotEmpty && id != 'null') {
-            roleMap[id] = (m['role'] ?? 'membre').toString();
-          }
-        }
-
-        final localEvents = await getManagedEventsLocal();
-        for (final e in localEvents) {
-          if (e.creatorId == userId || roleMap.containsKey(e.id)) {
-            merged[e.id] = e;
-          }
-        }
-
-        if (roleMap.isNotEmpty) {
-          final List<String> eventIds = roleMap.keys.toList();
-          debugPrint('[Sync] syncManagedEventsRemote: Fetching summary details for ${eventIds.length} events...');
-
-          final List<Map<String, dynamic>> summaryEventsData = [];
-          for (int i = 0; i < eventIds.length; i += 50) {
-            final chunk = eventIds.sublist(i, i + 50 > eventIds.length ? eventIds.length : i + 50);
-            final chunkData = await _remote.fetchEventSummariesByIds(chunk);
-            summaryEventsData.addAll(chunkData);
-          }
-
-          final fetchedIds = summaryEventsData.map((e) => (e['id'] ?? '').toString()).toSet();
-          final missingIds = eventIds.where((id) => !fetchedIds.contains(id)).toList();
-          if (missingIds.isNotEmpty) {
-            final truncatedMissing = missingIds.map((id) => id.length > 8 ? '${id.substring(0, 8)}...' : id).join(', ');
-            debugPrint('[Sync] syncManagedEventsRemote: ${missingIds.length} event IDs in roleMap not found in remote events table (deleted/purged/RLS): [$truncatedMissing]');
-          }
-
-          final List<Map<String, dynamic>> toCache = [];
-
-          for (final json in summaryEventsData) {
-            try {
-              final id = (json['id'] ?? '').toString();
-              if (id.isEmpty || id == 'null') continue;
-
-              final role = roleMap[id];
-              final augmentedJson = {...json, 'user_role': role};
-              final remoteEvent = EventModel.fromJson(augmentedJson);
-              toCache.add(augmentedJson);
-
-              final localSyncStatus = (merged[remoteEvent.id]?.statutSync ?? 'synchronise').toString();
-              merged[remoteEvent.id] = remoteEvent.copyWith(
-                statutSync: localSyncStatus == 'echec' ? 'echec' : 'synchronise',
-              );
-            } catch (e) {
-              debugPrint('[Sync] syncManagedEventsRemote: Error parsing summary event: $e');
-            }
-          }
-
-          if (toCache.isNotEmpty) {
-            await _dao.upsertEventsBatch(toCache);
-          }
-        } else {
-          // Si aucune adhésion distante mais des événements créés localement par l'utilisateur
-          final localEvents = await getManagedEventsLocal();
-          for (final e in localEvents) {
-            if (e.creatorId == userId) {
-              merged[e.id] = e;
-            }
-          }
-        }
+        parsed.add(EventModel.fromJson(row));
       } catch (e) {
-        debugPrint('[Error] syncManagedEventsRemote: $e');
+        debugPrint('[Sync] syncManagedEventsRemote: invalid remote event row: $e');
       }
-
-      final result = merged.values.toList();
-      result.sort((a, b) => b.startsAt.compareTo(a.startsAt));
-      debugPrint('[Sync] syncManagedEventsRemote: Total merged events to display = ${result.length}');
-      bootLog('EventRepository.syncManagedEventsRemote : ${result.length} événements fusionnés');
-      return result;
-    });
+    }
+    parsed.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+    debugPrint('[Sync] syncManagedEventsRemote: authoritative snapshot contains ${parsed.length} managed events');
+    return parsed;
   }
 
   Future<List<EventModel>> getManagedEvents() async {
-    return await bootMeasureAsync('EventRepository.getManagedEvents', () async {
-      final local = await getManagedEventsLocal();
-      if (local.isNotEmpty) {
-        unawaited(syncManagedEventsRemote());
-        return local;
+    final local = await getManagedEventsLocal();
+    if (local.isNotEmpty) {
+      unawaited(syncManagedEventsRemote());
+      return local;
+    }
+    return await syncManagedEventsRemote();
+  }
+
+  Future<List<EventModel>> getStaffEventsLocal() async {
+    final userId = _remote.client.auth.currentUser?.id;
+    if (userId == null) return [];
+    final rows = await _dao.getUserEventRoleCache(userId, 'staff');
+    if (rows == null) return [];
+    final parsed = <EventModel>[];
+    for (final row in rows) {
+      try {
+        parsed.add(EventModel.fromJson(row));
+      } catch (e) {
+        debugPrint('[Cache] getStaffEventsLocal: invalid cached event: $e');
       }
-      return await syncManagedEventsRemote();
-    });
+    }
+    parsed.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+    return parsed;
   }
 
   Future<List<EventModel>> getStaffEvents() async {
     final userId = _remote.client.auth.currentUser?.id;
-    final Map<String, EventModel> merged = {};
-
-    // 1. Distant (Les événements officiels où on est staff)
-    try {
-      final data = await _remote.fetchStaffActivities();
-      for (final json in data) {
-        try {
-          final event = EventModel.fromJson(json);
-          if (event.id.isNotEmpty && event.id != 'null') {
-            merged[event.id] = event;
-          }
-        } catch (e) {
-          debugPrint('[Sync] getStaffEvents: Error parsing remote staff event: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint('[Error] getStaffEvents remote: $e');
+    if (userId == null) return [];
+    // Une réponse vide du RPC est une suppression/révocation valide, pas un
+    // motif pour revenir à une ancienne liste locale ou à une fonction legacy.
+    final rows = await _remote.fetchStaffActivities();
+    await _dao.saveUserEventRoleCache(userId, 'staff', rows);
+    if (rows.isNotEmpty) {
+      await _dao.upsertEventsBatch(rows);
     }
-
-    // 2. Local (Invitations locales en attente, si applicable)
-    if (userId != null) {
+    final parsed = <EventModel>[];
+    for (final row in rows) {
       try {
-        // Pour l'instant, on n'a pas de table cache pour les "evenements tiers" 
-        // mais on pourrait scanner staff_locaux si besoin.
+        parsed.add(EventModel.fromJson(row));
       } catch (e) {
-        debugPrint('[Error] getStaffEvents local: $e');
+        debugPrint('[Sync] getStaffEvents: invalid remote event row: $e');
       }
     }
-
-    final result = merged.values.toList();
-    result.sort((a, b) => b.startsAt.compareTo(a.startsAt));
-    return result;
+    parsed.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+    return parsed;
   }
 
   Future<void> inviteStaffOptimistic(String eventId, String userId, Map<String, dynamic> userData) async {
