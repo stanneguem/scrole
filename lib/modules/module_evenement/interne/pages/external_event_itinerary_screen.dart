@@ -32,6 +32,7 @@ class _ExternalEventItineraryScreenState extends State<ExternalEventItineraryScr
   String? _error;
   List<Map<String, dynamic>> _days = [];
   Map<String, String> _activityNames = {};
+  Set<String> _validatedActivityKeys = <String>{};
 
   @override
   void initState() {
@@ -43,6 +44,14 @@ class _ExternalEventItineraryScreenState extends State<ExternalEventItineraryScr
     try {
       final result = await _repository.getExternalEventItinerary(userId: widget.userId, eventId: widget.eventId);
       final rawPlans = result['plans'];
+      final rawValidated = result['validated_activities'];
+      final validatedKeys = rawValidated is List
+          ? rawValidated.whereType<Map>().map((item) {
+              final date = (item['planned_date'] ?? '').toString();
+              final id = (item['activity_id'] ?? '').toString();
+              return date.isNotEmpty && id.isNotEmpty ? '$date|$id' : '';
+            }).where((key) => key.isNotEmpty).toSet()
+          : <String>{};
       final activities = await _repository.getEventActivities(widget.eventId);
       final names = <String, String>{};
       for (final activity in activities) {
@@ -53,7 +62,7 @@ class _ExternalEventItineraryScreenState extends State<ExternalEventItineraryScr
           : <Map<String, dynamic>>[];
       plans.sort((a, b) => (a['planned_date'] ?? '').toString().compareTo((b['planned_date'] ?? '').toString()));
       if (!mounted) return;
-      setState(() { _days = plans; _activityNames = names; _loading = false; });
+      setState(() { _days = plans; _activityNames = names; _validatedActivityKeys = validatedKeys; _loading = false; });
     } catch (error) {
       debugPrint('[ExternalEventItineraryScreen] denied or failed: $error');
       if (!mounted) return;
@@ -154,6 +163,7 @@ class _ExternalEventItineraryScreenState extends State<ExternalEventItineraryScr
             plan: plan,
             activities: activities,
             activityNames: _activityNames,
+            validatedActivityKeys: _validatedActivityKeys,
           )),
           child: Container(
             padding: const EdgeInsets.all(14),
@@ -202,6 +212,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
   final Map<String, dynamic> plan;
   final List<Map<String, dynamic>> activities;
   final Map<String, String> activityNames;
+  final Set<String> validatedActivityKeys;
 
   const ExternalEventItineraryDayScreen({
     super.key,
@@ -213,6 +224,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
     required this.plan,
     required this.activities,
     required this.activityNames,
+    required this.validatedActivityKeys,
   });
 
   String _formatDate(String key, String pattern) {
@@ -290,7 +302,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     SizedBox(width: 44, child: Column(children: [
-                      Container(width: 30, height: 30, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle, border: Border.all(color: AppColors.primary.withValues(alpha: 0.45))), child: const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary)),
+                      Container(width: 30, height: 30, decoration: BoxDecoration(color: (isValidated ? Colors.green : AppColors.primary).withValues(alpha: 0.1), shape: BoxShape.circle, border: Border.all(color: (isValidated ? Colors.green : AppColors.primary).withValues(alpha: 0.45))), child: Icon(isValidated ? Icons.check_circle_rounded : Icons.access_time_rounded, size: 16, color: isValidated ? Colors.green : AppColors.primary)),
                       Container(width: 2, height: 66, color: AppColors.primary.withValues(alpha: 0.35)),
                     ])),
                     Expanded(child: Container(
@@ -303,7 +315,7 @@ class ExternalEventItineraryDayScreen extends StatelessWidget {
                           Icon(Icons.schedule_rounded, size: 13, color: colors.onSurfaceVariant),
                           const SizedBox(width: 5),
                           Expanded(child: Text('$start – $end', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant))),
-                          Text('event_itinerary_upcoming'.tr, style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                          Text(isValidated ? 'event_itinerary_activity_validated'.tr : 'event_itinerary_upcoming'.tr, style: AppTextStyles.caption.copyWith(color: isValidated ? Colors.green : AppColors.primary, fontWeight: FontWeight.w600)),
                         ]),
                       ]),
                     )),
