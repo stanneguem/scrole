@@ -1654,6 +1654,7 @@ class _EventPreviewScreenState extends State<EventPreviewScreen> with SingleTick
                       ),
                   ],
                 ),
+              ),
               )
                   : const SizedBox.shrink(),
             ),
