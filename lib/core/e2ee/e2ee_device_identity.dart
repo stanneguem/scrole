@@ -14,6 +14,7 @@ class E2eeDeviceIdentity {
 
   static const _prefix = 'scrole.e2ee.device_identity.v1';
   final FlutterSecureStorage _storage;
+  final Map<String, Future<String>> _pendingCreations = {};
 
   String _key(String userId) {
     final normalized = userId.trim();
@@ -34,8 +35,20 @@ class E2eeDeviceIdentity {
   }
 
   /// Returns a persistent random UUIDv4 for this account on this installation.
-  Future<String> getOrCreate({required String userId}) async {
+  ///
+  /// Calls made concurrently through this instance are serialized per account.
+  /// Keep this service as an application-level singleton.
+  Future<String> getOrCreate({required String userId}) {
     final key = _key(userId);
+    final pending = _pendingCreations[key];
+    if (pending != null) return pending;
+
+    final creation = _readOrCreate(key);
+    _pendingCreations[key] = creation;
+    return creation.whenComplete(() => _pendingCreations.remove(key));
+  }
+
+  Future<String> _readOrCreate(String key) async {
     final existing = await _storage.read(key: key);
     if (existing != null) {
       if (!_isUuidV4(existing)) {
@@ -53,18 +66,18 @@ class E2eeDeviceIdentity {
     final id = '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20)}';
-
-    // Re-read before write to avoid replacing an identity created by another
-    // startup path racing on the same account.
-    final raced = await _storage.read(key: key);
-    if (raced != null) {
-      if (!_isUuidV4(raced)) {
-        throw StateError('Stored E2EE device identity is malformed.');
-      }
-      return raced;
-    }
     await _storage.write(key: key, value: id);
     return id;
+  }
+
+  /// Returns the current identity without creating a new one.
+  Future<String?> getExisting({required String userId}) async {
+    final value = await _storage.read(key: _key(userId));
+    if (value == null) return null;
+    if (!_isUuidV4(value)) {
+      throw StateError('Stored E2EE device identity is malformed.');
+    }
+    return value;
   }
 
   Future<void> delete({required String userId}) =>
