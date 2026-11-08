@@ -337,21 +337,21 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
 class _DayPlan {
   String dayStart;
   String dayEnd;
-  final Map<String, _ActivityPlan> activities;
+  final Set<String> activities;
 
-  _DayPlan({this.dayStart = '09:00', this.dayEnd = '18:00', Map<String, _ActivityPlan>? activities})
-      : activities = activities ?? {};
+  _DayPlan({this.dayStart = '09:00', this.dayEnd = '18:00', Set<String>? activities})
+      : activities = activities ?? <String>{};
 
   factory _DayPlan.fromJson(Map<String, dynamic>? json) {
     if (json == null) return _DayPlan();
     final rawActivities = json['activities'];
-    final activities = <String, _ActivityPlan>{};
+    final activities = <String>{};
     if (rawActivities is List) {
       for (final item in rawActivities.whereType<Map>()) {
         final map = Map<String, dynamic>.from(item);
         final id = (map['activity_id'] ?? '').toString();
         if (id.isNotEmpty) {
-          activities[id] = _ActivityPlan();
+          activities.add(id);
         }
       }
     }
@@ -365,8 +365,8 @@ class _DayPlan {
   Map<String, dynamic> toJson() => {
         'day_start': dayStart,
         'day_end': dayEnd,
-        'activities': activities.entries.map((entry) => {
-              'activity_id': entry.key,
+        'activities': activities.map((id) => {
+              'activity_id': id,
             }).toList(),
       };
 }
