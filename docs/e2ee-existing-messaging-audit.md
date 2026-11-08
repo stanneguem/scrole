@@ -80,3 +80,10 @@ Le chiffrement doit avoir lieu sur l'appareil avant tout téléversement R2. Cha
 ## État de sécurité
 
 Le moteur annonce toujours `ready_for_messages = false`. Le test Rust deux membres prouve le chiffrement/déchiffrement et le retrait en mémoire seulement. Il ne prouve pas la persistance, le transport Supabase, la sécurité du cache local ou le multi-appareils.
+
+
+## Transport et sécurité serveur mis à jour
+
+Les migrations `20261108240000` à `20261108244000` ont été appliquées au projet Supabase actif. Les groupes et messages MLS sont des tables séparées des messages legacy ; RLS n'autorise la lecture qu'aux appareils membres qui restent autorisés dans la conversation/salon. Les RPC d'envoi n'acceptent que des bytes ciphertext et n'écrivent aucun aperçu.
+
+Le dépôt Flutter `E2eeTransportRepository` appelle ces RPC, mais il reste volontairement isolé des écrans legacy jusqu'à ce que le moteur OpenMLS natif fournisse des messages chiffrés et déchiffrés réels. La présence de la table de transport ne signifie pas que les conversations actuelles sont E2EE.
