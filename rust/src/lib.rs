@@ -7,3 +7,4 @@
 //! platform-backed key wrapping have passed the mobile test matrix.
 
 pub mod api;
+mod storage_crypto;
