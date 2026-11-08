@@ -40,6 +40,31 @@ jobs:
       - name: Run E2EE unit tests
         run: flutter test test/core/e2ee
 
+  bridge-generation:
+    name: Generate Rust Dart bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned bridge generator
+        run: cargo install --locked --version 2.13.0 flutter_rust_bridge_codegen
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Generate bindings from the checked-in configuration
+        run: flutter_rust_bridge_codegen generate
+      - name: Publish generated bridge as a review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrole-e2ee-bridge-generated
+          path: |
+            lib/core/e2ee/bridge/
+            rust/src/frb_generated.rs
+          if-no-files-found: error
+
   rust-host:
     name: OpenMLS host tests
     runs-on: ubuntu-latest
