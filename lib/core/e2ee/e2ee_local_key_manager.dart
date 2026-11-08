@@ -1,13 +1,8 @@
-import 'dart:typed_data';
-
 import 'e2ee_device_identity.dart';
 import 'secure_mls_storage_key.dart';
 
-/// Resolves the installation identity and local database wrapping key for an
-/// authenticated Scrole account.
-///
-/// This is preparation for the persistent OpenMLS provider; it does not create
-/// an MLS credential, publish a KeyPackage, or enable message encryption.
+/// Resolves account-scoped installation identity and provisions the local
+/// secure-storage placeholder. No key material is returned to Dart callers.
 class E2eeLocalKeyManager {
   E2eeLocalKeyManager({
     E2eeDeviceIdentity? identity,
@@ -18,28 +13,21 @@ class E2eeLocalKeyManager {
   final E2eeDeviceIdentity _identity;
   final SecureMlsStorageKey _storageKey;
 
-  Future<({String deviceId, Uint8List databaseKey})> prepareAccount({
+  Future<({String deviceId, bool storageKeyProvisioned})> prepareAccount({
     required String userId,
   }) async {
     if (userId.trim().isEmpty) {
       throw ArgumentError.value(userId, 'userId', 'must not be empty');
     }
     final deviceId = await _identity.getOrCreate(userId: userId);
-    final databaseKey = await _storageKey.getOrCreate(
-      userId: userId,
-      deviceId: deviceId,
-    );
-    if (databaseKey.length != 32) {
-      throw StateError('MLS database wrapping key must be 256 bits.');
-    }
-    return (deviceId: deviceId, databaseKey: databaseKey);
+    await _storageKey.ensureProvisioned(userId: userId, deviceId: deviceId);
+    return (deviceId: deviceId, storageKeyProvisioned: true);
   }
 
-  /// Deletes local identity material for a signed-out/revoked account.
+  /// Deletes local placeholder material after an explicit local reset.
   ///
-  /// Call only after explicit account-device revocation or a deliberate
-  /// local reset. Deleting the key without a recoverable backup destroys
-  /// access to the encrypted MLS state on this installation.
+  /// This does not revoke a server device or provide recovery. Those operations
+  /// must be coordinated with a future native MLS lifecycle implementation.
   Future<void> deleteAccountMaterial({required String userId}) async {
     final deviceId = await _identity.getExisting(userId: userId);
     if (deviceId == null) return;
