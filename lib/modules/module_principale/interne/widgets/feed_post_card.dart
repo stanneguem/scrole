@@ -899,7 +899,7 @@ class FeedPostCard extends StatelessWidget {
           const SizedBox(width: 9),
           Expanded(
             child: GestureDetector(
-              onTap: () => _onAuthorTap(post),
+              onTap: post.isPlatformPromotion ? null : () => _onAuthorTap(post),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
