@@ -241,7 +241,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
   Widget _activityCard(EventActivityModel activity, ColorScheme colors) {
     final plan = _currentPlan();
     final key = activity.activityId.isNotEmpty ? activity.activityId : activity.id;
-    final selected = plan.activities.containsKey(key);
+    final selected = plan.activities.contains(key);
     final isPastDay = _isPastDay(_days[_selectedDayIndex]);
     final isValidated = _validatedActivityIds.contains('${_dateKey(_days[_selectedDayIndex])}|$key');
     final borderColor = selected ? AppColors.primary : colors.outlineVariant.withValues(alpha: 0.55);
@@ -266,7 +266,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
             if (selected) {
               plan.activities.remove(key);
             } else {
-              plan.activities.putIfAbsent(key, () => _ActivityPlan());
+              plan.activities.add(key);
             }
           }),
           child: Padding(
