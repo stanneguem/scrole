@@ -513,7 +513,7 @@ class EventStatsExtended {
   factory EventStatsExtended.fromJson(Map<String, dynamic> json) => EventStatsExtended(
     demographics: json['audience_demographics'] is Map ? Map<String, dynamic>.from(json['audience_demographics'] as Map) : const {},
     calendarDays: json['calendar_days'] is Map ? Map<String, dynamic>.from(json['calendar_days'] as Map) : const {},
-    simulation: json['simulation'] is Map ? Map<String, dynamic>.from(json['simulation'] as Map) : const {},
+    simulation: json['budget_insights'] is Map ? Map<String, dynamic>.from(json['budget_insights'] as Map) : (json['simulation'] is Map ? Map<String, dynamic>.from(json['simulation'] as Map) : const {}),
     engagementDetails: json['engagement_details'] is Map ? Map<String, dynamic>.from(json['engagement_details'] as Map) : const {},
   );
 }
