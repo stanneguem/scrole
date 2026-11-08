@@ -240,19 +240,35 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('event_budget_total_label'.tr, style: AppTextStyles.caption.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
-              Obx(() => Text(
-                controller.totalBudget <= 0
-                    ? 'event_budget_free'.tr
-                    : NumberFormatter.formatPrice(controller.totalBudget, controller.currency),
-                style: AppTextStyles.h2.copyWith(color: AppColors.primary),
-              )),
-            ],
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'event_budget_total_label'.tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Obx(() => Text(
+                  controller.totalBudget <= 0
+                      ? 'event_budget_free'.tr
+                      : NumberFormatter.formatPrice(
+                          controller.totalBudget,
+                          controller.currency,
+                        ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.h2.copyWith(color: AppColors.primary),
+                )),
+              ],
+            ),
           ),
+          const SizedBox(width: 12),
           Obx(() => ElevatedButton(
             onPressed: controller.isSaving.value
                 ? null
@@ -261,7 +277,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                     if (saved) Get.back();
                   },
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: controller.isSaving.value
