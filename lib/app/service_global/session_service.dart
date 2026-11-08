@@ -70,7 +70,12 @@ class SessionService extends GetxService {
     // Stories are stored in a separate JSON file outside Hive and SQLite.
     // Delete that account-scoped file before dropping the old user ID.
     if (uid != null) {
-      await StoriesController.clearLocalCacheForUser(uid);
+      try {
+        await StoriesController.clearLocalCacheForUser(uid);
+      } catch (e) {
+        // A cache-file failure must not prevent the user from completing logout.
+        debugPrint('[Session] Unable to purge story cache for $uid: $e');
+      }
     }
     if (Get.isRegistered<StoriesController>()) {
       Get.find<StoriesController>().clearInMemorySessionData();
