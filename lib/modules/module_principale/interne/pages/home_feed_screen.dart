@@ -267,21 +267,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.campaign_rounded, size: 15, color: Color(0xFFB7791F)),
-                                const SizedBox(width: 6),
-                                Text('PUBLICITÉ', style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
-                                )),
-                              ],
-                            ),
-                          ),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 760),
                             child: FeedPostCard(
