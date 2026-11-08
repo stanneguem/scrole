@@ -70,6 +70,12 @@ class EventBudgetController extends GetxController {
     }
     if (_eventId != null && _eventId!.isNotEmpty) {
       _recordAnalytics('simulation_open');
+      final initialTicket = selectedTicket.value;
+      if (initialTicket != null) {
+        _recordAnalytics('simulation_ticket_selected', metadata: {
+          'ticket_id': initialTicket.id,
+        });
+      }
     }
   }
 
