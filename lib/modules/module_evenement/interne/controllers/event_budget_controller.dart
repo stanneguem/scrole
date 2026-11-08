@@ -21,7 +21,7 @@ class EventBudgetController extends GetxController {
       await client.rpc('record_event_analytics_event', params: {
         'p_event_id': _eventId,
         'p_action': action,
-        'p_metadata': metadata,
+        'p_metadata': {'session_id': _sessionId, ...metadata},
       });
     } catch (error) {
       debugPrint('[EventBudgetController] analytics $action failed: $error');
