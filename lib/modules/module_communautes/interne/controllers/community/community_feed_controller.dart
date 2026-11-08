@@ -271,22 +271,13 @@ class CommunityFeedController extends GetxController {
         posts.assignAll(previewById.values);
         feedState.value = CommunityFeedState.loaded;
       }
-      final certificationRows = await Supabase.instance.client
-          .from('community_certifications')
-          .select('id')
-          .eq('community_id', communityId!)
-          .eq('status', 'active')
-          .isFilter('suspended_at', null)
-          .or('valid_until.is.null,valid_until.gt.${DateTime.now().toUtc().toIso8601String()}')
-          .limit(1);
-      final certifiedCommunity = certificationRows.isNotEmpty;
-      adsAllowed.value = !certifiedCommunity;
-      if (certifiedCommunity) {
-        sponsoredPosts.clear();
-      } else {
-        final campaigns = await _feedRepo.getTargetedPromotionCampaigns(limit: 10, communityId: communityId);
-        sponsoredPosts.assignAll(campaigns);
-      }
+      // The RPC enforces both profile and community certification exclusions.
+      final campaigns = await _feedRepo.getTargetedPromotionCampaigns(
+        limit: 10,
+        communityId: communityId,
+      );
+      sponsoredPosts.assignAll(campaigns);
+      adsAllowed.value = true;
 
       final result = await _feedRepo.getCommunityFeed(communityId!);
       final items = result['items'] as List<CommunityPost>;
