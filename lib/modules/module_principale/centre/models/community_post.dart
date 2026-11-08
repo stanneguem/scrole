@@ -226,6 +226,28 @@ class CommunityPost {
           }).whereType<CommunityPostMention>().toList()
         : <CommunityPostMention>[];
 
+    final rawInfluencerReactions = map['influencer_reactions'] ?? map['influencerReactions'];
+    final parsedInfluencerReactions = rawInfluencerReactions is List
+        ? rawInfluencerReactions.map((entry) {
+            if (entry is! Map) return null;
+            final row = Map<String, dynamic>.from(entry);
+            final profile = row['user_profiles'] is Map
+                ? Map<String, dynamic>.from(row['user_profiles'] as Map)
+                : <String, dynamic>{};
+            final userId = (row['user_id'] ?? row['id'] ?? '').toString();
+            if (userId.isEmpty) return null;
+            return CommunityPostMention(
+              userId: userId,
+              username: (row['username'] ?? profile['username'] ?? '').toString(),
+              photoUrl: (row['photo_url'] ?? profile['photo_url'])?.toString(),
+              isCertified: row['is_certified'] == true || row['is_certified'] == 1 ||
+                  row['is_verified'] == true || row['is_verified'] == 1 ||
+                  profile['is_certified'] == true || profile['is_certified'] == 1 ||
+                  profile['is_verified'] == true || profile['is_verified'] == 1,
+            );
+          }).whereType<CommunityPostMention>().toList()
+        : <CommunityPostMention>[];
+
     CommunityPost? shared;
     if (map['shared_post'] is Map) {
       final spMap = Map<String, dynamic>.from(map['shared_post']);
@@ -244,6 +266,7 @@ class CommunityPost {
       media: mediaList,
       hashtags: parsedHashtags,
       mentionedUsers: parsedMentions,
+      influencerReactions: parsedInfluencerReactions,
       poll: map['poll'] ?? map['poll_state'] ?? map['community_poll'],
       likeCount: (map['likes_count'] as num?)?.toInt() ?? 0,
       dislikeCount: (map['dislikes_count'] as num?)?.toInt() ?? 0,
@@ -273,6 +296,78 @@ class CommunityPost {
       reasonSubtitle: map['reason_subtitle']?.toString(),
     );
   }
+
+  /// Full JSON-safe snapshot used by the offline home-feed cache.
+  /// Keeps every field consumed by the post-card renderer, including nested
+  /// media, polls, mentions, event/community context and shared publications.
+  Map<String, dynamic> toCacheMap() => {
+        'id': id,
+        'author_id': authorId,
+        'author_name': authorName,
+        'author': {
+          'user_id': authorObj?.userId ?? authorId,
+          'username': authorObj?.username ?? authorName,
+          'photo_url': authorObj?.photoUrl,
+          'is_certified': authorObj?.isCertified ?? false,
+        },
+        'created_at': timeAgo,
+        'content': content,
+        'media': media.map((item) => item.toJson()).toList(),
+        'hashtags': hashtags.map((tag) => tag.name).toList(),
+        'mentions': (mentionedUsers ?? const <CommunityPostMention>[])
+            .map((mention) => {
+                  'user_id': mention.userId,
+                  'username': mention.username,
+                  'photo_url': mention.photoUrl,
+                  'is_certified': mention.isCertified,
+                })
+            .toList(),
+        'influencer_reactions': (influencerReactions ?? const <CommunityPostMention>[])
+            .map((mention) => {
+                  'user_id': mention.userId,
+                  'username': mention.username,
+                  'photo_url': mention.photoUrl,
+                  'is_certified': mention.isCertified,
+                })
+            .toList(),
+        'poll': poll,
+        'likes_count': likeCount,
+        'dislikes_count': dislikeCount,
+        'comments_count': commentCount,
+        'shares_count': shareCount,
+        'views_count': viewCount,
+        'viewer_has_shared': viewerHasShared,
+        'viewer_reaction': userReaction == PostReaction.like
+            ? 'like'
+            : userReaction == PostReaction.dislike
+                ? 'dislike'
+                : null,
+        'shared_post_id': sharedPostId,
+        if (sharedPost != null) 'shared_post': sharedPost!.toCacheMap(),
+        'sharing_enabled': sharingEnabled,
+        'shared_post_can_open_original': canOpenOriginal,
+        'comments_enabled': commentsEnabled,
+        'reactions_enabled': reactionsEnabled,
+        'audience': audience,
+        'event_id': eventId,
+        if (eventId != null)
+          'event': {
+            'id': eventId,
+            'name': eventName,
+            'photo': eventLogoUrl,
+            'city': eventCity,
+          },
+        'community_id': communityId,
+        if (communityId != null)
+          'community': {
+            'id': communityId,
+            'name': communityName,
+            'photo_profile': communityLogoUrl,
+            'allow_post_sharing': communitySharingEnabled,
+          },
+        'is_suggested': isSuggested,
+        'reason_subtitle': reasonSubtitle,
+      };
 
   CommunityPost copyWith({
     PostReaction? userReaction,
