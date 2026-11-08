@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import 'package:get/get.dart';
 
 import 'package:image_picker/image_picker.dart';
@@ -408,8 +409,8 @@ class ProfileScreen extends GetView<ProfileController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Obx(
-        () => Text(
-          controller.displayBio,
+        () => LinkifiedText(
+          text: controller.displayBio,
           style: AppTextStyles.body.copyWith(
             color: controller.bio.value.isEmpty
                 ? colorScheme.onSurfaceVariant
