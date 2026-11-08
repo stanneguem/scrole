@@ -234,83 +234,233 @@ class QrScanScreen extends GetView<QrScanController> {
     ColorScheme colorScheme,
     List<AvailableActivityModel> activities,
   ) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      color: Colors.black.withValues(alpha: 0.65),
+      color: Colors.black.withValues(alpha: 0.58),
       alignment: Alignment.bottomCenter,
-      child: Container(
-        margin: const EdgeInsets.all(20),
-        padding: const EdgeInsets.all(24),
-        constraints: const BoxConstraints(maxHeight: 450),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.78,
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.stars_rounded, color: AppColors.primary, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'checkin_select_activity_title'.tr,
-                    style: AppTextStyles.h4.copyWith(color: colorScheme.onSurface),
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.11),
+                          borderRadius: BorderRadius.circular(17),
+                        ),
+                        child: const Icon(
+                          Icons.fact_check_rounded,
+                          color: AppColors.primary,
+                          size: 27,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'checkin_select_activity_title'.tr,
+                              style: AppTextStyles.h4.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'checkin_select_activity_subtitle'.tr,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${activities.length}',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+                Flexible(
+                  child: activities.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Center(
+                            child: Text(
+                              'checkin_no_activity_available_msg'.tr,
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.body.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                          itemCount: activities.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final activity = activities[index];
+                            final description = activity.description?.trim() ?? '';
+                            return Material(
+                              color: colorScheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(18),
+                              child: InkWell(
+                                onTap: () => controller.validateActivity(activity),
+                                borderRadius: BorderRadius.circular(18),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 42,
+                                        height: 42,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.10),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: Text(
+                                          '${index + 1}'.padLeft(2, '0'),
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 13),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              activity.name,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: AppTextStyles.body.copyWith(
+                                                color: colorScheme.onSurface,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            if (description.isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                description,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTextStyles.bodySmall.copyWith(
+                                                  color: colorScheme.onSurfaceVariant,
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 34,
+                                        height: 34,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+                  child: OutlinedButton(
+                    onPressed: controller.resetScan,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      foregroundColor: colorScheme.onSurfaceVariant,
+                      side: BorderSide(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.8),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text('checkin_cancel_action'.tr),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'checkin_select_activity_subtitle'.tr,
-              style: AppTextStyles.bodySmall.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: activities.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final activity = activities[index];
-                  return Material(
-                    color: colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: () => controller.validateActivity(activity),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.local_activity_rounded, color: AppColors.primary, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                activity.name,
-                                style: AppTextStyles.body.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            Icon(Icons.chevron_right_rounded, color: colorScheme.onSurfaceVariant),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: controller.resetScan,
-              style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 44)),
-              child: Text('checkin_cancel_action'.tr),
-            ),
-          ],
+          ),
         ),
       ),
     );
