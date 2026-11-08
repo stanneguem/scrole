@@ -373,10 +373,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: profile, error: profileError } = await admin
-    .from("user_profiles").select("account_status, deleted_at").eq("user_id", user.id).maybeSingle();
-  if (profileError) return reply(500, { error: "profile_check_failed" });
-  if (!profile || profile.account_status !== "active" || profile.deleted_at !== null) return reply(403, { error: "account_unavailable" });
+  if (category !== "promotion_media") {
+    const { data: profile, error: profileError } = await admin
+      .from("user_profiles").select("account_status, deleted_at").eq("user_id", user.id).maybeSingle();
+    if (profileError) return reply(500, { error: "profile_check_failed" });
+    if (!profile || profile.account_status !== "active" || profile.deleted_at !== null) return reply(403, { error: "account_unavailable" });
+  }
 
   // Validate category-specific authorization before signing an upload.
   if (category === "profile_avatar" || category === "profile_cover") {
