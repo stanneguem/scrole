@@ -23,6 +23,16 @@ class E2eeDeviceIdentity {
     return '$_prefix.$normalized';
   }
 
+  /// Returns the current identity without creating a new one.
+  Future<String?> getExisting({required String userId}) async {
+    final value = await _storage.read(key: _key(userId));
+    if (value == null) return null;
+    if (!_isUuidV4(value)) {
+      throw StateError('Stored E2EE device identity is malformed.');
+    }
+    return value;
+  }
+
   /// Returns a persistent random UUIDv4 for this account on this installation.
   Future<String> getOrCreate({required String userId}) async {
     final key = _key(userId);
