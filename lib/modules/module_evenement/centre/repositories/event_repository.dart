@@ -872,21 +872,29 @@ class EventRepository {
 
       final List<EventModel> list = [];
       try {
-        final roleSnapshot = await _dao.getUserEventRoleCache(userId, 'managed');
+        // v2 invalidates old role snapshots that could still contain admin events
+        // previously linked to the same auth UUID as a personal user profile.
+        final roleSnapshot = await _dao.getUserEventRoleCache(userId, 'managed_v2');
         if (roleSnapshot != null) {
           for (final row in roleSnapshot) {
-            try { list.add(EventModel.fromJson(row)); } catch (_) {}
+            try {
+              final event = EventModel.fromJson(row);
+              if (!event.isAdminCreated) list.add(event);
+            } catch (_) {}
           }
           list.sort((a, b) => b.startsAt.compareTo(a.startsAt));
           return list;
         }
+        // Offline-created user events remain available locally. Ignore synced rows:
+        // they may predate the explicit creator-profile discriminator and must not
+        // resurrect an old Admin event in the user's personal list.
         final structuredLocal = await _dao.getEventsStructured(creatorId: userId);
-        debugPrint('[Sync] getManagedEventsLocal: Found ${structuredLocal.length} events in structured local DB');
+        debugPrint('[Sync] getManagedEventsLocal: Found ${structuredLocal.length} structured rows');
         for (final row in structuredLocal) {
+          if ((row['sync_status'] ?? 'synced').toString() == 'synced') continue;
           try {
             final event = EventModel.fromJson(row);
-            list.add(event);
-            debugPrint('[Sync] getManagedEventsLocal: Loaded local event ${event.id} (${event.name})');
+            if (event.creatorId == userId && !event.isAdminCreated) list.add(event);
           } catch (e) {
             debugPrint('[Sync] getManagedEventsLocal: Error parsing local row: $e');
           }
@@ -914,7 +922,7 @@ class EventRepository {
     // cette réponse avec les anciennes lignes locales : cela ressuscite les
     // événements supprimés ou les rôles retirés.
     final rows = await _remote.fetchManagedEvents();
-    await _dao.saveUserEventRoleCache(userId, 'managed', rows);
+    await _dao.saveUserEventRoleCache(userId, 'managed_v2', rows);
     if (rows.isNotEmpty) {
       await _dao.upsertEventsBatch(rows);
     }
@@ -2157,7 +2165,11 @@ class EventRepository {
     final userId = _remote.client.auth.currentUser?.id;
     try {
       final local = await _dao.getEventStructuredById(eventId);
-      final isOwner = local != null && local['creator_id'] == userId;
+      // A locally cached row is not authoritative for ownership: old cache entries
+      // may have attached an Admin-created event to this user's auth UUID.
+      final isOwner = local != null &&
+          local['creator_id'] == userId &&
+          (local['sync_status'] ?? 'synced').toString() != 'synced';
 
       if (isOwner) {
         return await getEventPreviewOwner(eventId);
