@@ -170,6 +170,7 @@ class HomeFeedController extends GetxController {
           }
         }
         posts.refresh();
+        unawaited(_cacheCurrentFeed());
       }
     } catch (e) {
       debugPrint('[POST_ACTIONS] Error recording view batch or fetching counters: $e');
@@ -200,6 +201,7 @@ class HomeFeedController extends GetxController {
           }
         }
         posts.refresh();
+        unawaited(_cacheCurrentFeed());
       }
     } catch (e) {
       debugPrint('[POST_ACTIONS] Counter refresh failed; will retry on next interval: $e');
@@ -346,6 +348,7 @@ class HomeFeedController extends GetxController {
       posts.value = uniqueMap.values.toList();
 
       // Keep the first 15 complete cards available for the next cold start.
+      // Cache only after the new feed has been installed in memory.
       await _cacheFeedItems(userId, remoteItems);
 
       // Fetch suggested profiles and suggested events
