@@ -8,12 +8,21 @@ use chacha20poly1305::{
     XChaCha20Poly1305, XNonce,
     aead::{Aead, KeyInit, Payload},
 };
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 const MAGIC: &[u8; 4] = b"SCM1";
 const NONCE_LEN: usize = 24;
 const KEY_LEN: usize = 32;
 const DOMAIN: &[u8] = b"scrole/openmls-storage/v1\0";
+
+/// Native-only wrapping key. Zeroized when its owner is dropped.
+pub(crate) struct StorageKey(Zeroizing<[u8; KEY_LEN]>);
+
+impl StorageKey {
+    pub(crate) fn from_bytes(bytes: [u8; KEY_LEN]) -> Self {
+        Self(Zeroizing::new(bytes))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum StorageCryptoError {
@@ -49,15 +58,11 @@ fn associated_data(storage_key: &[u8]) -> Vec<u8> {
 /// The storage key is authenticated as AAD, preventing a valid ciphertext
 /// from being copied to a different OpenMLS storage slot.
 pub(crate) fn seal_record(
-    key: &[u8],
+    key: &StorageKey,
     storage_key: &[u8],
     plaintext: &[u8],
 ) -> Result<Vec<u8>, StorageCryptoError> {
-    if key.len() != KEY_LEN {
-        return Err(StorageCryptoError::InvalidKey);
-    }
-
-    let cipher = XChaCha20Poly1305::new_from_slice(key)
+    let cipher = XChaCha20Poly1305::new_from_slice(&key.0[..])
         .map_err(|_| StorageCryptoError::InvalidKey)?;
     let mut nonce_bytes = [0u8; NONCE_LEN];
     getrandom::fill(&mut nonce_bytes)
@@ -81,13 +86,10 @@ pub(crate) fn seal_record(
 
 /// Authenticates and decrypts one record for its original storage slot.
 pub(crate) fn open_record(
-    key: &[u8],
+    key: &StorageKey,
     storage_key: &[u8],
     record: &[u8],
 ) -> Result<Vec<u8>, StorageCryptoError> {
-    if key.len() != KEY_LEN {
-        return Err(StorageCryptoError::InvalidKey);
-    }
     if record.len() < MAGIC.len() + NONCE_LEN + 16 || !record.starts_with(MAGIC) {
         return Err(StorageCryptoError::InvalidRecord);
     }
@@ -96,7 +98,7 @@ pub(crate) fn open_record(
     let ciphertext_start = nonce_start + NONCE_LEN;
     let nonce = XNonce::from_slice(&record[nonce_start..ciphertext_start]);
     let aad = associated_data(storage_key);
-    let cipher = XChaCha20Poly1305::new_from_slice(key)
+    let cipher = XChaCha20Poly1305::new_from_slice(&key.0[..])
         .map_err(|_| StorageCryptoError::InvalidKey)?;
 
     cipher
@@ -114,8 +116,8 @@ pub(crate) fn open_record(
 mod tests {
     use super::*;
 
-    fn test_key() -> [u8; KEY_LEN] {
-        [0x42; KEY_LEN]
+    fn test_key() -> StorageKey {
+        StorageKey::from_bytes([0x42; KEY_LEN])
     }
 
     #[test]
@@ -144,7 +146,7 @@ mod tests {
     fn rejects_wrong_key_and_tampering() {
         let record = seal_record(&test_key(), b"storage/item", b"secret").unwrap();
         assert_eq!(
-            open_record(&[0x24; KEY_LEN], b"storage/item", &record),
+            open_record(&StorageKey::from_bytes([0x24; KEY_LEN]), b"storage/item", &record),
             Err(StorageCryptoError::AuthenticationFailed)
         );
 
@@ -168,15 +170,15 @@ mod tests {
     #[test]
     fn rejects_malformed_records_and_keys() {
         assert_eq!(
-            seal_record(&[1; 16], b"key", b"value"),
-            Err(StorageCryptoError::InvalidKey)
+            seal_record(&StorageKey::from_bytes([1; KEY_LEN]), b"key", b"value"),
+            Err(StorageCryptoError::InvalidRecord)
         );
         assert_eq!(
             open_record(&test_key(), b"key", b"short"),
             Err(StorageCryptoError::InvalidRecord)
         );
         assert_eq!(
-            open_record(&[1; 16], b"key", &[0; 64]),
+            open_record(&StorageKey::from_bytes([1; KEY_LEN]), b"key", &[0; 64]),
             Err(StorageCryptoError::InvalidKey)
         );
     }
