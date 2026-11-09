@@ -1814,25 +1814,59 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
             child: Center(
               child: ValueListenableBuilder<int>(
                 valueListenable: widget.mediaPageNotifier!,
-                builder: (context, currentIndex, _) => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List<Widget>.generate(widget.mediaCount, (index) {
-                    final active = index == currentIndex;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      width: active ? 16 : 5,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(8),
+                builder: (context, currentIndex, _) {
+                  // Jusqu'à 4 médias, afficher tous les indicateurs.
+                  // Au-delà, conserver une fenêtre mobile de 3 points.
+                  final visibleCount = widget.mediaCount > 4
+                      ? 3
+                      : widget.mediaCount;
+                  final maxStart = widget.mediaCount - visibleCount;
+                  final windowStart = widget.mediaCount > 4
+                      ? (currentIndex < 2
+                          ? 0
+                          : (currentIndex >= widget.mediaCount - 2
+                              ? maxStart
+                              : currentIndex - 1))
+                      : 0;
+
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.18, 0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
                       ),
-                    );
-                  }),
-                ),
+                    ),
+                    child: Row(
+                      key: ValueKey<int>(windowStart),
+                      mainAxisSize: MainAxisSize.min,
+                      children: List<Widget>.generate(visibleCount, (slot) {
+                        final mediaIndex = windowStart + slot;
+                        final active = mediaIndex == currentIndex;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          width: active ? 16 : 5,
+                          height: 5,
+                          margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? colorScheme.primary
+                                : colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                },
               ),
             ),
           )
