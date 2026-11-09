@@ -419,7 +419,7 @@ class FeedPostCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Avec',
+                          'home_feed_is_with'.tr,
                           style: TextStyle(
                             fontSize: 12,
                             color: colorScheme.onSurfaceVariant,
