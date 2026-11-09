@@ -367,8 +367,11 @@ class NotificationController extends GetxController {
   Future<void> deleteAllNotifications() async {
     final userId = _authService.userId;
     if (userId == null) return;
+    final notificationIds = notifications.map((item) => item.id).toList();
     await _service.deleteAllNotifications(userId);
-    await NotificationService.instance.cancelAllNotifications();
+    for (final id in notificationIds) {
+      await NotificationService.instance.cancelNotification(id);
+    }
     unawaited(processOutbox());
   }
 
