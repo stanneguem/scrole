@@ -329,13 +329,29 @@ class NotificationController extends GetxController {
   Future<void> markAllAsRead() async {
     final userId = _authService.userId;
     if (userId == null) return;
+
+    // Mise à jour optimiste du cache et mise en file des changements hors ligne.
     await _service.markAllAsRead(userId);
+    await NotificationService.instance.cancelAllNotifications();
+
     try {
-      final remote = await _repository.getMyNotifications(limit: 100);
-      for (final notification in remote.where((n) => !n.isRead)) {
-        await _repository.markAsRead(notification.id);
+      const pageSize = 100;
+      var offset = 0;
+      while (true) {
+        final remote = await _repository.getMyNotifications(
+          limit: pageSize,
+          offset: offset,
+        );
+        for (final notification in remote.where((n) => !n.isRead)) {
+          await _repository.markAsRead(notification.id);
+          await _service.removeFromOutbox(userId, notification.id, 'mark_read');
+        }
+        if (remote.length < pageSize) break;
+        offset += remote.length;
       }
     } catch (e) {
+      // Les actions restantes restent dans l'outbox et seront rejouées à la
+      // prochaine reconnexion.
       debugPrint('[Error] Marquage global notifications: $e');
     }
   }
