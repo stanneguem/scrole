@@ -409,8 +409,9 @@ class ProfileScreen extends GetView<ProfileController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Obx(
-        () => LinkifiedText(
-          text: controller.displayBio,
+        () => _ExpandableProfileBio(
+          key: ValueKey(controller.displayBio),
+          bio: controller.displayBio,
           style: AppTextStyles.body.copyWith(
             color: controller.bio.value.isEmpty
                 ? colorScheme.onSurfaceVariant
@@ -688,4 +689,68 @@ class ProfileScreen extends GetView<ProfileController> {
     });
   }
 
+}
+
+/// Bio du profil personnel : deux lignes par défaut, avec expansion si nécessaire.
+/// Utilise les mêmes clés de traduction que le profil externe.
+class _ExpandableProfileBio extends StatefulWidget {
+  const _ExpandableProfileBio({
+    super.key,
+    required this.bio,
+    required this.style,
+  });
+
+  final String bio;
+  final TextStyle style;
+
+  @override
+  State<_ExpandableProfileBio> createState() => _ExpandableProfileBioState();
+}
+
+class _ExpandableProfileBioState extends State<_ExpandableProfileBio> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.bio, style: widget.style),
+          maxLines: 2,
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final exceeds = painter.didExceedMaxLines;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LinkifiedText(
+              text: widget.bio,
+              style: widget.style,
+              maxLines: _expanded ? null : 2,
+              overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            ),
+            if (exceeds) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    _expanded ? 'see_less'.tr : 'see_more'.tr,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
 }
