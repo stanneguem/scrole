@@ -47,6 +47,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         data['text']?.toString() ??
         '';
 
+    final type = data['type']?.toString() ?? 'info';
+    final notificationId = data['notification_id']?.toString() ?? '';
+    if (type != 'message_received' && notificationId.isEmpty) {
+      debugPrint('[FCM] Background push ignored: missing notification id');
+      return;
+    }
+
     if (body.isNotEmpty) {
       final plugin = FlutterLocalNotificationsPlugin();
       // Minimal initialization for the background isolate
@@ -307,12 +314,17 @@ class NotificationService {
     final authService = Get.find<AuthService>();
     _authWorker = ever(authService.currentUser, (user) async {
       if (user != null) {
+        await _setupRealtimeNotifications();
         // Réutiliser le token stable : le backend compare last_seen_at pour
         // ne rattraper que les notifications reçues pendant l'absence.
         // Supprimer le token à chaque session faisait perdre ce checkpoint et
         // rejouait tout l'historique des notifications non lues.
         await ensureCurrentDeviceRegistered();
         await syncLanguage(force: true);
+      } else {
+        _notificationChannel?.unsubscribe();
+        _notificationChannel = null;
+        _subscribedOnce = false;
       }
     });
 
@@ -476,11 +488,15 @@ class NotificationService {
           final row = payload.newRecord;
           final id = row['id']?.toString();
           if (id == null || id.isEmpty) return;
+          final isRead = row['read_at'] != null;
           await db.syncRemoteReadState(
             id: id,
             userId: userId,
-            isRead: row['read_at'] != null,
+            isRead: isRead,
           );
+          if (isRead) {
+            await _plugin.cancel(id: id.hashCode.abs());
+          }
         },
       )
       ..onPostgresChanges(
@@ -491,6 +507,7 @@ class NotificationService {
           final id = payload.oldRecord['id']?.toString();
           if (id == null || id.isEmpty) return;
           await db.syncRemoteDeletion(id: id, userId: userId);
+          await _plugin.cancel(id: id.hashCode.abs());
         },
       )
       .subscribe((status, error) async {
@@ -625,7 +642,7 @@ class NotificationService {
     );
 
     // 2. Affichage local si la notification est nouvelle et le corps non vide
-    if (saved && body.isNotEmpty) {
+    if (saved && body.isNotEmpty && data['read_at'] == null) {
       debugPrint('[FCM] Showing local notification: $title - $body');
       await showNotification(
         id: id.hashCode.abs(),
@@ -837,6 +854,14 @@ class NotificationService {
       // A malformed payload must not prevent normal notifications from working.
       return true;
     }
+  }
+
+  Future<void> cancelNotification(String notificationId) async {
+    await _plugin.cancel(id: notificationId.hashCode.abs());
+  }
+
+  Future<void> cancelAllNotifications() async {
+    await _plugin.cancelAll();
   }
 
   Future<void> showNotification({
