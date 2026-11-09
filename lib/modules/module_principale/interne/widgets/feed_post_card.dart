@@ -1876,14 +1876,14 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
         ),
       ],
         ),
-        if (mediaCount > 1 && mediaPageNotifier != null)
+        if (widget.mediaCount > 1 && widget.mediaPageNotifier != null)
           Padding(
             padding: const EdgeInsets.only(top: 7),
             child: ValueListenableBuilder<int>(
-              valueListenable: mediaPageNotifier!,
+              valueListenable: widget.mediaPageNotifier!,
               builder: (context, currentIndex, _) => Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List<Widget>.generate(mediaCount, (index) {
+                children: List<Widget>.generate(widget.mediaCount, (index) {
                   final active = index == currentIndex;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
