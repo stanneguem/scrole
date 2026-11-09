@@ -1,0 +1,24 @@
+name: Flutter Web build
+
+on:
+  push:
+    branches:
+      - feature/web-version
+  pull_request:
+    branches:
+      - feature/web-version
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Generate SQLite Web runtime
+        run: dart run sqflite_common_ffi_web:setup
+      - name: Build Web release
+        run: flutter build web --release
