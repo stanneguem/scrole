@@ -142,6 +142,16 @@ class NotificationDbService extends GetxService {
   }) async {
     final db = await database;
     await db.transaction((txn) async {
+      final existing = await txn.query(
+        'notifications',
+        columns: ['id'],
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+        limit: 1,
+      );
+      // DELETE Realtime peut être diffusé sans user_id (REPLICA IDENTITY DEFAULT).
+      // Ne créer un tombstone que si cette ligne appartenait à notre cache local.
+      if (existing.isEmpty) return;
       await txn.delete(
         'notifications',
         where: 'id = ? AND user_id = ?',
