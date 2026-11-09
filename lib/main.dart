@@ -15,6 +15,7 @@ import 'package:scrole/app/repository_global/location_repository.dart';
 import 'package:scrole/app/repository_global/centre_interets_repository.dart';
 import 'package:scrole/app/service_global/language_service.dart';
 import 'package:scrole/app/service_global/notification_service.dart';
+import 'package:scrole/app/service_global/web_realtime_notification_service.dart';
 import 'package:scrole/app/service_global/app_config_service.dart';
 import 'package:scrole/app/service_global/app_deep_link_service.dart';
 import 'package:scrole/app/service_global/connectivity_service.dart';
@@ -256,18 +257,22 @@ Future<void> _initDeferred() async {
     // Retarder l'initialisation lourde de Firebase & FCM de 3 secondes après le premier rendu
     await Future.delayed(const Duration(seconds: 3));
 
-    if (!kIsWeb) {
+    if (kIsWeb) {
+      await Get.putAsync<WebRealtimeNotificationService>(
+        () => WebRealtimeNotificationService().init(),
+        permanent: true,
+      );
+    } else {
       await Firebase.initializeApp();
       unawaited(Get.find<FcmNotificationService>().initialize());
+      await NotificationService.instance.initialize(
+        onNotificationTap: (response) {
+          if (kDebugMode) {
+            debugPrint('Notification tapée, payload: ${response.payload}');
+          }
+        },
+      );
     }
-
-    await NotificationService.instance.initialize(
-      onNotificationTap: (response) {
-        if (kDebugMode) {
-          debugPrint('Notification tapée, payload: ${response.payload}');
-        }
-      },
-    );
 
     // Maintient une présence en ligne basée sur l'activité réelle au premier plan.
     Get.put(PresenceService(), permanent: true);
