@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 class AppTranslationAdditions {
   static const Map<String, Map<String, String>> keys = {
     'fr': {
+      'home_feed_is_with': 'est avec',
       'event_report_title': "Signaler l’événement",
       'event_report_reason_fraud': "Arnaque / fraude",
       'event_report_reason_danger': "Dangereux / risqué",
@@ -1563,6 +1564,7 @@ class AppTranslationAdditions {
       'cta_get_now': "Obtenir maintenant",
 },
     'en': {
+      'home_feed_is_with': 'is with',
       'event_report_title': "Report event",
       'event_report_reason_fraud': "Scam / fraud",
       'event_report_reason_danger': "Dangerous / risky",
@@ -3117,6 +3119,7 @@ class AppTranslationAdditions {
       'cta_get_now': "Get it now",
 },
     'es': {
+      'home_feed_is_with': 'está con',
       'event_report_title': "Denunciar evento",
       'event_report_reason_fraud': "Estafa / fraude",
       'event_report_reason_danger': "Peligroso / arriesgado",
@@ -4572,6 +4575,7 @@ class AppTranslationAdditions {
       'cta_get_now': "Obtener ahora",
 },
     'de': {
+      'home_feed_is_with': 'ist mit',
       'event_report_title': "Veranstaltung melden",
       'event_report_reason_fraud': "Betrug / Täuschung",
       'event_report_reason_danger': "Gefährlich / riskant",
@@ -6010,6 +6014,7 @@ class AppTranslationAdditions {
       'cta_get_now': "Jetzt sichern",
 },
     'it': {
+      'home_feed_is_with': 'è con',
       'event_report_title': "Segnala evento",
       'event_report_reason_fraud': "Truffa / frode",
       'event_report_reason_danger': "Pericoloso / rischioso",
@@ -7446,6 +7451,7 @@ class AppTranslationAdditions {
       'cta_get_now': "Ottieni ora",
 },
     'pt': {
+      'home_feed_is_with': 'está com',
       'event_report_title': "Denunciar evento",
       'event_report_reason_fraud': "Burla / fraude",
       'event_report_reason_danger': "Perigoso / arriscado",
@@ -8882,6 +8888,7 @@ class AppTranslationAdditions {
       'cta_get_now': "Obter agora",
 },
     'zh': {
+      'home_feed_is_with': '与',
       'event_report_title': "举报活动",
       'event_report_reason_fraud': "诈骗 / 欺诈",
       'event_report_reason_danger': "危险 / 存在风险",
@@ -10320,6 +10327,7 @@ class AppTranslationAdditions {
       'cta_get_now': "立即获取",
 },
     'ja': {
+      'home_feed_is_with': 'と一緒です',
       'event_report_title': "イベントを報告",
       'event_report_reason_fraud': "詐欺 / 不正行為",
       'event_report_reason_danger': "危険 / リスクがある",
@@ -11751,6 +11759,7 @@ class AppTranslationAdditions {
       'cta_get_now': "今すぐ入手",
 },
     'ru': {
+      'home_feed_is_with': 'вместе с',
       'event_report_title': "Пожаловаться на мероприятие",
       'event_report_reason_fraud': "Мошенничество / обман",
       'event_report_reason_danger': "Опасно / рискованно",
