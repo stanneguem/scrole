@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -28,14 +29,17 @@ class SalonChatDatabase {
   }
 
   Future<Database> _open() async {
-    final directory = await getDatabasesPath();
+    final directory = kIsWeb ? '' : await getDatabasesPath();
+    final databasePath = kIsWeb ? _databaseName : join(directory, _databaseName);
     return openDatabase(
-      join(directory, _databaseName),
+      databasePath,
       version: _databaseVersion,
       onConfigure: (db) async {
         await db.rawQuery('PRAGMA foreign_keys = ON');
-        await db.rawQuery('PRAGMA busy_timeout = 10000');
-        await db.rawQuery('PRAGMA journal_mode = WAL');
+        if (!kIsWeb) {
+          await db.rawQuery('PRAGMA busy_timeout = 10000');
+          await db.rawQuery('PRAGMA journal_mode = WAL');
+        }
       },
       onCreate: _createSchema,
       onUpgrade: _upgradeSchema,
