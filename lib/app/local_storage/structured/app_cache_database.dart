@@ -5,7 +5,7 @@ import '../../../modules/module_communautes/centre/persistence/salon_chat_databa
 
 class AppDatabase {
   static const String _dbName = 'app_local.db';
-  static const int _dbVersion = 33;
+  static const int _dbVersion = 34;
   Future<Database>? _dbOpenFuture;
   Database? _database;
 
@@ -59,6 +59,10 @@ class AppDatabase {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 34) {
+      await _createNotificationDeletionTable(db);
+      await _createNotificationOutboxTable(db);
+    }
     if (oldVersion < 2) {
       await _createNotificationTable(db);
       await _createMessagingTables(db);
