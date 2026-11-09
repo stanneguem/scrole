@@ -1807,7 +1807,6 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
               ),
             ],
           ),
-        ),
 
         // Pagination du carrousel, alignée avec les interactions.
         if (widget.mediaCount > 1 && widget.mediaPageNotifier != null)
