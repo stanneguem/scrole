@@ -117,6 +117,103 @@ class NotificationDbService extends GetxService {
     }
   }
 
+  /// Applique un état de lecture reçu du serveur sans créer d'entrée d'outbox.
+  Future<void> syncRemoteReadState({
+    required String id,
+    required String userId,
+    required bool isRead,
+  }) async {
+    if (!isRead) return;
+    final db = await database;
+    await db.update(
+      'notifications',
+      {'is_read': 1},
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [id, userId],
+    );
+    _changes.add(userId);
+  }
+
+  /// Répercute une suppression serveur dans le cache et conserve un tombstone
+  /// afin qu'un ancien événement FCM/Realtime ne puisse pas recréer la ligne.
+  Future<void> syncRemoteDeletion({
+    required String id,
+    required String userId,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'notifications',
+        columns: ['id'],
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+        limit: 1,
+      );
+      if (existing.isEmpty) return;
+      await txn.delete(
+        'notifications',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+      );
+      await txn.insert(
+        'deleted_notifications',
+        {
+          'user_id': userId,
+          'notification_id': id,
+          'deleted_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await txn.delete(
+        'notification_outbox',
+        where: 'user_id = ? AND notification_id = ?',
+        whereArgs: [userId, id],
+      );
+    });
+    _changes.add(userId);
+  }
+
+  /// Réconcilie le cache après une récupération distante complète et paginée.
+  /// Les lignes absentes du snapshot serveur sont considérées comme supprimées.
+  Future<void> reconcileRemoteSnapshot({
+    required String userId,
+    required Set<String> remoteIds,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final localRows = await txn.query(
+        'notifications',
+        columns: ['id'],
+        where: 'user_id = ?',
+        whereArgs: [userId],
+      );
+      for (final row in localRows) {
+        final id = row['id']?.toString();
+        if (id == null || id.isEmpty || remoteIds.contains(id)) continue;
+        await txn.delete(
+          'notifications',
+          where: 'id = ? AND user_id = ?',
+          whereArgs: [id, userId],
+        );
+        await txn.insert(
+          'deleted_notifications',
+          {
+            'user_id': userId,
+            'notification_id': id,
+            'deleted_at': DateTime.now().millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await txn.delete(
+          'notification_outbox',
+          where: 'user_id = ? AND notification_id = ?',
+          whereArgs: [userId, id],
+        );
+      }
+    });
+    _changes.add(userId);
+  }
+
   Future<void> markAllAsRead(String userId) async {
     final db = await database;
     final unread = await db.query('notifications', columns: ['id'], where: 'user_id = ? AND is_read = 0', whereArgs: [userId]);
