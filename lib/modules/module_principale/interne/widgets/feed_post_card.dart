@@ -209,6 +209,7 @@ class FeedPostCard extends StatelessWidget {
     final showCommunityHeader = hasCommunity;
     final isSingleVideoPost =
         post.media.length == 1 && post.media.first.isVideo;
+    final mediaPageNotifier = ValueNotifier<int>(0);
 
     return Opacity(
       opacity: post.isPublishing ? 0.65 : 1.0,
@@ -353,6 +354,7 @@ class FeedPostCard extends StatelessWidget {
                 context,
                 isSingleVideoPost: isSingleVideoPost,
                 username: username,
+                mediaPageNotifier: mediaPageNotifier,
               ),
             ],
 
@@ -463,6 +465,8 @@ class FeedPostCard extends StatelessWidget {
                       onCommentTap: onCommentTap,
                       onShareTap:
                       onShareTap ?? () => _showShareSheet(context, post),
+                      mediaCount: post.media.length,
+                      mediaPageNotifier: mediaPageNotifier,
                     ),
                 ],
               ),
@@ -866,12 +870,14 @@ class FeedPostCard extends StatelessWidget {
       BuildContext context, {
         required bool isSingleVideoPost,
         required String username,
+        required ValueNotifier<int> mediaPageNotifier,
       }) {
     return SizedBox(
       width: double.infinity,
       child: Stack(
         children: [
           PostMediaSlider(
+            onPageChanged: (index) => mediaPageNotifier.value = index,
             heroTagPrefix: 'post_${post.id}',
             forceAutoplayVideos: autoplayVideos,
             onVideoQualifiedView: () => onVideoQualifiedView?.call(post.id),
@@ -1605,12 +1611,16 @@ class _ReactionButtonsBar extends StatefulWidget {
   final ValueChanged<PostReaction> onReactionTap;
   final VoidCallback onCommentTap;
   final VoidCallback onShareTap;
+  final int mediaCount;
+  final ValueListenable<int>? mediaPageNotifier;
 
   const _ReactionButtonsBar({
     required this.post,
     required this.onReactionTap,
     required this.onCommentTap,
     required this.onShareTap,
+    this.mediaCount = 0,
+    this.mediaPageNotifier,
   });
 
   @override
@@ -1675,7 +1685,10 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Bloc gauche : Like, Dislike, Commentaire
@@ -1861,6 +1874,34 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
             ),
           ],
         ),
+      ],
+        ),
+        if (mediaCount > 1 && mediaPageNotifier != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 7),
+            child: ValueListenableBuilder<int>(
+              valueListenable: mediaPageNotifier!,
+              builder: (context, currentIndex, _) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List<Widget>.generate(mediaCount, (index) {
+                  final active = index == currentIndex;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    width: active ? 16 : 5,
+                    height: 5,
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    decoration: BoxDecoration(
+                      color: active
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
       ],
     );
   }
