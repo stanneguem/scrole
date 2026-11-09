@@ -619,6 +619,40 @@ class NotificationService {
       return;
     }
 
+    // Realtime peut livrer un INSERT après un UPDATE/DELETE plus récent.
+    // Vérifier la ligne canonique avant toute insertion dans le cache local.
+    try {
+      final current = await Supabase.instance.client
+          .from('notifications')
+          .select('read_at')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (current == null) {
+        await Get.find<NotificationDbService>().syncRemoteDeletion(
+          id: id,
+          userId: userId,
+        );
+        debugPrint('[Realtime] Stale notification ignored: deleted on server');
+        return;
+      }
+      if (current['read_at'] != null) {
+        await Get.find<NotificationDbService>().syncRemoteReadState(
+          id: id,
+          userId: userId,
+          isRead: true,
+        );
+        await _plugin.cancel(id: id.hashCode.abs());
+        debugPrint('[Realtime] Stale notification ignored: already read');
+        return;
+      }
+    } catch (e) {
+      // Ne pas faire réapparaître un événement obsolète si l'état serveur
+      // n'a pas pu être vérifié.
+      debugPrint('[Realtime] Notification ignored: status check failed: $e');
+      return;
+    }
+
     final dbService = Get.find<NotificationDbService>();
 
     // Récupération de l'horodatage réel du serveur si disponible
