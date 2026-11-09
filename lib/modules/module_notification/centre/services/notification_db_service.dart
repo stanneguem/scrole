@@ -142,14 +142,6 @@ class NotificationDbService extends GetxService {
   }) async {
     final db = await database;
     await db.transaction((txn) async {
-      final existing = await txn.query(
-        'notifications',
-        columns: ['id'],
-        where: 'id = ? AND user_id = ?',
-        whereArgs: [id, userId],
-        limit: 1,
-      );
-      if (existing.isEmpty) return;
       await txn.delete(
         'notifications',
         where: 'id = ? AND user_id = ?',
