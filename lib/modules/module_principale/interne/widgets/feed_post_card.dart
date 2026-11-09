@@ -411,41 +411,31 @@ class FeedPostCard extends StatelessWidget {
                     _buildHashtags(colorScheme),
                   ],
 
-                  // Personnes mentionnées avant les boutons de réaction
+                  // Mention : libellé « Avec » suivi uniquement des avatars.
                   if (post.mentionedUsers != null &&
                       post.mentionedUsers!.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _showUsersListBottomSheet(
-                        context,
-                        'Personnes mentionnées',
-                        post.mentionedUsers!,
-                      ),
-                      child: Row(
-                        children: [
-                          _OverlappingAvatars(
-                            users: post.mentionedUsers!,
-                            onTap: () => _showUsersListBottomSheet(
-                              context,
-                              'Personnes mentionnées',
-                              post.mentionedUsers!,
-                            ),
-                            size: 24,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Avec',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Avec ${post.mentionedUsers!.map((m) => '@${m.username}').join(', ')}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                        ),
+                        const SizedBox(width: 7),
+                        _OverlappingAvatars(
+                          users: post.mentionedUsers!,
+                          onTap: () => _showUsersListBottomSheet(
+                            context,
+                            'Personnes mentionnées',
+                            post.mentionedUsers!,
                           ),
-                        ],
-                      ),
+                          size: 24,
+                        ),
+                      ],
                     ),
                   ],
 
