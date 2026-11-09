@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:device_preview/device_preview.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -32,6 +31,7 @@ import 'package:scrole/app/service_global/centre_interrets_service.dart';
 import 'package:scrole/app_controller.dart';
 import 'package:scrole/app/local_storage/fast/fast_cache_service.dart';
 import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
+import 'package:scrole/app/local_storage/structured/database_factory.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/app/routes/app_routes.dart';
 import 'package:scrole/app/theme/app_theme.dart';
@@ -46,7 +46,7 @@ import 'package:scrole/modules/module_discussion_direct/externe/services/supabas
 import 'package:scrole/modules/module_discussion_direct/externe/services/fcm_notification_service.dart';
 import 'package:scrole/modules/module_discussion_direct/centre/services/chat_service.dart';
 
-void main() {
+Future<void> main() async {
   // En production, désactive les logs Flutter debugPrint dans toute l'application.
   // En debug/profile, les journaux restent disponibles pour le diagnostic.
   if (kReleaseMode) {
@@ -62,8 +62,7 @@ void main() {
   bootLog('WidgetsFlutterBinding.ensureInitialized terminé');
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    if (error is SocketException ||
-        error.toString().contains('SocketException') ||
+    if (error.toString().contains('SocketException') ||
         error.toString().contains('Connection refused')) {
       if (kDebugMode) {
         debugPrint('[Network] Erreur réseau ignorée (hors ligne / connexion refusée).');
@@ -98,6 +97,7 @@ void main() {
       FlutterError.dumpErrorToConsole(details);
     };
   }
+  await configureDatabaseFactory();
   _bootstrap();
 }
 
@@ -256,8 +256,10 @@ Future<void> _initDeferred() async {
     // Retarder l'initialisation lourde de Firebase & FCM de 3 secondes après le premier rendu
     await Future.delayed(const Duration(seconds: 3));
 
-    await Firebase.initializeApp();
-    unawaited(Get.find<FcmNotificationService>().initialize());
+    if (!kIsWeb) {
+      await Firebase.initializeApp();
+      unawaited(Get.find<FcmNotificationService>().initialize());
+    }
 
     await NotificationService.instance.initialize(
       onNotificationTap: (response) {
