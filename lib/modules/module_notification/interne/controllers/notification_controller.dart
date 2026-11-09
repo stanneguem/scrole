@@ -23,6 +23,7 @@ class NotificationController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool _isProcessingOutbox = false.obs;
   Worker? _authWorker;
+  String? _syncingUserId;
 
   @override
   void onInit() {
@@ -96,10 +97,29 @@ class NotificationController extends GetxController {
 
   Future<void> _syncRemoteNotifications() async {
     final userId = _authService.userId;
-    if (userId == null) return;
+    if (userId == null || _syncingUserId == userId) return;
+    _syncingUserId = userId;
     try {
-      final remote = await _repository.getMyNotifications(limit: 100);
-      for (final notification in remote) {
+      const pageSize = 100;
+      final remoteById = <String, RemoteNotificationModel>{};
+      var offset = 0;
+      while (true) {
+        final page = await _repository.getMyNotifications(
+          limit: pageSize,
+          offset: offset,
+        );
+        for (final notification in page) {
+          remoteById[notification.id] = notification;
+        }
+        if (page.length < pageSize) break;
+        offset += page.length;
+      }
+
+      // Ne jamais appliquer le résultat d'un ancien compte après un changement
+      // de session intervenu pendant la pagination.
+      if (_authService.userId != userId) return;
+
+      for (final notification in remoteById.values) {
         await _service.saveNotification(
           id: notification.id,
           userId: userId,
@@ -111,10 +131,18 @@ class NotificationController extends GetxController {
           createdAt: notification.createdAt,
         );
       }
+
+      // Un snapshot complet permet enfin de retirer du cache les notifications
+      // supprimées depuis un autre appareil.
+      await _service.reconcileRemoteSnapshot(
+        userId: userId,
+        remoteIds: remoteById.keys.toSet(),
+      );
     } catch (e) {
       debugPrint('[Error] Synchronisation notifications Supabase: $e');
     } finally {
-      isLoading.value = false;
+      if (_syncingUserId == userId) _syncingUserId = null;
+      if (_authService.userId == userId) isLoading.value = false;
     }
   }
 
@@ -289,6 +317,7 @@ class NotificationController extends GetxController {
     await _service.markAsRead(id, userId: userId);
     try {
       await _repository.markAsRead(id);
+      await _service.removeFromOutbox(userId, id, 'mark_read');
     } catch (e) {
       debugPrint('[Error] Marquage notification Supabase: $e');
     }
