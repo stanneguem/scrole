@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../module_authentification/centre/services/auth_service.dart';
+import '../../centre/models/remote_notification_model.dart';
 import '../../centre/services/notification_db_service.dart';
 import '../../externe/repositories/notification_repository.dart';
 import '../../../../app/routes/app_pages.dart';
+import '../../../../app/service_global/notification_service.dart';
 import '../../../module_evenement/centre/repositories/event_repository.dart';
 import '../../../module_decouverte/centre/models/external_profile_model.dart';
 import '../../../module_decouverte/externe/repositories/external_profile_repository.dart';
@@ -315,6 +317,7 @@ class NotificationController extends GetxController {
     final userId = _authService.userId;
     if (userId == null) return;
     await _service.markAsRead(id, userId: userId);
+    await NotificationService.instance.cancelNotification(id);
     try {
       await _repository.markAsRead(id);
       await _service.removeFromOutbox(userId, id, 'mark_read');
@@ -341,6 +344,7 @@ class NotificationController extends GetxController {
     final userId = _authService.userId;
     if (userId == null) return;
     await _service.deleteNotification(id, userId: userId);
+    await NotificationService.instance.cancelNotification(id);
     unawaited(processOutbox());
   }
 
@@ -348,6 +352,7 @@ class NotificationController extends GetxController {
     final userId = _authService.userId;
     if (userId == null) return;
     await _service.deleteAllNotifications(userId);
+    await NotificationService.instance.cancelAllNotifications();
     unawaited(processOutbox());
   }
 
