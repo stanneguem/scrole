@@ -48,6 +48,28 @@ Deno.serve(async (req: Request) => {
     const userId = record?.user_id as string | undefined;
     if (!userId) return json({ error: "missing_user_id" }, 400);
 
+    const type = String(record.type ?? "info").toLowerCase();
+
+    // The SQL webhook is asynchronous: the user may have read or deleted the
+    // row before this Edge Function starts. Never send stale push notifications.
+    if (type !== "message_received") {
+      const notificationId = String(record.id ?? "");
+      if (!notificationId) return json({ error: "missing_notification_id" }, 400);
+      const { data: currentNotification, error: notificationError } = await supabaseAdmin
+        .from("notifications")
+        .select("id,read_at")
+        .eq("id", notificationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (notificationError) {
+        console.error("notification status lookup failed", notificationError);
+        return json({ error: "notification_status_lookup_failed" }, 500);
+      }
+      if (!currentNotification || currentNotification.read_at !== null) {
+        return json({ ok: true, sent: 0, reason: "notification_no_longer_pending" });
+      }
+    }
+
     const [{ data: devices, error: devicesError }, { data: preferences, error: preferencesError }] = await Promise.all([
       supabaseAdmin.from("user_devices").select("id,device_token,platform,device_brand,device_model,push_enabled")
         .eq("user_id", userId).eq("push_enabled", true).not("device_token", "is", null),
@@ -60,7 +82,6 @@ Deno.serve(async (req: Request) => {
       return json({ error: "recipient_lookup_failed" }, 500);
     }
 
-    const type = String(record.type ?? "info").toLowerCase();
     const recordData = record.data && typeof record.data === "object" ? { ...record.data } : {};
     const isE2eeMessage = type === "e2ee_message_received" ||
       recordData.e2ee === true || recordData.e2ee === "true" ||
