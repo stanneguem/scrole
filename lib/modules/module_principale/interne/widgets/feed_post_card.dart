@@ -1815,13 +1815,13 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
               child: ValueListenableBuilder<int>(
                 valueListenable: widget.mediaPageNotifier!,
                 builder: (context, currentIndex, _) {
-                  // Jusqu'à 4 médias, afficher tous les indicateurs.
-                  // Au-delà, conserver une fenêtre mobile de 3 points.
-                  final visibleCount = widget.mediaCount > 4
+                  // Dès 4 médias, afficher au maximum 3 indicateurs.
+                  // La fenêtre de 3 points suit ensuite le média actif.
+                  final visibleCount = widget.mediaCount >= 4
                       ? 3
                       : widget.mediaCount;
                   final maxStart = widget.mediaCount - visibleCount;
-                  final windowStart = widget.mediaCount > 4
+                  final windowStart = widget.mediaCount >= 4
                       ? (currentIndex < 2
                           ? 0
                           : (currentIndex >= widget.mediaCount - 2
