@@ -99,7 +99,9 @@ class ScroleBottomSheetGallery {
       isScrollControlled: true,
       builder: (_) => MediaGallerySheet(
         maxSelection: 1,
-        onSelected: (files) => Navigator.of(context).pop(files),
+        // MediaGallerySheet returns the selected files when it closes.
+        // Do not pop here: that would pop the registration screen as well.
+        onSelected: (_) {},
       ),
     );
 
