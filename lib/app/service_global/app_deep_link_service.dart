@@ -137,7 +137,17 @@ class AppDeepLinkService {
 
 
   Future<void> initialize() async {
-    if (kIsWeb || _subscription != null) return;
+    if (_subscription != null) return;
+    if (kIsWeb) {
+      // On the web, shared links arrive as the browser's initial URL rather
+      // than through the native app_links plugin. Process it after bootstrap
+      // services are ready; the priority-screen guard remains in force.
+      final uri = Uri.base;
+      if (uri.pathSegments.isNotEmpty) {
+        unawaited(_acceptUriWhenAllowed(uri));
+      }
+      return;
+    }
 
     // Use the link stream as the single source of incoming URLs.
     // app_links can expose the Android launch intent again through
