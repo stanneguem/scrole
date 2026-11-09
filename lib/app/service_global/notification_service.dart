@@ -462,7 +462,38 @@ class NotificationService {
           final row = payload.newRecord;
           await _processIncomingNotification(row);
         },
-      ).subscribe((status, error) async {
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (payload) async {
+          final row = payload.newRecord;
+          final id = row['id']?.toString();
+          if (id == null || id.isEmpty) return;
+          await db.syncRemoteReadState(
+            id: id,
+            userId: userId,
+            isRead: row['read_at'] != null,
+          );
+        },
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'notifications',
+        callback: (payload) async {
+          final id = payload.oldRecord['id']?.toString();
+          if (id == null || id.isEmpty) return;
+          await db.syncRemoteDeletion(id: id, userId: userId);
+        },
+      )
+      .subscribe((status, error) async {
         if (status == RealtimeSubscribeStatus.subscribed) {
           if (_subscribedOnce) {
             // RECONNEXION : Rattrapage ciblé pour combler les "trous"
@@ -542,9 +573,11 @@ class NotificationService {
     final userId = Get.find<AuthService>().userId;
     if (userId == null) return;
 
-    final id =
-        data['id']?.toString() ??
-        DateTime.now().millisecondsSinceEpoch.toString();
+    final id = data['id']?.toString();
+    if (id == null || id.isEmpty) {
+      debugPrint('[FCM] Incoming notification ignored: missing server id');
+      return;
+    }
     final title = data['title']?.toString() ?? 'Scrole';
     final body = data['body']?.toString() ?? '';
     final type = data['type']?.toString() ?? 'info';
@@ -673,20 +706,39 @@ class NotificationService {
           DateTime.now().millisecondsSinceEpoch.toString();
 
       final userId = Get.find<AuthService>().userId;
-      var saved = true;
-      if (userId != null) {
-        try {
-          saved = await Get.find<NotificationDbService>().saveNotification(
-            id: notifId,
-            userId: userId,
-            title: title,
-            message: body,
-            type: type,
-            payload: jsonEncode(data),
-          );
-        } catch (e) {
-          debugPrint('[FCM] Erreur sauvegarde notification: $e');
+      if (userId == null || notifId.isEmpty) {
+        debugPrint('[FCM] Push ignored: no active account or notification id');
+        return;
+      }
+
+      // FCM peut arriver après un marquage comme lu ou une suppression.
+      // Vérifier l'état canonique avant de recréer le cache/afficher la bannière.
+      var saved = false;
+      try {
+        final current = await Supabase.instance.client
+            .from('notifications')
+            .select('read_at')
+            .eq('id', notifId)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (current == null || current['read_at'] != null) {
+          await _plugin.cancel(id: notifId.hashCode.abs());
+          debugPrint('[FCM] Push ignored: notification already read or deleted');
+          return;
         }
+        saved = await Get.find<NotificationDbService>().saveNotification(
+          id: notifId,
+          userId: userId,
+          title: title,
+          message: body,
+          type: type,
+          payload: jsonEncode(data),
+        );
+      } catch (e) {
+        // En cas d'indisponibilité serveur, ne pas afficher une notification
+        // dont l'état de lecture/suppression ne peut pas être confirmé.
+        debugPrint('[FCM] Push ignored: status verification failed: $e');
+        return;
       }
 
       // Si la notification a déjà été sauvegardée (et donc affichée) par le
