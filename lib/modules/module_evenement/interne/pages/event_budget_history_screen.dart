@@ -139,17 +139,32 @@ class _EventBudgetHistoryScreenState extends State<EventBudgetHistoryScreen> {
             const Divider(height: 22),
             _line('event_budget_history_total'.tr, NumberFormatter.formatPrice(amount, currency), colors, emphasize: true),
             const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              TextButton(onPressed: eventId.isEmpty ? null : () => Get.toNamed(AppPages.eventPreviewPath(eventId)),
-                child: Text('event_budget_history_open_event'.tr)),
-              TextButton.icon(
-                onPressed: _reusingSessionId == null ? () => _reuseSession(item) : null,
-                icon: _reusingSessionId == (item['session_id'] ?? '').toString()
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.replay_rounded, size: 16),
-                label: Text('event_budget_history_reuse'.tr),
-              ),
-            ]),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              runSpacing: 4,
+              spacing: 8,
+              children: [
+                TextButton(
+                  onPressed: eventId.isEmpty
+                      ? null
+                      : () => Get.toNamed(AppPages.eventPreviewPath(eventId)),
+                  child: Text('event_budget_history_open_event'.tr),
+                ),
+                TextButton.icon(
+                  onPressed: _reusingSessionId == null
+                      ? () => _reuseSession(item)
+                      : null,
+                  icon: _reusingSessionId == (item['session_id'] ?? '').toString()
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.replay_rounded, size: 16),
+                  label: Text('event_budget_history_reuse'.tr),
+                ),
+              ],
+            ),
           ])),
       ),
     );
