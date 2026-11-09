@@ -311,10 +311,15 @@ class FeedPostCard extends StatelessWidget {
                       username,
                     ),
 
-                  // 3. Badge "Suggéré" & bouton Rejoindre
-                  if (post.isSuggested && !isSingleVideoPost) ...[
-                    const SizedBox(height: 6),
-                    _buildSuggestedRow(colorScheme, hasCommunity),
+                  // Le libellé « Suggestion » est intégré à l'en-tête
+                  // auteur pour rester sur la même ligne que le nom, le pseudo,
+                  // le badge de certification et l'heure.
+                  if (post.isSuggested && hasCommunity && !isSingleVideoPost) ...[
+                    const SizedBox(height: 2),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildSuggestedJoinAction(colorScheme),
+                    ),
                   ],
 
                   // 4. Texte de la publication
@@ -784,6 +789,10 @@ class FeedPostCard extends StatelessWidget {
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (post.isSuggested) ...[
+                  const SizedBox(width: 3),
+                  _buildSuggestedBadge(colorScheme),
+                ],
                 if (post.isSponsored) ...[
                   const SizedBox(width: 7),
                   Container(
@@ -824,45 +833,38 @@ class FeedPostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildSuggestedRow(ColorScheme colorScheme, bool hasCommunity) {
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: 4,
-      spacing: 8,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            'home_feed_suggested'.tr,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
-            ),
-          ),
+  Widget _buildSuggestedBadge(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(
+        'home_feed_suggested'.tr,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.bold,
+          color: colorScheme.primary,
         ),
-        if (hasCommunity)
-          TextButton.icon(
-            onPressed:
-            onJoinCommunity ?? () => _onCommunityTap(post.communityId!),
-            icon: const Icon(Icons.group_add_rounded, size: 16),
-            label: Text(
-              'home_feed_join_community'.tr,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              foregroundColor: colorScheme.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            ),
-          ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestedJoinAction(ColorScheme colorScheme) {
+    return TextButton.icon(
+      onPressed: onJoinCommunity ?? () => _onCommunityTap(post.communityId!),
+      icon: const Icon(Icons.group_add_rounded, size: 16),
+      label: Text(
+        'home_feed_join_community'.tr,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        foregroundColor: colorScheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
     );
   }
 
