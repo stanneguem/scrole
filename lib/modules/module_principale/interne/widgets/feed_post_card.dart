@@ -1686,17 +1686,13 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Bloc gauche : Like, Dislike, Commentaire
-        Expanded(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               // 1. Upvote / Like
               InkWell(
                 onTap: widget.post.isPublishing
@@ -1813,6 +1809,37 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
           ),
         ),
 
+        // Pagination du carrousel, alignée avec les interactions.
+        if (widget.mediaCount > 1 && widget.mediaPageNotifier != null)
+          Expanded(
+            child: Center(
+              child: ValueListenableBuilder<int>(
+                valueListenable: widget.mediaPageNotifier!,
+                builder: (context, currentIndex, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List<Widget>.generate(widget.mediaCount, (index) {
+                    final active = index == currentIndex;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                      width: active ? 16 : 5,
+                      height: 5,
+                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          )
+        else
+          const Spacer(),
+
         // Bloc droit : Vues, Partage
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -1875,34 +1902,6 @@ class _ReactionButtonsBarState extends State<_ReactionButtonsBar> {
             ),
           ],
         ),
-      ],
-        ),
-        if (widget.mediaCount > 1 && widget.mediaPageNotifier != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 7),
-            child: ValueListenableBuilder<int>(
-              valueListenable: widget.mediaPageNotifier!,
-              builder: (context, currentIndex, _) => Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List<Widget>.generate(widget.mediaCount, (index) {
-                  final active = index == currentIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    width: active ? 16 : 5,
-                    height: 5,
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
       ],
     );
   }
