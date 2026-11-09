@@ -22,6 +22,7 @@ class PostMediaSlider extends StatefulWidget {
   final int commentsCount;
   final int sharesCount;
   final VoidCallback? onVideoQualifiedView;
+  final ValueChanged<int>? onPageChanged;
   final double qualifiedViewPercent;
 
   const PostMediaSlider({
@@ -36,6 +37,7 @@ class PostMediaSlider extends StatefulWidget {
     this.commentsCount = 0,
     this.sharesCount = 0,
     this.onVideoQualifiedView,
+    this.onPageChanged,
     this.qualifiedViewPercent = 0.5,
   });
 
@@ -313,85 +315,61 @@ class _PostMediaSliderState extends State<PostMediaSlider> {
     }
 
     // Four or more items use a swipeable full-bleed carousel.
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: mediaHeight,
-          child: Stack(
-            children: [
-              PageView.builder(
-                controller: _pageController,
-                itemCount: len,
-                onPageChanged: (index) => setState(() => _currentIndex = index),
-                itemBuilder: (context, index) => buildMedia(
-                  index,
-                  radius: BorderRadius.zero,
-                ),
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: IgnorePointer(
-                  child: AnimatedOpacity(
-                    opacity: _videoOverlayOpacity,
-                    duration: const Duration(milliseconds: 180),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.30),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.24),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Text(
-                            '${_currentIndex + 1} / $len',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
+    return SizedBox(
+      width: double.infinity,
+      height: mediaHeight,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: len,
+            onPageChanged: (index) {
+              setState(() => _currentIndex = index);
+              widget.onPageChanged?.call(index);
+            },
+            itemBuilder: (context, index) => buildMedia(
+              index,
+              radius: BorderRadius.zero,
+            ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _videoOverlayOpacity,
+                duration: const Duration(milliseconds: 180),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.30),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.24),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        '${_currentIndex + 1} / $len',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 10, bottom: 2),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List<Widget>.generate(len, (index) {
-              final isActive = index == _currentIndex;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                width: isActive ? 17 : 5,
-                height: 5,
-                margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
