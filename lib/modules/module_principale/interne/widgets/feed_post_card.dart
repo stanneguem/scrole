@@ -465,7 +465,7 @@ class FeedPostCard extends StatelessWidget {
                       onCommentTap: onCommentTap,
                       onShareTap:
                       onShareTap ?? () => _showShareSheet(context, post),
-                      mediaCount: post.media.length,
+                      mediaCount: post.media.length >= 4 ? post.media.length : 0,
                       mediaPageNotifier: mediaPageNotifier,
                     ),
                 ],
