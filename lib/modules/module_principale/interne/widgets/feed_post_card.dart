@@ -824,17 +824,19 @@ class FeedPostCard extends StatelessWidget {
   }
 
   Widget _buildSuggestedBadge(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        'home_feed_suggested'.tr,
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.bold,
+    return Tooltip(
+      message: 'home_feed_suggested'.tr,
+      child: Container(
+        width: 23,
+        height: 23,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Icon(
+          Icons.auto_awesome_rounded,
+          size: 14,
           color: colorScheme.primary,
         ),
       ),
@@ -984,18 +986,20 @@ class FeedPostCard extends StatelessWidget {
                           child: const Text('Publicité', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                         ),
                       if (post.isSuggested)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            'home_feed_suggested'.tr,
-                            style: const TextStyle(
+                        Tooltip(
+                          message: 'home_feed_suggested'.tr,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
                               color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
+                              size: 13,
                             ),
                           ),
                         ),
