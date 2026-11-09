@@ -411,44 +411,6 @@ class FeedPostCard extends StatelessWidget {
                     _buildHashtags(colorScheme),
                   ],
 
-                  // Personnes mentionnées avant les boutons de réaction
-                  if (post.mentionedUsers != null &&
-                      post.mentionedUsers!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _showUsersListBottomSheet(
-                        context,
-                        'Personnes mentionnées',
-                        post.mentionedUsers!,
-                      ),
-                      child: Row(
-                        children: [
-                          _OverlappingAvatars(
-                            users: post.mentionedUsers!,
-                            onTap: () => _showUsersListBottomSheet(
-                              context,
-                              'Personnes mentionnées',
-                              post.mentionedUsers!,
-                            ),
-                            size: 24,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Avec ${post.mentionedUsers!.map((m) => '@${m.username}').join(', ')}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
                   // Sondage
                   if (post.poll != null) ...[
                     const SizedBox(height: 10),
@@ -767,6 +729,51 @@ class FeedPostCard extends StatelessWidget {
                     color: colorScheme.onSurface,
                   ),
                 ),
+                if (post.mentionedUsers?.isNotEmpty == true) ...[
+                  Text(
+                    'est avec',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  ...post.mentionedUsers!
+                      .where((mention) => mention.username.trim().isNotEmpty)
+                      .take(3)
+                      .map(
+                        (mention) => GestureDetector(
+                          onTap: () => _showUsersListBottomSheet(
+                            context,
+                            'Personnes mentionnées',
+                            post.mentionedUsers!,
+                          ),
+                          child: Text(
+                            '@${mention.username}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  if (post.mentionedUsers!.where((m) => m.username.trim().isNotEmpty).length > 3)
+                    GestureDetector(
+                      onTap: () => _showUsersListBottomSheet(
+                        context,
+                        'Personnes mentionnées',
+                        post.mentionedUsers!,
+                      ),
+                      child: Text(
+                        '+${post.mentionedUsers!.where((m) => m.username.trim().isNotEmpty).length - 3}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                ],
                 if (username.isNotEmpty)
                   Text(
                     '@$username',
@@ -967,6 +974,37 @@ class FeedPostCard extends StatelessWidget {
                           fontSize: 14,
                         ),
                       ),
+                      if (post.mentionedUsers?.isNotEmpty == true) ...[
+                        const Text(
+                          'est avec',
+                          style: TextStyle(color: Colors.white, fontSize: 11.5),
+                        ),
+                        ...post.mentionedUsers!
+                            .where((mention) => mention.username.trim().isNotEmpty)
+                            .take(3)
+                            .map(
+                              (mention) => GestureDetector(
+                                onTap: () => _showUsersListBottomSheet(
+                                  context,
+                                  'Personnes mentionnées',
+                                  post.mentionedUsers!,
+                                ),
+                                child: Text(
+                                  '@${mention.username}',
+                                  style: const TextStyle(
+                                    color: Colors.lightBlueAccent,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        if (post.mentionedUsers!.where((m) => m.username.trim().isNotEmpty).length > 3)
+                          Text(
+                            '+${post.mentionedUsers!.where((m) => m.username.trim().isNotEmpty).length - 3}',
+                            style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 11.5),
+                          ),
+                      ],
                       if (post.authorObj?.isCertified == true || post.isPlatformPromotion)
                         UserCertifiedBadge(
                           size: 14,
