@@ -24,14 +24,17 @@ class AppDatabase {
   }
 
   Future<Database> _open() async {
-    final dbPath = await getDatabasesPath();
+    final dbPath = kIsWeb ? '' : await getDatabasesPath();
+    final dbLocation = kIsWeb ? _dbName : join(dbPath, _dbName);
     return openDatabase(
-      join(dbPath, _dbName),
+      dbLocation,
       version: _dbVersion,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
-        await db.rawQuery('PRAGMA busy_timeout = 10000');
-        await db.rawQuery('PRAGMA journal_mode = WAL');
+        if (!kIsWeb) {
+          await db.rawQuery('PRAGMA busy_timeout = 10000');
+          await db.rawQuery('PRAGMA journal_mode = WAL');
+        }
       },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
