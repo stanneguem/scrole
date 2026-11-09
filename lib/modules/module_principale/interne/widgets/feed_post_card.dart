@@ -993,15 +993,24 @@ class FeedPostCard extends StatelessWidget {
                           decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(5)),
                           child: const Text('Publicité', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                         ),
+                      if (post.isSuggested)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            'home_feed_suggested'.tr,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                  if (post.isSuggested) ...[
-                    const SizedBox(height: 5),
-                    _buildSuggestedRow(
-                      Theme.of(context).colorScheme,
-                      post.communityId != null && post.communityId!.isNotEmpty,
-                    ),
-                  ],
                 ],
               ),
             ),
