@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:video_player/video_player.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
 import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
@@ -829,12 +829,46 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
 
+  /// Lit uniquement les métadonnées natives du média.
+  /// Évite d'initialiser un lecteur/décodeur vidéo complet pour connaître la durée.
+  Future<Duration> _readVideoDuration(File file) async {
+    if (!await file.exists()) {
+      throw StateError('Le fichier vidéo sélectionné est introuvable.');
+    }
+    final fileSize = await file.length();
+    if (fileSize <= 0) {
+      throw StateError('Le fichier vidéo sélectionné est vide.');
+    }
+
+    final watch = Stopwatch()..start();
+    final info = await VideoCompress.getMediaInfo(file.path)
+        .timeout(const Duration(seconds: 20));
+    final durationMicros = info.duration;
+    if (durationMicros == null ||
+        !durationMicros.isFinite ||
+        durationMicros <= 0) {
+      throw StateError('La durée de cette vidéo est illisible.');
+    }
+
+    final duration = Duration(microseconds: durationMicros.round());
+    debugPrint(
+      '[POST_COMPOSER] video metadata: '
+      'size=\${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB '
+      'resolution=\${info.width}x\${info.height} '
+      'duration=\${duration.inMilliseconds}ms '
+      'metadata=\${watch.elapsedMilliseconds}ms',
+    );
+    return duration;
+  }
+
   Future<void> _handleGallerySelection(List<XFile> files) async {
+    // Traitement volontairement séquentiel : un seul travail vidéo natif à la fois.
     for (final picked in files) {
       if (!mounted || _selectedMediaCount >= maxPostMedia) break;
       final file = File(picked.path);
       final extension = p.extension(picked.path).replaceFirst('.', '').toLowerCase();
-      final isVideo = const {'mp4', 'mov'}.contains(extension);
+      final isVideo = const {'mp4', 'mov', 'm4v'}.contains(extension);
+
       if (!isVideo) {
         if (_selectedPhotoCount >= maxPostPhotos) {
           Get.snackbar('post_composer_photo_limit_title'.tr, 'post_composer_photo_limit_message'.trParams({'max': '$maxPostPhotos'}));
@@ -846,39 +880,41 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         });
         continue;
       }
+
       try {
         var videoFile = file;
-        final controller = VideoPlayerController.file(videoFile);
-        Duration duration;
-        try {
-          await controller.initialize();
-          duration = controller.value.duration;
-        } finally {
-          await controller.dispose();
-        }
+        final duration = await _readVideoDuration(videoFile);
+
         if (duration > const Duration(seconds: 29)) {
-          final trimmed = await Get.to<File>(() => VideoTrimScreen(videoFile: videoFile, maxDuration: const Duration(seconds: 29)));
+          final trimmed = await Get.to<File>(() => VideoTrimScreen(
+                videoFile: videoFile,
+                maxDuration: const Duration(seconds: 29),
+              ));
           if (trimmed == null || !mounted) continue;
+
           videoFile = trimmed;
-          final verify = VideoPlayerController.file(videoFile);
-          try {
-            await verify.initialize();
-            if (verify.value.duration > const Duration(seconds: 29)) {
-              Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
-              continue;
-            }
-          } finally {
-            await verify.dispose();
+          // Vérification par lecture des métadonnées uniquement, sans ouvrir
+          // un second lecteur vidéo natif.
+          final trimmedDuration = await _readVideoDuration(videoFile);
+          if (trimmedDuration > const Duration(seconds: 29)) {
+            Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
+            continue;
           }
         }
+
         if (!mounted) return;
         setState(() {
           _selectedMedia.add(_SelectedPostMedia(file: videoFile, isVideo: true));
           _prefilledUrl = null;
         });
-      } catch (e) {
-        if (mounted) Get.snackbar('post_composer_video_invalid_title'.tr, 'post_composer_video_invalid_message'.tr);
-        debugPrint('[POST_COMPOSER] incompatible gallery video: $e');
+      } catch (e, stack) {
+        debugPrint('[POST_COMPOSER] video selection failed: $e\n$stack');
+        if (mounted) {
+          Get.snackbar(
+            'post_composer_video_invalid_title'.tr,
+            'post_composer_video_invalid_message'.tr,
+          );
+        }
       }
     }
   }
@@ -895,37 +931,39 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     try {
       final picked = await _mediaPicker.pickVideo(source: ImageSource.gallery);
       if (picked == null || !mounted) return;
+
       var file = File(picked.path);
-      final controller = VideoPlayerController.file(file);
-      Duration duration;
-      try {
-        await controller.initialize();
-        duration = controller.value.duration;
-      } finally {
-        await controller.dispose();
-      }
+      final duration = await _readVideoDuration(file);
       if (duration > const Duration(seconds: 29)) {
-        final trimmed = await Get.to<File>(() => VideoTrimScreen(videoFile: file, maxDuration: const Duration(seconds: 29)));
+        final trimmed = await Get.to<File>(() => VideoTrimScreen(
+              videoFile: file,
+              maxDuration: const Duration(seconds: 29),
+            ));
         if (trimmed == null || !mounted) return;
+
         file = trimmed;
-        final verify = VideoPlayerController.file(file);
-        try {
-          await verify.initialize();
-          if (verify.value.duration > const Duration(seconds: 29)) {
-            Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
-            return;
-          }
-        } finally {
-          await verify.dispose();
+        final trimmedDuration = await _readVideoDuration(file);
+        if (trimmedDuration > const Duration(seconds: 29)) {
+          Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
+          return;
         }
       }
+
       if (!mounted) return;
       setState(() {
         _selectedMedia.add(_SelectedPostMedia(file: file, isVideo: true));
         _prefilledUrl = null;
       });
-    } catch (e) {
-      if (mounted) Get.snackbar('post_composer_video_select_error'.tr, e.toString(), backgroundColor: Colors.black87, colorText: Colors.white);
+    } catch (e, stack) {
+      debugPrint('[POST_COMPOSER] video picker failed: $e\n$stack');
+      if (mounted) {
+        Get.snackbar(
+          'post_composer_video_select_error'.tr,
+          'post_composer_video_select_error'.tr,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+        );
+      }
     }
   }
 
@@ -1460,80 +1498,42 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 }
 
 
-/// Aperçu vidéo réel dans le compositeur : l'utilisateur peut vérifier le média
-/// et lire/mettre en pause sans quitter l'écran de préparation de publication.
-class _SelectedVideoPreview extends StatefulWidget {
+/// Aperçu léger : ne conserve aucun lecteur/décodeur vidéo natif actif
+/// dans la grille du compositeur. La lecture se fait après publication.
+class _SelectedVideoPreview extends StatelessWidget {
   final File file;
   const _SelectedVideoPreview({required this.file});
-
-  @override
-  State<_SelectedVideoPreview> createState() => _SelectedVideoPreviewState();
-}
-
-class _SelectedVideoPreviewState extends State<_SelectedVideoPreview> {
-  late final VideoPlayerController _controller;
-  bool _ready = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.file(widget.file);
-    _controller.initialize().then((_) {
-      if (mounted) setState(() => _ready = true);
-    }).catchError((Object error) {
-      debugPrint('[POST_COMPOSER] video preview initialization failed: $error');
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: Colors.black),
-        if (_ready)
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _controller.value.size.width,
-              height: _controller.value.size.height,
-              child: VideoPlayer(_controller),
-            ),
-          )
-        else
-          const Center(child: CircularProgressIndicator(color: Colors.white)),
-        Positioned.fill(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                if (!_ready) return;
-                setState(() {
-                  _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                });
-              },
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.48),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white70),
-                  ),
-                  child: Icon(
-                    _ready && _controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 36,
-                  ),
+        const ColoredBox(color: Colors.black87),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white54),
                 ),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
               ),
-            ),
+              const SizedBox(height: 8),
+              const Text(
+                'Vidéo sélectionnée',
+                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                p.extension(file.path).replaceFirst('.', '').toUpperCase(),
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+            ],
           ),
         ),
         Positioned(
@@ -1541,7 +1541,10 @@ class _SelectedVideoPreviewState extends State<_SelectedVideoPreview> {
           bottom: 8,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
