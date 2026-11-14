@@ -23,7 +23,9 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   bool _progressVisibility = false;
   bool _isLoadingVideo = true;
   bool _loadFailed = false;
-  Duration _effectiveMaxDuration = const Duration(seconds: 29);
+  Duration _videoDuration = Duration.zero;
+  double _selectedStartMs = 0;
+  double _selectedEndMs = 0;
 
   @override
   void initState() {
@@ -34,20 +36,20 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   Future<void> _loadVideo() async {
     try {
       await _trimmer.loadVideo(videoFile: widget.videoFile);
-      // Le viewer fixe du package doit recevoir une limite qui ne dépasse
-      // jamais la durée réelle du fichier. Sinon, sur certaines vidéos
-      // courtes, la timeline peut ne pas être construite correctement.
       final videoDuration =
           _trimmer.videoPlayerController?.value.duration ?? Duration.zero;
-      final effectiveMilliseconds = videoDuration.inMilliseconds > 0
-          ? videoDuration.inMilliseconds
-              .clamp(1, widget.maxDuration.inMilliseconds)
-              .toInt()
-          : widget.maxDuration.inMilliseconds;
+      final durationMs = videoDuration.inMilliseconds.toDouble();
+      final initialSelectionMs = durationMs
+          .clamp(1, widget.maxDuration.inMilliseconds.toDouble())
+          .toDouble();
       if (mounted) {
         setState(() {
-          _effectiveMaxDuration =
-              Duration(milliseconds: effectiveMilliseconds);
+          _videoDuration = videoDuration;
+          _selectedStartMs = 0;
+          _selectedEndMs = initialSelectionMs;
+          // video_trimmer v5 reports and accepts trim positions in ms.
+          _startValue = 0;
+          _endValue = initialSelectionMs;
           _isLoadingVideo = false;
         });
       }
@@ -107,6 +109,121 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     }
   }
 
+  String _formatTime(double milliseconds) {
+    final totalSeconds = (milliseconds / 1000).floor();
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Widget _buildVisibleTimeline() {
+    final totalMs = _videoDuration.inMilliseconds.toDouble();
+    final maxSelectionMs = widget.maxDuration.inMilliseconds.toDouble();
+    if (totalMs <= 0) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171717),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('ZONE DE DÉCOUPAGE',
+                  style: TextStyle(color: Colors.white70, fontSize: 11,
+                      fontWeight: FontWeight.w700, letterSpacing: 1)),
+              Text('MAX ${widget.maxDuration.inSeconds} s',
+                  style: const TextStyle(color: AppColors.primary,
+                      fontSize: 11, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.primary, width: 1.5),
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Row(
+                    children: List.generate(12, (index) => Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        decoration: BoxDecoration(
+                          color: index.isEven
+                              ? Colors.white12 : Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    )),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Center(
+                    child: Text(
+                      '${_formatTime(_selectedStartMs)}  —  ${_formatTime(_selectedEndMs)}',
+                      style: const TextStyle(color: Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          RangeSlider(
+            min: 0,
+            max: totalMs,
+            divisions: totalMs >= 1000 ? totalMs.floor().clamp(1, 10000) : null,
+            values: RangeValues(
+              _selectedStartMs.clamp(0, totalMs),
+              _selectedEndMs.clamp(0, totalMs),
+            ),
+            onChanged: (range) {
+              var start = range.start;
+              var end = range.end;
+              if (end - start > maxSelectionMs) {
+                if (start != _selectedStartMs) {
+                  start = end - maxSelectionMs;
+                } else {
+                  end = start + maxSelectionMs;
+                }
+              }
+              if (end - start < 500 && totalMs >= 500) {
+                end = (start + 500).clamp(0, totalMs);
+                start = (end - 500).clamp(0, totalMs);
+              }
+              setState(() {
+                _selectedStartMs = start;
+                _selectedEndMs = end;
+                _startValue = start;
+                _endValue = end;
+              });
+            },
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_formatTime(_selectedStartMs),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text('${_formatTime(_selectedEndMs)} / ${_formatTime(totalMs)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,22 +276,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                           : VideoViewer(trimmer: _trimmer),
                 ),
                 if (!_isLoadingVideo && !_loadFailed) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 86,
-                    child: TrimViewer(
-                      trimmer: _trimmer,
-                      viewerHeight: 62.0,
-                      viewerWidth: MediaQuery.of(context).size.width,
-                      type: ViewerType.fixed,
-                      maxVideoLength: _effectiveMaxDuration,
-                      onChangeStart: (value) => _startValue = value,
-                      onChangeEnd: (value) => _endValue = value,
-                      onChangePlaybackState: (value) {
-                        if (mounted) setState(() => _isPlaying = value);
-                      },
-                    ),
-                  ),
+                  _buildVisibleTimeline(),
                   TextButton(
                     child: _isPlaying
                         ? const Icon(Icons.pause, size: 60.0, color: Colors.white)
