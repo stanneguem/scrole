@@ -133,50 +133,163 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     }
     if (mounted && frames.isNotEmpty) setState(() => _timelineFrames = frames);
   }
+  bool? _draggingStartHandle;
+
+  void _togglePlayback() async {
+    if (_isLoadingVideo || _loadFailed) return;
+    try {
+      final playbackState = await _trimmer.videoPlaybackControl(
+        startValue: _startValue,
+        endValue: _endValue,
+      );
+      if (mounted) setState(() => _isPlaying = playbackState);
+    } catch (e) {
+      debugPrint('[VideoTrimScreen] playback error: $e');
+    }
+  }
+
   Widget _buildVisibleTimeline() {
     final totalMs = _videoDuration.inMilliseconds.toDouble();
     final maxSelectionMs = widget.maxDuration.inMilliseconds.toDouble();
     if (totalMs <= 0) return const SizedBox.shrink();
-    final startFraction = (_selectedStartMs / totalMs).clamp(0.0, 1.0);
-    final endFraction = (_selectedEndMs / totalMs).clamp(0.0, 1.0);
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-      padding: const EdgeInsets.fromLTRB(12, 13, 12, 10),
-      decoration: BoxDecoration(color: const Color(0xFF171717), borderRadius: BorderRadius.circular(13), border: Border.all(color: Colors.white12)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('AJUSTER LA VIDÉO', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
-          Text('MAX ' + widget.maxDuration.inSeconds.toString() + ' s', style: const TextStyle(color: Color(0xFFFFC928), fontSize: 11, fontWeight: FontWeight.w900)),
-        ]),
-        const SizedBox(height: 11),
-        SizedBox(height: 58, child: LayoutBuilder(builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          return Stack(children: [
-            Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(5), child: _timelineFrames.isEmpty ? Row(children: List.generate(12, (i) => Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), color: i.isEven ? const Color(0xFF5B5B5B) : const Color(0xFF343434), alignment: Alignment.center, child: const Icon(Icons.movie_outlined, color: Colors.white24, size: 16))))) : Row(children: _timelineFrames.map((frame) => Expanded(child: Image.file(frame, fit: BoxFit.cover, gaplessPlayback: true))).toList()))),
-            Positioned(left: 0, top: 0, bottom: 0, width: width * startFraction, child: Container(color: Colors.black.withValues(alpha: .62))),
-            Positioned(left: width * endFraction, top: 0, bottom: 0, width: width * (1 - endFraction), child: Container(color: Colors.black.withValues(alpha: .62))),
-            Positioned(left: width * startFraction, top: 0, bottom: 0, width: (width * (endFraction - startFraction)).clamp(0.0, width), child: Container(decoration: BoxDecoration(border: Border.all(color: const Color(0xFFFFC928), width: 2)))),
-            Positioned(left: (width * startFraction - 5).clamp(0.0, width - 10), top: 0, bottom: 0, width: 10, child: Container(decoration: BoxDecoration(color: const Color(0xFFFFC928), borderRadius: BorderRadius.circular(3)))),
-            Positioned(left: (width * endFraction - 5).clamp(0.0, width - 10), top: 0, bottom: 0, width: 10, child: Container(decoration: BoxDecoration(color: const Color(0xFFFFC928), borderRadius: BorderRadius.circular(3)))),
-          ]);
-        })),
-        SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: const Color(0xFFFFC928), inactiveTrackColor: Colors.white24, thumbColor: const Color(0xFFFFC928), overlayColor: const Color(0x33FFC928), trackHeight: 3, rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 8)),
-          child: RangeSlider(min: 0, max: totalMs, divisions: totalMs >= 1000 ? totalMs.floor().clamp(1, 10000).toInt() : null,
-            values: RangeValues(_selectedStartMs.clamp(0, totalMs).toDouble(), _selectedEndMs.clamp(0, totalMs).toDouble()),
-            onChanged: (range) {
-              var start = range.start; var end = range.end;
-              if (end - start > maxSelectionMs) { if (start != _selectedStartMs) { start = end - maxSelectionMs; } else { end = start + maxSelectionMs; } }
-              if (end - start < 500 && totalMs >= 500) { end = (start + 500).clamp(0, totalMs).toDouble(); start = (end - 500).clamp(0, totalMs).toDouble(); }
-              setState(() { _selectedStartMs = start; _selectedEndMs = end; _startValue = start; _endValue = end; });
-            })),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('DÉBUT  ' + _formatTime(_selectedStartMs), style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
-          Text(_formatTime(_selectedEndMs) + ' / ' + _formatTime(totalMs), style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
-        ]),
-      ]),
+      padding: const EdgeInsets.fromLTRB(12, 13, 12, 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171717),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'AJUSTER LA VIDÉO',
+                style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
+              ),
+              Text(
+                'MAX ${widget.maxDuration.inSeconds} s',
+                style: const TextStyle(color: Color(0xFFFFC928), fontSize: 11, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 66,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final startFraction = (_selectedStartMs / totalMs).clamp(0.0, 1.0);
+                final endFraction = (_selectedEndMs / totalMs).clamp(0.0, 1.0);
+                final startX = width * startFraction;
+                final endX = width * endFraction;
+
+                void updateHandle(DragUpdateDetails details) {
+                  final deltaMs = details.delta.dx / width * totalMs;
+                  setState(() {
+                    if (_draggingStartHandle == true) {
+                      _selectedStartMs = (_selectedStartMs + deltaMs)
+                          .clamp(0.0, _selectedEndMs - 500.0)
+                          .toDouble();
+                      if (_selectedEndMs - _selectedStartMs > maxSelectionMs) {
+                        _selectedStartMs = _selectedEndMs - maxSelectionMs;
+                      }
+                    } else {
+                      _selectedEndMs = (_selectedEndMs + deltaMs)
+                          .clamp(_selectedStartMs + 500.0, totalMs)
+                          .toDouble();
+                      if (_selectedEndMs - _selectedStartMs > maxSelectionMs) {
+                        _selectedEndMs = _selectedStartMs + maxSelectionMs;
+                      }
+                    }
+                    _startValue = _selectedStartMs;
+                    _endValue = _selectedEndMs;
+                  });
+                }
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (details) {
+                    final x = details.localPosition.dx;
+                    _draggingStartHandle = (x - startX).abs() <= (x - endX).abs();
+                  },
+                  onPanUpdate: updateHandle,
+                  onPanEnd: (_) => _draggingStartHandle = null,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: _timelineFrames.isEmpty
+                              ? Row(
+                                  children: List.generate(
+                                    12,
+                                    (i) => Expanded(
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                                        color: i.isEven ? const Color(0xFF5B5B5B) : const Color(0xFF343434),
+                                        alignment: Alignment.center,
+                                        child: const Icon(Icons.movie_outlined, color: Colors.white24, size: 16),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Row(
+                                  children: _timelineFrames
+                                      .map((frame) => Expanded(child: Image.file(frame, fit: BoxFit.cover, gaplessPlayback: true)))
+                                      .toList(),
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0, top: 0, bottom: 0, width: startX,
+                        child: IgnorePointer(child: Container(color: Colors.black.withValues(alpha: .62))),
+                      ),
+                      Positioned(
+                        left: endX, top: 0, bottom: 0, width: width - endX,
+                        child: IgnorePointer(child: Container(color: Colors.black.withValues(alpha: .62))),
+                      ),
+                      Positioned(
+                        left: startX, top: 0, bottom: 0, width: (endX - startX).clamp(0.0, width),
+                        child: IgnorePointer(
+                          child: Container(decoration: BoxDecoration(border: Border.all(color: const Color(0xFFFFC928), width: 2))),
+                        ),
+                      ),
+                      Positioned(
+                        left: (startX - 7).clamp(0.0, width - 14), top: 0, bottom: 0, width: 14,
+                        child: IgnorePointer(
+                          child: Container(
+                            decoration: BoxDecoration(color: const Color(0xFFFFC928), borderRadius: BorderRadius.circular(4)),
+                            child: const Center(child: Icon(Icons.drag_indicator, size: 12, color: Colors.black87)),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: (endX - 7).clamp(0.0, width - 14), top: 0, bottom: 0, width: 14,
+                        child: IgnorePointer(
+                          child: Container(
+                            decoration: BoxDecoration(color: const Color(0xFFFFC928), borderRadius: BorderRadius.circular(4)),
+                            child: const Center(child: Icon(Icons.drag_indicator, size: 12, color: Colors.black87)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -226,7 +339,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                                 textAlign: TextAlign.center,
                               ),
                             )
-                          : VideoViewer(trimmer: _trimmer),
+                          : GestureDetector(\n                              behavior: HitTestBehavior.opaque,\n                              onTap: _togglePlayback,\n                              child: VideoViewer(trimmer: _trimmer),\n                            ),
                 ),
                 if (!_isLoadingVideo && !_loadFailed) ...[
                   _buildVisibleTimeline(),
