@@ -255,27 +255,68 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                         left: endX, top: 0, bottom: 0, width: width - endX,
                         child: IgnorePointer(child: Container(color: Colors.black.withValues(alpha: .62))),
                       ),
+                      // Cadre de sélection jaune, comme sur la référence :
+                      // les deux poignées sont intégrées aux extrémités de la zone retenue.
                       Positioned(
-                        left: startX, top: 0, bottom: 0, width: (endX - startX).clamp(0.0, width),
-                        child: IgnorePointer(
-                          child: Container(decoration: BoxDecoration(border: Border.all(color: const Color(0xFFFFC928), width: 2))),
-                        ),
-                      ),
-                      Positioned(
-                        left: (startX - 7).clamp(0.0, width - 14), top: 0, bottom: 0, width: 14,
+                        left: startX,
+                        top: 0,
+                        bottom: 0,
+                        width: (endX - startX).clamp(0.0, width),
                         child: IgnorePointer(
                           child: Container(
-                            decoration: BoxDecoration(color: const Color(0xFFFFC928), borderRadius: BorderRadius.circular(4)),
-                            child: const Center(child: Icon(Icons.drag_indicator, size: 12, color: Colors.black87)),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFFFD21F),
+                                width: 3,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
                         ),
                       ),
                       Positioned(
-                        left: (endX - 7).clamp(0.0, width - 14), top: 0, bottom: 0, width: 14,
+                        left: (startX - 1).clamp(0.0, width - 18),
+                        top: 0,
+                        bottom: 0,
+                        width: 18,
                         child: IgnorePointer(
                           child: Container(
-                            decoration: BoxDecoration(color: const Color(0xFFFFC928), borderRadius: BorderRadius.circular(4)),
-                            child: const Center(child: Icon(Icons.drag_indicator, size: 12, color: Colors.black87)),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFFD21F),
+                              borderRadius: BorderRadius.horizontal(
+                                left: Radius.circular(5),
+                              ),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.chevron_left,
+                                color: Colors.black,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: (endX - 17).clamp(0.0, width - 18),
+                        top: 0,
+                        bottom: 0,
+                        width: 18,
+                        child: IgnorePointer(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFFD21F),
+                              borderRadius: BorderRadius.horizontal(
+                                right: Radius.circular(5),
+                              ),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.chevron_right,
+                                color: Colors.black,
+                                size: 20,
+                              ),
+                            ),
                           ),
                         ),
                       ),
