@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:video_compress/video_compress.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
+import 'package:scrole/shared/widgets/video_preview_screen.dart';
 import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
 import 'package:scrole/app_controller.dart';
@@ -48,7 +49,8 @@ class CreateCommunityPostScreen extends StatefulWidget {
 class _SelectedPostMedia {
   final File file;
   final bool isVideo;
-  const _SelectedPostMedia({required this.file, required this.isVideo});
+  final File? thumbnailFile;
+  const _SelectedPostMedia({required this.file, required this.isVideo, this.thumbnailFile});
 }
 
 class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
@@ -882,29 +884,24 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       }
 
       try {
-        var videoFile = file;
-        final duration = await _readVideoDuration(videoFile);
-
-        if (duration > const Duration(seconds: 29)) {
-          final trimmed = await Get.to<File>(() => VideoTrimScreen(
-                videoFile: videoFile,
-                maxDuration: const Duration(seconds: 29),
-              ));
-          if (trimmed == null || !mounted) continue;
-
-          videoFile = trimmed;
-          // Vérification par lecture des métadonnées uniquement, sans ouvrir
-          // un second lecteur vidéo natif.
-          final trimmedDuration = await _readVideoDuration(videoFile);
-          if (trimmedDuration > const Duration(seconds: 29)) {
-            Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
-            continue;
-          }
+        // Le trim est obligatoire, même pour une vidéo de moins de 29 secondes.
+        final trimmed = await Get.to<File>(() => VideoTrimScreen(
+              videoFile: file,
+              maxDuration: const Duration(seconds: 29),
+            ));
+        if (trimmed == null || !mounted) continue;
+        final videoFile = trimmed;
+        final trimmedDuration = await _readVideoDuration(videoFile);
+        if (trimmedDuration > const Duration(seconds: 29)) {
+          Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
+          continue;
         }
-
+        final thumbnail = await VideoCompress.getFileThumbnail(
+          videoFile.path, quality: 75, position: 0,
+        ).timeout(const Duration(seconds: 20));
         if (!mounted) return;
         setState(() {
-          _selectedMedia.add(_SelectedPostMedia(file: videoFile, isVideo: true));
+          _selectedMedia.add(_SelectedPostMedia(file: videoFile, isVideo: true, thumbnailFile: thumbnail));
           _prefilledUrl = null;
         });
       } catch (e, stack) {
@@ -935,26 +932,24 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       final picked = await _mediaPicker.pickVideo(source: ImageSource.gallery);
       if (picked == null || !mounted) return;
 
-      var file = File(picked.path);
-      final duration = await _readVideoDuration(file);
-      if (duration > const Duration(seconds: 29)) {
-        final trimmed = await Get.to<File>(() => VideoTrimScreen(
-              videoFile: file,
-              maxDuration: const Duration(seconds: 29),
-            ));
-        if (trimmed == null || !mounted) return;
-
-        file = trimmed;
-        final trimmedDuration = await _readVideoDuration(file);
-        if (trimmedDuration > const Duration(seconds: 29)) {
-          Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
-          return;
-        }
+      final originalFile = File(picked.path);
+      final trimmed = await Get.to<File>(() => VideoTrimScreen(
+            videoFile: originalFile,
+            maxDuration: const Duration(seconds: 29),
+          ));
+      if (trimmed == null || !mounted) return;
+      final file = trimmed;
+      final trimmedDuration = await _readVideoDuration(file);
+      if (trimmedDuration > const Duration(seconds: 29)) {
+        Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
+        return;
       }
-
+      final thumbnail = await VideoCompress.getFileThumbnail(
+        file.path, quality: 75, position: 0,
+      ).timeout(const Duration(seconds: 20));
       if (!mounted) return;
       setState(() {
-        _selectedMedia.add(_SelectedPostMedia(file: file, isVideo: true));
+        _selectedMedia.add(_SelectedPostMedia(file: file, isVideo: true, thumbnailFile: thumbnail));
         _prefilledUrl = null;
       });
     } catch (e, stack) {
@@ -967,6 +962,36 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           colorText: Colors.white,
         );
       }
+    }
+  }
+
+  Future<void> _openSelectedVideo(int index) async {
+    if (index < 0 || index >= _selectedMedia.length) return;
+    final current = _selectedMedia[index];
+    if (!current.isVideo) return;
+    final updatedFile = await Get.to<File>(() => VideoPreviewScreen(
+      videoFile: current.file,
+      maxDuration: const Duration(seconds: 29),
+    ));
+    if (updatedFile == null || !mounted) return;
+    final duration = await _readVideoDuration(updatedFile);
+    if (duration > const Duration(seconds: 29)) {
+      Get.snackbar('Vidéo invalide', 'La vidéo ne peut pas dépasser 29 secondes.');
+      return;
+    }
+    try {
+      final thumbnail = await VideoCompress.getFileThumbnail(
+        updatedFile.path, quality: 75, position: 0,
+      ).timeout(const Duration(seconds: 20));
+      if (!mounted) return;
+      setState(() => _selectedMedia[index] = _SelectedPostMedia(
+        file: updatedFile, isVideo: true, thumbnailFile: thumbnail,
+      ));
+    } catch (e) {
+      debugPrint('[POST_COMPOSER] thumbnail refresh failed: $e');
+      if (mounted) setState(() => _selectedMedia[index] = _SelectedPostMedia(
+        file: updatedFile, isVideo: true, thumbnailFile: null,
+      ));
     }
   }
 
@@ -1370,7 +1395,10 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: isVideo
-                                      ? _SelectedVideoPreview(file: file)
+                                      ? GestureDetector(
+                                          onTap: () => _openSelectedVideo(index),
+                                          child: _SelectedVideoPreview(file: file, thumbnailFile: media.thumbnailFile),
+                                        )
                                       : Image.file(file, width: double.infinity, height: double.infinity, fit: BoxFit.cover),
                                 ),
                                 Positioned(
@@ -1505,14 +1533,18 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 /// dans la grille du compositeur. La lecture se fait après publication.
 class _SelectedVideoPreview extends StatelessWidget {
   final File file;
-  const _SelectedVideoPreview({required this.file});
+  final File? thumbnailFile;
+  const _SelectedVideoPreview({required this.file, this.thumbnailFile});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: Colors.black87),
+        if (thumbnailFile != null && thumbnailFile!.existsSync())
+          Image.file(thumbnailFile!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+        else
+          const ColoredBox(color: Colors.black87),
         Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1528,7 +1560,7 @@ class _SelectedVideoPreview extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Vidéo sélectionnée',
+                'Lire la vidéo',
                 style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 3),
