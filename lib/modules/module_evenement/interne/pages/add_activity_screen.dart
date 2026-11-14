@@ -337,10 +337,16 @@ class AddActivityScreen extends GetView<EventActivityController> {
             : null,
         floatingActionButton: !isMultiMode
             ? FloatingActionButton.extended(
-                onPressed: () => Get.toNamed(
-                  AppPages.createactivite,
-                  arguments: {'eventId': controller.eventId},
-                ),
+                onPressed: () async {
+                  final created = await Get.toNamed(
+                    AppPages.createactivite,
+                    arguments: {'eventId': controller.eventId},
+                  );
+                  if (created == true) {
+                    await controller.loadEventActivities();
+                    await controller.fetchAvailableActivities(controller.searchQuery.value);
+                  }
+                },
                 backgroundColor: AppColors.primary,
                 icon: const Icon(Icons.add_rounded, color: Colors.white),
                 label: const Text('Créer mon activité', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

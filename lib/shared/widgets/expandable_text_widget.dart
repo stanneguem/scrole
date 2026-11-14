@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/text_styles.dart';
+import 'linkified_text.dart';
 
 class ExpandableText extends StatefulWidget {
   final String text;
@@ -40,11 +41,10 @@ class _ExpandableTextState extends State<ExpandableText> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.text,
+            LinkifiedText(
+              text: widget.text,
               maxLines: _isExpanded ? null : widget.maxLines,
-              overflow:
-                  _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
               style: style,
             ),
             if (isTextLong)

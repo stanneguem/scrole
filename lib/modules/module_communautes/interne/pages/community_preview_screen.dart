@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import 'package:get/get.dart';
 import '../../centre/models/community_model.dart';
 import '../../centre/services/community_service.dart';
@@ -338,8 +339,8 @@ class _CommunityPreviewSheetState extends State<CommunityPreviewSheet> {
 
                           if (description.isNotEmpty) ...[
                             const SizedBox(height: 14),
-                            Text(
-                              description,
+                            LinkifiedText(
+                              text: description,
                               style: TextStyle(fontSize: 14.5, height: 1.4, color: colorScheme.onSurface),
                             ),
                           ],
@@ -358,22 +359,31 @@ class _CommunityPreviewSheetState extends State<CommunityPreviewSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Icon(Icons.info_outline_rounded, color: Colors.amber.shade900, size: 18),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        'community_cannot_join'.tr,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13.5,
-                                          color: Colors.amber.shade900,
+                                      Expanded(
+                                        child: Text(
+                                          'community_cannot_join'.tr,
+                                          softWrap: true,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13.5,
+                                            color: Colors.amber.shade900,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
                                   ...res.reasons.map((reasonCode) {
-                                    final translatedReason = 'community_reason_$reasonCode'.tr;
+                                    final reasonKey = 'community_reason_${reasonCode.trim()}';
+                                    final translatedReason = reasonKey.tr;
+                                    // Unknown backend codes must never be exposed as raw translation keys.
+                                    final displayReason = translatedReason == reasonKey
+                                        ? 'community_reason_GENERIC'.tr
+                                        : translatedReason;
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 4),
                                       child: Row(
@@ -382,7 +392,7 @@ class _CommunityPreviewSheetState extends State<CommunityPreviewSheet> {
                                           const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
                                           Expanded(
                                             child: Text(
-                                              translatedReason,
+                                              displayReason,
                                               style: TextStyle(fontSize: 12.5, color: colorScheme.onSurface),
                                             ),
                                           ),

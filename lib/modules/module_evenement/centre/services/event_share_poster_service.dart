@@ -21,6 +21,8 @@ class EventSharePosterService {
     required BuildContext context,
     required EventPreviewModel preview,
     required EventRepository repository,
+    required bool isAttending,
+    String? profilePhotoUrl,
     Function(int newShareCount)? onShareSuccess,
   }) async {
     if (_isGenerating) return;
@@ -71,7 +73,12 @@ class EventSharePosterService {
             color: Colors.transparent,
             child: RepaintBoundary(
               key: boundaryKey,
-              child: EventSharePosterWidget(preview: preview),
+              child: EventSharePosterWidget(
+                preview: preview,
+                isAttending: isAttending,
+                profilePhotoUrl: profilePhotoUrl,
+                brightness: Theme.of(context).brightness,
+              ),
             ),
           ),
         ),
@@ -80,7 +87,7 @@ class EventSharePosterService {
       Overlay.of(context).insert(overlayEntry);
 
       // Laisser le temps au moteur Flutter de disposer et peindre le widget hors écran
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 900));
 
       final boundary = boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
@@ -89,6 +96,7 @@ class EventSharePosterService {
 
       final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
       final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
 
       overlayEntry.remove();
       overlayEntry = null;
@@ -111,7 +119,10 @@ class EventSharePosterService {
       }
 
       // Ouverture du système de partage natif (WhatsApp, Instagram, etc.)
-      final shareText = 'Participe à ${preview.event.name} avec Scrole !';
+      final eventLink = 'https://scrole.fun/event/${Uri.encodeComponent(preview.event.id)}';
+      final shareText = isAttending
+          ? 'Je participe à ${preview.event.name} avec Scrole !\n\n$eventLink'
+          : 'Découvrez ${preview.event.name} sur Scrole !\n\n$eventLink';
       final result = await Share.shareXFiles(
         [XFile(file.path)],
         text: shareText,

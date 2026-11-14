@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/stories_repository.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 import '../../../../app_controller.dart';
@@ -14,9 +17,10 @@ import '../../../../app/repository_global/r2_media_repository.dart';
 
 class StoryItem {
   final String id;
-  final String kind; // 'text' | 'image'
+  final String kind; // 'text' | 'image' | 'video'
   final String? content;
   final String? imageUrl;
+  final String? thumbnailUrl;
   final String? background;
   final String audience;
   final DateTime createdAt;
@@ -38,6 +42,7 @@ class StoryItem {
     required this.kind,
     this.content,
     this.imageUrl,
+    this.thumbnailUrl,
     this.background,
     this.audience = 'public',
     required this.createdAt,
@@ -79,6 +84,7 @@ class StoryItem {
       kind: map['kind']?.toString() ?? 'text',
       content: map['content']?.toString(),
       imageUrl: map['image_url']?.toString() ?? map['media_url']?.toString(),
+      thumbnailUrl: map['thumbnail_url']?.toString() ?? map['thumbnailUrl']?.toString(),
       background: map['background']?.toString(),
       audience: map['audience']?.toString() ?? 'public',
       createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now() : DateTime.now(),
@@ -87,7 +93,16 @@ class StoryItem {
       viewersCount: (map['viewers_count'] ?? map['views_count'] as num?)?.toInt() ?? 0,
       commentsCount: (map['comments_count'] ?? map['comment_count'] ?? map['shared_post']?['comment_count'] as num?)?.toInt() ?? 0,
       poll: map['poll'],
-      likesCount: (map['likes_count'] as num?)?.toInt() ?? 0,
+      likesCount: ((map['likes_count'] ?? map['like_count'] ?? map['total_likes']) as num?)?.toInt() ??
+          ((map['is_liked'] == true || map['is_liked'] == 1 ||
+            map['is_liked']?.toString() == 'true' ||
+            map['user_liked'] == true || map['user_liked'] == 1 ||
+            map['user_liked']?.toString() == 'true' ||
+            map['viewer_has_liked'] == true || map['viewer_has_liked'] == 1 ||
+            map['viewer_has_liked']?.toString() == 'true' ||
+            map['is_liked_by_me'] == true || map['is_liked_by_me'] == 1 ||
+            map['is_like'] == true || map['liked'] == true || map['liked'] == 1)
+              ? 1 : 0),
       sharesCount: (map['shares_count'] as num?)?.toInt() ?? 0,
       isLiked: map['is_liked'] == true ||
                map['is_liked'] == 1 ||
@@ -105,7 +120,7 @@ class StoryItem {
                map['liked'] == 1,
       sharedPost: shared,
       sharedPostId: map['shared_post_id']?.toString(),
-      sharedPostCanOpenOriginal: map['shared_post_can_open_original'] == true || map['shared_post_can_open_original'] == null,
+      sharedPostCanOpenOriginal: map['shared_post_can_open_original'] == true,
     );
   }
 }
@@ -145,8 +160,8 @@ class EventStoryGroup {
   final StoryAuthor author;
   final String relation; // 'own' | 'friend' | 'follow' | 'other'
   bool hasUnseen;
-  final DateTime latestAt;
-  final int storiesCount;
+  DateTime latestAt;
+  int storiesCount;
   final List<StoryItem> stories;
 
   EventStoryGroup({
@@ -188,6 +203,7 @@ class StoriesController extends GetxController {
   final RxList<EventStoryGroup> followingGroups = <EventStoryGroup>[].obs;
   final RxList<EventStoryGroup> suggestedGroups = <EventStoryGroup>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool isPublishingStory = false.obs;
 
   List<EventStoryGroup> get storyGroups => [
         if (ownGroup.value != null) ownGroup.value!,
@@ -201,34 +217,96 @@ class StoriesController extends GetxController {
     fetchStories();
   }
 
-  Future<void> fetchStories() async {
-    isLoading.value = true;
+  Future<File> _storyTrayCacheFile(String userId) async {
+    final directory = await getApplicationSupportDirectory();
+    return File(p.join(directory.path, 'stories_tray_cache_$userId.json'));
+  }
+
+  static Future<void> clearLocalCacheForUser(String userId) async {
+    if (userId.isEmpty) return;
+    final directory = await getApplicationSupportDirectory();
+    final file = File(p.join(directory.path, 'stories_tray_cache_$userId.json'));
+    if (await file.exists()) await file.delete();
+    debugPrint('[STORY_CACHE] Local cache purged for user $userId');
+  }
+
+  void clearInMemorySessionData() {
+    ownGroup.value = null;
+    followingGroups.clear();
+    suggestedGroups.clear();
+    isLoading.value = false;
+    isPublishingStory.value = false;
+  }
+
+  bool get _hasStoryGroups =>
+      ownGroup.value != null || followingGroups.isNotEmpty || suggestedGroups.isNotEmpty;
+
+  void _applyStoryTray(Map<String, dynamic> data) {
+    if (data['own'] != null) {
+      ownGroup.value = EventStoryGroup.fromMap(Map<String, dynamic>.from(data['own']));
+    } else {
+      ownGroup.value = null;
+    }
+
+    if (data['following'] is List) {
+      followingGroups.assignAll((data['following'] as List)
+          .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
+          .where((g) => g.stories.isNotEmpty));
+    }
+
+    if (data['suggested'] is List) {
+      suggestedGroups.assignAll((data['suggested'] as List)
+          .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
+          .where((g) => g.stories.isNotEmpty));
+    }
+  }
+
+  Future<void> _restoreStoryTrayCache(String userId) async {
+    if (_hasStoryGroups) return;
     try {
-      debugPrint('[STORY] [Controller] Fetching stories tray');
+      final file = await _storyTrayCacheFile(userId);
+      if (!await file.exists()) return;
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is Map) {
+        _applyStoryTray(Map<String, dynamic>.from(decoded));
+        debugPrint('[STORY_CACHE] Restored story tray from local cache');
+      }
+    } catch (e) {
+      debugPrint('[STORY_CACHE] Unable to restore story tray: $e');
+    }
+  }
+
+  Future<void> _persistStoryTray(String userId, Map<String, dynamic> data) async {
+    try {
+      final file = await _storyTrayCacheFile(userId);
+      await file.writeAsString(jsonEncode(data), flush: true);
+      debugPrint('[STORY_CACHE] Story tray metadata saved locally');
+    } catch (e) {
+      debugPrint('[STORY_CACHE] Unable to persist story tray: $e');
+    }
+  }
+
+  Future<void> fetchStories() async {
+    final userId = _repo.client.auth.currentUser?.id;
+    if (userId == null) {
+      clearInMemorySessionData();
+      return;
+    }
+    // Show only this authenticated account's cached stories.
+    await _restoreStoryTrayCache(userId);
+    if (_repo.client.auth.currentUser?.id != userId) return;
+    isLoading.value = false;
+    try {
+      debugPrint('[STORY] [Controller] Refreshing stories tray in background user=$userId');
       final data = await _repo.getStoriesTray();
-      
-      if (data['own'] != null) {
-        ownGroup.value = EventStoryGroup.fromMap(Map<String, dynamic>.from(data['own']));
-      } else {
-        ownGroup.value = null;
-      }
-
-      if (data['following'] is List) {
-        followingGroups.value = (data['following'] as List)
-            .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
-            .where((g) => g.stories.isNotEmpty)
-            .toList();
-      }
-
-      if (data['suggested'] is List) {
-        suggestedGroups.value = (data['suggested'] as List)
-            .map((g) => EventStoryGroup.fromMap(Map<String, dynamic>.from(g)))
-            .where((g) => g.stories.isNotEmpty)
-            .toList();
-      }
-      debugPrint('[STORY] [Controller] Stories tray fetched successfully.');
+      // Prevent a late response from the previous account repopulating cache.
+      if (_repo.client.auth.currentUser?.id != userId) return;
+      _applyStoryTray(data);
+      await _persistStoryTray(userId, data);
+      debugPrint('[STORY] [Controller] Stories tray synchronized successfully.');
     } catch (e, st) {
-      debugPrint('[STORY] [Controller] Error fetching stories: $e\n$st');
+      // Keep the last known story metadata/media available while offline.
+      debugPrint('[STORY] [Controller] Background refresh failed; using local tray: $e\\n$st');
     } finally {
       isLoading.value = false;
     }
@@ -315,8 +393,59 @@ class StoriesController extends GetxController {
     final fileToUpload = imageFile ?? (imageFiles != null && imageFiles.isNotEmpty ? imageFiles.first : null);
 
     String? imageUrl;
-    if (kind == 'image' && fileToUpload != null) {
+    String? thumbnailUrl;
+    if ((kind == 'image' || kind == 'video') && fileToUpload != null) {
       try {
+        if (kind == 'video') {
+          final videoController = VideoPlayerController.file(fileToUpload);
+          try {
+            await videoController.initialize().timeout(const Duration(seconds: 30));
+            final duration = videoController.value.duration;
+            if (duration <= Duration.zero) {
+              throw StateError('Impossible de déterminer la durée de la vidéo.');
+            }
+            if (duration > const Duration(seconds: 29)) {
+              Get.snackbar(
+                'post_composer_attention'.tr,
+                'post_composer_video_too_long'.tr,
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.black87,
+                colorText: Colors.white,
+              );
+              return;
+            }
+            debugPrint('[STORY] [Controller] Generating story video thumbnail...');
+            try {
+              final generatedThumbnail = await VideoCompress.getFileThumbnail(
+                fileToUpload.path,
+                quality: 82,
+                position: 1000,
+              );
+              if (await generatedThumbnail.exists()) {
+                final thumbUpload = await _r2MediaRepo.uploadFile(
+                  file: generatedThumbnail,
+                  category: 'story_media',
+                  mediaType: 'image',
+                  mediaRole: 'thumbnail',
+                );
+                thumbnailUrl = thumbUpload.objectKey;
+                debugPrint('[STORY] [Controller] Story thumbnail uploaded: $thumbnailUrl');
+              }
+            } catch (thumbnailError, thumbnailStack) {
+              debugPrint('[STORY] [Controller] Thumbnail generation/upload failed: $thumbnailError\\n$thumbnailStack');
+            }
+            debugPrint('[STORY] [Controller] Uploading story video to private Cloudflare R2 duration=${duration.inMilliseconds}ms');
+            final uploaded = await _r2MediaRepo.uploadFile(
+              file: fileToUpload,
+              category: 'story_media',
+              mediaType: 'video',
+              videoDuration: duration,
+            );
+            imageUrl = uploaded.objectKey;
+          } finally {
+            await videoController.dispose();
+          }
+        } else {
         debugPrint('[STORY] [Controller] Compressing story image...');
         final appDir = await getApplicationDocumentsDirectory();
         final targetPath = p.join(appDir.path, 'stories', pId, 'story.jpg');
@@ -340,9 +469,10 @@ class StoriesController extends GetxController {
         // checks story visibility before issuing a short-lived signed URL.
         imageUrl = uploaded.objectKey;
         debugPrint('[STORY] [Controller] Story image uploaded to R2 object key: $imageUrl');
+        }
       } catch (e, st) {
         debugPrint('[STORY] [Controller] Story image compression/upload error: $e\n$st');
-        Get.snackbar('Erreur', 'Échec de l\'upload de l\'image', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar('Erreur', 'Échec de l\'upload du média de la story', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
         return;
       }
     }
@@ -354,6 +484,7 @@ class StoriesController extends GetxController {
         p_content: content,
         p_image_url: imageUrl,
         p_background: background,
+        p_thumbnail_url: thumbnailUrl,
         p_audience: audience,
         p_poll: poll,
         p_allow_reshare: allowReshare,

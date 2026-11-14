@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../app/local_storage/fast/fast_cache_key.dart';
+import '../../../../app/local_storage/fast/fast_cache_service.dart';
 import 'package:get/get.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import '../../../module_discussion_direct/centre/services/chat_service.dart';
@@ -36,6 +38,9 @@ class ExternalProfileController extends GetxController {
   late final String userId;
   RealtimeChannel? _relationshipChannel;
 
+  FastCacheService? get _profileCache =>
+      Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
+
   @override
   void onInit() {
     super.onInit();
@@ -53,12 +58,32 @@ class ExternalProfileController extends GetxController {
 
 
   Future<void> _initializeProfile() async {
-    await loadProfile();
-    // Do not request posts/events/liked content until the relationship check
-    // confirms that this profile is visible to the current user.
-    if (profileState.value == ProfileScreenState.loaded &&
-        profile.value?.relationshipState != 'blocked') {
-      await loadProfileTab(0);
+    final cached = _repository.getCachedProfile(userId);
+    if (cached != null) {
+      profile.value = cached;
+      profileState.value = ProfileScreenState.loaded;
+      isLoading.value = false;
+    }
+    await _restoreProfileTabsFromCache();
+    // Charger Posts dès l'ouverture, en parallèle de la synchronisation
+    // des informations du profil. Les deux autres onglets restent à la demande.
+    unawaited(loadProfileTab(0, forceRefresh: true));
+    unawaited(loadProfile());
+  }
+
+  Future<void> _restoreProfileTabsFromCache() async {
+    final viewerId = Supabase.instance.client.auth.currentUser?.id ?? 'anonymous';
+    final cache = _profileCache;
+    if (cache == null || !cache.isReady) return;
+    const tabs = {0: 'posts', 1: 'events', 2: 'liked'};
+    for (final entry in tabs.entries) {
+      final raw = cache.get<List<dynamic>>(
+        FastCacheKey.externalProfileTab(viewerId, userId, entry.value),
+      );
+      if (raw == null) continue;
+      profileTabItems[entry.key] = raw.whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row)).toList();
+      loadedProfileTabs.add(entry.key);
     }
   }
 
@@ -77,7 +102,7 @@ class ExternalProfileController extends GetxController {
 
   Future<void> selectProfileTab(int index) async {
     selectedTab.value = index;
-    await loadProfileTab(index);
+    await loadProfileTab(index, forceRefresh: true);
   }
 
   Future<void> loadProfileTab(int index, {bool forceRefresh = false}) async {
@@ -100,6 +125,11 @@ class ExternalProfileController extends GetxController {
         offset: 0,
       );
       profileTabItems[index] = items;
+      final viewerId = Supabase.instance.client.auth.currentUser?.id ?? 'anonymous';
+      await _profileCache?.set(
+        FastCacheKey.externalProfileTab(viewerId, userId, _profileTabRpcName(index)),
+        items,
+      );
       loadedProfileTabs.add(index);
     } catch (e, stack) {
       debugPrint('[ExternalProfileController] loadProfileTab($index) failed: $e\\n$stack');
@@ -142,9 +172,12 @@ class ExternalProfileController extends GetxController {
   }
 
   Future<void> loadProfile() async {
-    isLoading.value = true;
+    final hasCachedProfile = profile.value != null;
+    if (!hasCachedProfile) {
+      isLoading.value = true;
+      profileState.value = ProfileScreenState.loading;
+    }
     error.value = '';
-    profileState.value = ProfileScreenState.loading;
 
     try {
       final result = await _repository.getProfileResult(userId);
@@ -172,21 +205,33 @@ class ExternalProfileController extends GetxController {
             final relation = await _repository.getRelationship(userId, forceRefresh: true);
             final relationState = (relation['state'] ?? 'none').toString();
 
-            // A blocked profile must not trigger protected tab/stat RPCs. Those
-            // RPCs correctly reject the request, but doing them anyway creates
-            // noisy stack traces and leaves the profile screen in a partial error.
+            // A block restricts interactions and protected content, but it does
+            // not erase the underlying follow/friendship relationship or hide
+            // social counters. Keep the real relationship flags while retaining
+            // the 'blocked' state so action buttons remain unavailable.
             if (relationState == 'blocked' || relation['is_blocked'] == true) {
+              Map<String, dynamic> blockedStats = <String, dynamic>{};
+              try {
+                blockedStats = await _repository.getFollowStats(userId: userId);
+              } catch (e) {
+                debugPrint('[ExternalProfileController] blocked profile follow stats unavailable: $e');
+              }
+
               final blockedProfile = result.profile!.copyWith(
-                isFollowing: false,
-                isConnected: false,
+                isFollowing: relation['is_following'] == true,
+                isConnected: relation['is_friend'] == true,
                 connectionRequestSent: false,
-                followsMe: false,
+                followsMe: relation['follows_me'] == true,
                 relationshipState: 'blocked',
                 clearRequestId: true,
                 clearRetryAt: true,
+                friendCount: (blockedStats['friends_count'] as num?)?.toInt() ?? result.profile!.friendCount,
+                followersCount: (blockedStats['followers_count'] as num?)?.toInt() ?? result.profile!.followersCount,
+                followingCount: (blockedStats['following_count'] as num?)?.toInt() ?? result.profile!.followingCount,
+                friendsCount: (blockedStats['friends_count'] as num?)?.toInt() ?? result.profile!.friendsCount,
               );
               profile.value = blockedProfile;
-              isFollowing.value = false;
+              isFollowing.value = blockedProfile.isFollowing;
               profileTabItems.clear();
               profileTabErrors.clear();
               loadedProfileTabs.addAll([0, 1, 2]);
@@ -249,19 +294,29 @@ class ExternalProfileController extends GetxController {
             );
             profile.value = updated;
             isFollowing.value = updated.isFollowing;
+            await _repository.updateCachedProfile(updated);
           } else {
             profileState.value = ProfileScreenState.error;
             error.value = 'Impossible de charger ce profil.';
           }
           break;
         case ProfileResultStatus.error:
-          profileState.value = ProfileScreenState.error;
-          error.value = result.errorMessage ?? 'Impossible de charger ce profil.';
+          if (profile.value != null) {
+            // En cas de panne réseau, conserver le profil en cache visible.
+            profileState.value = ProfileScreenState.loaded;
+          } else {
+            profileState.value = ProfileScreenState.error;
+            error.value = result.errorMessage ?? 'Impossible de charger ce profil.';
+          }
           break;
       }
     } catch (_) {
-      profileState.value = ProfileScreenState.error;
-      error.value = 'Impossible de charger ce profil.';
+      if (profile.value != null) {
+        profileState.value = ProfileScreenState.loaded;
+      } else {
+        profileState.value = ProfileScreenState.error;
+        error.value = 'Impossible de charger ce profil.';
+      }
     } finally {
       isLoading.value = false;
       update(['profile_initial']);

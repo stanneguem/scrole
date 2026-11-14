@@ -38,8 +38,26 @@ class ExternalProfileRepository {
       Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
 
 
+  String _viewerScopedProfileKey(String userId) {
+    final viewerId = _client.auth.currentUser?.id ?? 'anonymous';
+    return FastCacheKey.externalProfileForViewer(viewerId, userId);
+  }
+
+  ExternalProfileModel? getCachedProfile(String userId) {
+    final cached = _cache?.get<Map<String, dynamic>>(_viewerScopedProfileKey(userId));
+    if (cached == null) return null;
+    try {
+      final model = ExternalProfileModel.fromJson(cached);
+      if (model.isBlocked) return null;
+      return model;
+    } catch (e) {
+      debugPrint('[ExternalProfileRepository] cached profile decode failed: $e');
+      return null;
+    }
+  }
+
   Future<ExternalProfileResult> getProfileResult(String userId) async {
-    final cacheKey = FastCacheKey.externalProfile(userId);
+    final cacheKey = _viewerScopedProfileKey(userId);
 
     // Privacy and relationship fields depend on the current viewer and can change
     // immediately. Never serve a cached external profile before rechecking the RPC.
@@ -155,9 +173,29 @@ class ExternalProfileRepository {
     return res.profile;
   }
 
+  /// Events actually attended by an external profile (validated check-in).
+  /// Keep this list identical to the profile's Events tab.
+  Future<List<Map<String, dynamic>>> fetchExternalUserAttendedEvents(String userId) {
+    return fetchProfileTab(userId: userId, tab: 'events', limit: 60, offset: 0);
+  }
+
+  /// Events saved in the external user's personal agenda (not attendance).
+  Future<List<Map<String, dynamic>>> fetchExternalUserAgenda(String userId) async {
+    final response = await _client.rpc('get_external_user_agenda', params: {
+      'p_user_id': userId,
+    });
+    if (response is List) {
+      return response
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
   /// Updates local cached profile map when a relationship action is performed.
   Future<void> updateCachedProfile(ExternalProfileModel model) async {
-    final cacheKey = FastCacheKey.externalProfile(model.userId);
+    final cacheKey = _viewerScopedProfileKey(model.userId);
     await _cache?.set(cacheKey, model.toJson());
   }
 
@@ -165,8 +203,8 @@ class ExternalProfileRepository {
     try {
       final response = await _client
           .from('activities')
-          .select('id, name, base_price, currency_code, photo_url')
-          .eq('user_id', userId)
+          .select('id, name, base_price, currency_code, description')
+          .eq('creator_id', userId)
           .limit(10);
 
       if (response is List) {
@@ -189,12 +227,18 @@ class ExternalProfileRepository {
     int limit = 24,
     int offset = 0,
   }) async {
-    final response = await _client.rpc('get_external_profile_tab', params: {
-      'p_user_id': userId,
-      'p_tab': tab,
-      'p_limit': limit,
-      'p_offset': offset,
-    });
+    final response = tab == 'events'
+        ? await _client.rpc('get_profile_attended_event_series', params: {
+            'p_user_id': userId,
+            'p_limit': limit,
+            'p_offset': offset,
+          })
+        : await _client.rpc('get_external_profile_tab', params: {
+            'p_user_id': userId,
+            'p_tab': tab,
+            'p_limit': limit,
+            'p_offset': offset,
+          });
     if (response is List) {
       return response
           .whereType<Map>()

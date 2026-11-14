@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'notification_service.dart';
 import 'preferences_service.dart';
 
 class AppLanguage {
@@ -44,7 +45,14 @@ class LocaleService extends GetxService {
     _locale.value = locale;
     Get.updateLocale(locale);
 
-    // Envoi du delta de modification via PreferencesService
-    _prefs.update({'language': languageCode});
+    // Persist the selected language before syncing it to the push backend.
+    await _prefs.update({'language': languageCode});
+    // App-locale changes do not necessarily trigger a device-locale callback.
+    // Sync explicitly so server-generated push notifications use this language.
+    try {
+      await NotificationService.instance.syncLanguage(force: true);
+    } catch (_) {
+      // The app can still change language if notifications are not initialized yet.
+    }
   }
 }

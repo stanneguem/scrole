@@ -12,8 +12,11 @@ import 'package:scrole/modules/module_evenement/centre/models/event_model.dart';
 import 'package:scrole/modules/module_authentification/centre/services/auth_service.dart';
 import 'package:scrole/modules/module_communautes/centre/services/community_outbox_processor.dart';
 import 'package:scrole/app/local_storage/structured/app_cache_database.dart';
+import 'package:scrole/app/local_storage/fast/fast_cache_key.dart';
+import 'package:scrole/app/local_storage/fast/fast_cache_service.dart';
 import 'package:scrole/app/routes/app_pages.dart';
 import 'package:scrole/app/utils/supabase_error_mapper.dart';
+import 'package:scrole/modules/module_discussion_direct/externe/repositories/social_repository.dart';
 import 'package:uuid/uuid.dart';
 
 enum HomeFeedState { initial, loading, loaded, empty, error, loadingMore }
@@ -23,9 +26,13 @@ class HomeFeedController extends GetxController {
   late final EventRepository _eventRepo;
   final AuthService _authService = Get.find<AuthService>();
   final AppDatabase _db = Get.find<AppDatabase>();
+  FastCacheService? get _fastCache =>
+      Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
+  static const int _homeFeedCacheLimit = 15;
 
   final Rx<HomeFeedState> state = HomeFeedState.initial.obs;
   final RxList<CommunityPost> posts = <CommunityPost>[].obs;
+  final RxList<CommunityPost> sponsoredPosts = <CommunityPost>[].obs;
   final RxList<SuggestedProfileModel> suggestedProfiles = <SuggestedProfileModel>[].obs;
   final RxList<EventModel> suggestedEvents = <EventModel>[].obs;
   final RxString errorMessage = ''.obs;
@@ -34,20 +41,98 @@ class HomeFeedController extends GetxController {
   final RxBool isLoadingMore = false.obs;
   final RxString nextCursor = ''.obs;
 
+  final Map<String, DateTime> _activeDwellStartedAt = {};
+  final List<Map<String, dynamic>> _pendingDwellItems = [];
+  Timer? _dwellBatchTimer;
+
   final Set<String> _sentViewIds = {};
   final List<String> _pendingViewIds = [];
   Timer? _viewBatchTimer;
   Timer? _counterRefreshTimer;
+  bool _refreshingVisibleCounters = false;
 
-  void queuePostView(CommunityPost post) {
-    if (post.isPublishing) return;
+  // Protect against duplicate HomeFeedController instances issuing the same
+  // periodic counters RPC at the same time.
+  static bool _postCountersRequestInFlight = false;
+  static DateTime? _lastPostCountersRequestAt;
+
+  Future<List<Map<String, dynamic>>> _requestPostCounters(List<String> ids) async {
+    if (ids.isEmpty || _postCountersRequestInFlight) return const [];
+    final now = DateTime.now();
+    final lastRequest = _lastPostCountersRequestAt;
+    // Multiple feed controllers can exist briefly during route transitions.
+    // Coalesce their identical refreshes instead of flooding Supabase.
+    if (lastRequest != null && now.difference(lastRequest) < const Duration(seconds: 8)) {
+      return const [];
+    }
+    _postCountersRequestInFlight = true;
+    _lastPostCountersRequestAt = now;
+    try {
+      return await _feedRepo.getPostCounters(ids);
+    } finally {
+      _postCountersRequestInFlight = false;
+    }
+  }
+
+  void startPostDwell(CommunityPost post) {
+    if (post.isPublishing || post.id.isEmpty) return;
     final myId = _authService.userId;
     if (myId != null && post.authorId == myId) return;
-    if (_sentViewIds.contains(post.id)) return;
-    if (_pendingViewIds.contains(post.id)) return;
+    _activeDwellStartedAt.putIfAbsent(post.id, DateTime.now);
+  }
 
-    _pendingViewIds.add(post.id);
-    _sentViewIds.add(post.id);
+  void stopPostDwell(String postId) {
+    final startedAt = _activeDwellStartedAt.remove(postId);
+    if (startedAt == null) return;
+    final dwellMs = DateTime.now().difference(startedAt).inMilliseconds;
+    if (dwellMs <= 0) return;
+    _pendingDwellItems.add({'post_id': postId, 'dwell_ms': dwellMs});
+    if (_pendingDwellItems.length >= 100) {
+      unawaited(_flushPostDwell());
+    } else {
+      _dwellBatchTimer ??= Timer(const Duration(seconds: 5), _flushPostDwell);
+    }
+  }
+
+  Future<void> _flushPostDwell() async {
+    _dwellBatchTimer?.cancel();
+    _dwellBatchTimer = null;
+    while (_pendingDwellItems.isNotEmpty) {
+      final count = _pendingDwellItems.length > 100 ? 100 : _pendingDwellItems.length;
+      final batch = _pendingDwellItems.take(count).toList();
+      _pendingDwellItems.removeRange(0, count);
+      try {
+        final recorded = await _feedRepo.recordPostDwell(batch);
+        debugPrint('[POST_DWELL] Recorded dwell for $recorded/${batch.length} posts');
+      } catch (e) {
+        debugPrint('[POST_DWELL] Batch failed and was dropped: $e');
+      }
+    }
+  }
+
+  bool _containsVideo(CommunityPost post) =>
+      post.media.any((media) => media.isVideo) ||
+      (post.sharedPost?.media.any((media) => media.isVideo) ?? false);
+
+  void queuePostView(CommunityPost post) {
+    // Video views are recorded only after 50% of effective playback.
+    if (_containsVideo(post)) return;
+    _queuePostViewId(post.id, post);
+  }
+
+  void queueQualifiedVideoPostView(String postId, CommunityPost post) {
+    _queuePostViewId(postId, post);
+  }
+
+  void _queuePostViewId(String postId, CommunityPost post) {
+    if (post.isPublishing || postId.isEmpty) return;
+    final myId = _authService.userId;
+    if (myId != null && post.authorId == myId) return;
+    if (_sentViewIds.contains(postId)) return;
+    if (_pendingViewIds.contains(postId)) return;
+
+    _pendingViewIds.add(postId);
+    _sentViewIds.add(postId);
 
     if (_pendingViewIds.length >= 20) {
       _flushViewBatch();
@@ -68,7 +153,7 @@ class HomeFeedController extends GetxController {
       debugPrint('[POST_ACTIONS] Sending view batch of ${batch.length} posts');
       await _feedRepo.recordPostViews(batch);
 
-      final counters = await _feedRepo.getPostCounters(batch);
+      final counters = await _requestPostCounters(batch);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -86,17 +171,34 @@ class HomeFeedController extends GetxController {
           }
         }
         posts.refresh();
+        unawaited(_cacheCurrentFeed());
       }
     } catch (e) {
       debugPrint('[POST_ACTIONS] Error recording view batch or fetching counters: $e');
     }
   }
 
+  String? _campaignIdFromSponsoredPost(String postId) => postId.startsWith('promotion_') ? postId.substring('promotion_'.length) : null;
+
+  Future<void> recordSponsoredImpression(CommunityPost post) async {
+    final id = _campaignIdFromSponsoredPost(post.id);
+    if (!post.isSponsored || id == null || id.isEmpty) return;
+    await _feedRepo.recordPromotionImpression(id);
+  }
+
+  Future<void> recordSponsoredInteraction(CommunityPost post, {String type = 'click'}) async {
+    final id = _campaignIdFromSponsoredPost(post.id);
+    if (!post.isSponsored || id == null || id.isEmpty) return;
+    await _feedRepo.recordPromotionInteraction(id, type);
+  }
+
   Future<void> _refreshVisibleCounters() async {
-    if (posts.isEmpty) return;
-    final ids = posts.take(50).map((p) => p.id).toList();
+    if (_refreshingVisibleCounters || posts.isEmpty || state.value != HomeFeedState.loaded) return;
+    final ids = posts.take(50).map((p) => p.id).toSet().toList();
+    if (ids.isEmpty) return;
+    _refreshingVisibleCounters = true;
     try {
-      final counters = await _feedRepo.getPostCounters(ids);
+      final counters = await _requestPostCounters(ids);
       if (counters.isNotEmpty) {
         for (final c in counters) {
           final id = c['id']?.toString();
@@ -114,8 +216,13 @@ class HomeFeedController extends GetxController {
           }
         }
         posts.refresh();
+        unawaited(_cacheCurrentFeed());
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[POST_ACTIONS] Counter refresh failed; will retry on next interval: $e');
+    } finally {
+      _refreshingVisibleCounters = false;
+    }
   }
 
   @override
@@ -125,7 +232,10 @@ class HomeFeedController extends GetxController {
     try {
       _eventRepo = Get.find<EventRepository>();
     } catch (_) {
-      _eventRepo = EventRepository(Get.find(), Get.find());
+      _eventRepo = Get.put<EventRepository>(
+        EventRepository(Get.find(), Get.find()),
+        permanent: true,
+      );
     }
     fetchFeed();
     _counterRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) => _refreshVisibleCounters());
@@ -133,6 +243,11 @@ class HomeFeedController extends GetxController {
 
   @override
   void onClose() {
+    _dwellBatchTimer?.cancel();
+    for (final postId in _activeDwellStartedAt.keys.toList()) {
+      stopPostDwell(postId);
+    }
+    unawaited(_flushPostDwell());
     _viewBatchTimer?.cancel();
     _counterRefreshTimer?.cancel();
     _flushViewBatch();
@@ -141,6 +256,45 @@ class HomeFeedController extends GetxController {
     }
     _reactionDebouncers.clear();
     super.onClose();
+  }
+
+  String eventAgendaRestrictionMessageKey(Object error) => _eventRepo.agendaRestrictionMessageKey(error);
+
+  final Set<String> _profileSuggestionActionsInFlight = {};
+
+  Future<void> followSuggestedProfile(SuggestedProfileModel profile) async {
+    if (profile.id.isEmpty || !_profileSuggestionActionsInFlight.add(profile.id)) return;
+    try {
+      final relation = await SocialRepository().followUser(profile.id);
+      final state = (relation['state'] ?? '').toString();
+      profile.isAdded = state == 'friends' || state == 'following' || relation['is_following'] == true;
+      profile.isRequestSent = state == 'requested' || relation['request_sent'] == true;
+      suggestedProfiles.refresh();
+      if (!profile.isAdded && !profile.isRequestSent) {
+        throw StateError('Le suivi n’a pas été confirmé');
+      }
+    } finally {
+      _profileSuggestionActionsInFlight.remove(profile.id);
+    }
+  }
+
+  Future<void> dismissSuggestedProfile(SuggestedProfileModel profile) async {
+    if (profile.id.isEmpty || !_profileSuggestionActionsInFlight.add(profile.id)) return;
+    try {
+      await _feedRepo.dismissSuggestedProfile(profile.id);
+      suggestedProfiles.removeWhere((item) => item.id == profile.id);
+    } finally {
+      _profileSuggestionActionsInFlight.remove(profile.id);
+    }
+  }
+
+  void removeSuggestedEvent(String eventId) {
+    suggestedEvents.removeWhere((event) => event.id == eventId);
+  }
+
+  Future<void> dismissSuggestedEvent(String eventId) async {
+    await _eventRepo.dismissHomeEventSuggestion(eventId);
+    removeSuggestedEvent(eventId);
   }
 
   Future<void> fetchFeed({bool refresh = false}) async {
@@ -190,8 +344,12 @@ class HomeFeedController extends GetxController {
       int communityPostCount = remoteItems.where((p) => p.communityId != null).length;
       debugPrint('[HOME_FEED] Item counts per type -> Standard Posts: $postTypeCount, Community Posts: $communityPostCount');
 
-      if (remoteItems.isNotEmpty) {
-        unawaited(_feedRepo.recordPostViews(remoteItems.map((p) => p.id).toList()));
+      final immediatelyCountableIds = remoteItems
+          .where((post) => !_containsVideo(post))
+          .map((post) => post.id)
+          .toList();
+      if (immediatelyCountableIds.isNotEmpty) {
+        unawaited(_feedRepo.recordPostViews(immediatelyCountableIds));
       }
 
       // Combine pending outbox posts (at top, grayed out) + remote items
@@ -204,7 +362,8 @@ class HomeFeedController extends GetxController {
       }
       posts.value = uniqueMap.values.toList();
 
-      // Cache fetched items locally
+      // Keep the first 15 complete cards available for the next cold start.
+      // Cache only after the new feed has been installed in memory.
       await _cacheFeedItems(userId, remoteItems);
 
       // Fetch suggested profiles and suggested events
@@ -222,6 +381,17 @@ class HomeFeedController extends GetxController {
         debugPrint('[HOME_FEED] Suggested events count: ${events.length}');
       } catch (e) {
         debugPrint('[HOME_FEED] Error fetching suggested events: $e');
+      }
+
+      // Ads are loaded separately from organic posts. Targeting and expiry
+      // are enforced by get_targeted_promotion_campaigns() in PostgreSQL.
+      try {
+        final campaigns = await _feedRepo.getTargetedPromotionCampaigns(limit: 10);
+        sponsoredPosts.assignAll(campaigns);
+        debugPrint('[PROMOTIONS] Loaded ${campaigns.length} eligible campaigns');
+      } catch (e) {
+        debugPrint('[PROMOTIONS] Campaign loading skipped: $e');
+        sponsoredPosts.clear();
       }
 
       state.value = posts.isEmpty ? HomeFeedState.empty : HomeFeedState.loaded;
@@ -256,6 +426,7 @@ class HomeFeedController extends GetxController {
         final existingIds = posts.map((p) => p.id).toSet();
         final newItems = moreItems.where((p) => !existingIds.contains(p.id)).toList();
         posts.addAll(newItems);
+        unawaited(_cacheCurrentFeed());
       }
     } catch (e) {
       debugPrint('[HOME_FEED] Error in loadMore: $e');
@@ -264,11 +435,19 @@ class HomeFeedController extends GetxController {
     }
   }
 
+  /// Removes a post that has just been reported. The report_content RPC
+  /// already persisted the per-user hide, so this only updates memory/cache.
+  void onPostReported(String postId) {
+    posts.removeWhere((post) => post.id == postId);
+    unawaited(_cacheCurrentFeed());
+  }
+
   Future<void> hidePost(String postId) async {
     try {
       debugPrint('[HOME_FEED] Hiding post $postId locally and calling RPC hide_post');
       posts.removeWhere((p) => p.id == postId);
       await _feedRepo.hidePost(postId);
+      await _cacheCurrentFeed();
       Get.snackbar('Succès', 'Publication masquée', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       debugPrint('[HOME_FEED] Error hiding post $postId: $e');
@@ -279,46 +458,43 @@ class HomeFeedController extends GetxController {
 
   Future<void> _loadCachedFeedAndOutbox(String userId) async {
     try {
-      final db = await _db.database;
-      final cachedRows = await db.query(
-        'home_feed_cache',
-        where: 'user_id = ?',
-        whereArgs: [userId],
-        orderBy: 'cached_at DESC',
-        limit: 30,
+      final cachedRows = _fastCache?.get<List<dynamic>>(
+        FastCacheKey.homeFeed(userId),
       );
+      final cachedPosts = <CommunityPost>[];
+      if (cachedRows != null) {
+        for (final row in cachedRows.take(_homeFeedCacheLimit)) {
+          if (row is! Map) continue;
+          try {
+            final data = Map<String, dynamic>.from(row);
+            final post = CommunityPost.fromMap(data);
+            if (post.id.isNotEmpty) cachedPosts.add(post);
+          } catch (e) {
+            debugPrint('[HOME_FEED] Ignoring invalid cached post: $e');
+          }
+        }
+      }
 
-      final List<CommunityPost> cachedPosts = [];
-      for (final row in cachedRows) {
-        try {
-          final dataMap = jsonDecode(row['data'].toString()) as Map<String, dynamic>;
-          cachedPosts.add(CommunityPost(
-            id: dataMap['id']?.toString() ?? '',
-            authorName: dataMap['author_name']?.toString() ?? 'Utilisateur',
-            authorId: dataMap['author_id']?.toString() ?? '',
-            authorColor: Colors.deepPurple,
-            authorRole: CommunityRole.member,
-            timeAgo: dataMap['time_ago']?.toString() ?? 'Récemment',
-            content: dataMap['content']?.toString() ?? '',
-            communityId: dataMap['community_id']?.toString(),
-            communityName: dataMap['community_name']?.toString(),
-            isSuggested: dataMap['is_suggested'] == true,
-            reasonSubtitle: dataMap['reason_subtitle']?.toString(),
-            likeCount: (dataMap['like_count'] as num?)?.toInt() ?? 0,
-            commentCount: (dataMap['comment_count'] as num?)?.toInt() ?? 0,
-          ));
-        } catch (_) {}
+      // Render cached cards immediately; do not wait for the outbox DB read.
+      if (cachedPosts.isNotEmpty) {
+        posts.assignAll(cachedPosts);
+        state.value = HomeFeedState.loaded;
       }
 
       final pendingPosts = await _getPendingOutboxPosts(userId);
       if (pendingPosts.isNotEmpty || cachedPosts.isNotEmpty) {
-        final combined = <CommunityPost>[...pendingPosts, ...cachedPosts];
-        posts.assignAll(combined);
+        final unique = <String, CommunityPost>{};
+        for (final post in [...pendingPosts, ...cachedPosts]) {
+          unique[post.id] = post;
+        }
+        posts.assignAll(unique.values);
         state.value = HomeFeedState.loaded;
-        debugPrint('[HOME_FEED] Loaded ${cachedPosts.length} cached posts and ${pendingPosts.length} outbox posts.');
       }
-    } catch (e) {
-      debugPrint('[HOME_FEED] Error loading cached feed: $e');
+      debugPrint(
+        '[HOME_FEED] Restored ${cachedPosts.length}/$_homeFeedCacheLimit complete cached cards and ${pendingPosts.length} pending posts.',
+      );
+    } catch (e, st) {
+      debugPrint('[HOME_FEED] Error loading complete cached feed: $e\\n$st');
     }
   }
 
@@ -368,35 +544,28 @@ class HomeFeedController extends GetxController {
 
   Future<void> _cacheFeedItems(String userId, List<CommunityPost> items) async {
     try {
-      final db = await _db.database;
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      for (final p in items) {
-        await db.insert(
-          'home_feed_cache',
-          {
-            'id': p.id,
-            'user_id': userId,
-            'data': jsonEncode({
-              'id': p.id,
-              'content': p.content,
-              'author_name': p.authorName,
-              'author_id': p.authorId,
-              'time_ago': p.timeAgo,
-              'community_id': p.communityId,
-              'community_name': p.communityName,
-              'is_suggested': p.isSuggested,
-              'reason_subtitle': p.reasonSubtitle,
-              'like_count': p.likeCount,
-              'comment_count': p.commentCount,
-            }),
-            'cached_at': nowMs,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+      final unique = <String, CommunityPost>{};
+      for (final post in items) {
+        if (post.id.isNotEmpty && !post.isPublishing) unique[post.id] = post;
       }
-    } catch (e) {
-      debugPrint('[HOME_FEED] Error caching feed items: $e');
+      final snapshot = unique.values
+          .take(_homeFeedCacheLimit)
+          .map((post) => post.toCacheMap())
+          .toList(growable: false);
+      await _fastCache?.set(FastCacheKey.homeFeed(userId), snapshot);
+      debugPrint(
+        '[HOME_FEED] Saved ${snapshot.length} complete cards in the offline cache.',
+      );
+    } catch (e, st) {
+      debugPrint('[HOME_FEED] Error caching complete feed cards: $e\\n$st');
     }
+  }
+
+  Future<void> _cacheCurrentFeed() async {
+    final userId = _authService.userId;
+    if (userId == null) return;
+    final visiblePosts = posts.where((post) => !post.isPublishing).toList();
+    await _cacheFeedItems(userId, visiblePosts);
   }
 
   final Map<String, Timer> _reactionDebouncers = {};
@@ -453,6 +622,7 @@ class HomeFeedController extends GetxController {
       dislikeCount: dislikes,
     );
     posts.refresh();
+    unawaited(_cacheCurrentFeed());
 
     _reactionDebouncers[postId]?.cancel();
 
@@ -468,6 +638,7 @@ class HomeFeedController extends GetxController {
           if (curIdx != -1) {
             posts[curIdx] = post;
             posts.refresh();
+            unawaited(_cacheCurrentFeed());
           }
           Get.snackbar('Erreur', e.toString().replaceFirst('Exception: ', '').tr, snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
         }
@@ -508,11 +679,13 @@ class HomeFeedController extends GetxController {
 
     try {
       await _feedRepo.deletePost(postId, reason: reason);
+      await _cacheCurrentFeed();
       Get.snackbar('Succès', 'Publication supprimée', snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       debugPrint('[DELETE] [Controller] Error deleting post: $e');
       posts.value = oldPosts;
       posts.refresh();
+      unawaited(_cacheCurrentFeed());
       Get.snackbar('Erreur', e.toString().replaceFirst('Exception: ', '').tr, snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
     }
   }

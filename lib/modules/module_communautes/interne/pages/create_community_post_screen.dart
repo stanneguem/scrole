@@ -7,8 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:video_player/video_player.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
+import 'package:scrole/shared/widgets/video_preview_screen.dart';
 import 'package:scrole/app/theme/app_colors.dart';
 import 'package:scrole/app/theme/text_styles.dart';
 import 'package:scrole/app_controller.dart';
@@ -18,17 +19,19 @@ import 'package:scrole/shared/widgets/media_gallery_sheet.dart';
 import 'package:scrole/shared/constants/post_media_limits.dart';
 import 'package:scrole/modules/module_communautes/interne/controllers/community/community_feed_controller.dart';
 import 'package:scrole/modules/module_principale/interne/controllers/home_feed_controller.dart';
+import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
+import 'package:scrole/modules/module_principale/interne/widgets/feed_post_card.dart';
 import 'package:scrole/modules/module_communautes/centre/services/community_service.dart';
 import 'package:scrole/modules/module_communautes/centre/models/news/community_hashtag.dart';
 import 'community_poll_composer_screen.dart';
 import 'community_post_hashtag_selection_screen.dart';
-import 'community_post_settings_screen.dart';
 
 class CreateCommunityPostScreen extends StatefulWidget {
   final String communityName;
   final String? communityId;
   final String? prefilledText;
   final String? prefilledMediaUrl;
+  final CommunityPost? sharedPost;
 
   const CreateCommunityPostScreen({
     super.key,
@@ -36,6 +39,7 @@ class CreateCommunityPostScreen extends StatefulWidget {
     this.communityId,
     this.prefilledText,
     this.prefilledMediaUrl,
+    this.sharedPost,
   });
 
   @override
@@ -45,7 +49,8 @@ class CreateCommunityPostScreen extends StatefulWidget {
 class _SelectedPostMedia {
   final File file;
   final bool isVideo;
-  const _SelectedPostMedia({required this.file, required this.isVideo});
+  final File? thumbnailFile;
+  const _SelectedPostMedia({required this.file, required this.isVideo, this.thumbnailFile});
 }
 
 class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
@@ -60,6 +65,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   String? _prefilledUrl;
   Map<String, dynamic>? _pollData;
   bool _isPublishing = false;
+  Map<String, dynamic>? _selectedEvent;
 
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
@@ -103,6 +109,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
   bool get _canPublish =>
+      widget.sharedPost != null ||
       _textController.text.trim().isNotEmpty ||
       _selectedMedia.isNotEmpty ||
       (_prefilledUrl != null && _prefilledUrl!.isNotEmpty) ||
@@ -142,7 +149,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final cursor = _textController.selection.baseOffset;
     if (cursor >= 0 && cursor <= value.length) {
       final prefix = value.substring(0, cursor);
-      final match = RegExp(r'(^|\\s)([@*~])([^\\s@*~]*)$').firstMatch(prefix);
+      final match = RegExp(r'(^|\s)([@*~])([^\s@*~]*)$').firstMatch(prefix);
       if (match != null) {
         _hideLiveSuggestions();
         final trigger = match.group(2)!;
@@ -234,8 +241,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         width: MediaQuery.of(context).size.width - 32,
         child: CompositedTransformFollower(
           link: _mentionLayerLink, showWhenUnlinked: false,
-          targetAnchor: Alignment.topLeft, followerAnchor: Alignment.bottomLeft,
-          offset: const Offset(0, -8),
+          targetAnchor: Alignment.bottomLeft, followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 8),
           child: Material(
             elevation: 12, color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(14), clipBehavior: Clip.antiAlias,
@@ -259,7 +266,22 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       backgroundImage: image.startsWith('http') ? NetworkImage(image) : null,
                       child: image.startsWith('http') ? null : Icon(isUser ? Icons.person_outline : type == 'event' ? Icons.event_outlined : Icons.groups_outlined, size: 19),
                     ),
-                    title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        ),
+                        if (isUser && (item['user_id'] ?? item['id']) != null) ...[
+                          const SizedBox(width: 4),
+                          UserCertifiedBadge(
+                            userId: (item['user_id'] ?? item['id']).toString(),
+                            size: 15,
+                            showTooltip: true,
+                          ),
+                        ],
+                      ],
+                    ),
                     subtitle: subtitle.isEmpty ? null : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
                     onTap: () => _insertPostMention(type!, item),
                   );
@@ -442,7 +464,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             ? const Padding(padding: EdgeInsets.all(16), child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))))
             : _liveSuggestions.isEmpty
                 ? Padding(padding: const EdgeInsets.all(14), child: Text(
-                    trigger == '#' ? 'Aucun hashtag trouvé pour le moment.' : 'Aucun compte correspondant dans ${scope}.',
+                    trigger == '#' ? 'post_hashtags_autocomplete_empty'.tr : 'Aucun compte correspondant dans ${scope}.',
                     style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant)))
                 : ListView.separated(
                     shrinkWrap: true, padding: const EdgeInsets.symmetric(vertical: 5),
@@ -453,7 +475,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       final isTag = trigger == '#';
                       final displayName = isTag ? (item['name'] ?? '').toString()
                           : '${item['first_name'] ?? ''} ${item['last_name'] ?? ''}'.trim();
-                      final handle = isTag ? '${item['post_count'] ?? 0} publication(s)' : '${item['username'] ?? ''}';
+                      final handle = isTag ? 'post_hashtags_publications_count'.trParams({'count': '${item['post_count'] ?? 0}'}) : '${item['username'] ?? ''}';
                       final photo = (item['photo_url'] ?? '').toString();
                       return ListTile(
                         dense: true,
@@ -477,7 +499,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _openPollCreator() async {
     if (_selectedMedia.isNotEmpty || (_prefilledUrl != null && _prefilledUrl!.isNotEmpty)) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de photos.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_photos'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     final pollMap = await Get.to<Map<String, dynamic>>(() => const CommunityPollComposerScreen(), transition: Transition.rightToLeft);
@@ -488,8 +510,165 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     }
   }
 
+  Future<void> _chooseCheckedInEvent() async {
+    try {
+      final client = Supabase.instance.client;
+      if (client.auth.currentUser == null) return;
+
+      // Un événement doit satisfaire les trois conditions :
+      // présence validée, événement dans l'agenda personnel et événement en cours.
+      final checkedInRows = await client.rpc('get_my_valid_checked_in_events');
+      dynamic agendaRows;
+      try {
+        agendaRows = await client.rpc('get_my_agenda');
+      } catch (_) {
+        agendaRows = await client.rpc('get_mon_agenda');
+      }
+
+      final checkedInById = <String, Map<String, dynamic>>{};
+      if (checkedInRows is List) {
+        for (final row in checkedInRows) {
+          if (row is Map) {
+            final event = Map<String, dynamic>.from(row);
+            final id = (event['id'] ?? event['event_id'] ?? '').toString();
+            if (id.isNotEmpty) checkedInById[id] = event;
+          }
+        }
+      }
+
+      final now = DateTime.now();
+      final eligible = <String, Map<String, dynamic>>{};
+      if (agendaRows is List) {
+        for (final row in agendaRows) {
+          if (row is! Map) continue;
+          final agendaEvent = Map<String, dynamic>.from(row);
+          final id = (agendaEvent['id'] ?? agendaEvent['event_id'] ?? agendaEvent['evenement_id'] ?? '').toString();
+          final checkedEvent = checkedInById[id];
+          if (id.isEmpty || checkedEvent == null) continue;
+
+          final event = <String, dynamic>{...checkedEvent, ...agendaEvent};
+          final startsRaw = event['starts_at'] ?? event['date_debut'];
+          final endsRaw = event['ends_at'] ?? event['date_fin'];
+          final startsAt = startsRaw == null ? null : DateTime.tryParse(startsRaw.toString())?.toLocal();
+          final endsAt = endsRaw == null ? null : DateTime.tryParse(endsRaw.toString())?.toLocal();
+          final isOngoing = startsAt != null &&
+              !startsAt.isAfter(now) &&
+              (endsAt == null || !endsAt.isBefore(now));
+          if (isOngoing) eligible[id] = event;
+        }
+      }
+
+      if (!mounted) return;
+      if (eligible.isEmpty) {
+        Get.snackbar(
+          'Aucun événement disponible',
+          "Seuls les événements en cours, présents dans ton agenda et avec un check-in validé sont proposés.",
+        );
+        return;
+      }
+
+      final events = eligible.values.toList()
+        ..sort((a, b) => (a['starts_at'] ?? a['date_debut'] ?? '')
+            .toString().compareTo((b['starts_at'] ?? b['date_debut'] ?? '').toString()));
+      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        builder: (ctx) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * .65,
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Row(children: [
+                  const Icon(Icons.event_available_rounded),
+                  const SizedBox(width: 10),
+                  Text('Choisir un événement en cours',
+                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                ]),
+              ),
+              Expanded(
+                child: ListView(
+                  children: events.map((event) => ListTile(
+                    leading: (event['photo'] ?? event['photo_url'] ?? '').toString().startsWith('http')
+                        ? AppCachedImage(
+                            imageUrl: (event['photo'] ?? event['photo_url']).toString(),
+                            width: 48, height: 48, fit: BoxFit.cover)
+                        : const SizedBox(width: 48, height: 48, child: Icon(Icons.event)),
+                    title: Text((event['name'] ?? event['nom'] ?? 'Événement').toString(),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text((event['starts_at'] ?? event['date_debut'] ?? '').toString().replaceFirst('T', ' ')),
+                    onTap: () => Navigator.of(ctx).pop(event),
+                  )).toList(),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+      if (selected != null && mounted) setState(() => _selectedEvent = selected);
+    } catch (e) {
+      debugPrint('[POST_COMPOSER] eligible event loading failed: $e');
+      Get.snackbar('Erreur', "Impossible de charger tes événements en cours.");
+    }
+  }
+
   Future<void> _publish() async {
-    if (!_canPublish) return;
+    if (!_canPublish || _isPublishing) return;
+
+    final sharedPost = widget.sharedPost;
+    if (sharedPost != null) {
+      setState(() => _isPublishing = true);
+      try {
+        final feedController = Get.find<HomeFeedController>();
+        await feedController.sharePost(
+          originalPostId: sharedPost.sharedPostId ?? sharedPost.id,
+          communityId: widget.communityId,
+          audience: _audience,
+          comment: _textController.text.trim().isNotEmpty
+              ? _textController.text.trim()
+              : null,
+        );
+        if (!mounted) return;
+        FocusManager.instance.primaryFocus?.unfocus();
+        Get.back(closeOverlays: true);
+        if (widget.communityId != null && widget.communityId!.isNotEmpty) {
+          try {
+            final communityFeed = Get.find<CommunityFeedController>(
+              tag: widget.communityId,
+            );
+            unawaited(communityFeed.fetchCommunityFeed(isRefresh: true));
+          } catch (e) {
+            debugPrint('[POST_ACTIONS] Community feed refresh skipped: $e');
+          }
+          Get.snackbar(
+            'Succès',
+            'Publication repartagée dans ${widget.communityName}.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          unawaited(feedController.fetchFeed(refresh: true));
+          Get.snackbar(
+            'Succès',
+            'Publication repartagée sur votre fil.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (e) {
+        debugPrint('[POST_ACTIONS] Republish from composer error: $e');
+        if (mounted) {
+          setState(() => _isPublishing = false);
+          Get.snackbar(
+            'Erreur',
+            e.toString().replaceFirst('Exception: ', ''),
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      }
+      return;
+    }
 
     final orderedMedia = List<_SelectedPostMedia>.from(_selectedMedia);
     List<File> filesToPublish = orderedMedia.where((m) => !m.isVideo).map((m) => m.file).toList();
@@ -505,17 +684,17 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final content = _textController.text.trim();
 
     if (content.isEmpty && filesToPublish.isEmpty && videosToPublish.isEmpty && _pollData == null) {
-      Get.snackbar('Publication vide', 'Une publication doit contenir du texte, un média ou un sondage.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_empty_title'.tr, 'post_composer_empty_message'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
     if (_pollData != null && content.isEmpty) {
-      Get.snackbar('Question manquante', 'Écris la question du sondage ou du quiz avant de publier.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_question_missing'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
     if (filesToPublish.length + videosToPublish.length > maxPostMedia) {
-      Get.snackbar('Limite dépassée', 'Maximum $maxPostMedia médias autorisés (photos et vidéos confondues).', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_limit_title'.tr, 'post_composer_media_limit'.trParams({'max': '$maxPostMedia'}), backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
@@ -561,6 +740,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     try {
       await service.createCommunityPost(
         requestedPostId: postId,
+        eventId: _selectedEvent?['id']?.toString(),
         communityId: cId,
         content: postContent,
         imageFiles: filesToPublish,
@@ -591,7 +771,8 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         }));
       }
       if (!mounted) return;
-      Get.back();
+      FocusManager.instance.primaryFocus?.unfocus();
+      Get.back(closeOverlays: true);
       if (isCommunity) {
         if (feedController != null) {
           unawaited(feedController.fetchCommunityFeed(isRefresh: true));
@@ -622,7 +803,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _openGallery() async {
     if (_pollData != null) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de photos.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_photos'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
 
@@ -650,15 +831,62 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
 
+  /// Lit uniquement les métadonnées natives du média.
+  /// Évite d'initialiser un lecteur/décodeur vidéo complet pour connaître la durée.
+  Future<File?> _createVideoThumbnail(File file) async {
+    try {
+      return await VideoCompress.getFileThumbnail(
+        file.path, quality: 75, position: 0,
+      ).timeout(const Duration(seconds: 20));
+    } catch (error) {
+      // La miniature est facultative : une erreur de génération ne doit pas
+      // empêcher l'ajout de la vidéo qui a déjà été validée dans le trim.
+      debugPrint('[POST_COMPOSER] thumbnail generation failed: $error');
+      return null;
+    }
+  }
+
+  Future<Duration> _readVideoDuration(File file) async {
+    if (!await file.exists()) {
+      throw StateError('Le fichier vidéo sélectionné est introuvable.');
+    }
+    final fileSize = await file.length();
+    if (fileSize <= 0) {
+      throw StateError('Le fichier vidéo sélectionné est vide.');
+    }
+
+    final watch = Stopwatch()..start();
+    final info = await VideoCompress.getMediaInfo(file.path)
+        .timeout(const Duration(seconds: 20));
+    final durationMicros = info.duration;
+    if (durationMicros == null ||
+        !durationMicros.isFinite ||
+        durationMicros <= 0) {
+      throw StateError('La durée de cette vidéo est illisible.');
+    }
+
+    final duration = Duration(microseconds: durationMicros.round());
+    debugPrint(
+      '[POST_COMPOSER] video metadata: '
+      'size=${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB '
+      'resolution=${info.width}x${info.height} '
+      'duration=${duration.inMilliseconds}ms '
+      'metadata=${watch.elapsedMilliseconds}ms',
+    );
+    return duration;
+  }
+
   Future<void> _handleGallerySelection(List<XFile> files) async {
+    // Traitement volontairement séquentiel : un seul travail vidéo natif à la fois.
     for (final picked in files) {
       if (!mounted || _selectedMediaCount >= maxPostMedia) break;
       final file = File(picked.path);
       final extension = p.extension(picked.path).replaceFirst('.', '').toLowerCase();
-      final isVideo = const {'mp4', 'mov'}.contains(extension);
+      final isVideo = const {'mp4', 'mov', 'm4v'}.contains(extension);
+
       if (!isVideo) {
         if (_selectedPhotoCount >= maxPostPhotos) {
-          Get.snackbar('Limite de photos atteinte', 'Vous pouvez ajouter au maximum $maxPostPhotos photos par publication.');
+          Get.snackbar('post_composer_photo_limit_title'.tr, 'post_composer_photo_limit_message'.trParams({'max': '$maxPostPhotos'}));
           continue;
         }
         setState(() {
@@ -667,86 +895,110 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         });
         continue;
       }
+
       try {
-        var videoFile = file;
-        final controller = VideoPlayerController.file(videoFile);
-        Duration duration;
-        try {
-          await controller.initialize();
-          duration = controller.value.duration;
-        } finally {
-          await controller.dispose();
+        // Le trim est obligatoire, même pour une vidéo de moins de 29 secondes.
+        final trimmed = await Get.to<File>(() => VideoTrimScreen(
+              videoFile: file,
+              maxDuration: const Duration(seconds: 29),
+            ));
+        if (trimmed == null || !mounted) continue;
+        final videoFile = trimmed;
+        final trimmedDuration = await _readVideoDuration(videoFile);
+        if (trimmedDuration > const Duration(seconds: 29)) {
+          Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
+          continue;
         }
-        if (duration > const Duration(seconds: 29)) {
-          final trimmed = await Get.to<File>(() => VideoTrimScreen(videoFile: videoFile, maxDuration: const Duration(seconds: 29)));
-          if (trimmed == null || !mounted) continue;
-          videoFile = trimmed;
-          final verify = VideoPlayerController.file(videoFile);
-          try {
-            await verify.initialize();
-            if (verify.value.duration > const Duration(seconds: 29)) {
-              Get.snackbar('Découpage insuffisant', 'La vidéo doit durer 29 secondes maximum.');
-              continue;
-            }
-          } finally {
-            await verify.dispose();
-          }
-        }
+        final thumbnail = await _createVideoThumbnail(videoFile);
         if (!mounted) return;
         setState(() {
-          _selectedMedia.add(_SelectedPostMedia(file: videoFile, isVideo: true));
+          _selectedMedia.add(_SelectedPostMedia(file: videoFile, isVideo: true, thumbnailFile: thumbnail));
           _prefilledUrl = null;
         });
-      } catch (e) {
-        if (mounted) Get.snackbar('Vidéo incompatible', 'Cette vidéo ne peut pas être lue par Scrole. Choisissez un MP4 ou MOV compatible.');
-        debugPrint('[POST_COMPOSER] incompatible gallery video: $e');
+      } catch (e, stack) {
+        debugPrint('[POST_COMPOSER] video selection failed: $e\n$stack');
+        if (mounted) {
+          Get.snackbar(
+            'post_composer_video_invalid_title'.tr,
+            'post_composer_video_invalid_message'.tr,
+          );
+        }
+        // Future.timeout n'annule pas l'appel natif sous-jacent : ne pas lancer
+        // une seconde extraction si la première a dépassé le délai.
+        if (e is TimeoutException) break;
       }
     }
   }
 
   Future<void> _pickVideo() async {
     if (_pollData != null) {
-      Get.snackbar('Attention', 'Un sondage ne peut pas contenir de vidéo.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_attention'.tr, 'post_composer_poll_no_video'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     if (_selectedMediaCount >= maxPostMedia) {
-      Get.snackbar('Limite atteinte', 'Une publication peut contenir au maximum $maxPostMedia médias.', backgroundColor: Colors.black87, colorText: Colors.white);
+      Get.snackbar('post_composer_media_limit_title'.tr, 'post_composer_media_limit_message'.trParams({'max': '$maxPostMedia'}), backgroundColor: Colors.black87, colorText: Colors.white);
       return;
     }
     try {
       final picked = await _mediaPicker.pickVideo(source: ImageSource.gallery);
       if (picked == null || !mounted) return;
-      var file = File(picked.path);
-      final controller = VideoPlayerController.file(file);
-      Duration duration;
-      try {
-        await controller.initialize();
-        duration = controller.value.duration;
-      } finally {
-        await controller.dispose();
+
+      final originalFile = File(picked.path);
+      final trimmed = await Get.to<File>(() => VideoTrimScreen(
+            videoFile: originalFile,
+            maxDuration: const Duration(seconds: 29),
+          ));
+      if (trimmed == null || !mounted) return;
+      final file = trimmed;
+      final trimmedDuration = await _readVideoDuration(file);
+      if (trimmedDuration > const Duration(seconds: 29)) {
+        Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
+        return;
       }
-      if (duration > const Duration(seconds: 29)) {
-        final trimmed = await Get.to<File>(() => VideoTrimScreen(videoFile: file, maxDuration: const Duration(seconds: 29)));
-        if (trimmed == null || !mounted) return;
-        file = trimmed;
-        final verify = VideoPlayerController.file(file);
-        try {
-          await verify.initialize();
-          if (verify.value.duration > const Duration(seconds: 29)) {
-            Get.snackbar('Découpage insuffisant', 'La vidéo découpée doit durer 29 secondes maximum. Recommence le découpage.', backgroundColor: Colors.black87, colorText: Colors.white);
-            return;
-          }
-        } finally {
-          await verify.dispose();
-        }
-      }
+      final thumbnail = await _createVideoThumbnail(file);
       if (!mounted) return;
       setState(() {
-        _selectedMedia.add(_SelectedPostMedia(file: file, isVideo: true));
+        _selectedMedia.add(_SelectedPostMedia(file: file, isVideo: true, thumbnailFile: thumbnail));
         _prefilledUrl = null;
       });
+    } catch (e, stack) {
+      debugPrint('[POST_COMPOSER] video picker failed: $e\n$stack');
+      if (mounted) {
+        Get.snackbar(
+          'post_composer_video_select_error'.tr,
+          e.toString(),
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+        );
+      }
+    }
+  }
+
+  Future<void> _openSelectedVideo(int index) async {
+    if (index < 0 || index >= _selectedMedia.length) return;
+    final current = _selectedMedia[index];
+    if (!current.isVideo) return;
+    final updatedFile = await Get.to<File>(() => VideoPreviewScreen(
+      videoFile: current.file,
+      maxDuration: const Duration(seconds: 29),
+    ));
+    if (updatedFile == null || !mounted) return;
+    final duration = await _readVideoDuration(updatedFile);
+    if (duration > const Duration(seconds: 29)) {
+      Get.snackbar('Vidéo invalide', 'La vidéo ne peut pas dépasser 29 secondes.');
+      return;
+    }
+    try {
+      final thumbnail = await _createVideoThumbnail(updatedFile);
+      if (!mounted) return;
+      setState(() => _selectedMedia[index] = _SelectedPostMedia(
+        file: updatedFile, isVideo: true, thumbnailFile: thumbnail,
+      ));
     } catch (e) {
-      if (mounted) Get.snackbar('Vidéo impossible à sélectionner', e.toString(), backgroundColor: Colors.black87, colorText: Colors.white);
+      debugPrint('[POST_COMPOSER] thumbnail refresh failed: $e');
+      if (mounted) setState(() => _selectedMedia[index] = _SelectedPostMedia(
+        file: updatedFile, isVideo: true, thumbnailFile: null,
+      ));
     }
   }
 
@@ -765,6 +1017,9 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final displayName = fullName.isEmpty ? (username.isEmpty ? 'profile_default_username'.tr : username) : fullName;
     final avatarUrl = profile['photo_url']?.toString() ?? '';
     final isCertified = profile['is_certified'] == true || profile['is_verified'] == true || profile['is_certified'] == 1 || profile['is_verified'] == 1;
+    final certificationUserId = Supabase.instance.client.auth.currentUser?.id
+        ?? profile['user_id']?.toString()
+        ?? profile['id']?.toString();
 
     final isCommunity = widget.communityId != null && widget.communityId!.isNotEmpty;
 
@@ -772,7 +1027,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Créer une publication'),
+        title: Text('post_composer_title'.tr),
         titleTextStyle: AppTextStyles.h5.copyWith(color: colorScheme.onSurface),
         leading: IconButton(
           onPressed: () => Get.back(),
@@ -792,7 +1047,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               child: _isPublishing
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(
-                      'Publier',
+                      'post_composer_publish'.tr,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -856,7 +1111,10 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                     if (isCertified) ...[
                                       const SizedBox(width: 4),
-                                      const UserCertifiedBadge(size: 15),
+                                      UserCertifiedBadge(
+                                        size: 15,
+                                        userId: certificationUserId,
+                                      ),
                                     ],
                                   ],
                                 ),
@@ -869,7 +1127,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      'Dans ${widget.communityName}',
+                                      'post_composer_community_label'.trParams({'name': widget.communityName}),
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
@@ -878,19 +1136,13 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                     ),
                                   )
                                 else
-                                  // Audience Selector for general posts
-                                  DropdownButton<String>(
-                                    value: _audience,
-                                    isDense: true,
-                                    underline: const SizedBox.shrink(),
-                                    items: const [
-                                      DropdownMenuItem(value: 'public', child: Text('Public')),
-                                      DropdownMenuItem(value: 'followers', child: Text('Followers')),
-                                      DropdownMenuItem(value: 'friends', child: Text('Amis')),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) setState(() => _audience = val);
-                                    },
+                                  Text(
+                                    'post_composer_feed_label'.tr,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                               ],
                             ),
@@ -911,7 +1163,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         maxLength: 5000,
                         style: AppTextStyles.bodyXL.copyWith(fontSize: 18, height: 1.4, color: colorScheme.onSurface),
                         decoration: InputDecoration(
-                          hintText: _pollData != null ? 'Posez votre question pour le sondage...' : 'Quoi de neuf ? (max 5000 chars)',
+                          hintText: _pollData != null ? 'post_composer_poll_question'.tr : 'post_composer_whats_new'.tr,
                           hintStyle: AppTextStyles.bodyXL.copyWith(fontSize: 18, color: colorScheme.outline.withValues(alpha: 0.5)),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -928,6 +1180,32 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     ),
                     _buildLiveSuggestions(colorScheme),
 
+                    if (widget.sharedPost != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: IgnorePointer(
+                            child: FeedPostCard(
+                              post: widget.sharedPost!,
+                              onReactionTap: (_) {},
+                              onCommentTap: () {},
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    if (_selectedEvent != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Card(child: ListTile(
+                          leading: const Icon(Icons.event_available_rounded),
+                          title: Text((_selectedEvent!['name'] ?? 'Événement').toString()),
+                          subtitle: const Text('Publication associée à cet événement'),
+                          trailing: IconButton(icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(() => _selectedEvent = null)),
+                        )),
+                      ),
                     if (_selectedHashtags.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -942,6 +1220,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                           )).toList(),
                         ),
                       ),
+
 
                     if (_selectedMentions.isNotEmpty)
                       Padding(
@@ -1001,28 +1280,47 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                       children: [
                                         Text(
                                           switch (_pollData!['kind']) {
-                                            'quiz' => 'Quiz',
-                                            'multiple' => 'Sondage à choix multiples',
-                                            'this_or_that' => 'Tu préfères…',
-                                            _ => 'Sondage classique',
+                                            'quiz' => 'poll_kind_quiz'.tr,
+                                            'multiple' => 'poll_kind_multiple'.tr,
+                                            'this_or_that' => 'poll_kind_this_or_that'.tr,
+                                            _ => 'poll_kind_single'.tr,
                                           },
                                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: colorScheme.onSurface),
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          '${(_pollData!['options'] as List).length} options · prêt à publier',
+                                          'poll_preview_ready'.trParams({'count': '${(_pollData!['options'] as List).length}'}),
                                           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                                         ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
-                                    tooltip: 'Supprimer le sondage',
+                                    tooltip: 'post_composer_delete_poll'.tr,
                                     onPressed: () => setState(() => _pollData = null),
                                     icon: const Icon(Icons.close_rounded),
                                   ),
                                 ],
                               ),
+                              if ((_pollData!['question'] ?? '').toString().trim().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _pollData!['question'].toString(),
+                                  style: TextStyle(fontSize: 18, height: 1.3, fontWeight: FontWeight.w800, color: colorScheme.onSurface),
+                                ),
+                              ],
+                              if ((_pollData!['image_file_path'] ?? '').toString().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.file(
+                                    File(_pollData!['image_file_path'].toString()),
+                                    width: double.infinity,
+                                    height: 170,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               ...((_pollData!['options'] as List).asMap().entries.map((entry) {
                                 final rawOption = entry.value;
@@ -1050,9 +1348,26 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                           color: isCorrect ? Colors.green : colorScheme.outline,
                                         ),
                                         const SizedBox(width: 9),
-                                        Expanded(child: Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface))),
+                                        Expanded(child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(option, style: TextStyle(fontSize: 13, color: colorScheme.onSurface)),
+                                            if (rawOption is Map && (rawOption['image_file_path'] ?? '').toString().isNotEmpty) ...[
+                                              const SizedBox(height: 7),
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(9),
+                                                child: Image.file(
+                                                  File(rawOption['image_file_path'].toString()),
+                                                  width: double.infinity,
+                                                  height: 76,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        )),
                                         if (isCorrect)
-                                          const Text('Bonne réponse', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
+                                          Text('post_composer_correct_answer'.tr, style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w700)),
                                       ],
                                     ),
                                   ),
@@ -1087,7 +1402,10 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: isVideo
-                                      ? _SelectedVideoPreview(file: file)
+                                      ? GestureDetector(
+                                          onTap: () => _openSelectedVideo(index),
+                                          child: _SelectedVideoPreview(file: file, thumbnailFile: media.thumbnailFile),
+                                        )
                                       : Image.file(file, width: double.infinity, height: double.infinity, fit: BoxFit.cover),
                                 ),
                                 Positioned(
@@ -1140,24 +1458,48 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
             // Bottom action bar
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
-              ),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openGallery,
                     icon: Icon(Icons.camera_alt_rounded, color: colorScheme.onSurface, size: 24),
-                    tooltip: 'Galerie photos et vidéos (max $maxPostMedia médias)',
+                    tooltip: 'post_composer_media_tooltip'.trParams({'max': '$maxPostMedia'}),
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: _openPollCreator,
                     icon: Icon(Icons.poll_rounded, color: _pollData != null ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Sondage',
+                    tooltip: 'post_composer_poll_tooltip'.tr,
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    onPressed: () {
+                      final value = _textController.value;
+                      final text = value.text;
+                      final cursor = value.selection.isValid
+                          ? value.selection.baseOffset.clamp(0, text.length)
+                          : text.length;
+                      final before = cursor > 0 ? text[cursor - 1] : '';
+                      final insertion = before.isEmpty || RegExp(r'\\s').hasMatch(before) ? '@' : ' @';
+                      final nextText = text.replaceRange(cursor, cursor, insertion);
+                      _textController.value = TextEditingValue(
+                        text: nextText,
+                        selection: TextSelection.collapsed(offset: cursor + insertion.length),
+                      );
+                      _onPostTextChanged(nextText);
+                    },
+                    icon: Icon(Icons.alternate_email_rounded, color: colorScheme.onSurface, size: 24),
+                    tooltip: 'Mentionner une personne (@)',
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                     onPressed: () async {
                       final result = await Get.to<List<CommunityHashtag>>(() => CommunityPostHashtagSelectionScreen(
                         initialSelected: _selectedHashtags,
@@ -1170,27 +1512,18 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       }
                     },
                     icon: Icon(Icons.tag_rounded, color: _selectedHashtags.isNotEmpty ? colorScheme.primary : colorScheme.onSurface, size: 24),
-                    tooltip: 'Hashtags',
+                    tooltip: 'post_composer_hashtags_tooltip'.tr,
                   ),
-
                   IconButton(
-                    onPressed: () async {
-                      final result = await Get.to<Map<String, dynamic>>(() => CommunityPostSettingsScreen(
-                        initialCommentsEnabled: _commentsEnabled,
-                        initialSharingEnabled: _sharingEnabled,
-                        isCommunityPost: isCommunity,
-                        initialAllowPromotion: _allowPromotion,
-                      ));
-                      if (result != null) {
-                        setState(() {
-                          _commentsEnabled = result['commentsEnabled'] ?? true;
-                          _sharingEnabled = result['sharingEnabled'] ?? true;
-                          _allowPromotion = result['allowPromotion'] ?? _allowPromotion;
-                        });
-                      }
-                    },
-                    icon: Icon(Icons.settings_outlined, color: colorScheme.onSurface, size: 24),
-                    tooltip: 'Paramètres',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    onPressed: _chooseCheckedInEvent,
+                    icon: Icon(
+                      Icons.event_available_rounded,
+                      color: _selectedEvent != null ? colorScheme.primary : colorScheme.onSurface,
+                      size: 24,
+                    ),
+                    tooltip: 'Publier depuis un événement',
                   ),
                 ],
               ),
@@ -1203,80 +1536,46 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 }
 
 
-/// Aperçu vidéo réel dans le compositeur : l'utilisateur peut vérifier le média
-/// et lire/mettre en pause sans quitter l'écran de préparation de publication.
-class _SelectedVideoPreview extends StatefulWidget {
+/// Aperçu léger : ne conserve aucun lecteur/décodeur vidéo natif actif
+/// dans la grille du compositeur. La lecture se fait après publication.
+class _SelectedVideoPreview extends StatelessWidget {
   final File file;
-  const _SelectedVideoPreview({required this.file});
-
-  @override
-  State<_SelectedVideoPreview> createState() => _SelectedVideoPreviewState();
-}
-
-class _SelectedVideoPreviewState extends State<_SelectedVideoPreview> {
-  late final VideoPlayerController _controller;
-  bool _ready = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.file(widget.file);
-    _controller.initialize().then((_) {
-      if (mounted) setState(() => _ready = true);
-    }).catchError((Object error) {
-      debugPrint('[POST_COMPOSER] video preview initialization failed: $error');
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final File? thumbnailFile;
+  const _SelectedVideoPreview({required this.file, this.thumbnailFile});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: Colors.black),
-        if (_ready)
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _controller.value.size.width,
-              height: _controller.value.size.height,
-              child: VideoPlayer(_controller),
-            ),
-          )
+        if (thumbnailFile != null && thumbnailFile!.existsSync())
+          Image.file(thumbnailFile!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
         else
-          const Center(child: CircularProgressIndicator(color: Colors.white)),
-        Positioned.fill(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                if (!_ready) return;
-                setState(() {
-                  _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                });
-              },
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.48),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white70),
-                  ),
-                  child: Icon(
-                    _ready && _controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 36,
-                  ),
+          const ColoredBox(color: Colors.black87),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white54),
                 ),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
               ),
-            ),
+              const SizedBox(height: 8),
+              const Text(
+                'Lire la vidéo',
+                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                p.extension(file.path).replaceFirst('.', '').toUpperCase(),
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+            ],
           ),
         ),
         Positioned(
@@ -1284,7 +1583,10 @@ class _SelectedVideoPreviewState extends State<_SelectedVideoPreview> {
           bottom: 8,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [

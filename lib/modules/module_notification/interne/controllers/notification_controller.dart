@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../module_authentification/centre/services/auth_service.dart';
+import '../../centre/models/remote_notification_model.dart';
 import '../../centre/services/notification_db_service.dart';
 import '../../externe/repositories/notification_repository.dart';
 import '../../../../app/routes/app_pages.dart';
+import '../../../../app/service_global/notification_service.dart';
 import '../../../module_evenement/centre/repositories/event_repository.dart';
 import '../../../module_decouverte/centre/models/external_profile_model.dart';
 import '../../../module_decouverte/externe/repositories/external_profile_repository.dart';
@@ -23,6 +25,7 @@ class NotificationController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool _isProcessingOutbox = false.obs;
   Worker? _authWorker;
+  String? _syncingUserId;
 
   @override
   void onInit() {
@@ -96,10 +99,29 @@ class NotificationController extends GetxController {
 
   Future<void> _syncRemoteNotifications() async {
     final userId = _authService.userId;
-    if (userId == null) return;
+    if (userId == null || _syncingUserId == userId) return;
+    _syncingUserId = userId;
     try {
-      final remote = await _repository.getMyNotifications(limit: 100);
-      for (final notification in remote) {
+      const pageSize = 100;
+      final remoteById = <String, RemoteNotificationModel>{};
+      var offset = 0;
+      while (true) {
+        final page = await _repository.getMyNotifications(
+          limit: pageSize,
+          offset: offset,
+        );
+        for (final notification in page) {
+          remoteById[notification.id] = notification;
+        }
+        if (page.length < pageSize) break;
+        offset += page.length;
+      }
+
+      // Ne jamais appliquer le résultat d'un ancien compte après un changement
+      // de session intervenu pendant la pagination.
+      if (_authService.userId != userId) return;
+
+      for (final notification in remoteById.values) {
         await _service.saveNotification(
           id: notification.id,
           userId: userId,
@@ -111,10 +133,18 @@ class NotificationController extends GetxController {
           createdAt: notification.createdAt,
         );
       }
+
+      // Un snapshot complet permet enfin de retirer du cache les notifications
+      // supprimées depuis un autre appareil.
+      await _service.reconcileRemoteSnapshot(
+        userId: userId,
+        remoteIds: remoteById.keys.toSet(),
+      );
     } catch (e) {
       debugPrint('[Error] Synchronisation notifications Supabase: $e');
     } finally {
-      isLoading.value = false;
+      if (_syncingUserId == userId) _syncingUserId = null;
+      if (_authService.userId == userId) isLoading.value = false;
     }
   }
 
@@ -287,8 +317,10 @@ class NotificationController extends GetxController {
     final userId = _authService.userId;
     if (userId == null) return;
     await _service.markAsRead(id, userId: userId);
+    await NotificationService.instance.cancelNotification(id);
     try {
       await _repository.markAsRead(id);
+      await _service.removeFromOutbox(userId, id, 'mark_read');
     } catch (e) {
       debugPrint('[Error] Marquage notification Supabase: $e');
     }
@@ -297,13 +329,29 @@ class NotificationController extends GetxController {
   Future<void> markAllAsRead() async {
     final userId = _authService.userId;
     if (userId == null) return;
+
+    // Mise à jour optimiste du cache et mise en file des changements hors ligne.
     await _service.markAllAsRead(userId);
+    await NotificationService.instance.cancelAllNotifications();
+
     try {
-      final remote = await _repository.getMyNotifications(limit: 100);
-      for (final notification in remote.where((n) => !n.isRead)) {
-        await _repository.markAsRead(notification.id);
+      const pageSize = 100;
+      var offset = 0;
+      while (true) {
+        final remote = await _repository.getMyNotifications(
+          limit: pageSize,
+          offset: offset,
+        );
+        for (final notification in remote.where((n) => !n.isRead)) {
+          await _repository.markAsRead(notification.id);
+          await _service.removeFromOutbox(userId, notification.id, 'mark_read');
+        }
+        if (remote.length < pageSize) break;
+        offset += remote.length;
       }
     } catch (e) {
+      // Les actions restantes restent dans l'outbox et seront rejouées à la
+      // prochaine reconnexion.
       debugPrint('[Error] Marquage global notifications: $e');
     }
   }
@@ -312,13 +360,18 @@ class NotificationController extends GetxController {
     final userId = _authService.userId;
     if (userId == null) return;
     await _service.deleteNotification(id, userId: userId);
+    await NotificationService.instance.cancelNotification(id);
     unawaited(processOutbox());
   }
 
   Future<void> deleteAllNotifications() async {
     final userId = _authService.userId;
     if (userId == null) return;
+    final notificationIds = notifications.map((item) => item.id).toList();
     await _service.deleteAllNotifications(userId);
+    for (final id in notificationIds) {
+      await NotificationService.instance.cancelNotification(id);
+    }
     unawaited(processOutbox());
   }
 

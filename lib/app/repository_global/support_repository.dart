@@ -8,7 +8,7 @@ class SupportRepository {
   Future<void> sendBugReport({
     required String title,
     required String description,
-    String? screenshotUrl,
+    String? screenshotObjectKey,
     Map<String, dynamic>? metadata,
   }) async {
     try {
@@ -16,7 +16,7 @@ class SupportRepository {
         'user_id': _client.auth.currentUser?.id,
         'title': title,
         'description': description,
-        'screenshot_url': screenshotUrl,
+        'screenshot_object_key': screenshotObjectKey,
         'metadata': metadata,
       });
     } catch (e) {

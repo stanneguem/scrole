@@ -14,21 +14,31 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'CALCULER MON BUDGET'.tr,
-          style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 16),
+    return WillPopScope(
+      onWillPop: () async {
+        if (controller.isSaving.value) return false;
+        await controller.flushAnalytics();
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'event_budget_title'.tr,
+            style: GoogleFonts.spaceGrotesk(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              fontSize: 16,
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
+        body: Column(
+          children: [
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                _SectionTitle(title: '1. Choisissez votre billet'),
+                _SectionTitle(title: 'event_budget_ticket_section'.tr),
                 const SizedBox(height: 12),
                 if (controller.tickets.isEmpty)
                   Card(
@@ -47,12 +57,12 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Entrée Gratuite', style: AppTextStyles.h4),
-                                Text('Aucun billet payant requis', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
+                                Text('event_budget_free_entry'.tr, style: AppTextStyles.h4),
+                                Text('event_budget_no_paid_ticket'.tr, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),
                               ],
                             ),
                           ),
-                          Text('Gratuit', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                          Text('event_budget_free'.tr, style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -61,7 +71,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                   ...controller.tickets.map((ticket) => Obx(() {
                     final isSelected = controller.selectedTicket.value?.id == ticket.id;
                     return GestureDetector(
-                      onTap: () => controller.selectedTicket.value = ticket,
+                      onTap: () => controller.selectTicket(ticket),
                       child: Card(
                         elevation: 0,
                         margin: const EdgeInsets.only(bottom: 8),
@@ -79,7 +89,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                               CupertinoRadio<String>(
                                 value: ticket.id,
                                 groupValue: controller.selectedTicket.value?.id,
-                                onChanged: (_) => controller.selectedTicket.value = ticket,
+                                onChanged: (_) => controller.selectTicket(ticket),
                                 activeColor: AppColors.primary,
                               ),
                               const SizedBox(width: 8),
@@ -90,7 +100,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                                     Text(ticket.name, style: AppTextStyles.h4),
                                     Text(
                                       ticket.converted.amount <= 0
-                                          ? 'Gratuit'
+                                          ? 'event_budget_free'.tr
                                           : NumberFormatter.formatPrice(ticket.converted.amount, ticket.converted.symbol),
                                       style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                                     ),
@@ -105,7 +115,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                   })).toList(),
 
                 const SizedBox(height: 32),
-                _SectionTitle(title: '2. Sélectionnez vos activités'),
+                _SectionTitle(title: 'event_budget_activities_section'.tr),
                 const SizedBox(height: 12),
                 if (controller.activities.isEmpty)
                   Card(
@@ -122,11 +132,11 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Aucune activité payante liée',
+                              'event_budget_no_paid_activity'.tr,
                               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
                             ),
                           ),
-                          Text('Gratuit', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                          Text('event_budget_free'.tr, style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -157,7 +167,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                                     Text(activity.name, style: AppTextStyles.labelLarge),
                                     Text(
                                       activity.converted.amount <= 0
-                                          ? 'Gratuit'
+                                          ? 'event_budget_free'.tr
                                           : NumberFormatter.formatPrice(activity.converted.amount, activity.converted.symbol),
                                       style: TextStyle(
                                         color: isSelected ? AppColors.primary : colors.onSurfaceVariant,
@@ -194,7 +204,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Note : Cette somme ne comprend pas les frais de transport. Prévoyez un budget supplémentaire selon votre trajet.',
+                          'event_budget_transport_note'.tr,
                           style: AppTextStyles.bodySmall.copyWith(color: colors.onSurface.withValues(alpha: 0.8)),
                         ),
                       ),
@@ -208,6 +218,7 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
         ],
       ),
       bottomSheet: _buildBudgetBar(context),
+      ),
     );
   }
 
@@ -229,29 +240,52 @@ class EventBudgetCalculatorScreen extends GetView<EventBudgetController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('SOMME À PRÉVOIR', style: AppTextStyles.caption.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
-              Obx(() => Text(
-                controller.totalBudget <= 0
-                    ? 'Gratuit'
-                    : NumberFormatter.formatPrice(controller.totalBudget, controller.currency),
-                style: AppTextStyles.h2.copyWith(color: AppColors.primary),
-              )),
-            ],
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'event_budget_total_label'.tr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Obx(() => Text(
+                  controller.totalBudget <= 0
+                      ? 'event_budget_free'.tr
+                      : NumberFormatter.formatPrice(
+                          controller.totalBudget,
+                          controller.currency,
+                        ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.h2.copyWith(color: AppColors.primary),
+                )),
+              ],
+            ),
           ),
-          ElevatedButton(
-            onPressed: () => Get.back(),
+          const SizedBox(width: 12),
+          Obx(() => ElevatedButton(
+            onPressed: controller.isSaving.value
+                ? null
+                : () async {
+                    final saved = await controller.completeSimulation();
+                    if (saved) Get.back();
+                  },
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            child: const Text('C\'est noté !'),
-          ),
-        ],
-      ),
+            child: controller.isSaving.value
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('event_budget_done'.tr),
+          )),
+          ],
+        ),
     );
   }
 }

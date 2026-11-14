@@ -123,6 +123,33 @@ class EvenementLocalDao {
     _notifyChanges();
   }
 
+  /// Snapshot local des événements associés à un rôle utilisateur.
+  /// Une liste vide est un snapshot valide et doit être conservée.
+  Future<List<Map<String, dynamic>>?> getUserEventRoleCache(String userId, String role) async {
+    final db = await _db;
+    final key = 'user_events:$userId:$role';
+    final rows = await db.query('discovery_cache', where: 'key = ?', whereArgs: [key], limit: 1);
+    if (rows.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(rows.first['payload'] as String);
+      if (decoded is! List) return null;
+      return decoded.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+    } catch (e) {
+      debugPrint('[EvenementLocalDao] Invalid $role snapshot cache: $e');
+      return null;
+    }
+  }
+
+  Future<void> saveUserEventRoleCache(String userId, String role, List<Map<String, dynamic>> rows) async {
+    final db = await _db;
+    await db.insert('discovery_cache', {
+      'key': 'user_events:$userId:$role',
+      'payload': jsonEncode(rows),
+      'cached_at': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    _notifyChanges();
+  }
+
   Future<void> deleteEvent(String id) async {
     final db = await _db;
     await db.transaction((txn) async {

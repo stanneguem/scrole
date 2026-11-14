@@ -42,6 +42,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxList<EventModel> staffEvents = <EventModel>[].obs;
 
   final Rx<EventSortFilter> currentSortFilter = EventSortFilter.popularite.obs;
+  final Rx<EventCalendarFilter> currentCalendarFilter = EventCalendarFilter.tous.obs;
+  final RxString calendarSearchQuery = ''.obs;
   final Rx<EventSuggestionsStatus> suggestionsStatus = EventSuggestionsStatus.initial.obs;
   final RxString suggestionsErrorMessage = ''.obs;
 
@@ -52,6 +54,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
   final RxBool isLoadingSuggestions = false.obs;
   final RxBool isLoadingCalendar = false.obs;
   final RxBool isLoadingMyEvents = false.obs;
+  final RxBool hasLoadedMyEvents = false.obs;
+  bool _myEventsRefreshRequested = false;
 
   // Checkpoint pour le préchargement du calendrier
   DateTime? _lastMonthLoaded;
@@ -136,16 +140,21 @@ class EventController extends GetxController with WidgetsBindingObserver {
       debugPrint('[Cache] event updated');
       debugPrint('[SQLite] event updated');
 
+      // Une mise à jour de la ligne events ne prouve pas que l'utilisateur
+      // possède encore un rôle. Ne jamais réintroduire ici un événement absent
+      // des listes personnelles : seul le snapshot RPC peut accorder ce droit.
       final mIdx = managedEvents.indexWhere((e) => e.id == eventId);
       if (mIdx != -1) {
         managedEvents[mIdx] = updatedEvent;
-      } else {
-        managedEvents.insert(0, updatedEvent);
       }
 
       final sIdx = staffEvents.indexWhere((e) => e.id == eventId);
       if (sIdx != -1) {
-        staffEvents[sIdx] = updatedEvent;
+        if (_isVisibleInStaffEvents(updatedEvent)) {
+          staffEvents[sIdx] = updatedEvent;
+        } else {
+          staffEvents.removeAt(sIdx);
+        }
       }
 
       final evIdx = events.indexWhere((e) => e.id == eventId);
@@ -192,8 +201,8 @@ class EventController extends GetxController with WidgetsBindingObserver {
       managedEvents[mIdx] = updatedEvent;
     } else {
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (updatedEvent.creatorId == currentUserId ||
-          updatedEvent.userRole == 'fondateur' ||
+      if ((!updatedEvent.isAdminCreated && updatedEvent.creatorId == currentUserId) ||
+          (!updatedEvent.isAdminCreated && updatedEvent.userRole == 'fondateur') ||
           updatedEvent.userRole == 'co_createur' ||
           updatedEvent.userRole == 'owner' ||
           updatedEvent.userRole == 'managed') {
@@ -203,7 +212,11 @@ class EventController extends GetxController with WidgetsBindingObserver {
 
     final sIdx = staffEvents.indexWhere((e) => e.id == eventId);
     if (sIdx != -1) {
-      staffEvents[sIdx] = updatedEvent;
+      if (_isVisibleInStaffEvents(updatedEvent)) {
+        staffEvents[sIdx] = updatedEvent;
+      } else {
+        staffEvents.removeAt(sIdx);
+      }
     }
 
     final evIdx = events.indexWhere((e) => e.id == eventId);
@@ -367,37 +380,74 @@ class EventController extends GetxController with WidgetsBindingObserver {
   Future<void> refreshStaffEvents() async {
     try {
       final remoteStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(remoteStaff);
+      staffEvents.assignAll(remoteStaff.where(_isVisibleInStaffEvents));
       debugPrint('[EventController] refreshStaffEvents: ${remoteStaff.length} events loaded');
     } catch (e) {
       debugPrint('[Error] EventController.refreshStaffEvents: $e');
     }
   }
 
+  bool _isVisibleInMyEvents(EventModel event) =>
+      event.status != EventStatus.deleted &&
+      event.status != EventStatus.pendingDeletion;
+
+  // Les événements terminés disparaissent de la liste du staff simple.
+  // Les créations/co-créations restent dans managedEvents sans ce filtre.
+  bool _isVisibleInStaffEvents(EventModel event) =>
+      _isVisibleInMyEvents(event) && event.status != EventStatus.completed;
+
   Future<void> fetchMyEvents() async {
+    if (isLoadingMyEvents.value) {
+      _myEventsRefreshRequested = true;
+      return;
+    }
     isLoadingMyEvents.value = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
     try {
-      final localManaged = await _repository.getManagedEventsLocal();
-      if (localManaged.isNotEmpty) {
-        managedEvents.assignAll(localManaged);
+      // Premier rendu : lire les deux snapshots locaux sans attendre le réseau.
+      if (!hasLoadedMyEvents.value && userId != null) {
+        try {
+          final localManaged = (await _repository.getManagedEventsLocal())
+              .where(_isVisibleInMyEvents).toList();
+          managedEvents.assignAll(localManaged);
+        } catch (e) {
+          debugPrint('[Cache] Unable to read managed events snapshot: $e');
+        }
+        try {
+          final localStaff = (await _repository.getStaffEventsLocal())
+              .where(_isVisibleInStaffEvents).toList();
+          staffEvents.assignAll(localStaff);
+        } catch (e) {
+          debugPrint('[Cache] Unable to read staff events snapshot: $e');
+        }
+        hasLoadedMyEvents.value = true;
       }
-      final localStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(localStaff);
+
+      // Réconciliation indépendante : un échec réseau sur une liste ne doit
+      // ni effacer son cache, ni empêcher l'autre liste d'être actualisée.
+      try {
+        final remoteManaged = (await _repository.syncManagedEventsRemote())
+            .where(_isVisibleInMyEvents).toList();
+        managedEvents.assignAll(remoteManaged);
+      } catch (e) {
+        debugPrint('[Error] EventController managed events sync: $e');
+      }
+      try {
+        final remoteStaff = (await _repository.getStaffEvents())
+            .where(_isVisibleInStaffEvents).toList();
+        staffEvents.assignAll(remoteStaff);
+      } catch (e) {
+        debugPrint('[Error] EventController staff events sync: $e');
+      }
     } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents local: $e');
+      debugPrint('[Error] EventController.fetchMyEvents: $e');
+      hasLoadedMyEvents.value = true;
     } finally {
       isLoadingMyEvents.value = false;
-    }
-
-    try {
-      final remoteManaged = await _repository.syncManagedEventsRemote();
-      if (remoteManaged.isNotEmpty) {
-        managedEvents.assignAll(remoteManaged);
+      if (_myEventsRefreshRequested) {
+        _myEventsRefreshRequested = false;
+        unawaited(fetchMyEvents());
       }
-      final remoteStaff = await _repository.getStaffEvents();
-      staffEvents.assignAll(remoteStaff);
-    } catch (e) {
-      debugPrint('[Error] EventController.fetchMyEvents remote: $e');
     }
   }
 
@@ -431,6 +481,52 @@ class EventController extends GetxController with WidgetsBindingObserver {
 
   void setSortFilter(EventSortFilter filter) => currentSortFilter.value = filter;
 
+  void setCalendarFilter(EventCalendarFilter filter) =>
+      currentCalendarFilter.value = filter;
+
+  /// Filtrage local des événements déjà chargés pour le mois affiché.
+  /// Les critères reposent uniquement sur les champs réellement présents
+  /// dans EventModel ; aucun filtre social ou géographique fictif n'est appliqué.
+  List<EventModel> filterCalendarEvents(List<EventModel> list) {
+    final now = DateTime.now();
+    final query = calendarSearchQuery.value.trim().toLowerCase();
+    final filtered = list.where((event) {
+      switch (currentCalendarFilter.value) {
+        case EventCalendarFilter.tous:
+          break;
+        case EventCalendarFilter.aVenir:
+          if (event.startsAt.isBefore(now)) return false;
+          break;
+        case EventCalendarFilter.gratuits:
+          if (!event.isFree) return false;
+          break;
+        case EventCalendarFilter.payants:
+          if (event.isFree) return false;
+          break;
+        case EventCalendarFilter.enLigne:
+          if (!event.isOnline) return false;
+          break;
+        case EventCalendarFilter.enPresentiel:
+          if (event.isOnline) return false;
+          break;
+      }
+
+      if (query.isNotEmpty) {
+        final searchable = [
+          event.name,
+          event.description ?? '',
+          event.address ?? '',
+          event.city?.name ?? '',
+          event.country?.name ?? '',
+        ].join(' ').toLowerCase();
+        if (!searchable.contains(query)) return false;
+      }
+      return true;
+    }).toList();
+
+    return sortEventList(filtered);
+  }
+
   List<EventModel> sortEventList(List<EventModel> list) {
     final sorted = List<EventModel>.from(list);
     switch (currentSortFilter.value) {
@@ -441,10 +537,10 @@ class EventController extends GetxController with WidgetsBindingObserver {
         sorted.sort((a, b) => (a.isFree ? 0 : 1).compareTo(b.isFree ? 0 : 1));
         break;
       case EventSortFilter.plusAjouts:
-        sorted.sort((a, b) => b.goingCount.compareTo(a.goingCount));
+        sorted.sort((a, b) => b.totalAddedCount.compareTo(a.totalAddedCount));
         break;
       case EventSortFilter.plusSurs:
-        sorted.sort((a, b) => b.goingCount.compareTo(a.goingCount));
+        sorted.sort((a, b) => b.checkedInCount.compareTo(a.checkedInCount));
         break;
       case EventSortFilter.proches:
         sorted.sort((a, b) => a.startsAt.compareTo(b.startsAt));

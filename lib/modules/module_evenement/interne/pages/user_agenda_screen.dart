@@ -142,10 +142,17 @@ class UserAgendaScreen extends GetView<UserAgendaController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Expanded(child: Text(event.name, style: AppTextStyles.h3.copyWith(color: Colors.white))),
-                  EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18),
-                ]),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: Text(event.name, style: AppTextStyles.h3.copyWith(color: Colors.white), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(width: 4),
+                    EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 18),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(event.address ?? '', style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.8))),
               ],
@@ -247,8 +254,13 @@ class _AgendaItem extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Expanded(child: Text(event.name, style: AppTextStyles.h4, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                                    Flexible(
+                                      fit: FlexFit.loose,
+                                      child: Text(event.name, style: AppTextStyles.h4, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                    ),
+                                    const SizedBox(width: 4),
                                     EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 17),
                                   ],
                                 ),

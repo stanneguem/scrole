@@ -86,6 +86,14 @@ class CommunityPost {
   final String? communityName;
   final String? communityLogoUrl;
   final bool isSuggested;
+  final bool isSponsored;
+  final bool isPlatformPromotion;
+  final bool ctaEnabled;
+  final String? ctaLabel;
+  final String? ctaUrl;
+  final String ctaDestinationType;
+  final String? ctaInternalType;
+  final String? ctaInternalId;
   final String? reasonSubtitle;
 
   const CommunityPost({
@@ -126,6 +134,14 @@ class CommunityPost {
     this.communityName,
     this.communityLogoUrl,
     this.isSuggested = false,
+    this.isSponsored = false,
+    this.isPlatformPromotion = false,
+    this.ctaEnabled = false,
+    this.ctaLabel,
+    this.ctaUrl,
+    this.ctaDestinationType = 'external',
+    this.ctaInternalType,
+    this.ctaInternalId,
     this.reasonSubtitle,
   });
 
@@ -226,6 +242,28 @@ class CommunityPost {
           }).whereType<CommunityPostMention>().toList()
         : <CommunityPostMention>[];
 
+    final rawInfluencerReactions = map['influencer_reactions'] ?? map['influencerReactions'];
+    final parsedInfluencerReactions = rawInfluencerReactions is List
+        ? rawInfluencerReactions.map((entry) {
+            if (entry is! Map) return null;
+            final row = Map<String, dynamic>.from(entry);
+            final profile = row['user_profiles'] is Map
+                ? Map<String, dynamic>.from(row['user_profiles'] as Map)
+                : <String, dynamic>{};
+            final userId = (row['user_id'] ?? row['id'] ?? '').toString();
+            if (userId.isEmpty) return null;
+            return CommunityPostMention(
+              userId: userId,
+              username: (row['username'] ?? profile['username'] ?? '').toString(),
+              photoUrl: (row['photo_url'] ?? profile['photo_url'])?.toString(),
+              isCertified: row['is_certified'] == true || row['is_certified'] == 1 ||
+                  row['is_verified'] == true || row['is_verified'] == 1 ||
+                  profile['is_certified'] == true || profile['is_certified'] == 1 ||
+                  profile['is_verified'] == true || profile['is_verified'] == 1,
+            );
+          }).whereType<CommunityPostMention>().toList()
+        : <CommunityPostMention>[];
+
     CommunityPost? shared;
     if (map['shared_post'] is Map) {
       final spMap = Map<String, dynamic>.from(map['shared_post']);
@@ -244,6 +282,7 @@ class CommunityPost {
       media: mediaList,
       hashtags: parsedHashtags,
       mentionedUsers: parsedMentions,
+      influencerReactions: parsedInfluencerReactions,
       poll: map['poll'] ?? map['poll_state'] ?? map['community_poll'],
       likeCount: (map['likes_count'] as num?)?.toInt() ?? 0,
       dislikeCount: (map['dislikes_count'] as num?)?.toInt() ?? 0,
@@ -262,13 +301,105 @@ class CommunityPost {
       reactionsEnabled: map['reactions_enabled'] != false,
       audience: map['audience']?.toString() ?? 'public',
       userReaction: reaction,
+      eventId: map['event_id']?.toString() ?? (map['event'] is Map ? map['event']['id']?.toString() : null),
+      eventName: map['event'] is Map ? map['event']['name']?.toString() : map['event_name']?.toString(),
+      eventLogoUrl: map['event'] is Map ? map['event']['photo']?.toString() : map['event_logo_url']?.toString(),
+      eventCity: map['event'] is Map ? map['event']['city']?.toString() : map['event_city']?.toString(),
       communityId: map['community_id']?.toString(),
       communityName: map['community'] is Map ? map['community']['name']?.toString() : map['community_name']?.toString(),
       communityLogoUrl: map['community'] is Map ? map['community']['photo_profile']?.toString() : map['community_logo_url']?.toString(),
       isSuggested: map['is_suggested'] == true || map['is_suggested'] == 1,
+      isSponsored: map['is_sponsored'] == true || map['is_sponsored'] == 1,
+      isPlatformPromotion: map['is_platform_promotion'] == true || map['is_platform_promotion'] == 1,
+      ctaEnabled: map['cta_enabled'] == true || map['cta_enabled'] == 1,
+      ctaLabel: map['cta_label']?.toString(),
+      ctaUrl: map['cta_url']?.toString(),
+      ctaDestinationType: map['cta_destination_type']?.toString() ?? 'external',
+      ctaInternalType: map['cta_internal_type']?.toString(),
+      ctaInternalId: map['cta_internal_id']?.toString(),
       reasonSubtitle: map['reason_subtitle']?.toString(),
     );
   }
+
+  /// Full JSON-safe snapshot used by the offline home-feed cache.
+  /// Keeps every field consumed by the post-card renderer, including nested
+  /// media, polls, mentions, event/community context and shared publications.
+  Map<String, dynamic> toCacheMap() => {
+        'id': id,
+        'author_id': authorId,
+        'author_name': authorName,
+        'author': {
+          'user_id': authorObj?.userId ?? authorId,
+          'username': authorObj?.username ?? authorName,
+          'photo_url': authorObj?.photoUrl,
+          'is_certified': authorObj?.isCertified ?? false,
+        },
+        'created_at': timeAgo,
+        'content': content,
+        'media': media.map((item) => item.toJson()).toList(),
+        'hashtags': hashtags.map((tag) => tag.name).toList(),
+        'mentions': (mentionedUsers ?? const <CommunityPostMention>[])
+            .map((mention) => {
+                  'user_id': mention.userId,
+                  'username': mention.username,
+                  'photo_url': mention.photoUrl,
+                  'is_certified': mention.isCertified,
+                })
+            .toList(),
+        'influencer_reactions': (influencerReactions ?? const <CommunityPostMention>[])
+            .map((mention) => {
+                  'user_id': mention.userId,
+                  'username': mention.username,
+                  'photo_url': mention.photoUrl,
+                  'is_certified': mention.isCertified,
+                })
+            .toList(),
+        'poll': poll,
+        'likes_count': likeCount,
+        'dislikes_count': dislikeCount,
+        'comments_count': commentCount,
+        'shares_count': shareCount,
+        'views_count': viewCount,
+        'viewer_has_shared': viewerHasShared,
+        'viewer_reaction': userReaction == PostReaction.like
+            ? 'like'
+            : userReaction == PostReaction.dislike
+                ? 'dislike'
+                : null,
+        'shared_post_id': sharedPostId,
+        if (sharedPost != null) 'shared_post': sharedPost!.toCacheMap(),
+        'sharing_enabled': sharingEnabled,
+        'shared_post_can_open_original': canOpenOriginal,
+        'comments_enabled': commentsEnabled,
+        'reactions_enabled': reactionsEnabled,
+        'audience': audience,
+        'event_id': eventId,
+        if (eventId != null)
+          'event': {
+            'id': eventId,
+            'name': eventName,
+            'photo': eventLogoUrl,
+            'city': eventCity,
+          },
+        'community_id': communityId,
+        if (communityId != null)
+          'community': {
+            'id': communityId,
+            'name': communityName,
+            'photo_profile': communityLogoUrl,
+            'allow_post_sharing': communitySharingEnabled,
+          },
+        'is_suggested': isSuggested,
+        'is_sponsored': isSponsored,
+        'is_platform_promotion': isPlatformPromotion,
+        'cta_enabled': ctaEnabled,
+        'cta_label': ctaLabel,
+        'cta_url': ctaUrl,
+        'cta_destination_type': ctaDestinationType,
+        'cta_internal_type': ctaInternalType,
+        'cta_internal_id': ctaInternalId,
+        'reason_subtitle': reasonSubtitle,
+      };
 
   CommunityPost copyWith({
     PostReaction? userReaction,
@@ -288,6 +419,14 @@ class CommunityPost {
     String? communityName,
     String? communityLogoUrl,
     bool? isSuggested,
+    bool? isSponsored,
+    bool? isPlatformPromotion,
+    bool? ctaEnabled,
+    String? ctaLabel,
+    String? ctaUrl,
+    String? ctaDestinationType,
+    String? ctaInternalType,
+    String? ctaInternalId,
     String? reasonSubtitle,
     List<CommunityPostMention>? mentionedUsers,
     List<CommunityPostMention>? influencerReactions,
@@ -331,6 +470,14 @@ class CommunityPost {
       communityName: communityName ?? this.communityName,
       communityLogoUrl: communityLogoUrl ?? this.communityLogoUrl,
       isSuggested: isSuggested ?? this.isSuggested,
+      isSponsored: isSponsored ?? this.isSponsored,
+      isPlatformPromotion: isPlatformPromotion ?? this.isPlatformPromotion,
+      ctaEnabled: ctaEnabled ?? this.ctaEnabled,
+      ctaLabel: ctaLabel ?? this.ctaLabel,
+      ctaUrl: ctaUrl ?? this.ctaUrl,
+      ctaDestinationType: ctaDestinationType ?? this.ctaDestinationType,
+      ctaInternalType: ctaInternalType ?? this.ctaInternalType,
+      ctaInternalId: ctaInternalId ?? this.ctaInternalId,
       reasonSubtitle: reasonSubtitle ?? this.reasonSubtitle,
     );
   }

@@ -45,6 +45,7 @@ import '../../modules/module_evenement/interne/pages/add_activity_screen.dart';
 import '../../modules/module_evenement/interne/pages/user_agenda_screen.dart';
 import '../../modules/module_evenement/interne/pages/qr_scan_screen.dart';
 import '../../modules/module_evenement/interne/pages/event_budget_calculator_screen.dart';
+import '../../modules/module_evenement/interne/pages/event_budget_history_screen.dart';
 import '../../modules/module_evenement/interne/pages/transfer_ownership_screen.dart';
 import '../../modules/module_evenement/interne/pages/event_pricing_screen.dart';
 import '../../modules/module_evenement/interne/pages/event_stats_dashboard_screen.dart';
@@ -62,6 +63,7 @@ import '../../modules/module_evenement/centre/bindings/edit_event_binding.dart';
 import '../../modules/module_evenement/centre/bindings/transfer_ownership_binding.dart';
 import '../../shared/widgets/creation_selection_screen.dart';
 import '../../shared/widgets/my_content_screen.dart';
+import '../../modules/module_principale/interne/pages/hashtag_feed_screen.dart';
 import '../../root_page.dart';
 import 'app_pages.dart';
 
@@ -94,6 +96,7 @@ class AppRoutes {
     GetPage(name: AppPages.createEvent, page: () => const EventCreationScreen(), binding: CreateEventBinding()),
     GetPage(name: AppPages.myEvents, page: () => const MyEventsScreen(), binding: MainEventBinding()),
     GetPage(name: AppPages.eventPreview, page: () => const EventPreviewScreen()),
+    GetPage(name: AppPages.eventBudgetHistory, page: () => const EventBudgetHistoryScreen(), binding: MainEventBinding()),
     GetPage(name: AppPages.eventEdit, page: () => const EditEventScreen(), binding: EditEventBinding()),
     GetPage(name: AppPages.eventSettings, page: () => const EventSettingsScreen()),
     GetPage(name: AppPages.eventVisibility, page: () => const EventVisibilityScreen()),
@@ -131,5 +134,6 @@ class AppRoutes {
     GetPage(name: AppPages.interestSelection, page: () => const InterestSelectionScreen()),
     GetPage(name: AppPages.creationSelection, page: () => const CreationSelectionScreen()),
     GetPage(name: AppPages.myContent, page: () => const MyContentScreen()),
+    GetPage(name: AppPages.hashtagFeed, page: () => const HashtagFeedScreen()),
   ];
 }

@@ -35,6 +35,7 @@ class AppPages {
   static const userAgenda = "/events/agenda";
   static const eventScan = "/events/scan/:id";
   static const eventBudget = "/events/budget/:id";
+  static const eventBudgetHistory = "/events/budget-history";
   static const eventTransfer = "/events/transfer/:id";
   static const eventPricing = "/events/pricing/:id";
   static const eventStatistics = "/events/stats/:id";
@@ -45,6 +46,8 @@ class AppPages {
   static const interestSelection = "/interests/select";
   static const creationSelection = "/creation";
   static const myContent = "/my-content";
+  static const hashtagFeed = "/hashtag/:tag";
+  static String hashtagFeedPath(String tag) => "/hashtag/${Uri.encodeComponent(tag.replaceFirst(RegExp(r'^#+'), ''))}";
   static String communityDetailPath(String id) => "/communities/$id";
   static String communityPreviewPath(String id) => "/communities/preview/$id";
   static String externalProfilePath(String id) => "/user-profile/$id";

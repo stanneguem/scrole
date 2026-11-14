@@ -60,7 +60,7 @@ class MediaService extends GetxService {
   }
 
   Future<File?> pickProfileImage({ImageSource source = ImageSource.gallery}) async {
-    final picked = await pickImage(source: ImageSource.gallery);
+    final picked = await pickImage(source: source);
     if (picked == null) return null;
     final cropped = await cropImage(picked, circle: true);
     if (cropped == null) return null;
@@ -68,7 +68,7 @@ class MediaService extends GetxService {
   }
 
   Future<File?> pickCoverImage({ImageSource source = ImageSource.gallery}) async {
-    final picked = await pickImage(source: ImageSource.gallery);
+    final picked = await pickImage(source: source);
     if (picked == null) return null;
     final cropped = await ImageCropper().cropImage(
       sourcePath: picked.path,
@@ -99,7 +99,9 @@ class ScroleBottomSheetGallery {
       isScrollControlled: true,
       builder: (_) => MediaGallerySheet(
         maxSelection: 1,
-        onSelected: (files) => Navigator.of(context).pop(files),
+        // MediaGallerySheet returns the selected files when it closes.
+        // Do not pop here: that would pop the registration screen as well.
+        onSelected: (_) {},
       ),
     );
 

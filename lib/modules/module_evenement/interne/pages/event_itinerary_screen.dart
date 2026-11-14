@@ -25,6 +25,10 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
   List<EventActivityModel> _activities = [];
   int _selectedDayIndex = 0;
   final Map<String, _DayPlan> _plans = {};
+  final Set<String> _validatedActivityIds = <String>{};
+  DateTime get _today => DateTime.now();
+  bool _isPastDay(DateTime day) => DateUtils.dateOnly(day).isBefore(DateUtils.dateOnly(_today));
+  bool get _hasEditableDay => _days.any((day) => !_isPastDay(day));
 
   @override
   void initState() {
@@ -39,10 +43,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
       final selectedDays = await _repository.getMyEventCalendarDays(widget.event.id);
       final days = selectedDays.map((d) => DateTime(d.date.year, d.date.month, d.date.day)).toList()
         ..sort((a, b) => a.compareTo(b));
-      if (days.isEmpty) {
-        final start = widget.event.startsAt;
-        days.add(DateTime(start.year, start.month, start.day));
-      }
+      final validatedIds = await _repository.getMyValidatedActivityIds(widget.event.id);
       final activities = (await _repository.getEventActivities(widget.event.id))
           .where((a) => a.status.toLowerCase() == 'validee' || a.status.toLowerCase() == 'validated' || a.status.toLowerCase() == 'active')
           .toList()
@@ -52,6 +53,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
       setState(() {
         _days = days;
         _activities = activities;
+        _validatedActivityIds
+          ..clear()
+          ..addAll(validatedIds);
         for (final day in days) {
           final key = _dateKey(day);
           final saved = storedPlans[key];
@@ -62,7 +66,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     } catch (error) {
       debugPrint('[EventItineraryScreen] load failed: $error');
       if (mounted) setState(() => _loading = false);
-      Get.snackbar('Planning', 'Impossible de charger votre planning. Vérifiez votre connexion puis réessayez.');
+      Get.snackbar('event_itinerary_title'.tr, 'event_itinerary_load_error'.tr);
     }
   }
 
@@ -78,10 +82,11 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || _days.isEmpty) return;
+    if (_saving || _days.isEmpty || !_hasEditableDay) return;
     setState(() => _saving = true);
     try {
       for (final day in _days) {
+        if (_isPastDay(day)) continue;
         final key = _dateKey(day);
         await _repository.saveMyEventItineraryPlan(
           eventId: widget.event.id,
@@ -90,12 +95,12 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
         );
       }
       if (mounted) {
-        Get.snackbar('Planning enregistré', 'Votre parcours personnel a été sauvegardé.', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('event_itinerary_saved_title'.tr, 'event_itinerary_saved_message'.tr, snackPosition: SnackPosition.BOTTOM);
       }
     } catch (error) {
       debugPrint('[EventItineraryScreen] save failed: $error');
       if (mounted) {
-        Get.snackbar('Erreur', 'Impossible d’enregistrer le planning. Veuillez réessayer.', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('error'.tr, 'event_itinerary_save_error'.tr, snackPosition: SnackPosition.BOTTOM);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -107,20 +112,20 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Organiser mon planning', style: AppTextStyles.h4.copyWith(fontSize: 18)),
+        title: Text('event_itinerary_edit'.tr, style: AppTextStyles.h4.copyWith(fontSize: 18)),
         actions: [
           TextButton(
-            onPressed: _loading || _saving || _days.isEmpty ? null : _save,
+            onPressed: _loading || _saving || !_hasEditableDay ? null : _save,
             child: _saving
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.bold)),
+                : Text('event_itinerary_save'.tr, style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _days.isEmpty
-              ? const Center(child: Text('Aucun jour sélectionné dans votre agenda.'))
+              ? Center(child: Text('event_itinerary_no_day'.tr))
               : _activities.isEmpty
                   ? Center(
                       child: Padding(
@@ -130,9 +135,9 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                           children: [
                             const Icon(Icons.event_busy_rounded, size: 52, color: AppColors.primary),
                             const SizedBox(height: 16),
-                            Text('Aucune activité proposée', style: AppTextStyles.h4, textAlign: TextAlign.center),
+                            Text('event_itinerary_no_activities_title'.tr, style: AppTextStyles.h4, textAlign: TextAlign.center),
                             const SizedBox(height: 8),
-                            Text('L’organisateur n’a pas encore publié d’activités pour cet événement.', style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+                            Text('event_itinerary_no_activities_hint'.tr, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
                           ],
                         ),
                       ),
@@ -148,7 +153,7 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                             children: [
                               Text(widget.event.name, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 4),
-                              Text('Choisissez les activités de chaque journée et définissez vos horaires.', style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
+                              Text('event_itinerary_choose_hint'.tr, style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant)),
                               const SizedBox(height: 14),
                               SizedBox(
                                 height: 42,
@@ -176,20 +181,27 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
                           child: ListView(
                             padding: const EdgeInsets.all(16),
                             children: [
-                              Text('Mes horaires', style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
+                              if (_isPastDay(_days[_selectedDayIndex]))
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                                  child: Row(children: [Icon(Icons.lock_clock_rounded, size: 18, color: colors.onSurfaceVariant), const SizedBox(width: 8), Expanded(child: Text('event_itinerary_past_day_locked'.tr, style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant))) ]),
+                                ),
+                              Text('event_itinerary_my_times'.tr, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
-                                  Expanded(child: _timeCard('Début de journée', _currentPlan().dayStart, Icons.wb_sunny_outlined, (value) => setState(() => _currentPlan().dayStart = value), 'Choisir l’heure de début')),
+                                  Expanded(child: _timeCard('event_itinerary_day_start'.tr, _currentPlan().dayStart, Icons.wb_sunny_outlined, (value) => setState(() => _currentPlan().dayStart = value), 'event_itinerary_choose_start'.tr, enabled: !_isPastDay(_days[_selectedDayIndex]))),
                                   const SizedBox(width: 10),
-                                  Expanded(child: _timeCard('Fin de journée', _currentPlan().dayEnd, Icons.nightlight_outlined, (value) => setState(() => _currentPlan().dayEnd = value), 'Choisir l’heure de fin')),
+                                  Expanded(child: _timeCard('event_itinerary_day_end'.tr, _currentPlan().dayEnd, Icons.nightlight_outlined, (value) => setState(() => _currentPlan().dayEnd = value), 'event_itinerary_choose_end'.tr, enabled: !_isPastDay(_days[_selectedDayIndex]))),
                                 ],
                               ),
                               const SizedBox(height: 22),
                               Row(
                                 children: [
-                                  Expanded(child: Text('Activités proposées', style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold))),
-                                  Text('${_currentPlan().activities.length} choisie(s)', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                  Expanded(child: Text('event_itinerary_proposed_activities'.tr, style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold))),
+                                  Text('event_itinerary_selected_count'.trParams({'count': _currentPlan().activities.length.toString()}), style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -203,10 +215,10 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
     );
   }
 
-  Widget _timeCard(String title, String value, IconData icon, ValueChanged<String> onChanged, String helpText) {
+  Widget _timeCard(String title, String value, IconData icon, ValueChanged<String> onChanged, String helpText, {bool enabled = true}) {
     final colors = Theme.of(context).colorScheme;
     return InkWell(
-      onTap: () => _pickTime(title: helpText, initial: value, onPicked: onChanged),
+      onTap: enabled ? () => _pickTime(title: helpText, initial: value, onPicked: onChanged) : null,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -228,82 +240,118 @@ class _EventItineraryScreenState extends State<EventItineraryScreen> {
 
   Widget _activityCard(EventActivityModel activity, ColorScheme colors) {
     final plan = _currentPlan();
-    final selected = plan.activities.containsKey(activity.activityId.isNotEmpty ? activity.activityId : activity.id);
     final key = activity.activityId.isNotEmpty ? activity.activityId : activity.id;
-    final activityPlan = plan.activities[key] ?? _ActivityPlan();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: selected ? AppColors.primary.withValues(alpha: 0.65) : colors.outlineVariant.withValues(alpha: 0.4)),
+    final selected = plan.activities.contains(key);
+    final isPastDay = _isPastDay(_days[_selectedDayIndex]);
+    final isValidated = _validatedActivityIds.contains('${_dateKey(_days[_selectedDayIndex])}|$key');
+    final borderColor = selected ? AppColors.primary : colors.outlineVariant.withValues(alpha: 0.55);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primary.withValues(alpha: 0.055) : colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: selected ? 1.5 : 1),
+        boxShadow: selected
+            ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))]
+            : null,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: selected,
-              activeColor: AppColors.primary,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(activity.name, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
-              subtitle: Text(activity.formattedEventPrice, style: AppTextStyles.caption.copyWith(color: colors.onSurfaceVariant)),
-              onChanged: (value) => setState(() {
-                if (value == true) {
-                  plan.activities.putIfAbsent(key, () => _ActivityPlan());
-                } else {
-                  plan.activities.remove(key);
-                }
-              }),
-            ),
-            if (selected)
-              Padding(
-                padding: const EdgeInsets.only(left: 48, bottom: 6),
-                child: Row(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: isPastDay ? null : () => setState(() {
+            if (selected) {
+              plan.activities.remove(key);
+            } else {
+              plan.activities.add(key);
+            }
+          }),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _smallTimeButton('Début', activityPlan.start, (v) => setState(() => activityPlan.start = v))),
-                    const SizedBox(width: 8),
-                    Expanded(child: _smallTimeButton('Fin', activityPlan.end, (v) => setState(() => activityPlan.end = v))),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: selected ? AppColors.primary : colors.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: selected ? AppColors.primary : colors.outlineVariant),
+                      ),
+                      child: Icon(
+                        selected ? Icons.check_rounded : Icons.add_rounded,
+                        size: 19,
+                        color: selected ? Colors.white : colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(activity.name, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: colors.surfaceContainerHighest.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                activity.formattedEventPrice,
+                                style: AppTextStyles.caption.copyWith(color: colors.onSurfaceVariant, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (selected)
+                      const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 21),
                   ],
                 ),
-              ),
-          ],
+                if (selected && isValidated) ...[
+                  const SizedBox(height: 10),
+                  Text('event_itinerary_activity_validated'.tr, style: AppTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _smallTimeButton(String label, String value, ValueChanged<String> onChanged) {
-    return OutlinedButton(
-      onPressed: () => _pickTime(title: '$label de l’activité', initial: value, onPicked: onChanged),
-      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), visualDensity: VisualDensity.compact),
-      child: Text('$label · $value', style: AppTextStyles.caption),
-    );
-  }
 }
 
 class _DayPlan {
   String dayStart;
   String dayEnd;
-  final Map<String, _ActivityPlan> activities;
+  final Set<String> activities;
 
-  _DayPlan({this.dayStart = '09:00', this.dayEnd = '18:00', Map<String, _ActivityPlan>? activities})
-      : activities = activities ?? {};
+  _DayPlan({this.dayStart = '09:00', this.dayEnd = '18:00', Set<String>? activities})
+      : activities = activities ?? <String>{};
 
   factory _DayPlan.fromJson(Map<String, dynamic>? json) {
     if (json == null) return _DayPlan();
     final rawActivities = json['activities'];
-    final activities = <String, _ActivityPlan>{};
+    final activities = <String>{};
     if (rawActivities is List) {
       for (final item in rawActivities.whereType<Map>()) {
         final map = Map<String, dynamic>.from(item);
         final id = (map['activity_id'] ?? '').toString();
         if (id.isNotEmpty) {
-          activities[id] = _ActivityPlan(
-            start: (map['start_time'] ?? '09:00').toString(),
-            end: (map['end_time'] ?? '10:00').toString(),
-          );
+          activities.add(id);
         }
       }
     }
@@ -317,16 +365,8 @@ class _DayPlan {
   Map<String, dynamic> toJson() => {
         'day_start': dayStart,
         'day_end': dayEnd,
-        'activities': activities.entries.map((entry) => {
-              'activity_id': entry.key,
-              'start_time': entry.value.start,
-              'end_time': entry.value.end,
+        'activities': activities.map((id) => {
+              'activity_id': id,
             }).toList(),
       };
-}
-
-class _ActivityPlan {
-  String start;
-  String end;
-  _ActivityPlan({this.start = '09:00', this.end = '10:00'});
 }

@@ -1,0 +1,1 @@
+-- The function is finalized in the following migration. This migration version records the intermediate RPC revision already applied to Supabase.

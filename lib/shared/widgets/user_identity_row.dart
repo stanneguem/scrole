@@ -94,7 +94,7 @@ class UserIdentityRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  if (isCertified)
+                  if (userId != null && userId!.isNotEmpty)
                     UserCertifiedBadge(size: avatarRadius * 0.8, userId: userId),
                   if (subtitle != null)
                     Text(

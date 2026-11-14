@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:sqflite/sqflite.dart';
@@ -32,13 +33,24 @@ class NotificationDbService extends GetxService {
     // Récupérer l'existant pour préserver l'action_status local
     final existing = await db.query('notifications', columns: ['action_status', 'is_read'], where: 'id = ? AND user_id = ?', whereArgs: [id, userId], limit: 1);
     if (existing.isNotEmpty) {
-      // Une synchro serveur peut confirmer qu'une notification est lue.
-      // Ne jamais la repasser en non-lue si une réponse locale est en attente.
+      // Actualiser le texte depuis la langue actuelle du compte, y compris pour
+      // les notifications déjà mises en cache. Préserver l'état de lecture et
+      // l'état d'action gérés localement.
       final wasRead = (existing.first['is_read'] as num?)?.toInt() == 1;
-      if (isRead && !wasRead) {
-        await db.update('notifications', {'is_read': 1}, where: 'id = ? AND user_id = ?', whereArgs: [id, userId]);
-        _changes.add(userId);
-      }
+      final update = <String, Object?>{
+        'title': title,
+        'message': message,
+        'type': type,
+        'payload': payload,
+        // Garder la date originale : une notification reçue de nouveau via
+        // FCM/Realtime ne doit pas remonter en tête comme si elle était neuve.
+        if (createdAt != null)
+          'created_at': createdAt.millisecondsSinceEpoch,
+      };
+      if (isRead && !wasRead) update['is_read'] = 1;
+      await db.update('notifications', update,
+          where: 'id = ? AND user_id = ?', whereArgs: [id, userId]);
+      _changes.add(userId);
       return false;
     }
 
@@ -105,6 +117,105 @@ class NotificationDbService extends GetxService {
     }
   }
 
+  /// Applique un état de lecture reçu du serveur sans créer d'entrée d'outbox.
+  Future<void> syncRemoteReadState({
+    required String id,
+    required String userId,
+    required bool isRead,
+  }) async {
+    if (!isRead) return;
+    final db = await database;
+    await db.update(
+      'notifications',
+      {'is_read': 1},
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [id, userId],
+    );
+    _changes.add(userId);
+  }
+
+  /// Répercute une suppression serveur dans le cache et conserve un tombstone
+  /// afin qu'un ancien événement FCM/Realtime ne puisse pas recréer la ligne.
+  Future<void> syncRemoteDeletion({
+    required String id,
+    required String userId,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'notifications',
+        columns: ['id'],
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+        limit: 1,
+      );
+      // DELETE Realtime peut être diffusé sans user_id (REPLICA IDENTITY DEFAULT).
+      // Ne créer un tombstone que si cette ligne appartenait à notre cache local.
+      if (existing.isEmpty) return;
+      await txn.delete(
+        'notifications',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+      );
+      await txn.insert(
+        'deleted_notifications',
+        {
+          'user_id': userId,
+          'notification_id': id,
+          'deleted_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await txn.delete(
+        'notification_outbox',
+        where: 'user_id = ? AND notification_id = ?',
+        whereArgs: [userId, id],
+      );
+    });
+    _changes.add(userId);
+  }
+
+  /// Réconcilie le cache après une récupération distante complète et paginée.
+  /// Les lignes absentes du snapshot serveur sont considérées comme supprimées.
+  Future<void> reconcileRemoteSnapshot({
+    required String userId,
+    required Set<String> remoteIds,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final localRows = await txn.query(
+        'notifications',
+        columns: ['id'],
+        where: 'user_id = ?',
+        whereArgs: [userId],
+      );
+      for (final row in localRows) {
+        final id = row['id']?.toString();
+        if (id == null || id.isEmpty || remoteIds.contains(id)) continue;
+        await txn.delete(
+          'notifications',
+          where: 'id = ? AND user_id = ?',
+          whereArgs: [id, userId],
+        );
+        await txn.insert(
+          'deleted_notifications',
+          {
+            'user_id': userId,
+            'notification_id': id,
+            'deleted_at': DateTime.now().millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await txn.delete(
+          'notification_outbox',
+          where: 'user_id = ? AND notification_id = ?',
+          whereArgs: [userId, id],
+        );
+      }
+    });
+    _changes.add(userId);
+  }
+
   Future<void> markAllAsRead(String userId) async {
     final db = await database;
     final unread = await db.query('notifications', columns: ['id'], where: 'user_id = ? AND is_read = 0', whereArgs: [userId]);
@@ -114,6 +225,37 @@ class NotificationDbService extends GetxService {
     for (final row in unread) {
       await _enqueueOutbox(userId, row['id'].toString(), 'mark_read');
     }
+    _changes.add(userId);
+  }
+
+  Future<void> deleteSalonMessageNotifications({
+    required String userId,
+    required String salonId,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'notifications',
+      columns: ['id', 'payload'],
+      where: 'user_id = ? AND type IN (?, ?)',
+      whereArgs: [userId, 'community_salon_message', 'community_salon_reply'],
+    );
+    final ids = <String>[];
+    for (final row in rows) {
+      final raw = row['payload']?.toString();
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map && decoded['salon_id']?.toString() == salonId) {
+          ids.add(row['id'].toString());
+        }
+      } catch (_) {}
+    }
+    if (ids.isEmpty) return;
+    await db.delete(
+      'notifications',
+      where: 'user_id = ? AND id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: [userId, ...ids],
+    );
     _changes.add(userId);
   }
 

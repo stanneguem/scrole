@@ -15,19 +15,23 @@ class StoriesRepository {
     String p_audience = 'public',
     Map<String, dynamic>? p_poll,
     bool p_allow_reshare = false,
+    String? p_thumbnail_url,
   }) async {
     try {
       debugPrint('[STORY] [Repository] Calling RPC create_story with p_id=$p_id, kind=$p_kind, audience=$p_audience');
+      // Always pass every argument because the 8-argument RPC overload
+      // deliberately has no defaults; this also avoids PostgREST overload ambiguity.
       final params = <String, dynamic>{
         'p_id': p_id,
         'p_kind': p_kind,
+        'p_content': p_content,
+        'p_image_url': p_image_url,
+        'p_background': p_background,
         'p_audience': p_audience,
+        'p_poll': p_poll,
         'p_allow_reshare': p_allow_reshare,
+        'p_thumbnail_url': p_thumbnail_url,
       };
-      if (p_content != null && p_content.isNotEmpty) params['p_content'] = p_content;
-      if (p_image_url != null && p_image_url.isNotEmpty) params['p_image_url'] = p_image_url;
-      if (p_background != null && p_background.isNotEmpty) params['p_background'] = p_background;
-      if (p_poll != null) params['p_poll'] = p_poll;
 
       final response = await client.rpc('create_story', params: params);
       debugPrint('[STORY] [Repository] RPC create_story successful for p_id=$p_id, response=$response');
@@ -49,10 +53,10 @@ class StoriesRepository {
         'p_suggested_limit': suggestedLimit,
       });
       if (response is Map) return Map<String, dynamic>.from(response);
-      return {'own': null, 'following': [], 'suggested': []};
-    } catch (e) {
-      debugPrint('[STORY] [Repository] Error in getStoriesTray: $e');
-      return {'own': null, 'following': [], 'suggested': []};
+      throw StateError('Réponse invalide du fil de stories.');
+    } catch (e, st) {
+      debugPrint('[STORY] [Repository] Error in getStoriesTray: $e\\n$st');
+      rethrow;
     }
   }
 
@@ -75,9 +79,11 @@ class StoriesRepository {
       final response = await client.rpc('get_user_stories', params: {'p_user_id': userId});
       if (response is Map) return Map<String, dynamic>.from(response);
       return null;
-    } catch (e) {
-      debugPrint('[STORY] [Repository] Error in getUserStories: $e');
-      return null;
+    } catch (e, st) {
+      // A network/server error must not be interpreted as a deleted or
+      // inaccessible story. The viewer keeps its cached content in that case.
+      debugPrint('[STORY] [Repository] Error refreshing user stories: $e\n$st');
+      rethrow;
     }
   }
 

@@ -48,6 +48,28 @@ Deno.serve(async (req: Request) => {
     const userId = record?.user_id as string | undefined;
     if (!userId) return json({ error: "missing_user_id" }, 400);
 
+    const type = String(record.type ?? "info").toLowerCase();
+
+    // The SQL webhook is asynchronous: the user may have read or deleted the
+    // row before this Edge Function starts. Never send stale push notifications.
+    if (type !== "message_received") {
+      const notificationId = String(record.id ?? "");
+      if (!notificationId) return json({ error: "missing_notification_id" }, 400);
+      const { data: currentNotification, error: notificationError } = await supabaseAdmin
+        .from("notifications")
+        .select("id,read_at")
+        .eq("id", notificationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (notificationError) {
+        console.error("notification status lookup failed", notificationError);
+        return json({ error: "notification_status_lookup_failed" }, 500);
+      }
+      if (!currentNotification || currentNotification.read_at !== null) {
+        return json({ ok: true, sent: 0, reason: "notification_no_longer_pending" });
+      }
+    }
+
     const [{ data: devices, error: devicesError }, { data: preferences, error: preferencesError }] = await Promise.all([
       supabaseAdmin.from("user_devices").select("id,device_token,platform,device_brand,device_model,push_enabled")
         .eq("user_id", userId).eq("push_enabled", true).not("device_token", "is", null),
@@ -60,15 +82,47 @@ Deno.serve(async (req: Request) => {
       return json({ error: "recipient_lookup_failed" }, 500);
     }
 
-    const type = String(record.type ?? "info").toLowerCase();
+    const recordData = record.data && typeof record.data === "object" ? { ...record.data } : {};
+    const isE2eeMessage = type === "e2ee_message_received" ||
+      recordData.e2ee === true || recordData.e2ee === "true" ||
+      String(recordData.encryption_mode ?? "").toLowerCase() === "e2ee";
+    if (isE2eeMessage) {
+      // E2EE push notifications are wake-up hints only. Never forward plaintext,
+      // previews, attachment URLs, or user-controlled message copy to FCM.
+      for (const key of [
+        "content", "text", "message", "body", "preview", "last_message_text",
+        "message_text", "caption", "audio_url", "media_url", "media_urls",
+        "attachment_url", "file_url",
+      ]) delete recordData[key];
+      recordData.e2ee = "true";
+    }
+    if (type === "community_salon_message") {
+      const salonId = String(recordData.salon_id ?? "");
+      if (!salonId) return json({ ok: true, sent: 0, reason: "missing_salon_id" });
+      const { data: salonPreference, error: salonPreferenceError } = await supabaseAdmin
+        .from("community_salon_user_preferences")
+        .select("notifications_enabled")
+        .eq("salon_id", salonId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (salonPreferenceError) {
+        console.error("salon preference lookup failed", salonPreferenceError);
+        return json({ error: "salon_preference_lookup_failed" }, 500);
+      }
+      if (salonPreference?.notifications_enabled === false) {
+        return json({ ok: true, sent: 0, reason: "disabled_for_this_salon" });
+      }
+    }
     const pref = preferences ?? {};
-    const categoryEnabled = type.includes("message")
-      ? pref.notif_messages !== false
-      : (type.includes("event") || type.includes("evenement"))
-        ? pref.notif_evenements !== false
-        : (type.includes("community") || type.includes("communaute"))
-          ? pref.notif_communautes !== false
-          : pref.notif_social !== false;
+    const categoryEnabled = type === "community_salon_message"
+      ? pref.notif_messages !== false && pref.notif_communautes !== false
+      : type.includes("message")
+        ? pref.notif_messages !== false
+        : (type.includes("event") || type.includes("evenement"))
+          ? pref.notif_evenements !== false
+          : (type.includes("community") || type.includes("communaute"))
+            ? pref.notif_communautes !== false
+            : pref.notif_social !== false;
 
     // Honor preferences on the server as well, including background push
     // notifications that Flutter cannot filter in its background isolate.
@@ -82,20 +136,80 @@ Deno.serve(async (req: Request) => {
 
     const sa = JSON.parse(serviceAccountRaw);
     const accessToken = await getFirebaseAccessToken(sa);
-    const recordData = record.data && typeof record.data === "object" ? record.data : {};
+    // actor_id is stored in its own notifications column for some legacy
+    // writers. Include it in the renderer payload so push copy names the actor.
+    if (record.actor_id != null && recordData.actor_id == null) {
+      recordData.actor_id = String(record.actor_id);
+    }
     const dataBase: Record<string, string> = { type, notification_id: String(record.id ?? "") };
     for (const [key, value] of Object.entries(recordData)) if (value != null)
       dataBase[key] = typeof value === "string" ? value : JSON.stringify(value);
 
-    const language = SUPPORTED_LANGUAGES.includes(preferences?.language) ? preferences.language : "fr";
+    const requestedLanguage = String(pref.language ?? "").toLowerCase().split(/[-_]/)[0];
+    const language = SUPPORTED_LANGUAGES.includes(requestedLanguage) ? requestedLanguage : "fr";
+
+    // The database row's title/body are often authored in French. Never use
+    // them as the primary copy when a localized template exists for the user.
     const { data: localized, error: locError } = await supabaseAdmin.rpc("render_notification_for_push", {
       p_type: type, p_data: recordData, p_language: language,
-      p_fallback_title: String(record.title ?? "Scrole"), p_fallback_body: String(record.body ?? ""),
+      p_fallback_title: "Scrole", p_fallback_body: "",
     });
-    if (locError) console.error("notification localization failed", locError);
+    if (locError) console.error("notification localization failed", { type, language, error: locError });
 
-    const title = String(localized?.title ?? record.title ?? "Scrole");
-    const body = String(localized?.body ?? record.body ?? "");
+    // Some legacy notification types have no template yet. Keep a localized,
+    // non-French fallback rather than leaking the French DB title/body.
+    const genericCopy: Record<string, { title: string; body: string }> = {
+      fr: { title: "Scrole", body: "Vous avez une nouvelle notification." },
+      en: { title: "Scrole", body: "You have a new notification." },
+      es: { title: "Scrole", body: "Tienes una nueva notificación." },
+      de: { title: "Scrole", body: "Du hast eine neue Benachrichtigung." },
+      it: { title: "Scrole", body: "Hai una nuova notifica." },
+      pt: { title: "Scrole", body: "Você tem uma nova notificação." },
+      zh: { title: "Scrole", body: "你有一条新通知。" },
+      ja: { title: "Scrole", body: "新しい通知があります。" },
+      ru: { title: "Scrole", body: "У вас новое уведомление." },
+    };
+    const fallback = genericCopy[language] ?? genericCopy.fr;
+    let title = String(localized?.title || fallback.title);
+    let body = String(localized?.body || fallback.body);
+    if (isE2eeMessage) {
+      const safeCopy: Record<string, string> = {
+        fr: "Vous avez reçu un message chiffré.",
+        en: "You received an encrypted message.",
+        es: "Has recibido un mensaje cifrado.",
+        de: "Du hast eine verschlüsselte Nachricht erhalten.",
+        it: "Hai ricevuto un messaggio crittografato.",
+        pt: "Você recebeu uma mensagem criptografada.",
+        zh: "你收到了一条加密消息。",
+        ja: "暗号化されたメッセージを受信しました。",
+        ru: "Вы получили зашифрованное сообщение.",
+      };
+      title = "Scrole";
+      body = safeCopy[language] ?? safeCopy.fr;
+    }
+    if (type === "app_version_published") {
+      const version = String(recordData.version ?? "");
+      const message = String(recordData.message ?? "").trim();
+      const versionLine: Record<string, (v: string) => string> = {
+        fr: v => `Nouvelle version de Scrole : ${v}`,
+        en: v => `New Scrole version: ${v}`,
+        es: v => `Nueva versión de Scrole: ${v}`,
+        de: v => `Neue Scrole-Version: ${v}`,
+        it: v => `Nuova versione di Scrole: ${v}`,
+        pt: v => `Nova versão do Scrole: ${v}`,
+        zh: v => `Scrole 新版本：${v}`,
+        ja: v => `Scrole の新バージョン：${v}`,
+        ru: v => `Новая версия Scrole: ${v}`,
+      };
+      title = fallback.title === "Scrole" ? "Scrole" : fallback.title;
+      title = ({
+        fr: "Nouvelle version de Scrole", en: "New Scrole version",
+        es: "Nueva versión de Scrole", de: "Neue Scrole-Version",
+        it: "Nuova versione di Scrole", pt: "Nova versão do Scrole",
+        zh: "Scrole 新版本", ja: "Scrole の新バージョン", ru: "Новая версия Scrole",
+      } as Record<string, string>)[language] ?? "Nouvelle version de Scrole";
+      body = `${(versionLine[language] ?? versionLine.fr)(version)}${message ? `\\n${message}` : ""}`;
+    }
     const data = { ...dataBase, language, title, body };
     const results = [];
 

@@ -410,9 +410,33 @@ class EventRepository {
     return data.map((e) => EventModel.fromJson(e)).toList();
   }
 
+  Future<Set<String>> getDismissedHomeEventSuggestionIds() =>
+      _remote.fetchDismissedHomeEventSuggestionIds();
+
+  Future<void> dismissHomeEventSuggestion(String eventId) =>
+      _remote.dismissHomeEventSuggestion(eventId);
+
+  Future<Set<String>> _loadDismissedSuggestionIdsSafely() async {
+    try {
+      return await _remote.fetchDismissedHomeEventSuggestionIds();
+    } catch (e) {
+      debugPrint('[EventRepository] Could not refresh dismissed suggestions: $e');
+      return <String>{};
+    }
+  }
+
+  List<dynamic> _withoutDismissedSuggestions(List<dynamic> rows, Set<String> dismissedIds) {
+    if (dismissedIds.isEmpty) return rows;
+    return rows.where((item) {
+      if (item is! Map) return false;
+      final id = (item['id'] ?? item['event_id'] ?? '').toString();
+      return !dismissedIds.contains(id);
+    }).toList();
+  }
+
   Future<List<EventModel>> getSuggestedEvents({bool forceRefresh = false}) async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
-    final cacheKey = 'event_suggestions_$userId';
+    final cacheKey = 'event_suggestions_v2_$userId';
     if (!forceRefresh) {
       final cached = await _dao.getDiscoveryCache(cacheKey);
       if (cached != null) {
@@ -420,50 +444,52 @@ class EventRepository {
         final age = DateTime.now().difference(cachedAt);
         if (age < const Duration(hours: 5)) {
           final List<dynamic> list = jsonDecode(payload);
-          return _deduplicateRawSuggestions(list);
+          final dismissed = await _loadDismissedSuggestionIdsSafely();
+          return _deduplicateRawSuggestions(_withoutDismissedSuggestions(list, dismissed));
         }
       }
     }
 
     try {
       final data = await _remote.fetchSuggestedEvents(limit: 50);
-      await _dao.saveDiscoveryCache(cacheKey, jsonEncode(data));
-      return _deduplicateRawSuggestions(data);
+      final dismissed = await _loadDismissedSuggestionIdsSafely();
+      final visible = _withoutDismissedSuggestions(data, dismissed);
+      await _dao.saveDiscoveryCache(cacheKey, jsonEncode(visible));
+      return _deduplicateRawSuggestions(visible);
     } catch (e) {
       debugPrint('[Error] getSuggestedEvents: $e');
       // En cas d'erreur réseau/RPC, on essaie quand même de retourner le cache même s'il est vieux
       final cached = await _dao.getDiscoveryCache(cacheKey);
       if (cached != null) {
         final List<dynamic> list = jsonDecode(cached.$1);
-        return _deduplicateRawSuggestions(list);
+        final dismissed = await _loadDismissedSuggestionIdsSafely();
+        return _deduplicateRawSuggestions(_withoutDismissedSuggestions(list, dismissed));
       }
       rethrow;
     }
   }
 
-  /// Déduplique les événements par catégorie de sorte que (category, event.id) soit strictement unique.
-  /// Préserve un même événement s'il est présent dans des catégories DIFFÉRENTES.
+  /// De-duplicates by series when the RPC provides series_id, otherwise by event id.
+  /// A series is presented once, even when it has several editions or
+  /// the same event was returned by several recommendation categories.
   List<EventModel> _deduplicateRawSuggestions(List<dynamic> rawList) {
-    final List<EventModel> result = [];
-    final Set<String> seenCategoryAndId = {};
+    final Map<String, EventModel> unique = {};
 
     for (final item in rawList) {
-      if (item is Map) {
-        final map = Map<String, dynamic>.from(item);
-        final category = (map['category'] ?? map['categorie'] ?? '').toString().toLowerCase().trim();
-        final id = (map['id'] ?? map['evenement_id'] ?? '').toString().trim();
-        final key = '${category}_$id';
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      final event = EventModel.fromJson(map);
+      final seriesId = (map['series_id'] ?? '').toString().trim();
+      final uniqueKey = seriesId.isNotEmpty ? 'series:$seriesId' : 'event:${event.id}';
+      final previous = unique[uniqueKey];
 
-        if (id.isNotEmpty && seenCategoryAndId.contains(key)) {
-          continue; // Saute les doublons au sein d'une MÊME catégorie
-        }
-
-        if (id.isNotEmpty) {
-          seenCategoryAndId.add(key);
-        }
-        result.add(EventModel.fromJson(map));
+      if (previous == null || event.startsAt.isBefore(previous.startsAt)) {
+        unique[uniqueKey] = event;
       }
     }
+
+    final result = unique.values.toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     return result;
   }
 
@@ -795,6 +821,19 @@ class EventRepository {
     return result;
   }
 
+  Future<EventModel> createNextEventEdition({
+    required String sourceEventId,
+    required DateTime startsAt,
+  }) async {
+    final data = await _remote.createNextEventEdition(
+      sourceEventId: sourceEventId,
+      startsAt: startsAt,
+    );
+    await _dao.saveEventStructured(data, syncStatus: 'synced');
+    await _dao.upsertEvent(data);
+    return EventModel.fromJson(data);
+  }
+
   Future<EventModel> getEventById(String id) async {
     try {
       final data = await _remote.fetchEventById(id);
@@ -807,6 +846,10 @@ class EventRepository {
       }
       rethrow;
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getPublicEventSeriesEditions(String eventId) {
+    return _remote.fetchPublicEventSeriesEditions(eventId);
   }
 
   Future<List<EventModel>> getUserAgenda(String userId) async {
@@ -829,13 +872,29 @@ class EventRepository {
 
       final List<EventModel> list = [];
       try {
+        // v2 invalidates old role snapshots that could still contain admin events
+        // previously linked to the same auth UUID as a personal user profile.
+        final roleSnapshot = await _dao.getUserEventRoleCache(userId, 'managed_v2');
+        if (roleSnapshot != null) {
+          for (final row in roleSnapshot) {
+            try {
+              final event = EventModel.fromJson(row);
+              if (!event.isAdminCreated) list.add(event);
+            } catch (_) {}
+          }
+          list.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+          return list;
+        }
+        // Offline-created user events remain available locally. Ignore synced rows:
+        // they may predate the explicit creator-profile discriminator and must not
+        // resurrect an old Admin event in the user's personal list.
         final structuredLocal = await _dao.getEventsStructured(creatorId: userId);
-        debugPrint('[Sync] getManagedEventsLocal: Found ${structuredLocal.length} events in structured local DB');
+        debugPrint('[Sync] getManagedEventsLocal: Found ${structuredLocal.length} structured rows');
         for (final row in structuredLocal) {
+          if ((row['sync_status'] ?? 'synced').toString() == 'synced') continue;
           try {
             final event = EventModel.fromJson(row);
-            list.add(event);
-            debugPrint('[Sync] getManagedEventsLocal: Loaded local event ${event.id} (${event.name})');
+            if (event.creatorId == userId && !event.isAdminCreated) list.add(event);
           } catch (e) {
             debugPrint('[Sync] getManagedEventsLocal: Error parsing local row: $e');
           }
@@ -856,141 +915,76 @@ class EventRepository {
   }
 
   Future<List<EventModel>> syncManagedEventsRemote() async {
-    return await bootMeasureAsync('EventRepository.syncManagedEventsRemote', () async {
-      final userId = _remote.client.auth.currentUser?.id;
-      debugPrint('[Sync] syncManagedEventsRemote: Current Session UserId = $userId');
-      if (userId == null) return [];
+    final userId = _remote.client.auth.currentUser?.id;
+    if (userId == null) return [];
 
-      final Map<String, EventModel> merged = {};
-
+    // Le RPC renvoie la liste complète et autoritaire. Ne jamais fusionner
+    // cette réponse avec les anciennes lignes locales : cela ressuscite les
+    // événements supprimés ou les rôles retirés.
+    final rows = await _remote.fetchManagedEvents();
+    await _dao.saveUserEventRoleCache(userId, 'managed_v2', rows);
+    if (rows.isNotEmpty) {
+      await _dao.upsertEventsBatch(rows);
+    }
+    final parsed = <EventModel>[];
+    for (final row in rows) {
       try {
-        debugPrint('[Sync] syncManagedEventsRemote: Fetching membership list from remote...');
-        final rawMemberships = await _remote.fetchManagedEvents();
-        debugPrint('[Sync] syncManagedEventsRemote: Found ${rawMemberships.length} memberships on remote');
-
-        final Map<String, String> roleMap = {};
-        for (final m in rawMemberships) {
-          final id = (m['evenement_id'] ?? m['id'] ?? '').toString();
-          if (id.isNotEmpty && id != 'null') {
-            roleMap[id] = (m['role'] ?? 'membre').toString();
-          }
-        }
-
-        final localEvents = await getManagedEventsLocal();
-        for (final e in localEvents) {
-          if (e.creatorId == userId || roleMap.containsKey(e.id)) {
-            merged[e.id] = e;
-          }
-        }
-
-        if (roleMap.isNotEmpty) {
-          final List<String> eventIds = roleMap.keys.toList();
-          debugPrint('[Sync] syncManagedEventsRemote: Fetching summary details for ${eventIds.length} events...');
-
-          final List<Map<String, dynamic>> summaryEventsData = [];
-          for (int i = 0; i < eventIds.length; i += 50) {
-            final chunk = eventIds.sublist(i, i + 50 > eventIds.length ? eventIds.length : i + 50);
-            final chunkData = await _remote.fetchEventSummariesByIds(chunk);
-            summaryEventsData.addAll(chunkData);
-          }
-
-          final fetchedIds = summaryEventsData.map((e) => (e['id'] ?? '').toString()).toSet();
-          final missingIds = eventIds.where((id) => !fetchedIds.contains(id)).toList();
-          if (missingIds.isNotEmpty) {
-            final truncatedMissing = missingIds.map((id) => id.length > 8 ? '${id.substring(0, 8)}...' : id).join(', ');
-            debugPrint('[Sync] syncManagedEventsRemote: ${missingIds.length} event IDs in roleMap not found in remote events table (deleted/purged/RLS): [$truncatedMissing]');
-          }
-
-          final List<Map<String, dynamic>> toCache = [];
-
-          for (final json in summaryEventsData) {
-            try {
-              final id = (json['id'] ?? '').toString();
-              if (id.isEmpty || id == 'null') continue;
-
-              final role = roleMap[id];
-              final augmentedJson = {...json, 'user_role': role};
-              final remoteEvent = EventModel.fromJson(augmentedJson);
-              toCache.add(augmentedJson);
-
-              final localSyncStatus = (merged[remoteEvent.id]?.statutSync ?? 'synchronise').toString();
-              merged[remoteEvent.id] = remoteEvent.copyWith(
-                statutSync: localSyncStatus == 'echec' ? 'echec' : 'synchronise',
-              );
-            } catch (e) {
-              debugPrint('[Sync] syncManagedEventsRemote: Error parsing summary event: $e');
-            }
-          }
-
-          if (toCache.isNotEmpty) {
-            await _dao.upsertEventsBatch(toCache);
-          }
-        } else {
-          // Si aucune adhésion distante mais des événements créés localement par l'utilisateur
-          final localEvents = await getManagedEventsLocal();
-          for (final e in localEvents) {
-            if (e.creatorId == userId) {
-              merged[e.id] = e;
-            }
-          }
-        }
+        parsed.add(EventModel.fromJson(row));
       } catch (e) {
-        debugPrint('[Error] syncManagedEventsRemote: $e');
+        debugPrint('[Sync] syncManagedEventsRemote: invalid remote event row: $e');
       }
-
-      final result = merged.values.toList();
-      result.sort((a, b) => b.startsAt.compareTo(a.startsAt));
-      debugPrint('[Sync] syncManagedEventsRemote: Total merged events to display = ${result.length}');
-      bootLog('EventRepository.syncManagedEventsRemote : ${result.length} événements fusionnés');
-      return result;
-    });
+    }
+    parsed.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+    debugPrint('[Sync] syncManagedEventsRemote: authoritative snapshot contains ${parsed.length} managed events');
+    return parsed;
   }
 
   Future<List<EventModel>> getManagedEvents() async {
-    return await bootMeasureAsync('EventRepository.getManagedEvents', () async {
-      final local = await getManagedEventsLocal();
-      if (local.isNotEmpty) {
-        unawaited(syncManagedEventsRemote());
-        return local;
+    final local = await getManagedEventsLocal();
+    if (local.isNotEmpty) {
+      unawaited(syncManagedEventsRemote());
+      return local;
+    }
+    return await syncManagedEventsRemote();
+  }
+
+  Future<List<EventModel>> getStaffEventsLocal() async {
+    final userId = _remote.client.auth.currentUser?.id;
+    if (userId == null) return [];
+    final rows = await _dao.getUserEventRoleCache(userId, 'staff');
+    if (rows == null) return [];
+    final parsed = <EventModel>[];
+    for (final row in rows) {
+      try {
+        parsed.add(EventModel.fromJson(row));
+      } catch (e) {
+        debugPrint('[Cache] getStaffEventsLocal: invalid cached event: $e');
       }
-      return await syncManagedEventsRemote();
-    });
+    }
+    parsed.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+    return parsed;
   }
 
   Future<List<EventModel>> getStaffEvents() async {
     final userId = _remote.client.auth.currentUser?.id;
-    final Map<String, EventModel> merged = {};
-
-    // 1. Distant (Les événements officiels où on est staff)
-    try {
-      final data = await _remote.fetchStaffActivities();
-      for (final json in data) {
-        try {
-          final event = EventModel.fromJson(json);
-          if (event.id.isNotEmpty && event.id != 'null') {
-            merged[event.id] = event;
-          }
-        } catch (e) {
-          debugPrint('[Sync] getStaffEvents: Error parsing remote staff event: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint('[Error] getStaffEvents remote: $e');
+    if (userId == null) return [];
+    // Une réponse vide du RPC est une suppression/révocation valide, pas un
+    // motif pour revenir à une ancienne liste locale ou à une fonction legacy.
+    final rows = await _remote.fetchStaffActivities();
+    await _dao.saveUserEventRoleCache(userId, 'staff', rows);
+    if (rows.isNotEmpty) {
+      await _dao.upsertEventsBatch(rows);
     }
-
-    // 2. Local (Invitations locales en attente, si applicable)
-    if (userId != null) {
+    final parsed = <EventModel>[];
+    for (final row in rows) {
       try {
-        // Pour l'instant, on n'a pas de table cache pour les "evenements tiers" 
-        // mais on pourrait scanner staff_locaux si besoin.
+        parsed.add(EventModel.fromJson(row));
       } catch (e) {
-        debugPrint('[Error] getStaffEvents local: $e');
+        debugPrint('[Sync] getStaffEvents: invalid remote event row: $e');
       }
     }
-
-    final result = merged.values.toList();
-    result.sort((a, b) => b.startsAt.compareTo(a.startsAt));
-    return result;
+    parsed.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+    return parsed;
   }
 
   Future<void> inviteStaffOptimistic(String eventId, String userId, Map<String, dynamic> userData) async {
@@ -1209,6 +1203,11 @@ class EventRepository {
   Future<List<CheckinModel>> getEventCheckinsTree(String eventId) async {
     final data = await _remote.fetchEventCheckinsTree(eventId);
     return data.map((e) => CheckinModel.fromJson(e)).toList();
+  }
+
+  /// Returns only activities actually validated for the currently signed-in participant.
+  Future<Set<String>> getMyValidatedActivityIds(String eventId) {
+    return _remote.fetchMyValidatedActivityIds(eventId);
   }
 
   Future<CheckinScanResult> scanCheckinOptimistic({
@@ -1627,39 +1626,31 @@ class EventRepository {
     required String eventId,
     String? activityId,
   }) async {
-    debugPrint('[ActivityEventPrice] start update eventId=$eventId, activityId=$activityId, eventActivityId=$eventActivityId, newPrice=$newPrice');
-    try {
-      if (eventActivityId.isNotEmpty) {
-        await _remote.client
-            .from('event_activities')
-            .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
-            .eq('id', eventActivityId);
-        debugPrint('[ActivityEventPrice] backend update success for id=$eventActivityId');
-      } else if (activityId != null && activityId.isNotEmpty) {
-        await _remote.client
-            .from('event_activities')
-            .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
-            .eq('event_id', eventId)
-            .eq('activity_id', activityId);
-        debugPrint('[ActivityEventPrice] backend update success for eventId=$eventId, activityId=$activityId');
-      }
-    } catch (e) {
-      debugPrint('[ActivityEventPrice] update failed: $e');
-      if (activityId != null && activityId.isNotEmpty) {
-        try {
-          await _remote.client
-              .from('event_activities')
-              .update({'price': newPrice})
-              .eq('event_id', eventId)
-              .eq('activity_id', activityId);
-          debugPrint('[ActivityEventPrice] fallback update by event_id & activity_id success');
-          return;
-        } catch (err) {
-          debugPrint('[ActivityEventPrice] fallback update failed: $err');
-        }
-      }
-      rethrow;
+    debugPrint('[ActivityEventPrice] update eventId=$eventId activityId=$activityId rowId=$eventActivityId price=$newPrice');
+
+    // Toujours borner la modification à l'édition courante : le prix d'une
+    // édition ne doit jamais modifier celui d'une autre édition.
+    if (activityId != null && activityId.isNotEmpty) {
+      final updated = await _remote.client
+          .from('event_activities')
+          .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('event_id', eventId)
+          .eq('activity_id', activityId)
+          .select('id');
+      if (updated.isNotEmpty) return;
     }
+
+    if (eventActivityId.isNotEmpty) {
+      final updated = await _remote.client
+          .from('event_activities')
+          .update({'price': newPrice, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('event_id', eventId)
+          .eq('id', eventActivityId)
+          .select('id');
+      if (updated.isNotEmpty) return;
+    }
+
+    throw Exception("Aucune activité liée à cette édition n'a été mise à jour. Vérifie que l'activité appartient bien à cette édition et que tu en es propriétaire.");
   }
 
   Future<List<StaffMemberModel>> getEventActivityStaff({
@@ -1729,9 +1720,23 @@ class EventRepository {
     }
   }
 
+  String agendaRestrictionMessageKey(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('agenda_selected_day_horizon_exceeded')) {
+      return 'agenda_day_horizon_exceeded_message';
+    }
+    if (message.contains('agenda_horizon_exceeded')) {
+      return 'agenda_horizon_exceeded_message';
+    }
+    if (message.contains('agenda_event_quota_exceeded')) {
+      return 'agenda_event_quota_exceeded_message';
+    }
+    return 'agenda_save_error';
+  }
+
   Future<String?> addEventToCalendarOptimistic(String eventId, String userId) async {
     await _dao.saveCalendarEventStructured(userId, eventId, syncStatus: 'pending_push');
-    await _dao.enqueueOutbox(
+    final outboxId = await _dao.enqueueOutbox(
       userId: userId,
       eventId: eventId,
       tableName: 'event_calendar',
@@ -1741,11 +1746,22 @@ class EventRepository {
 
     try {
       final suggestedCommunityId = await _remote.addEventToCalendar(eventId);
+      await _dao.removeFromOutbox(outboxId);
       await _dao.saveCalendarEventStructured(userId, eventId, syncStatus: 'synced');
       return suggestedCommunityId;
     } catch (e) {
-      debugPrint('[Outbox Queue] addEventToCalendar offline/error: $e. Conservé en outbox.');
-      return null;
+      if (_isNetworkError(e)) {
+        // Garder la modification en attente uniquement pour les erreurs réseau.
+        debugPrint('[Outbox Queue] addEventToCalendar network error: $e. Conservé en outbox.');
+        return null;
+      }
+
+      // Un refus métier (quota, horizon de certification, droits, etc.)
+      // ne doit jamais rester dans le cache ni être retenté en arrière-plan.
+      await _dao.removeFromOutbox(outboxId);
+      await _dao.removeCalendarEventStructured(userId, eventId);
+      debugPrint('[EventRepository] addEventToCalendar rejected by backend; local optimistic state rolled back: $e');
+      rethrow;
     }
   }
 
@@ -1784,6 +1800,9 @@ class EventRepository {
   Future<String> proposeTransfer(String eventId, String targetUserId) async {
     return await _remote.proposeTransfer(eventId: eventId, targetUserId: targetUserId);
   }
+
+  Future<void> recordEventAnalytics(String eventId, String action, {Map<String, dynamic> metadata = const {}}) =>
+      _remote.recordEventAnalytics(eventId: eventId, action: action, metadata: metadata);
 
   Future<EventStatisticsModel> getEventStatistics(String eventId, {bool forceRefresh = false}) async {
     // Les statistiques sont une fonctionnalité protégée par la certification active.
@@ -1993,12 +2012,73 @@ class EventRepository {
     debugPrint('[EventState] selectedEventId cleared eventId=$eventId');
   }
 
+  Future<EventPreviewModel> _ensurePreviewActivities(
+    String eventId,
+    EventPreviewModel preview,
+  ) async {
+    if (preview.activitiesLiees.isNotEmpty) return preview;
+
+    try {
+      final linked = await getEventActivities(eventId);
+      if (linked.isEmpty) return preview;
+
+      String symbolFor(String currency) {
+        switch (currency.toUpperCase()) {
+          case 'XAF':
+          case 'XOF':
+            return 'FCFA';
+          case 'EUR':
+            return '€';
+          case 'USD':
+            return r'$';
+          case 'GBP':
+            return '£';
+          default:
+            return currency;
+        }
+      }
+
+      final activities = linked
+          .where((activity) =>
+              activity.activityId.isNotEmpty && activity.name.trim().isNotEmpty)
+          .map((activity) => EventPreviewActivity(
+                activityId: activity.activityId,
+                name: activity.name,
+                price: activity.price,
+                currencyCode: activity.currency,
+                converted: ConvertedPrice(
+                  amount: activity.price,
+                  currencyCode: activity.currency,
+                  symbol: symbolFor(activity.currency),
+                ),
+              ))
+          .toList();
+
+      if (activities.isEmpty) return preview;
+      debugPrint(
+        '[EventRepository] Preview RPC returned no linked activities; '
+        'recovered ${activities.length} from event_activities for $eventId',
+      );
+      return preview.copyWith(activitiesLiees: activities);
+    } catch (e) {
+      debugPrint(
+        '[EventRepository] Could not recover linked activities for preview $eventId: $e',
+      );
+      return preview;
+    }
+  }
+
   Future<EventPreviewModel> getEventPreviewOwner(String eventId) async {
     try {
       final data = await _remote.getEventPreviewOwner(eventId);
-      final model = EventPreviewModel.fromJson(data);
+      final model = await _ensurePreviewActivities(
+        eventId,
+        EventPreviewModel.fromJson(data),
+      );
       if (data['event'] is Map) {
-        await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
+        await _dao.saveEventStructured(
+          Map<String, dynamic>.from(data['event'] as Map),
+        );
       }
       return model;
     } catch (e) {
@@ -2007,7 +2087,9 @@ class EventRepository {
         throw EventNotFoundException(eventId);
       }
       if (_isNetworkError(e)) {
-        debugPrint('[Error] getEventPreviewOwner network error: $e. Using local cache...');
+        debugPrint(
+          '[Error] getEventPreviewOwner network error: $e. Using local cache...',
+        );
         final local = await _dao.getEventStructuredById(eventId);
         if (local != null) {
           return EventPreviewModel(event: EventModel.fromJson(local));
@@ -2020,9 +2102,14 @@ class EventRepository {
   Future<EventPreviewModel> getEventPreviewPublic(String eventId) async {
     try {
       final data = await _remote.getEventPreviewPublic(eventId);
-      final model = EventPreviewModel.fromJson(data);
+      final model = await _ensurePreviewActivities(
+        eventId,
+        EventPreviewModel.fromJson(data),
+      );
       if (data['event'] is Map) {
-        await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
+        await _dao.saveEventStructured(
+          Map<String, dynamic>.from(data['event'] as Map),
+        );
       }
       return model;
     } catch (e) {
@@ -2031,7 +2118,9 @@ class EventRepository {
         throw EventNotFoundException(eventId);
       }
       if (_isNetworkError(e)) {
-        debugPrint('[Error] getEventPreviewPublic network error: $e. Using local cache...');
+        debugPrint(
+          '[Error] getEventPreviewPublic network error: $e. Using local cache...',
+        );
         final local = await _dao.getEventStructuredById(eventId);
         if (local != null) {
           return EventPreviewModel(event: EventModel.fromJson(local));
@@ -2044,9 +2133,14 @@ class EventRepository {
   Future<EventPreviewModel> getEventPreviewStaff(String eventId) async {
     try {
       final data = await _remote.getEventPreviewStaff(eventId);
-      final model = EventPreviewModel.fromJson(data);
+      final model = await _ensurePreviewActivities(
+        eventId,
+        EventPreviewModel.fromJson(data),
+      );
       if (data['event'] is Map) {
-        await _dao.saveEventStructured(Map<String, dynamic>.from(data['event'] as Map));
+        await _dao.saveEventStructured(
+          Map<String, dynamic>.from(data['event'] as Map),
+        );
       }
       return model;
     } catch (e) {
@@ -2055,7 +2149,9 @@ class EventRepository {
         throw EventNotFoundException(eventId);
       }
       if (_isNetworkError(e)) {
-        debugPrint('[Error] getEventPreviewStaff network error: $e. Using local cache...');
+        debugPrint(
+          '[Error] getEventPreviewStaff network error: $e. Using local cache...',
+        );
         final local = await _dao.getEventStructuredById(eventId);
         if (local != null) {
           return EventPreviewModel(event: EventModel.fromJson(local));
@@ -2069,7 +2165,11 @@ class EventRepository {
     final userId = _remote.client.auth.currentUser?.id;
     try {
       final local = await _dao.getEventStructuredById(eventId);
-      final isOwner = local != null && local['creator_id'] == userId;
+      // A locally cached row is not authoritative for ownership: old cache entries
+      // may have attached an Admin-created event to this user's auth UUID.
+      final isOwner = local != null &&
+          local['creator_id'] == userId &&
+          (local['sync_status'] ?? 'synced').toString() != 'synced';
 
       if (isOwner) {
         return await getEventPreviewOwner(eventId);

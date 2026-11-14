@@ -14,6 +14,7 @@ import '../widgets/direct_voice_message_player.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/text_styles.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import '../../../../shared/widgets/user_certified_badge.dart';
 import '../../../../shared/widgets/image_source_sheet.dart';
 import 'chat_media_viewer_screen.dart';
@@ -403,13 +404,14 @@ class DirectConversationScreen extends GetView<DirectConversationController> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(
-              child: Text(
-                m.text!,
+              child: LinkifiedText(
+                text: m.text!,
                 style: AppTextStyles.bodyLarge.copyWith(
                   color: hasWallpaper
                       ? Colors.white.withValues(alpha: .95)
                       : colors.onSurface.withValues(alpha: .9),
                 ),
+                linkColor: hasWallpaper ? Colors.lightBlueAccent : colors.primary,
               ),
             ),
             if (m.isEdited && !m.editedSilently)

@@ -606,13 +606,21 @@ class _DirectConversationDetailsScreenState
   void _confirmBlock() {
     final controller = Get.find<DirectConversationController>();
     final isBlocked = controller.blockedByMe.value;
-    final action = isBlocked ? 'Débloquer' : 'Bloquer';
+    final action = (isBlocked
+        ? 'direct_details_unblock_action'
+        : 'direct_details_block_action').tr;
     Get.dialog(
       AlertDialog(
-        title: Text('$action $_displayName ?'),
-        content: Text(isBlocked
-            ? 'Cette personne pourra de nouveau vous envoyer des messages.'
-            : 'Cette personne ne pourra plus vous envoyer de messages.'),
+        title: Text(
+          (isBlocked
+              ? 'direct_details_unblock_title'
+              : 'direct_details_block_title').trParams({'name': _displayName}),
+        ),
+        content: Text(
+          (isBlocked
+              ? 'direct_details_unblock_message'
+              : 'direct_details_block_message').tr,
+        ),
         actions: [
           TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
           FilledButton(
@@ -627,16 +635,20 @@ class _DirectConversationDetailsScreenState
                 Get.back();
                 Get.snackbar(
                   'chats_title'.tr,
-                  controller.blockedByMe.value
-                      ? '$_displayName a été bloqué.'
-                      : '$_displayName a été débloqué.',
+                  (controller.blockedByMe.value
+                      ? 'direct_details_block_success'
+                      : 'direct_details_unblock_success').trParams({'name': _displayName}),
                   snackPosition: SnackPosition.BOTTOM,
                   margin: const EdgeInsets.all(12),
                 );
               } catch (e) {
                 Get.snackbar(
                   'chats_title'.tr,
-                  'Impossible de ${isBlocked ? 'débloquer' : 'bloquer'} cet utilisateur : $e',
+                  (isBlocked
+                      ? 'direct_details_unblock_error'
+                      : 'direct_details_block_error').trParams({
+                    'error': e.toString(),
+                  }),
                   snackPosition: SnackPosition.BOTTOM,
                   margin: const EdgeInsets.all(12),
                 );
