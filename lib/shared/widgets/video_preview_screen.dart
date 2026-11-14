@@ -91,7 +91,7 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
   }
 
   void _close() {
-    Get.back<File?>(result: _hasChanges ? _videoFile : null);
+    Navigator.of(context).pop<File?>(_hasChanges ? _videoFile : null);
   }
 
   @override
@@ -109,11 +109,21 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        _close();
+        return false;
+      },
+      child: Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          tooltip: 'Retour',
+          onPressed: _close,
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
         title: const Text('Aperçu de la vidéo'),
         actions: [
           IconButton(
