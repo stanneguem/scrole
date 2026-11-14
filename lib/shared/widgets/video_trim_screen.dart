@@ -339,22 +339,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                 ),
                 if (!_isLoadingVideo && !_loadFailed) ...[
                   _buildVisibleTimeline(),
-                  TextButton(
-                    child: _isPlaying
-                        ? const Icon(Icons.pause, size: 60.0, color: Colors.white)
-                        : const Icon(Icons.play_arrow, size: 60.0, color: Colors.white),
-                    onPressed: () async {
-                      try {
-                        final playbackState = await _trimmer.videoPlaybackControl(
-                          startValue: _startValue,
-                          endValue: _endValue,
-                        );
-                        if (mounted) setState(() => _isPlaying = playbackState);
-                      } catch (e) {
-                        debugPrint('[VideoTrimScreen] playback error: $e');
-                      }
-                    },
-                  ),
+
                 ],
               ],
             ),
