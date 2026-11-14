@@ -183,10 +183,10 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
           RangeSlider(
             min: 0,
             max: totalMs,
-            divisions: totalMs >= 1000 ? totalMs.floor().clamp(1, 10000) : null,
+            divisions: totalMs >= 1000 ? totalMs.floor().clamp(1, 10000).toInt() : null,
             values: RangeValues(
-              _selectedStartMs.clamp(0, totalMs),
-              _selectedEndMs.clamp(0, totalMs),
+              _selectedStartMs.clamp(0, totalMs).toDouble(),
+              _selectedEndMs.clamp(0, totalMs).toDouble(),
             ),
             onChanged: (range) {
               var start = range.start;
@@ -199,8 +199,8 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                 }
               }
               if (end - start < 500 && totalMs >= 500) {
-                end = (start + 500).clamp(0, totalMs);
-                start = (end - 500).clamp(0, totalMs);
+                end = (start + 500).clamp(0, totalMs).toDouble();
+                start = (end - 500).clamp(0, totalMs).toDouble();
               }
               setState(() {
                 _selectedStartMs = start;
