@@ -3,6 +3,7 @@ do $$
 declare v_def text;
 begin
  v_def := pg_get_functiondef('public.get_scuts_feed(integer,uuid[])'::regprocedure);
+ if position('my_content_signals as materialized' in v_def) = 0 then
  v_def := replace(v_def,
    E'  video_posts as materialized (',
    E'  my_content_signals as materialized (\n' ||
@@ -21,6 +22,8 @@ begin
    E'    group by ph.hashtag_id\n' ||
    E'  ),\n' ||
    E'  video_posts as materialized (');
+ end if;
+ if position('join my_tag_affinity a' in v_def) = 0 then
  v_def := replace(v_def,
    E'      + coalesce((\n' ||
    E'        select least(45, coalesce(sum(case when ws.max_percent >= 90 then 12 when ws.max_percent >= 50 then 8 else 4 end),0))\n' ||
@@ -33,5 +36,6 @@ begin
    E'        from public.community_post_hashtags ph\n' ||
    E'        join my_tag_affinity a on a.hashtag_id = ph.hashtag_id\n' ||
    E'        where ph.post_id = p.id),0)');
+ end if;
  execute v_def;
 end $$;
