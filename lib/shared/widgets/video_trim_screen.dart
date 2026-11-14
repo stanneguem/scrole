@@ -42,6 +42,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       final effectiveMilliseconds = videoDuration.inMilliseconds > 0
           ? videoDuration.inMilliseconds
               .clamp(1, widget.maxDuration.inMilliseconds)
+              .toInt()
           : widget.maxDuration.inMilliseconds;
       if (mounted) {
         setState(() {
