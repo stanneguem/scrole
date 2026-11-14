@@ -103,7 +103,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: _progressVisibility ? null : _saveVideo,
+            onPressed: (_progressVisibility || _isLoadingVideo || _loadFailed) ? null : _saveVideo,
             child: _progressVisibility
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2))
                 : const Text(
