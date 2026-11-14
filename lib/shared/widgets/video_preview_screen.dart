@@ -62,6 +62,9 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
       setState(() => _isInitializing = false);
     } catch (error, stack) {
       debugPrint('[VideoPreviewScreen] player initialization failed: $error\\n$stack');
+      final failedController = _controller;
+      _controller = null;
+      await failedController?.dispose();
       if (mounted) {
         setState(() {
           _isInitializing = false;
@@ -74,13 +77,22 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
   Future<void> _trimVideo() async {
     if (_isInitializing || _hasError) return;
     final wasPlaying = _controller?.value.isPlaying ?? false;
-    if (wasPlaying) await _controller?.pause();
+
+    // Ne pas garder deux lecteurs/décodeurs natifs ouverts simultanément :
+    // le Trimmer crée lui aussi son propre VideoPlayerController.
+    final currentController = _controller;
+    _controller = null;
+    await currentController?.pause();
+    await currentController?.dispose();
+    if (!mounted) return;
 
     final trimmed = await Get.to<File>(() => VideoTrimScreen(
           videoFile: _videoFile,
           maxDuration: widget.maxDuration,
         ));
-    if (trimmed == null || !mounted) {
+    if (!mounted) return;
+    if (trimmed == null) {
+      await _initializePlayer();
       if (wasPlaying) await _controller?.play();
       return;
     }
