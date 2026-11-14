@@ -21,6 +21,8 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   double _endValue = 100.0;
   bool _isPlaying = false;
   bool _progressVisibility = false;
+  bool _isLoadingVideo = true;
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -28,8 +30,27 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     _loadVideo();
   }
 
-  void _loadVideo() {
-    _trimmer.loadVideo(videoFile: widget.videoFile);
+  Future<void> _loadVideo() async {
+    try {
+      await _trimmer.loadVideo(videoFile: widget.videoFile);
+      if (mounted) setState(() => _isLoadingVideo = false);
+    } catch (e, stack) {
+      debugPrint('[VideoTrimScreen] load error: $e\\n$stack');
+      if (mounted) {
+        setState(() {
+          _isLoadingVideo = false;
+          _loadFailed = true;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    // Le Trimmer possède un VideoPlayerController natif : le libérer à la
+    // fermeture de l'écran évite de conserver le décodeur en mémoire.
+    _trimmer.dispose();
+    super.dispose();
   }
 
   Future<void> _saveVideo() async {
@@ -108,46 +129,50 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                   ),
                 ),
                 Expanded(
-                  child: VideoViewer(trimmer: _trimmer),
+                  child: _isLoadingVideo
+                      ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                      : _loadFailed
+                          ? const Center(
+                              child: Text(
+                                'Impossible de lire cette vidéo sur cet appareil.',
+                                style: TextStyle(color: Colors.white70),
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          : VideoViewer(trimmer: _trimmer),
                 ),
-                Center(
-                  child: TrimViewer(
-                    trimmer: _trimmer,
-                    viewerHeight: 50.0,
-                    viewerWidth: MediaQuery.of(context).size.width,
-                    // Affiche la timeline complète : l’utilisateur peut choisir
-                    // une portion de 30 s n’importe où dans une vidéo longue.
-                    // Le mode auto passe en mode défilant sur les longues vidéos,
-                    // ce qui ne montre qu’une partie de la timeline à la fois.
-                    type: ViewerType.fixed,
-                    maxVideoLength: widget.maxDuration,
-                    onChangeStart: (value) => _startValue = value,
-                    onChangeEnd: (value) => _endValue = value,
-                    onChangePlaybackState: (value) => setState(() => _isPlaying = value),
+                if (!_isLoadingVideo && !_loadFailed) ...[
+                  Center(
+                    child: TrimViewer(
+                      trimmer: _trimmer,
+                      viewerHeight: 50.0,
+                      viewerWidth: MediaQuery.of(context).size.width,
+                      type: ViewerType.fixed,
+                      maxVideoLength: widget.maxDuration,
+                      onChangeStart: (value) => _startValue = value,
+                      onChangeEnd: (value) => _endValue = value,
+                      onChangePlaybackState: (value) {
+                        if (mounted) setState(() => _isPlaying = value);
+                      },
+                    ),
                   ),
-                ),
-                TextButton(
-                  child: _isPlaying
-                      ? const Icon(
-                          Icons.pause,
-                          size: 60.0,
-                          color: Colors.white,
-                        )
-                      : const Icon(
-                          Icons.play_arrow,
-                          size: 60.0,
-                          color: Colors.white,
-                        ),
-                  onPressed: () async {
-                    bool playbackState = await _trimmer.videoPlaybackControl(
-                      startValue: _startValue,
-                      endValue: _endValue,
-                    );
-                    setState(() {
-                      _isPlaying = playbackState;
-                    });
-                  },
-                ),
+                  TextButton(
+                    child: _isPlaying
+                        ? const Icon(Icons.pause, size: 60.0, color: Colors.white)
+                        : const Icon(Icons.play_arrow, size: 60.0, color: Colors.white),
+                    onPressed: () async {
+                      try {
+                        final playbackState = await _trimmer.videoPlaybackControl(
+                          startValue: _startValue,
+                          endValue: _endValue,
+                        );
+                        if (mounted) setState(() => _isPlaying = playbackState);
+                      } catch (e) {
+                        debugPrint('[VideoTrimScreen] playback error: $e');
+                      }
+                    },
+                  ),
+                ],
               ],
             ),
           ),
