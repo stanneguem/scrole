@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:video_trimmer/video_trimmer.dart';
 import '../../app/theme/app_colors.dart';
 
@@ -26,6 +27,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   Duration _videoDuration = Duration.zero;
   double _selectedStartMs = 0;
   double _selectedEndMs = 0;
+  List<File> _timelineFrames = [];
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
           _isLoadingVideo = false;
         });
       }
+      await _generateTimelineFrames(durationMs);
     } catch (e, stack) {
       debugPrint('[VideoTrimScreen] load error: $e\\n$stack');
       if (mounted) {
@@ -116,6 +119,20 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     return '$minutes:$seconds';
   }
 
+  Future<void> _generateTimelineFrames(double durationMs) async {
+    if (durationMs <= 0) return;
+    final frames = <File>[];
+    // Extraire les images une par une pour limiter la charge sur le décodeur Android.
+    for (var i = 0; i < 7; i++) {
+      if (!mounted) return;
+      try {
+        final position = ((durationMs - 1) * i / 6).round();
+        final frame = await VideoCompress.getFileThumbnail(widget.videoFile.path, quality: 35, position: position).timeout(const Duration(seconds: 8));
+        if (await frame.exists()) frames.add(frame);
+      } catch (e) { debugPrint('[VideoTrimScreen] thumbnail $i failed: $e'); }
+    }
+    if (mounted && frames.isNotEmpty) setState(() => _timelineFrames = frames);
+  }
   Widget _buildVisibleTimeline() {
     final totalMs = _videoDuration.inMilliseconds.toDouble();
     final maxSelectionMs = widget.maxDuration.inMilliseconds.toDouble();
@@ -136,7 +153,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
         SizedBox(height: 58, child: LayoutBuilder(builder: (context, constraints) {
           final width = constraints.maxWidth;
           return Stack(children: [
-            Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(5), child: Row(children: List.generate(12, (i) => Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), color: i.isEven ? const Color(0xFF5B5B5B) : const Color(0xFF343434), alignment: Alignment.center, child: const Icon(Icons.movie_outlined, color: Colors.white24, size: 16))))))),
+            Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(5), child: _timelineFrames.isEmpty ? Row(children: List.generate(12, (i) => Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 1), color: i.isEven ? const Color(0xFF5B5B5B) : const Color(0xFF343434), alignment: Alignment.center, child: const Icon(Icons.movie_outlined, color: Colors.white24, size: 16))))) : Row(children: _timelineFrames.map((frame) => Expanded(child: Image.file(frame, fit: BoxFit.cover, gaplessPlayback: true))).toList()))),
             Positioned(left: 0, top: 0, bottom: 0, width: width * startFraction, child: Container(color: Colors.black.withValues(alpha: .62))),
             Positioned(left: width * endFraction, top: 0, bottom: 0, width: width * (1 - endFraction), child: Container(color: Colors.black.withValues(alpha: .62))),
             Positioned(left: width * startFraction, top: 0, bottom: 0, width: (width * (endFraction - startFraction)).clamp(0.0, width), child: Container(decoration: BoxDecoration(border: Border.all(color: const Color(0xFFFFC928), width: 2)))),
