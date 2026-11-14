@@ -251,6 +251,7 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 }
