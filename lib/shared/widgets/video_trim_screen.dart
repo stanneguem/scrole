@@ -335,7 +335,11 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                                 textAlign: TextAlign.center,
                               ),
                             )
-                          : GestureDetector(\n                              behavior: HitTestBehavior.opaque,\n                              onTap: _togglePlayback,\n                              child: VideoViewer(trimmer: _trimmer),\n                            ),
+                          : GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _togglePlayback,
+                              child: VideoViewer(trimmer: _trimmer),
+                            ),
                 ),
                 if (!_isLoadingVideo && !_loadFailed) ...[
                   _buildVisibleTimeline(),
