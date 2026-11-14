@@ -833,6 +833,19 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   /// Lit uniquement les métadonnées natives du média.
   /// Évite d'initialiser un lecteur/décodeur vidéo complet pour connaître la durée.
+  Future<File?> _createVideoThumbnail(File file) async {
+    try {
+      return await VideoCompress.getFileThumbnail(
+        file.path, quality: 75, position: 0,
+      ).timeout(const Duration(seconds: 20));
+    } catch (error) {
+      // La miniature est facultative : une erreur de génération ne doit pas
+      // empêcher l'ajout de la vidéo qui a déjà été validée dans le trim.
+      debugPrint('[POST_COMPOSER] thumbnail generation failed: $error');
+      return null;
+    }
+  }
+
   Future<Duration> _readVideoDuration(File file) async {
     if (!await file.exists()) {
       throw StateError('Le fichier vidéo sélectionné est introuvable.');
@@ -896,9 +909,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
           continue;
         }
-        final thumbnail = await VideoCompress.getFileThumbnail(
-          videoFile.path, quality: 75, position: 0,
-        ).timeout(const Duration(seconds: 20));
+        final thumbnail = await _createVideoThumbnail(videoFile);
         if (!mounted) return;
         setState(() {
           _selectedMedia.add(_SelectedPostMedia(file: videoFile, isVideo: true, thumbnailFile: thumbnail));
@@ -944,9 +955,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
         return;
       }
-      final thumbnail = await VideoCompress.getFileThumbnail(
-        file.path, quality: 75, position: 0,
-      ).timeout(const Duration(seconds: 20));
+      final thumbnail = await _createVideoThumbnail(file);
       if (!mounted) return;
       setState(() {
         _selectedMedia.add(_SelectedPostMedia(file: file, isVideo: true, thumbnailFile: thumbnail));
@@ -980,9 +989,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       return;
     }
     try {
-      final thumbnail = await VideoCompress.getFileThumbnail(
-        updatedFile.path, quality: 75, position: 0,
-      ).timeout(const Duration(seconds: 20));
+      final thumbnail = await _createVideoThumbnail(updatedFile);
       if (!mounted) return;
       setState(() => _selectedMedia[index] = _SelectedPostMedia(
         file: updatedFile, isVideo: true, thumbnailFile: thumbnail,
