@@ -23,6 +23,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   bool _progressVisibility = false;
   bool _isLoadingVideo = true;
   bool _loadFailed = false;
+  Duration _effectiveMaxDuration = const Duration(seconds: 29);
 
   @override
   void initState() {
@@ -33,7 +34,22 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   Future<void> _loadVideo() async {
     try {
       await _trimmer.loadVideo(videoFile: widget.videoFile);
-      if (mounted) setState(() => _isLoadingVideo = false);
+      // Le viewer fixe du package doit recevoir une limite qui ne dépasse
+      // jamais la durée réelle du fichier. Sinon, sur certaines vidéos
+      // courtes, la timeline peut ne pas être construite correctement.
+      final videoDuration =
+          _trimmer.videoPlayerController?.value.duration ?? Duration.zero;
+      final effectiveMilliseconds = videoDuration.inMilliseconds > 0
+          ? videoDuration.inMilliseconds
+              .clamp(1, widget.maxDuration.inMilliseconds)
+          : widget.maxDuration.inMilliseconds;
+      if (mounted) {
+        setState(() {
+          _effectiveMaxDuration =
+              Duration(milliseconds: effectiveMilliseconds);
+          _isLoadingVideo = false;
+        });
+      }
     } catch (e, stack) {
       debugPrint('[VideoTrimScreen] load error: $e\\n$stack');
       if (mounted) {
@@ -142,13 +158,15 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                           : VideoViewer(trimmer: _trimmer),
                 ),
                 if (!_isLoadingVideo && !_loadFailed) ...[
-                  Center(
+                  SizedBox(
+                    width: double.infinity,
+                    height: 86,
                     child: TrimViewer(
                       trimmer: _trimmer,
-                      viewerHeight: 50.0,
+                      viewerHeight: 62.0,
                       viewerWidth: MediaQuery.of(context).size.width,
                       type: ViewerType.fixed,
-                      maxVideoLength: widget.maxDuration,
+                      maxVideoLength: _effectiveMaxDuration,
                       onChangeStart: (value) => _startValue = value,
                       onChangeEnd: (value) => _endValue = value,
                       onChangePlaybackState: (value) {
