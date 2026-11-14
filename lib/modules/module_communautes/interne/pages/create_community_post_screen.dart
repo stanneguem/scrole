@@ -915,6 +915,9 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             'post_composer_video_invalid_message'.tr,
           );
         }
+        // Future.timeout n'annule pas l'appel natif sous-jacent : ne pas lancer
+        // une seconde extraction si la première a dépassé le délai.
+        if (e is TimeoutException) break;
       }
     }
   }
