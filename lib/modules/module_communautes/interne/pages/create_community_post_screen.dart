@@ -853,10 +853,10 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final duration = Duration(microseconds: durationMicros.round());
     debugPrint(
       '[POST_COMPOSER] video metadata: '
-      'size=\${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB '
-      'resolution=\${info.width}x\${info.height} '
-      'duration=\${duration.inMilliseconds}ms '
-      'metadata=\${watch.elapsedMilliseconds}ms',
+      'size=${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB '
+      'resolution=${info.width}x${info.height} '
+      'duration=${duration.inMilliseconds}ms '
+      'metadata=${watch.elapsedMilliseconds}ms',
     );
     return duration;
   }
@@ -959,7 +959,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       if (mounted) {
         Get.snackbar(
           'post_composer_video_select_error'.tr,
-          'post_composer_video_select_error'.tr,
+          e.toString(),
           backgroundColor: Colors.black87,
           colorText: Colors.white,
         );
