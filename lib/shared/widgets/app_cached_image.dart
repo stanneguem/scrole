@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'shimmer.dart';
@@ -65,6 +66,19 @@ class AppCachedImage extends StatelessWidget {
          imageUrl.startsWith('comments/') || imageUrl.startsWith('communities/') ||
          imageUrl.startsWith('posts/') || imageUrl.startsWith('profiles/') ||
          imageUrl.startsWith('events/'))) {
+      if (kIsWeb) {
+        return _R2BrowserSignedImage(
+          objectKey: imageUrl,
+          width: width,
+          height: height,
+          fit: fit,
+          borderRadius: borderRadius,
+          placeholder: placeholder,
+          errorWidget: errorWidget,
+          onImageLoaded: onImageLoaded,
+          cacheUntil: cacheUntil,
+        );
+      }
       return _R2SignedImage(
         objectKey: imageUrl, width: width, height: height, fit: fit,
         borderRadius: borderRadius, placeholder: placeholder, errorWidget: errorWidget,
@@ -426,6 +440,163 @@ class _R2SignedImageState extends State<_R2SignedImage> {
               width: widget.width, height: widget.height, color: Colors.grey[200],
               child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
             ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+/// Browser implementation for private R2 images.
+/// Flutter Web cannot use dart:io File/Image.file for downloaded media.
+class _R2BrowserSignedImage extends StatefulWidget {
+  const _R2BrowserSignedImage({
+    required this.objectKey,
+    this.width,
+    this.height,
+    required this.fit,
+    this.borderRadius,
+    this.placeholder,
+    this.errorWidget,
+    this.onImageLoaded,
+    this.cacheUntil,
+  });
+
+  final String objectKey;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+  final Widget? placeholder;
+  final Widget? errorWidget;
+  final VoidCallback? onImageLoaded;
+  final DateTime? cacheUntil;
+
+  @override
+  State<_R2BrowserSignedImage> createState() => _R2BrowserSignedImageState();
+}
+
+class _R2BrowserSignedImageState extends State<_R2BrowserSignedImage> {
+  late Future<String> _urlFuture;
+  bool _reportedLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = _resolveUrl();
+  }
+
+  Future<String> _resolveUrl() async {
+    if (widget.cacheUntil != null &&
+        !widget.cacheUntil!.isAfter(DateTime.now())) {
+      throw StateError('Cette story a expiré.');
+    }
+
+    final response = await Supabase.instance.client.functions.invoke(
+      'r2-media-upload',
+      body: {
+        'action': 'create-download-url',
+        'object_key': widget.objectKey,
+      },
+    );
+
+    if (response.status < 200 ||
+        response.status >= 300 ||
+        response.data is! Map) {
+      throw StateError(
+        'Échec de résolution URL R2 (HTTP ${response.status}).',
+      );
+    }
+
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url']?.toString().trim() ?? '';
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'https' && uri.scheme != 'http')) {
+      throw StateError('URL de lecture R2 invalide ou absente.');
+    }
+
+    debugPrint('[R2_IMAGE_WEB] Signed URL resolved key=${widget.objectKey}');
+    return url;
+  }
+
+  void _reportLoaded() {
+    if (_reportedLoaded || !mounted) return;
+    _reportedLoaded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onImageLoaded?.call();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _urlFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          debugPrint(
+            '[R2_IMAGE_WEB] URL resolution failed key=${widget.objectKey}: ${snapshot.error}',
+          );
+          return widget.errorWidget ??
+              Container(
+                width: widget.width,
+                height: widget.height,
+                color: Colors.grey[900],
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: Colors.white70,
+                ),
+              );
+        }
+
+        if (!snapshot.hasData) {
+          return widget.placeholder ??
+              SkeletonShimmer(
+                width: widget.width ?? double.infinity,
+                height: widget.height ?? double.infinity,
+                borderRadius: widget.borderRadius?.topLeft.x ?? 0,
+              );
+        }
+
+        return ClipRRect(
+          borderRadius: widget.borderRadius ?? BorderRadius.zero,
+          child: Image.network(
+            snapshot.data!,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+              if (frame != null || wasSynchronouslyLoaded) _reportLoaded();
+              return child;
+            },
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return widget.placeholder ??
+                  SkeletonShimmer(
+                    width: widget.width ?? double.infinity,
+                    height: widget.height ?? double.infinity,
+                    borderRadius: widget.borderRadius?.topLeft.x ?? 0,
+                  );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint(
+                '[R2_IMAGE_WEB] Browser image failed key=${widget.objectKey}: $error',
+              );
+              return widget.errorWidget ??
+                  Container(
+                    width: widget.width,
+                    height: widget.height,
+                    color: Colors.grey[900],
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white70,
+                    ),
+                  );
+            },
           ),
         );
       },
