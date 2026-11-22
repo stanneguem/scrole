@@ -75,8 +75,42 @@ class ActivityService extends GetxService {
 
   // --- 1. Création d'une activité ---
 
-  Future<Activity> createActivity(ActivityCreationData data, {bool eventOnly = false}) async {
+  Future<Activity> createActivity(ActivityCreationData data, {bool eventOnly = false, String? eventId}) async {
+    final linkedEventId = eventId?.trim();
+    final isCreatedForEvent = linkedEventId != null && linkedEventId.isNotEmpty;
     final userId = _authService.userId ?? '';
+    if (isCreatedForEvent) {
+      // Une activité propre à une édition doit être créée et liée côté serveur
+      // dans une seule transaction. Pas de statut en attente ni d'Outbox différée.
+      final created = await _repository.createEventActivityRpc(
+        id: _repository.generateLocalId(),
+        eventId: linkedEventId,
+        name: data.title,
+        description: data.description,
+        basePrice: data.priceGeneral,
+        currencyCode: data.currencyCode,
+      );
+      final now = DateTime.now();
+      final entity = ActivityCacheEntity(
+        viewerUserId: userId,
+        activityId: created.id,
+        creatorId: created.creatorId,
+        name: created.name,
+        description: created.description,
+        displayPrice: created.basePrice,
+        displayCurrency: created.currencyCode,
+        status: created.status,
+        addedCount: created.addedCount,
+        eventOnly: true,
+        scheduledDeletionAt: created.scheduledDeletionAt,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+        cachedAt: now.millisecondsSinceEpoch,
+      );
+      await _dao.saveActivityCache(entity);
+      _replaceInList(entity.toActivity());
+      return entity.toActivity();
+    }
     final activityId = _repository.generateLocalId();
     final operationId = _repository.generateLocalId();
     final now = DateTime.now();
@@ -113,7 +147,8 @@ class ActivityService extends GetxService {
         'description': data.description,
         'base_price': data.priceGeneral,
         'currency_code': data.currencyCode,
-        'event_only': eventOnly,
+        'event_only': eventOnly || isCreatedForEvent,
+        if (isCreatedForEvent) 'event_id': linkedEventId,
       },
     );
 

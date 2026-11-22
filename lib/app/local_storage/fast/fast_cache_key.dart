@@ -7,6 +7,15 @@ class FastCacheKey {
 
   static String userProfile(String userId) => "profile_$userId";
   static String externalProfile(String userId) => "external_profile_$userId";
+  static String externalProfileForViewer(String viewerId, String userId) =>
+      "external_profile_${viewerId}_$userId";
+  static String profileTab(String userId, String tab) =>
+      "profile_tab_${userId}_$tab";
+  static String profileHeaderStats(String userId) =>
+      "profile_header_stats_$userId";
+  static String homeFeed(String userId) => "home_feed_posts_$userId";
+  static String externalProfileTab(String viewerId, String userId, String tab) =>
+      "external_profile_tab_${viewerId}_${userId}_$tab";
   static String activityDetail(String activityId) => "activity_$activityId";
   static String userActivitiesList(String userId) => "user_activities_$userId";
   static String communityDetail(String communityId) => "community_$communityId";

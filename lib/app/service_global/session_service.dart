@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/painting.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,6 +12,7 @@ import '../../modules/module_authentification/centre/services/auth_service.dart'
 import '../../modules/module_creation_de_compte/centre/services/user_service.dart';
 import '../local_storage/structured/app_cache_database.dart';
 import '../../modules/module_discussion_direct/centre/services/chat_media_cache.dart';
+import '../../modules/module_principale/interne/controllers/stories_controller.dart';
 import '../../shared/models/user_models.dart';
 import 'preferences_service.dart';
 import 'privacy_service.dart';
@@ -64,8 +69,44 @@ class SessionService extends GetxService {
     });
   }
 
+  Future<void> _purgeAccountMediaCaches(String userId) async {
+    // These directories contain only regenerable app caches, never originals
+    // selected by the user or files saved to the public gallery.
+    final support = await getApplicationSupportDirectory();
+    final temporary = await getTemporaryDirectory();
+    final scopedDirectories = <Directory>[
+      Directory(p.join(support.path, 'chat_media', userId)),
+      Directory(p.join(support.path, 'scrole_media', userId)),
+      Directory(p.join(support.path, 'r2_media_cache')),
+      Directory(p.join(temporary.path, 'r2_private_temp')),
+    ];
+    for (final directory in scopedDirectories) {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+        debugPrint('[Session] Media cache purged: ${directory.path}');
+      }
+    }
+    // Drop decoded images still held in Flutter's process-wide image cache.
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+  }
+
   Future<void> stopSession() async {
     final uid = _activeUserId;
+    // Stories are stored in a separate JSON file outside Hive and SQLite.
+    // Delete that account-scoped file before dropping the old user ID.
+    if (uid != null) {
+      try {
+        await StoriesController.clearLocalCacheForUser(uid);
+        await _purgeAccountMediaCaches(uid);
+      } catch (e) {
+        // A cache-file failure must not prevent the user from completing logout.
+        debugPrint('[Session] Unable to purge all account media caches for $uid: $e');
+      }
+    }
+    if (Get.isRegistered<StoriesController>()) {
+      Get.find<StoriesController>().clearInMemorySessionData();
+    }
     _activeUserId = null;
     _cleanup();
     _prefsService.clearCache();
@@ -88,7 +129,9 @@ class SessionService extends GetxService {
 
     final cached = _userService.getCachedProfile();
     if (cached != null) {
+      // Cache-first: show local data immediately, then silently refresh.
       _applyProfile(cached, startSync: true);
+      unawaited(fetchProfileFromBackend(userId, silent: true));
       return;
     }
 

@@ -279,7 +279,29 @@ class CreateEventController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
-      Get.snackbar('error'.tr, e.toString());
+      final raw = e.toString();
+      final normalized = raw.toLowerCase();
+      String message;
+
+      if (normalized.contains('subscription_required_for_individual_event_certification') ||
+          normalized.contains('active_subscription_required_for_included_event_certification')) {
+        message = 'La certification de cet événement nécessite un abonnement Scrole actif. Désactive la certification incluse pour créer un événement standard, ou active un abonnement compatible.';
+      } else if (normalized.contains('included_event_certification_quota_exceeded')) {
+        message = 'Tu as utilisé toutes les certifications d’événement incluses dans ton abonnement.';
+      } else if (normalized.contains('certified_event_horizon_exceeded')) {
+        message = 'La date de début est trop éloignée pour un événement certifié. Rapproche la date ou désactive la certification.';
+      } else if (normalized.contains('noncertified_event_horizon_exceeded') ||
+          normalized.contains('noncertified_event_duration_exceeded')) {
+        message = 'Les dates dépassent les limites autorisées pour un événement non certifié. Vérifie la date de début et la durée.';
+      } else if (e is PostgrestException) {
+        debugPrint('[CreateEventController] Supabase error code=${e.code}, message=${e.message}, details=${e.details}, hint=${e.hint}');
+        message = 'La création a échoué à cause d’une règle du serveur. Vérifie les dates et tes droits, puis réessaie.';
+      } else {
+        debugPrint('[CreateEventController] Event creation failed: $e');
+        message = 'Impossible de créer cet événement pour le moment. Réessaie.';
+      }
+
+      Get.snackbar('error'.tr, message, snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 6));
     } finally {
       isLoading.value = false;
     }

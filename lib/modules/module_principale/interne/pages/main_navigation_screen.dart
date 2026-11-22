@@ -8,9 +8,10 @@ import 'package:scrole/shared/widgets/app_cached_image.dart';
 import 'package:scrole/shared/widgets/user_certified_badge.dart';
 import 'package:scrole/shared/widgets/search_screen.dart';
 import 'package:scrole/shared/constantes/image_path.dart';
+import 'package:scrole/shared/widgets/external_web_view_screen.dart';
 import '../../../module_evenement/interne/pages/event_screen.dart';
 import '../../../module_communautes/interne/pages/community_screen.dart';
-import '../../../module_parametre/interne/pages/credits_screen.dart';
+import '../../../module_communautes/interne/controllers/community/community_controller.dart';
 import '../../../module_communautes/interne/pages/create_community_post_screen.dart';
 import '../pages/home_feed_screen.dart';
 import '../../../../app_controller.dart';
@@ -26,6 +27,7 @@ class MainLayoutPage extends StatefulWidget {
 }
 
 class _MainLayoutPageState extends State<MainLayoutPage> {
+  final GlobalKey<HomeFeedScreenState> _homeFeedKey = GlobalKey<HomeFeedScreenState>();
   int _currentIndex = 0;
   final List<bool> _visited = [true, false, false]; // Home, Community, Events
   bool _isBottomNavVisible = true;
@@ -51,8 +53,8 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
     }
   }
 
-  final List<Widget> _pages = const [
-    HomeFeedScreen(),     // 0. Accueil
+  late final List<Widget> _pages = [
+    HomeFeedScreen(key: _homeFeedKey), // 0. Accueil
     CommunityScreen(),    // 1. Communautés
     EventScreen(),        // 2. Événements
   ];
@@ -77,6 +79,8 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
       stackIndex = 0;
     }
 
+    final wasAlreadyOnSelectedTab = _currentIndex == stackIndex;
+
     setState(() {
       _currentIndex = stackIndex;
       _visited[stackIndex] = true;
@@ -85,6 +89,16 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
 
     if (Get.isRegistered<MainLayoutController>()) {
       Get.find<MainLayoutController>().currentTab.value = index;
+    }
+
+    if (index == 0 && wasAlreadyOnSelectedTab) {
+      _homeFeedKey.currentState?.scrollToTopAndRefresh();
+    }
+
+    // The community tab is kept alive in the page stack, so onInit alone
+    // does not run again when the user returns to it.
+    if (stackIndex == 1 && Get.isRegistered<CommunityController>()) {
+      Get.find<CommunityController>().loadCommunities();
     }
   }
 
@@ -142,7 +156,35 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 250),
                 opacity: _isBottomNavVisible ? 1.0 : 0.0,
-                child: NavigationBar(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    0,
+                    12,
+                    MediaQuery.of(context).padding.bottom > 0 ? 8 : 12,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.08,
+                          ),
+                          blurRadius: 22,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: NavigationBar(
+                  height: 66,
+                  elevation: 0,
+                  backgroundColor: colorScheme.surface,
+                  indicatorColor: colorScheme.surfaceContainerHighest,
+                  indicatorShape: const StadiumBorder(),
                   selectedIndex: _currentIndex == 2 ? 3 : _currentIndex,
                   onDestinationSelected: _onTabChanged,
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
@@ -194,41 +236,27 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), AppColors.primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                          shape: BoxShape.circle,
+                          color: colorScheme.primary,
                         ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
                       ),
                       selectedIcon: Container(
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), AppColors.primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                          shape: BoxShape.circle,
+                          color: colorScheme.primary,
                         ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
                       ),
                       label: 'nav_create'.tr,
                     ),
@@ -259,6 +287,9 @@ class _MainLayoutPageState extends State<MainLayoutPage> {
                       label: 'nav_profile'.tr,
                     ),
                   ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -373,7 +404,10 @@ class AppDrawer extends StatelessWidget {
               title: Text('drawer_about'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.of(context).pop();
-                Get.to(() => const CreditsScreen());
+                Get.to(() => ExternalWebViewScreen(
+                  url: 'https://about.scrole.fun',
+                  title: 'webview_about_title'.tr,
+                ));
               },
             ),
             ListTile(
@@ -385,15 +419,6 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             const Spacer(),
-            Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.5), height: 1),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              title: Text('drawer_logout'.tr, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await Get.find<AuthService>().signOut();
-              },
-            ),
             const SizedBox(height: 12),
           ],
         ),

@@ -5,10 +5,13 @@ import '../../centre/models/remote_notification_model.dart';
 class NotificationRepository {
   final _client = Get.find<SupabaseService>().client;
 
-  Future<List<RemoteNotificationModel>> getMyNotifications({int limit = 50}) async {
+  Future<List<RemoteNotificationModel>> getMyNotifications({
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final response = await _client.rpc(
-      'get_my_notifications',
-      params: {'p_limit': limit},
+      'get_localized_notifications',
+      params: {'p_limit': limit, 'p_offset': offset},
     );
 
     if (response is! List) return const [];

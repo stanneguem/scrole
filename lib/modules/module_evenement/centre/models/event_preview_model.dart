@@ -1,24 +1,39 @@
 import 'event_model.dart';
 
 class EventCreatorInfo {
+  /// Populated only for a real user profile. Admin profiles are not user profiles.
   final String userId;
+  final String profileId;
+  final String profileType;
   final String username;
   final String fullName;
   final String? photoUrl;
+  final bool isAdminCreator;
 
   const EventCreatorInfo({
     required this.userId,
+    this.profileId = '',
+    this.profileType = 'user',
     required this.username,
     required this.fullName,
     this.photoUrl,
+    this.isAdminCreator = false,
   });
 
   factory EventCreatorInfo.fromJson(Map<String, dynamic> json) {
+    final profileType = (json['profile_type'] ?? 'user').toString();
+    final isAdmin = json['is_admin_creator'] == true || profileType == 'admin';
+    final username = (json['username'] ?? (isAdmin ? 'scrole' : 'Créateur')).toString();
+    final fullName = (json['display_name'] ?? json['full_name'] ??
+        (isAdmin ? 'Scrole' : username)).toString();
     return EventCreatorInfo(
-      userId: (json['user_id'] ?? json['id'] ?? '').toString(),
-      username: (json['username'] ?? 'Créateur').toString(),
-      fullName: (json['full_name'] ?? json['username'] ?? 'Créateur').toString(),
+      userId: isAdmin ? '' : (json['user_id'] ?? json['id'] ?? '').toString(),
+      profileId: (json['profile_id'] ?? '').toString(),
+      profileType: profileType,
+      username: username,
+      fullName: fullName,
       photoUrl: json['photo_url']?.toString(),
+      isAdminCreator: isAdmin,
     );
   }
 }
@@ -51,12 +66,20 @@ class EventRankingInfo {
   final int sur;
   final double score;
   final String critere;
+  final bool isFrozen;
+  final DateTime? finalizedAt;
+  final double? prestigeScore;
+  final double? prestigeStars;
 
   const EventRankingInfo({
     this.rang = 0,
     this.sur = 0,
     this.score = 0.0,
     this.critere = '',
+    this.isFrozen = false,
+    this.finalizedAt,
+    this.prestigeScore,
+    this.prestigeStars,
   });
 
   factory EventRankingInfo.fromJson(Map<String, dynamic>? json) {
@@ -66,6 +89,12 @@ class EventRankingInfo {
       sur: (json['sur'] as num?)?.toInt() ?? 0,
       score: (json['score'] as num?)?.toDouble() ?? 0.0,
       critere: (json['critere'] ?? '').toString(),
+      isFrozen: json['fige'] == true,
+      finalizedAt: json['finalized_at'] != null
+          ? DateTime.tryParse(json['finalized_at'].toString())
+          : null,
+      prestigeScore: (json['prestige_score'] as num?)?.toDouble(),
+      prestigeStars: (json['prestige_stars'] as num?)?.toDouble(),
     );
   }
 }
@@ -190,6 +219,8 @@ class EventRestrictionsInfo {
 class EventPreviewModel {
   final EventModel event;
   final EventCreatorInfo? creator;
+  final bool isPlatformEvent;
+  final bool isThirdPartyEvent;
   final bool canView;
   final bool canViewPublicPreview;
   final String? viewerRole;
@@ -221,6 +252,8 @@ class EventPreviewModel {
   const EventPreviewModel({
     required this.event,
     this.creator,
+    this.isPlatformEvent = false,
+    this.isThirdPartyEvent = false,
     this.canView = true,
     this.canViewPublicPreview = true,
     this.viewerRole,
@@ -249,6 +282,42 @@ class EventPreviewModel {
     this.prestigeScore = 0.0,
     this.prestigeStars = 0.0,
   });
+
+  EventPreviewModel copyWith({List<EventPreviewActivity>? activitiesLiees}) {
+    return EventPreviewModel(
+      event: event,
+      creator: creator,
+      isPlatformEvent: isPlatformEvent,
+      isThirdPartyEvent: isThirdPartyEvent,
+      canView: canView,
+      canViewPublicPreview: canViewPublicPreview,
+      viewerRole: viewerRole,
+      message: message,
+      isInMyCalendar: isInMyCalendar,
+      isLikedByMe: isLikedByMe,
+      likesCount: likesCount,
+      attendeeCount: attendeeCount,
+      shareCount: shareCount,
+      amisDansAgenda: amisDansAgenda,
+      amisDansAgendaCount: amisDansAgendaCount,
+      amisDansAgendaPhotos: amisDansAgendaPhotos,
+      ranking: ranking,
+      tickets: tickets,
+      cheapestTicket: cheapestTicket,
+      activitiesLiees: activitiesLiees ?? this.activitiesLiees,
+      restrictions: restrictions,
+      canAccess: canAccess,
+      canInteract: canInteract,
+      canLike: canLike,
+      canComment: canComment,
+      canRate: canRate,
+      canShare: canShare,
+      canAddToCalendar: canAddToCalendar,
+      canRegister: canRegister,
+      prestigeScore: prestigeScore,
+      prestigeStars: prestigeStars,
+    );
+  }
 
   factory EventPreviewModel.fromJson(Map<String, dynamic> json) {
     final eventMap = json['event'] is Map<String, dynamic>
@@ -309,6 +378,8 @@ class EventPreviewModel {
     return EventPreviewModel(
       event: EventModel.fromJson(eventMap),
       creator: json['creator'] is Map ? EventCreatorInfo.fromJson(Map<String, dynamic>.from(json['creator'] as Map)) : null,
+      isPlatformEvent: json['is_platform_event'] == true,
+      isThirdPartyEvent: json['is_third_party_event'] == true,
       canView: json['can_view'] != false,
       canViewPublicPreview: json['can_view_public_preview'] != false,
       viewerRole: json['viewer_role']?.toString(),

@@ -14,6 +14,8 @@ import 'package:scrole/modules/module_principale/centre/models/community_post.da
 import 'package:scrole/modules/module_principale/interne/enums/community_role_enum.dart';
 import 'package:scrole/shared/models/post_media.dart';
 import '../../../module_discussion_direct/externe/repositories/social_repository.dart';
+import '../../../../app/local_storage/fast/fast_cache_key.dart';
+import '../../../../app/local_storage/fast/fast_cache_service.dart';
 
 class ProfileController extends GetxController {
   late final AppController _appController;
@@ -86,6 +88,9 @@ class ProfileController extends GetxController {
   Worker? _profileWorker;
   RealtimeChannel? _relationshipChannel;
 
+  FastCacheService? get _profileCache =>
+      Get.isRegistered<FastCacheService>() ? Get.find<FastCacheService>() : null;
+
   @override
   void onInit() {
     super.onInit();
@@ -94,23 +99,46 @@ class ProfileController extends GetxController {
     _interestService = Get.find<InterestService>();
     _storageRepository = StorageRepository();
     
-    unawaited(_applyProfileOrDefaults(_appController.profile.value));
+    unawaited(_applyProfileOrDefaults(_appController.profile.value).then((_) async {
+      await _restoreProfileTabsFromCache();
+      // Le premier onglet (Posts) fait partie du chargement initial du profil.
+      // Les onglets Events et Réactions restent différés jusqu'à leur ouverture.
+      unawaited(_loadProfileTab(0, forceRefresh: true));
+    }));
     _profileWorker = ever(_appController.profile, (data) {
       unawaited(_applyProfileOrDefaults(data));
       unawaited(_loadFollowStats());
-      unawaited(_loadProfileTab(selectedTab.value, forceRefresh: true));
     });
     unawaited(_loadFollowStats());
+    unawaited(_loadEngagementStats());
     _subscribeToRelationshipChanges();
-
-    unawaited(_loadProfileTab(0));
 
   }
 
+  Future<void> _restoreProfileTabsFromCache() async {
+    final uid = userId.value;
+    final cache = _profileCache;
+    if (uid.isEmpty || cache == null || !cache.isReady) return;
+    const tabs = {0: 'posts', 1: 'events', 2: 'liked'};
+    for (final entry in tabs.entries) {
+      final raw = cache.get<List<dynamic>>(FastCacheKey.profileTab(uid, entry.value));
+      if (raw == null) continue;
+      final rows = raw.whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row)).toList();
+      if (entry.key == 0) {
+        userPosts.assignAll(rows.map(CommunityPost.fromMap));
+      } else if (entry.key == 1) {
+        userEvents.assignAll(rows);
+      } else {
+        savedPosts.assignAll(rows.map(CommunityPost.fromMap));
+      }
+      loadedProfileTabs.add(entry.key);
+    }
+  }
 
   Future<void> selectProfileTab(int index) async {
     selectedTab.value = index;
-    await _loadProfileTab(index);
+    await _loadProfileTab(index, forceRefresh: true);
   }
 
   Future<void> _loadProfileTab(int index, {bool forceRefresh = false}) async {
@@ -127,18 +155,25 @@ class ProfileController extends GetxController {
         2 => 'liked',
         _ => throw ArgumentError.value(index, 'index', 'Onglet de profil invalide'),
       };
-      final response = await Supabase.instance.client.rpc(
-        'get_external_profile_tab',
-        params: {
-          'p_user_id': uid,
-          'p_tab': tab,
-          'p_limit': 24,
-          'p_offset': 0,
-        },
-      );
+      final response = index == 1
+          ? await Supabase.instance.client.rpc(
+              'get_profile_attended_event_series',
+              params: {'p_user_id': uid, 'p_limit': 60, 'p_offset': 0},
+            )
+          : await Supabase.instance.client.rpc(
+              'get_external_profile_tab',
+              params: {
+                'p_user_id': uid,
+                'p_tab': tab,
+                'p_limit': 24,
+                'p_offset': 0,
+              },
+            );
       final rows = response is List
           ? response.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
           : <Map<String, dynamic>>[];
+
+      await _profileCache?.set(FastCacheKey.profileTab(uid, tab), rows);
 
       if (index == 0) {
         // Sur le profil personnel, afficher toutes les publications de l'utilisateur,
@@ -180,12 +215,27 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _loadFollowStats() async {
-    if (userId.value.isEmpty) return;
+    final uid = userId.value;
+    if (uid.isEmpty) return;
+    final cache = _profileCache;
+    final key = FastCacheKey.profileHeaderStats(uid);
+    final cached = cache?.get<Map<String, dynamic>>(key);
+    if (cached != null) {
+      followersCount.value = (cached['followers_count'] as num?)?.toInt() ?? followersCount.value;
+      followingCount.value = (cached['following_count'] as num?)?.toInt() ?? followingCount.value;
+      friendsCount.value = (cached['friends_count'] as num?)?.toInt() ?? friendsCount.value;
+    }
     try {
       final stats = await SocialRepository().getFollowStats();
       followersCount.value = (stats['followers_count'] as num?)?.toInt() ?? 0;
       followingCount.value = (stats['following_count'] as num?)?.toInt() ?? 0;
       friendsCount.value = (stats['friends_count'] as num?)?.toInt() ?? 0;
+      await cache?.set(key, {
+        ...?cache?.get<Map<String, dynamic>>(key),
+        'followers_count': followersCount.value,
+        'following_count': followingCount.value,
+        'friends_count': friendsCount.value,
+      });
     } catch (e, stack) {
       debugPrint('[FOLLOW] get_follow_stats self exception=$e\\n$stack');
     }
@@ -377,6 +427,18 @@ class ProfileController extends GetxController {
   Future<void> _loadEngagementStats() async {
     final uid = userId.value;
     if (uid.isEmpty) return;
+    final cache = _profileCache;
+    final cacheKey = FastCacheKey.profileHeaderStats(uid);
+    final cached = cache?.get<Map<String, dynamic>>(cacheKey);
+    if (cached != null) {
+      postsCount.value = (cached['posts_count'] as num?)?.toInt() ?? postsCount.value;
+      totalLikesReceived.value = (cached['total_likes_received'] as num?)?.toInt() ?? totalLikesReceived.value;
+      totalDislikesReceived.value = (cached['total_dislikes_received'] as num?)?.toInt() ?? totalDislikesReceived.value;
+      eventsAttendedCount.value = (cached['events_attended_count'] as num?)?.toInt() ?? eventsAttendedCount.value;
+      eventsOrganizedCount.value = (cached['events_organized_count'] as num?)?.toInt() ?? eventsOrganizedCount.value;
+      interactionsCount.value = (cached['interactions_count'] as num?)?.toInt() ?? interactionsCount.value;
+      reputation.value = (cached['reputation'] as num?)?.toDouble() ?? reputation.value;
+    }
     try {
       final raw = await Supabase.instance.client.rpc(
         'get_profile_engagement_stats',
@@ -406,6 +468,16 @@ class ProfileController extends GetxController {
             .clamp(0.0, 5.0).toDouble();
         debugPrint('[ProfileController] V2 reputation unavailable; legacy fallback used: $e');
       }
+      await cache?.set(cacheKey, {
+        ...?cache?.get<Map<String, dynamic>>(cacheKey),
+        'posts_count': postsCount.value,
+        'total_likes_received': totalLikesReceived.value,
+        'total_dislikes_received': totalDislikesReceived.value,
+        'events_attended_count': eventsAttendedCount.value,
+        'events_organized_count': eventsOrganizedCount.value,
+        'interactions_count': interactionsCount.value,
+        'reputation': reputation.value,
+      });
     } catch (e, stack) {
       debugPrint('[ProfileController] get_profile_engagement_stats failed: $e\\n$stack');
     }

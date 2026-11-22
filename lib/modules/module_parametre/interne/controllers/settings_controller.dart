@@ -9,12 +9,10 @@ import '../../../module_authentification/centre/services/auth_service.dart';
 import '../pages/bug_report_screen.dart';
 import '../pages/certification_plans_screen.dart';
 import '../pages/connected_devices_screen.dart';
-import '../pages/credits_screen.dart';
-import '../pages/help_center_screen.dart';
 import '../pages/language_screen.dart';
 import '../pages/privacy_data_screen.dart';
 import '../pages/preferences_screen.dart';
-import '../pages/whats_new_screen.dart';
+import '../../../../shared/widgets/external_web_view_screen.dart';
 
 /// Contrôleur de [SettingsScreen].
 class SettingsController extends GetxController {
@@ -68,10 +66,19 @@ class SettingsController extends GetxController {
   void openChats() {}
   void openNotifications() {}
   void openAppIcon() {}
-  void openHelpCenter() => Get.to(() => const HelpCenterScreen());
+  void openHelpCenter() => Get.to(() => ExternalWebViewScreen(
+    url: 'https://help.scrole.fun',
+    title: 'settings_help_center'.tr,
+  ));
   void openReportBug() => Get.to(() => const BugReportScreen());
-  void openCredits() => Get.to(() => const CreditsScreen());
-  void openWhatsNew() => Get.to(() => const WhatsNewScreen());
+  void openCredits() => Get.to(() => ExternalWebViewScreen(
+    url: 'https://credit.scrole.fun',
+    title: 'settings_credits'.tr,
+  ));
+  void openWhatsNew() => Get.to(() => ExternalWebViewScreen(
+    url: 'https://new.scrole.fun',
+    title: 'settings_whats_new_scrole'.tr,
+  ));
 
   /// Demande confirmation avant de déconnecter l'utilisateur.
   ///
@@ -110,8 +117,8 @@ class SettingsController extends GetxController {
       await _authService.signOut();
     } catch (e) {
       Get.snackbar(
-        'Erreur',
-        'Impossible de se déconnecter. Réessaie.',
+        'settings_logout_error_title'.tr,
+        'settings_logout_error_message'.tr,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,

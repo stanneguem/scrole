@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/entity_certified_badge.dart';
 import '../../../../../shared/widgets/shimmer.dart';
 import '../../centre/models/event_model.dart';
 import '../controllers/event_controller.dart';
-import 'event_detail_page.dart';
+import 'event_preview_screen.dart';
 
 bool _hasLoggedFirstSuggestionCard = false;
 
@@ -119,10 +119,6 @@ class SuggestionTab extends StatelessWidget {
       final freeEvents = uniqueByEventId(freeCategoryList)
         ..sort((a, b) => b.goingCount.compareTo(a.goingCount));
 
-      // 6. Calendrier personnel de l'utilisateur ("Mon calendrier")
-      final personalCalendarEvents = uniqueByEventId(controller.calendarEvents)
-        ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
-
       return Stack(
         children: [
           RefreshIndicator(
@@ -130,10 +126,7 @@ class SuggestionTab extends StatelessWidget {
             backgroundColor: Colors.transparent,
             elevation: 0,
             onRefresh: () async {
-              await Future.wait([
-                controller.fetchSuggestedEvents(force: true),
-                controller.fetchCalendarEvents(DateTime.now(), force: true),
-              ]);
+              await controller.fetchSuggestedEvents(force: true);
             },
             child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -180,7 +173,7 @@ class SuggestionTab extends StatelessWidget {
                         child: _SuggestionCard(
                           event: event,
                           isTrending: true,
-                          onTap: () => Get.to(() => EventDetailPage(event: event)),
+                          onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                         ),
                       );
                     },
@@ -221,7 +214,7 @@ class SuggestionTab extends StatelessWidget {
                       child: _SuggestionCard(
                         event: event,
                         isTrending: true,
-                        onTap: () => Get.to(() => EventDetailPage(event: event)),
+                        onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                       ),
                     );
                   },
@@ -262,7 +255,7 @@ class SuggestionTab extends StatelessWidget {
                         child: _SuggestionCard(
                           event: event,
                           isTrending: false,
-                          onTap: () => Get.to(() => EventDetailPage(event: event)),
+                          onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                         ),
                       );
                     },
@@ -296,7 +289,7 @@ class SuggestionTab extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _SuggestionListTile(
                     event: event,
-                    onTap: () => Get.to(() => EventDetailPage(event: event)),
+                    onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                   ),
                 )),
                 const SizedBox(height: 28),
@@ -336,7 +329,7 @@ class SuggestionTab extends StatelessWidget {
                           event: event,
                           isTrending: false,
                           compact: true,
-                          onTap: () => Get.to(() => EventDetailPage(event: event)),
+                          onTap: () => Get.to(() => EventPreviewScreen(initialEvent: event)),
                         ),
                       );
                     },
@@ -345,68 +338,6 @@ class SuggestionTab extends StatelessWidget {
                 const SizedBox(height: 28),
               ],
 
-              // ===== SECTION 5: MON CALENDRIER (A LA FIN DE L'ECRAN) =====
-              Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.4), height: 1),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today_rounded, color: colorScheme.primary, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'events_my_calendar'.tr,
-                            style: AppTextStyles.h4.copyWith(color: colorScheme.onSurface),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (personalCalendarEvents.isNotEmpty)
-                    Text(
-                      'events_count'.trParams({'count': personalCalendarEvents.length.toString()}),
-                      style: AppTextStyles.caption.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (personalCalendarEvents.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.event_available_outlined, color: colorScheme.onSurfaceVariant, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'my_agenda_empty'.tr,
-                          style: AppTextStyles.bodySmall.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ...personalCalendarEvents.take(4).map((event) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _SuggestionListTile(
-                    event: event,
-                    onTap: () => Get.to(() => EventDetailPage(event: event)),
-                  ),
-                )),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -644,15 +575,22 @@ class _SuggestionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Expanded(child: Text(
-                      event.name,
-                      style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )),
-                    EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
-                  ]),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Text(
+                          event.name,
+                          style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('EEE d MMM · HH:mm').format(event.startsAt),
@@ -745,15 +683,22 @@ class _SuggestionListTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Expanded(child: Text(
-                      event.name,
-                      style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )),
-                    EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
-                  ]),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Text(
+                          event.name,
+                          style: AppTextStyles.labelLarge.copyWith(color: colorScheme.onSurface),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 16),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('EEEE d MMMM · HH:mm').format(event.startsAt),

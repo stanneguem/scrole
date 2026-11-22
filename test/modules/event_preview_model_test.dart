@@ -110,5 +110,68 @@ void main() {
       expect(model.viewerRole, equals('owner'));
       expect(model.message, contains('organisateur'));
     });
+
+    test('keeps an Admin-created public event separate from the mobile user profile', () {
+      final model = EventPreviewModel.fromJson({
+        'event': {
+          'id': 'evt-admin-1',
+          'name': 'Festival Scrole',
+          'creator_id': null,
+          'creator_profile_type': 'admin',
+          'creator_admin_profile_id': 'admin-profile-1',
+          'starts_at': '2026-11-20T14:00:00Z',
+          'status': 'active',
+        },
+        'creator': {
+          'user_id': null,
+          'profile_id': 'admin-profile-1',
+          'profile_type': 'admin',
+          'username': null,
+          'full_name': 'Scrole',
+          'display_name': 'Scrole',
+          'is_admin_creator': true,
+        },
+        'is_platform_event': true,
+        'can_view': true,
+        'can_view_public_preview': true,
+        'viewer_role': 'public',
+      });
+
+      expect(model.event.isAdminCreated, isTrue);
+      expect(model.event.creatorProfileType, 'admin');
+      expect(model.event.creatorId, isEmpty);
+      expect(model.event.creatorAdminProfileId, 'admin-profile-1');
+      expect(model.creator, isNotNull);
+      expect(model.creator!.isAdminCreator, isTrue);
+      expect(model.creator!.userId, isEmpty);
+      expect(model.creator!.profileId, 'admin-profile-1');
+      expect(model.creator!.fullName, 'Scrole');
+      expect(model.isPlatformEvent, isTrue);
+    });
+
+    test('keeps ordinary mobile event creator as a user profile', () {
+      final model = EventPreviewModel.fromJson({
+        'event': {
+          'id': 'evt-user-1',
+          'name': 'Sortie utilisateur',
+          'creator_id': 'user-profile-1',
+          'creator_profile_type': 'user',
+          'starts_at': '2026-11-20T14:00:00Z',
+          'status': 'active',
+        },
+        'creator': {
+          'user_id': 'user-profile-1',
+          'profile_id': 'user-profile-1',
+          'profile_type': 'user',
+          'username': 'manga_master',
+          'full_name': 'Manga Master',
+        },
+      });
+
+      expect(model.event.isAdminCreated, isFalse);
+      expect(model.event.creatorId, 'user-profile-1');
+      expect(model.creator!.isAdminCreator, isFalse);
+      expect(model.creator!.userId, 'user-profile-1');
+    });
   });
 }

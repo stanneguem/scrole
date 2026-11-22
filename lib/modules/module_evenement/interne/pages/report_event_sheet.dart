@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../../../../../app/theme/app_colors.dart';
 import '../../../../../app/theme/text_styles.dart';
@@ -22,10 +23,10 @@ class _ReportEventSheetState extends State<ReportEventSheet> {
   final _otherController = TextEditingController();
 
   final _reasons = [
-    _ReportReason('arnaque', 'Arnaque / Fraude'),
-    _ReportReason('dangereux', 'Dangereux / Risqué'),
-    _ReportReason('copie', 'Copie / Contrefaçon'),
-    _ReportReason('autre', 'Autre raison'),
+    _ReportReason('arnaque', 'event_report_reason_fraud'.tr),
+    _ReportReason('dangereux', 'event_report_reason_danger'.tr),
+    _ReportReason('copie', 'event_report_reason_counterfeit'.tr),
+    _ReportReason('autre', 'event_report_reason_other'.tr),
   ];
 
   @override
@@ -62,7 +63,7 @@ class _ReportEventSheetState extends State<ReportEventSheet> {
               ),
             ),
             Text(
-              'Signaler l\'événement',
+              'event_report_title'.tr,
               style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5),
             ),
             const SizedBox(height: 4),
@@ -119,7 +120,7 @@ class _ReportEventSheetState extends State<ReportEventSheet> {
                 controller: _otherController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Décrivez la raison...',
+                  hintText: 'event_report_describe_reason'.tr,
                   filled: true,
                   fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   border: OutlineInputBorder(
@@ -144,7 +145,7 @@ class _ReportEventSheetState extends State<ReportEventSheet> {
                   backgroundColor: AppColors.error,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text('Envoyer le signalement', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text('event_report_submit'.tr, style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],

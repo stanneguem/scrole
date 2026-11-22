@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/local_storage/fast/fast_cache_service.dart';
+import '../../../../app_controller.dart';
 import '../../../../app/repository_global/location_repository.dart';
 import '../../../../app/repository_global/storage_repository.dart';
 import '../../../../app/service_global/media_service.dart';
@@ -186,9 +187,10 @@ class CreateAccountController extends GetxController {
     return null;
   }
 
-  Future<bool> submit() async {
+  Future<bool> submit({GlobalKey<FormState>? formKey}) async {
     submitError.value = null;
-    if (!formKey.currentState!.validate()) return false;
+    final activeFormKey = formKey ?? this.formKey;
+    if (activeFormKey.currentState == null || !activeFormKey.currentState!.validate()) return false;
     if (usernameStatus.value != UsernameStatus.available) {
       submitError.value = 'Choisis un pseudo disponible.';
       return false;
@@ -231,6 +233,9 @@ class CreateAccountController extends GetxController {
         coverUrl: coverUrl,
       );
       debugPrint('[OK] Initialisation du compte réussie');
+      if (Get.isRegistered<AppController>()) {
+        Get.find<AppController>().startOnboarding();
+      }
       return true;
     } on StorageException catch (e) {
       debugPrint('[Storage] ${e.message} (status ${e.statusCode})');

@@ -188,15 +188,23 @@ class StorageRepository {
     return url;
   }
 
-  /// Upload une capture d'écran pour un rapport de bug
-  /// Structure : bug_reports/{userId}/{timestamp}.jpg
+  /// Upload une capture de rapport de bug dans le bucket privé Cloudflare R2.
+  /// La clé d'objet est enregistrée en base; aucun lien public n'est exposé.
   Future<String> uploadBugReportScreenshot(String userId, File file) async {
-    final extension = file.path.split('.').last;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = '$timestamp.$extension';
-    final path = 'bug_reports/$userId/$fileName';
-    
-    return await uploadFile(bucket: 'bug-reports', path: path, file: file);
+    final currentUser = _client.auth.currentUser;
+    if (currentUser == null || currentUser.id != userId) {
+      throw Exception('Vous ne pouvez téléverser que votre propre capture.');
+    }
+    final uploaded = await _r2MediaRepository.uploadFile(
+      file: file,
+      category: 'bug_report',
+      mediaType: 'image',
+      entityId: userId,
+    );
+    if (uploaded.isPublic || !uploaded.objectKey.startsWith('bug-reports/$userId/')) {
+      throw StateError('La capture de bug doit être stockée dans le bucket privé Cloudflare R2.');
+    }
+    return uploaded.objectKey;
   }
 
   /// Upload un fichier vidéo de publication vers le bucket community-videos

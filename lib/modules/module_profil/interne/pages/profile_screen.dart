@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/linkified_text.dart';
 import 'package:get/get.dart';
 
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +13,7 @@ import 'package:scrole/shared/widgets/entity_certified_badge.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
 import 'package:scrole/shared/widgets/profile_post_detail_screen.dart';
 import 'package:scrole/modules/module_profil/interne/controllers/profile_controller.dart';
+import 'package:scrole/modules/module_evenement/interne/pages/profile_event_series_screen.dart';
 import 'package:scrole/modules/module_profil/interne/widgets/circle_button_widget.dart';
 
 String _formatReputation(num value) {
@@ -154,6 +156,11 @@ class ProfileScreen extends GetView<ProfileController> {
                 ),
                 Row(
                   children: [
+                    CircleButtonWidget(
+                      icon: Icons.account_balance_wallet_outlined,
+                      onTap: () => Get.toNamed(AppPages.eventBudgetHistory),
+                    ),
+                    const SizedBox(width: 8),
                     CircleButtonWidget(
                       icon: Icons.calendar_today_outlined,
                       onTap: () => Get.toNamed(AppPages.userAgenda),
@@ -402,8 +409,9 @@ class ProfileScreen extends GetView<ProfileController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Obx(
-        () => Text(
-          controller.displayBio,
+        () => _ExpandableProfileBio(
+          key: ValueKey(controller.displayBio),
+          bio: controller.displayBio,
           style: AppTextStyles.body.copyWith(
             color: controller.bio.value.isEmpty
                 ? colorScheme.onSurfaceVariant
@@ -426,9 +434,9 @@ class ProfileScreen extends GetView<ProfileController> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildTabButton(0, Icons.grid_on_rounded, 'Publications', tab == 0, colorScheme),
-              _buildTabButton(1, Icons.event_rounded, 'Événements', tab == 1, colorScheme),
-              _buildTabButton(2, Icons.favorite_border_rounded, 'J’aime récents', tab == 2, colorScheme),
+              _buildTabButton(0, Icons.grid_on_rounded, 'profile_tab_posts'.tr, tab == 0, colorScheme),
+              _buildTabButton(1, Icons.event_rounded, 'profile_tab_events'.tr, tab == 1, colorScheme),
+              _buildTabButton(2, Icons.favorite_border_rounded, 'profile_tab_liked_posts'.tr, tab == 2, colorScheme),
             ],
           );
         }),
@@ -464,10 +472,27 @@ class ProfileScreen extends GetView<ProfileController> {
               ),
             ),
           ),
-          child: Icon(
-            icon,
-            size: 24,
-            color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall.copyWith(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? colorScheme.onSurface : colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -494,7 +519,7 @@ class ProfileScreen extends GetView<ProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
@@ -503,7 +528,7 @@ class ProfileScreen extends GetView<ProfileController> {
           padding: const EdgeInsets.all(40),
           child: Center(
             child: Text(
-              tabIndex == 0 ? 'Aucune publication pour le moment' : 'Aucun J’aime récent',
+              tabIndex == 0 ? 'profile_tab_posts_empty'.tr : 'profile_tab_liked_empty'.tr,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
           ),
@@ -585,14 +610,14 @@ class ProfileScreen extends GetView<ProfileController> {
           child: Column(children: [
             Text(error, textAlign: TextAlign.center, style: TextStyle(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: const Text('Réessayer')),
+            TextButton(onPressed: () => controller.refreshProfileTab(tabIndex), child: Text('profile_tab_retry'.tr)),
           ]),
         );
       }
       if (events.isEmpty) {
         return Padding(
           padding: const EdgeInsets.all(40),
-          child: Center(child: Text('Aucun événement à afficher', style: TextStyle(color: colorScheme.onSurfaceVariant))),
+          child: Center(child: Text('profile_tab_events_empty'.tr, style: TextStyle(color: colorScheme.onSurfaceVariant))),
         );
       }
       return ListView.builder(
@@ -602,6 +627,7 @@ class ProfileScreen extends GetView<ProfileController> {
         itemCount: events.length,
         itemBuilder: (context, index) {
           final ev = Map<String, dynamic>.from(events[index] as Map);
+          final editionCount = (ev['edition_count'] as num?)?.toInt() ?? 1;
           final image = (ev['photo'] ?? '').toString();
           final start = DateTime.tryParse((ev['starts_at'] ?? '').toString());
           final date = start == null ? '' : '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
@@ -610,7 +636,7 @@ class ProfileScreen extends GetView<ProfileController> {
           return GestureDetector(
             onTap: () {
               final eventId = (ev['id'] ?? '').toString();
-              if (eventId.isNotEmpty) Get.toNamed(AppPages.eventPreviewPath(eventId));
+              if (eventId.isNotEmpty) openProfileEventSeries(context, ev, profileUserId: controller.userId.value);
             },
             child: Container(
             margin: const EdgeInsets.only(bottom: 14),
@@ -625,12 +651,24 @@ class ProfileScreen extends GetView<ProfileController> {
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Expanded(child: Text((ev['name'] ?? 'Événement').toString(), maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.onSurface))),
-                    EntityCertifiedBadge(entityType: 'event', entityId: (ev['id'] ?? '').toString(), size: 16),
-                    if (role.isNotEmpty) Text(role, style: TextStyle(fontSize: 11, color: colorScheme.primary)),
-                  ]),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 5,
+                    runSpacing: 3,
+                    children: [
+                      Text(
+                        (ev['name'] ?? 'profile_tab_event_fallback'.tr).toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                      ),
+                      EntityCertifiedBadge(entityType: 'event', entityId: (ev['id'] ?? '').toString(), size: 16),
+                      if (role.isNotEmpty)
+                        Text(role, style: TextStyle(fontSize: 11, color: colorScheme.primary)),
+                      if (editionCount > 1)
+                        Text('$editionCount éditions', style: TextStyle(fontSize: 11, color: colorScheme.primary)),
+                    ],
+                  ),
                   if (date.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Row(children: [Icon(Icons.calendar_month_outlined, size: 15, color: colorScheme.primary), const SizedBox(width: 6),
@@ -651,4 +689,68 @@ class ProfileScreen extends GetView<ProfileController> {
     });
   }
 
+}
+
+/// Bio du profil personnel : deux lignes par défaut, avec expansion si nécessaire.
+/// Utilise les mêmes clés de traduction que le profil externe.
+class _ExpandableProfileBio extends StatefulWidget {
+  const _ExpandableProfileBio({
+    super.key,
+    required this.bio,
+    required this.style,
+  });
+
+  final String bio;
+  final TextStyle style;
+
+  @override
+  State<_ExpandableProfileBio> createState() => _ExpandableProfileBioState();
+}
+
+class _ExpandableProfileBioState extends State<_ExpandableProfileBio> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.bio, style: widget.style),
+          maxLines: 2,
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final exceeds = painter.didExceedMaxLines;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LinkifiedText(
+              text: widget.bio,
+              style: widget.style,
+              maxLines: _expanded ? null : 2,
+              overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            ),
+            if (exceeds) ...[
+              const SizedBox(height: 4),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    _expanded ? 'see_less'.tr : 'see_more'.tr,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
 }

@@ -39,7 +39,10 @@ class EventCityInfo {
 
 class EventModel {
   final String id;
+  /// User profile owner ID. Empty for events created by the Admin profile.
   final String creatorId;
+  final String creatorProfileType;
+  final String? creatorAdminProfileId;
   final String name;
   final String slug;
   final String? description;
@@ -81,10 +84,14 @@ class EventModel {
   final bool isRecurring;           // event annuel/récurrent
   final List<BadgeModel> badges;    // badges possibles
   final String? category;          // catégorie sémantique backend (pour_vous, populaires, etc.)
+  final String? seriesId;
+  final int editionNumber;
 
   EventModel({
     required this.id,
     required this.creatorId,
+    this.creatorProfileType = 'user',
+    this.creatorAdminProfileId,
     required this.name,
     required this.slug,
     this.description,
@@ -124,7 +131,11 @@ class EventModel {
     this.isRecurring = false,
     this.badges = const [],
     this.category,
+    this.seriesId,
+    this.editionNumber = 1,
   });
+
+  bool get isAdminCreated => creatorProfileType == 'admin' || (creatorAdminProfileId?.isNotEmpty ?? false);
 
   DateTime get dateOnly => DateTime(startsAt.year, startsAt.month, startsAt.day);
 
@@ -218,6 +229,9 @@ class EventModel {
 
       final idStr = (json['id'] ?? json['evenement_id'] ?? '').toString();
       final creatorIdStr = (json['created_by'] ?? json['creator_id'] ?? '').toString();
+      final creatorProfileType = (json['creator_profile_type'] ??
+          (json['creator_admin_profile_id'] != null ? 'admin' : 'user')).toString();
+      final creatorAdminProfileId = json['creator_admin_profile_id']?.toString();
 
       final countryObj = json['country'] is Map
           ? EventCountryInfo.fromJson(Map<String, dynamic>.from(json['country'] as Map))
@@ -236,6 +250,8 @@ class EventModel {
       return EventModel(
         id: idStr,
         creatorId: creatorIdStr,
+        creatorProfileType: creatorProfileType,
+        creatorAdminProfileId: creatorAdminProfileId,
         name: (json['nom'] ?? json['name'] ?? json['title'] ?? 'Événement sans nom').toString(),
         slug: (json['slug'] ?? '').toString(),
         description: json['description']?.toString(),
@@ -278,6 +294,8 @@ class EventModel {
         countryRank: toNum(json['country_rank'])?.toInt(),
         isRecurring: (json['est_recurrent'] ?? json['is_recurring']) == true,
         category: (json['category'] ?? json['categorie'])?.toString(),
+        seriesId: json['series_id']?.toString(),
+        editionNumber: toNum(json['edition_number'])?.toInt() ?? 1,
       );
     } catch (e, stack) {
       debugPrint('[Error] EventModel.fromJson failed: $e');
@@ -290,6 +308,8 @@ class EventModel {
     return {
       'id': id,
       'created_by': creatorId,
+      'creator_profile_type': creatorProfileType,
+      'creator_admin_profile_id': creatorAdminProfileId,
       'nom': name,
       'slug': slug,
       'description': description,
@@ -306,12 +326,16 @@ class EventModel {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'user_role': userRole,
+      'series_id': seriesId,
+      'edition_number': editionNumber,
     };
   }
 
   EventModel copyWith({
     String? id,
     String? creatorId,
+    String? creatorProfileType,
+    String? creatorAdminProfileId,
     String? name,
     String? slug,
     String? description,
@@ -345,10 +369,14 @@ class EventModel {
     int? countryRank,
     bool? isRecurring,
     List<BadgeModel>? badges,
+    String? seriesId,
+    int? editionNumber,
   }) {
     return EventModel(
       id: id ?? this.id,
       creatorId: creatorId ?? this.creatorId,
+      creatorProfileType: creatorProfileType ?? this.creatorProfileType,
+      creatorAdminProfileId: creatorAdminProfileId ?? this.creatorAdminProfileId,
       name: name ?? this.name,
       slug: slug ?? this.slug,
       description: description ?? this.description,
@@ -382,6 +410,8 @@ class EventModel {
       countryRank: countryRank ?? this.countryRank,
       isRecurring: isRecurring ?? this.isRecurring,
       badges: badges ?? this.badges,
+      seriesId: seriesId ?? this.seriesId,
+      editionNumber: editionNumber ?? this.editionNumber,
     );
   }
 }

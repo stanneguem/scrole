@@ -131,22 +131,22 @@ class EventShareCardArtwork extends StatelessWidget {
     );
 
     Widget details() => Padding(
-      padding: EdgeInsets.all(compact ? 10 : 28),
+      padding: EdgeInsets.all(compact ? 8 : 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('SCROLE  /  ÉVÉNEMENT', style: TextStyle(color: design.accent, fontSize: compact ? 7 : 14, fontWeight: FontWeight.w900, letterSpacing: 1.4)),
-          SizedBox(height: compact ? 7 : 18),
-          Text(event.name, maxLines: compact ? 3 : 3, overflow: TextOverflow.ellipsis,
+          SizedBox(height: compact ? 5 : 18),
+          Text(event.name, maxLines: compact ? 2 : 3, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: foreground, fontSize: compact ? 15 : 37, height: 1.06, fontWeight: FontWeight.w900)),
-          SizedBox(height: compact ? 7 : 18),
+          SizedBox(height: compact ? 5 : 18),
           _infoLine(Icons.calendar_month_rounded, date, foreground, design.accent, compact),
-          const SizedBox(height: 5),
+          SizedBox(height: compact ? 3 : 5),
           _infoLine(Icons.location_on_rounded, event.locationDisplay, foreground, design.accent, compact),
           if (description.isNotEmpty) ...[
-            SizedBox(height: compact ? 7 : 18),
-            Text(description, maxLines: compact ? 3 : 5, overflow: TextOverflow.ellipsis,
+            SizedBox(height: compact ? 5 : 18),
+            Text(description, maxLines: compact ? 2 : 5, overflow: TextOverflow.ellipsis,
               style: TextStyle(color: foreground.withValues(alpha: .82), fontSize: compact ? 8 : 19, height: 1.25)),
           ],
           if (!compact) ...[
@@ -190,7 +190,7 @@ class EventShareCardArtwork extends StatelessWidget {
       Icon(icon, size: compact ? 11 : 24, color: accent),
       SizedBox(width: compact ? 4 : 10),
       Expanded(child: Text(text.isEmpty ? 'Lieu à confirmer' : text,
-        maxLines: compact ? 2 : 2, overflow: TextOverflow.ellipsis,
+        maxLines: compact ? 1 : 2, overflow: TextOverflow.ellipsis,
         style: TextStyle(color: foreground.withValues(alpha: .9), fontSize: compact ? 8 : 18, fontWeight: FontWeight.w600))),
     ],
   );

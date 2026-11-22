@@ -9,6 +9,7 @@ import '../../../../shared/widgets/entity_certified_badge.dart';
 import '../../centre/models/event_model.dart';
 import '../controllers/event_controller.dart';
 import '../enums/event_enum.dart';
+import 'profile_event_series_screen.dart';
 
 class MyEventsScreen extends StatefulWidget {
   const MyEventsScreen({super.key});
@@ -26,12 +27,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     controller = Get.isRegistered<EventController>()
         ? Get.find<EventController>()
         : Get.put(EventController());
-    controller.fetchMyEvents();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
     controller.fetchMyEvents();
   }
 
@@ -60,10 +55,13 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           onRefresh: controller.fetchMyEvents,
           color: AppColors.primary,
           child: Obx(() {
-            if (controller.isLoadingMyEvents.value) {
-              return const Center(child: CircularProgressIndicator());
+            // Ne jamais afficher les éditions brutes du cache avant la fin
+            // de la première synchronisation distante et du regroupement.
+            if (!controller.hasLoadedMyEvents.value) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
             }
-
             return TabBarView(
               children: [
                 _buildEventList(context, controller.managedEvents, 'my_events_empty_creations'.tr, contextRole: 'owner'),
@@ -100,11 +98,30 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       );
     }
 
+    final groupsByKey = <String, List<EventModel>>{};
+    for (final event in events) {
+      // La première édition conserve series_id à NULL ; les éditions suivantes
+      // pointent vers son id. Normaliser les deux formes sur la racine permet
+      // de réunir l'édition initiale et toutes ses éditions suivantes.
+      final seriesId = event.seriesId?.trim();
+      final rootId = seriesId != null && seriesId.isNotEmpty
+          ? seriesId
+          : event.id;
+      final key = 'series:$rootId';
+      groupsByKey.putIfAbsent(key, () => <EventModel>[]).add(event);
+    }
+    final groups = groupsByKey.values.map((items) {
+      items.sort((a, b) => b.editionNumber.compareTo(a.editionNumber));
+      return _MyEventGroup(items);
+    }).toList()
+      ..sort((a, b) => b.latest.createdAt.compareTo(a.latest.createdAt));
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: events.length,
+      itemCount: groups.length,
       itemBuilder: (context, index) {
-        final event = events[index];
+        final group = groups[index];
+        final event = group.latest;
         final creationDateStr = _formatDisplayDate(event.createdAt);
 
         return Card(
@@ -126,11 +143,40 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                     )
                   : Icon(Icons.event_outlined, color: colors.outline, size: 30),
             ),
-            title: Row(children: [Expanded(child: Text(event.name, style: AppTextStyles.h4, maxLines: 1, overflow: TextOverflow.ellipsis)), EntityCertifiedBadge(entityType: 'event', entityId: event.id, size: 17)]),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Text(
+                    event.name,
+                    style: AppTextStyles.h4,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                EntityCertifiedBadge(
+                  entityType: 'event',
+                  entityId: event.id,
+                  size: 17,
+                ),
+              ],
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 2),
+                if (group.editions.length > 1) ...[
+                  Text(
+                    '${group.editions.length} éditions',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                ],
                 Text(
                   'Créé le $creationDateStr',
                   style: AppTextStyles.bodySmall.copyWith(color: colors.onSurfaceVariant),
@@ -140,14 +186,33 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               ],
             ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Get.toNamed(
-              AppPages.eventPreview.replaceFirst(':id', event.id),
-              arguments: {
-                'id': event.id,
-                'event': event,
-                'context': contextRole,
-              },
-            ),
+            onTap: () async {
+              if (group.editions.length > 1) {
+                await Get.to(() => ProfileEventSeriesScreen(
+                  series: {
+                    'name': event.name,
+                    'editions': group.editions.map((edition) => {
+                      ...edition.toJson(),
+                      'photo': edition.coverImageUrl,
+                      'starts_at': edition.startsAt.toIso8601String(),
+                      'city': edition.city?.name ?? edition.address ?? '',
+                    }).toList(),
+                  },
+                  profileUserId: event.creatorId,
+                  ownerMode: true,
+                ));
+              } else {
+                await Get.toNamed(
+                  AppPages.eventPreview.replaceFirst(':id', event.id),
+                  arguments: {
+                    'id': event.id,
+                    'event': event,
+                    'context': contextRole,
+                  },
+                );
+              }
+              if (mounted) await controller.fetchMyEvents();
+            },
           ),
         );
       },
@@ -220,4 +285,12 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       ),
     );
   }
+}
+
+
+class _MyEventGroup {
+  final List<EventModel> editions;
+  _MyEventGroup(this.editions);
+
+  EventModel get latest => editions.first;
 }

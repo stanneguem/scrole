@@ -47,6 +47,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         data['text']?.toString() ??
         '';
 
+    final type = data['type']?.toString() ?? 'info';
+    final notificationId = data['notification_id']?.toString() ?? '';
+    if (type != 'message_received' && notificationId.isEmpty) {
+      debugPrint('[FCM] Background push ignored: missing notification id');
+      return;
+    }
+
     if (body.isNotEmpty) {
       final plugin = FlutterLocalNotificationsPlugin();
       // Minimal initialization for the background isolate
@@ -110,6 +117,7 @@ class NotificationService {
   bool _initialized = false;
   Worker? _authWorker;
   String? _activeConversationId;
+  String? _activeSalonId;
   RealtimeChannel? _notificationChannel;
   bool _subscribedOnce = false;
   bool _isProcessingOutbox = false;
@@ -128,13 +136,15 @@ class NotificationService {
   void setActiveConversation(String? conversationId) =>
       _activeConversationId = conversationId;
 
+  void setActiveSalon(String? salonId) => _activeSalonId = salonId;
+
   /// Langue à envoyer au serveur (fr, en, es, de ; repli sur fr).
   String _currentLanguageCode() {
     final locale =
         Get.locale ??
         Get.deviceLocale ??
         WidgetsBinding.instance.platformDispatcher.locale;
-    const supported = ['fr', 'en', 'es', 'de'];
+    const supported = ['fr', 'en', 'es', 'de', 'it', 'pt', 'zh', 'ja', 'ru'];
     return supported.contains(locale.languageCode) ? locale.languageCode : 'fr';
   }
 
@@ -304,12 +314,17 @@ class NotificationService {
     final authService = Get.find<AuthService>();
     _authWorker = ever(authService.currentUser, (user) async {
       if (user != null) {
+        await _setupRealtimeNotifications();
         // Réutiliser le token stable : le backend compare last_seen_at pour
         // ne rattraper que les notifications reçues pendant l'absence.
         // Supprimer le token à chaque session faisait perdre ce checkpoint et
         // rejouait tout l'historique des notifications non lues.
         await ensureCurrentDeviceRegistered();
         await syncLanguage(force: true);
+      } else {
+        _notificationChannel?.unsubscribe();
+        _notificationChannel = null;
+        _subscribedOnce = false;
       }
     });
 
@@ -459,7 +474,43 @@ class NotificationService {
           final row = payload.newRecord;
           await _processIncomingNotification(row);
         },
-      ).subscribe((status, error) async {
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (payload) async {
+          final row = payload.newRecord;
+          final id = row['id']?.toString();
+          if (id == null || id.isEmpty) return;
+          final isRead = row['read_at'] != null;
+          await db.syncRemoteReadState(
+            id: id,
+            userId: userId,
+            isRead: isRead,
+          );
+          if (isRead) {
+            await _plugin.cancel(id: id.hashCode.abs());
+          }
+        },
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'notifications',
+        callback: (payload) async {
+          final id = payload.oldRecord['id']?.toString();
+          if (id == null || id.isEmpty) return;
+          await db.syncRemoteDeletion(id: id, userId: userId);
+          await _plugin.cancel(id: id.hashCode.abs());
+        },
+      )
+      .subscribe((status, error) async {
         if (status == RealtimeSubscribeStatus.subscribed) {
           if (_subscribedOnce) {
             // RECONNEXION : Rattrapage ciblé pour combler les "trous"
@@ -468,27 +519,35 @@ class NotificationService {
             );
             final lastSeen = await db.getLatestNotificationTimestamp(userId);
 
-            // On récupère tout ce qui est arrivé depuis le dernier checkpoint local
-            final query = client
-                .from('notifications')
-                .select()
-                .eq('user_id', userId);
-            if (lastSeen != null) {
-              // Inclure l'égalité : plusieurs notifications peuvent partager
-              // le même timestamp. L'insert local est idempotent par ID.
-              query.gte('created_at', lastSeen.toUtc().toIso8601String());
-            }
-
-            try {
-              final missed = await query.order('created_at');
-              for (final n in missed) {
-                await _processIncomingNotification(n);
-              }
+            // Sans checkpoint local, ne jamais relire tout l'historique :
+            // cela ferait réapparaître d'anciennes notifications après une
+            // première installation ou un cache vidé. Le rattrapage des
+            // notifications réellement manquées est géré par
+            // register_user_device_token à partir du checkpoint serveur.
+            if (lastSeen == null) {
               debugPrint(
-                '[Sync] Notification catch-up completed: ${missed.length} missed notifications processed.',
+                '[Sync] No local notification checkpoint; skipping historical catch-up.',
               );
-            } catch (e) {
-              debugPrint('[Error] Notification catch-up failed: $e');
+            } else {
+              final query = client
+                  .from('notifications')
+                  .select()
+                  .eq('user_id', userId)
+                  // Inclure l'égalité : plusieurs notifications peuvent partager
+                  // le même timestamp. L'insert local est idempotent par ID.
+                  .gte('created_at', lastSeen.toUtc().toIso8601String());
+
+              try {
+                final missed = await query.order('created_at');
+                for (final n in missed) {
+                  await _processIncomingNotification(n);
+                }
+                debugPrint(
+                  '[Sync] Notification catch-up completed: ${missed.length} missed notifications processed.',
+                );
+              } catch (e) {
+                debugPrint('[Error] Notification catch-up failed: $e');
+              }
             }
           }
           _subscribedOnce = true;
@@ -531,9 +590,11 @@ class NotificationService {
     final userId = Get.find<AuthService>().userId;
     if (userId == null) return;
 
-    final id =
-        data['id']?.toString() ??
-        DateTime.now().millisecondsSinceEpoch.toString();
+    final id = data['id']?.toString();
+    if (id == null || id.isEmpty) {
+      debugPrint('[FCM] Incoming notification ignored: missing server id');
+      return;
+    }
     final title = data['title']?.toString() ?? 'Scrole';
     final body = data['body']?.toString() ?? '';
     final type = data['type']?.toString() ?? 'info';
@@ -544,6 +605,53 @@ class NotificationService {
       'notification_id': id,
       if (data['actor_id'] != null) 'actor_id': data['actor_id'],
     });
+
+    // A live salon message is already visible in the open conversation.
+    // Do not persist it locally or let it enter the Notifications screen.
+    final notificationData = rawPayloadData is Map
+        ? Map<String, dynamic>.from(rawPayloadData)
+        : <String, dynamic>{};
+    final incomingSalonId = (type == 'community_salon_message' || type == 'community_salon_reply')
+        ? (notificationData['salon_id']?.toString() ?? data['salon_id']?.toString())
+        : null;
+    if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
+      debugPrint('[FCM] Live salon message ignored by notification history');
+      return;
+    }
+
+    // Realtime peut livrer un INSERT après un UPDATE/DELETE plus récent.
+    // Vérifier la ligne canonique avant toute insertion dans le cache local.
+    try {
+      final current = await Supabase.instance.client
+          .from('notifications')
+          .select('read_at')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (current == null) {
+        await Get.find<NotificationDbService>().syncRemoteDeletion(
+          id: id,
+          userId: userId,
+        );
+        debugPrint('[Realtime] Stale notification ignored: deleted on server');
+        return;
+      }
+      if (current['read_at'] != null) {
+        await Get.find<NotificationDbService>().syncRemoteReadState(
+          id: id,
+          userId: userId,
+          isRead: true,
+        );
+        await _plugin.cancel(id: id.hashCode.abs());
+        debugPrint('[Realtime] Stale notification ignored: already read');
+        return;
+      }
+    } catch (e) {
+      // Ne pas faire réapparaître un événement obsolète si l'état serveur
+      // n'a pas pu être vérifié.
+      debugPrint('[Realtime] Notification ignored: status check failed: $e');
+      return;
+    }
 
     final dbService = Get.find<NotificationDbService>();
 
@@ -568,7 +676,7 @@ class NotificationService {
     );
 
     // 2. Affichage local si la notification est nouvelle et le corps non vide
-    if (saved && body.isNotEmpty) {
+    if (saved && body.isNotEmpty && data['read_at'] == null) {
       debugPrint('[FCM] Showing local notification: $title - $body');
       await showNotification(
         id: id.hashCode.abs(),
@@ -599,6 +707,16 @@ class NotificationService {
 
       final data = Map<String, dynamic>.from(message.data);
       final type = data['type']?.toString() ?? 'info';
+      final incomingSalonId = (type == 'community_salon_message' || type == 'community_salon_reply')
+          ? (data['salon_id']?.toString() ??
+              (data['data'] is Map
+                  ? (data['data'] as Map)['salon_id']?.toString()
+                  : null))
+          : null;
+      if (incomingSalonId != null && incomingSalonId == _activeSalonId) {
+        debugPrint('[FCM] Live salon FCM ignored before local persistence');
+        return;
+      }
       final title =
           message.notification?.title ??
           data['title']?.toString() ??
@@ -639,25 +757,50 @@ class NotificationService {
           DateTime.now().millisecondsSinceEpoch.toString();
 
       final userId = Get.find<AuthService>().userId;
-      var saved = true;
-      if (userId != null) {
-        try {
-          saved = await Get.find<NotificationDbService>().saveNotification(
-            id: notifId,
-            userId: userId,
-            title: title,
-            message: body,
-            type: type,
-            payload: jsonEncode(data),
-          );
-        } catch (e) {
-          debugPrint('[FCM] Erreur sauvegarde notification: $e');
+      if (userId == null || notifId.isEmpty) {
+        debugPrint('[FCM] Push ignored: no active account or notification id');
+        return;
+      }
+
+      // FCM peut arriver après un marquage comme lu ou une suppression.
+      // Vérifier l'état canonique avant de recréer le cache/afficher la bannière.
+      var saved = false;
+      try {
+        final current = await Supabase.instance.client
+            .from('notifications')
+            .select('read_at')
+            .eq('id', notifId)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (current == null || current['read_at'] != null) {
+          await _plugin.cancel(id: notifId.hashCode.abs());
+          debugPrint('[FCM] Push ignored: notification already read or deleted');
+          return;
         }
+        saved = await Get.find<NotificationDbService>().saveNotification(
+          id: notifId,
+          userId: userId,
+          title: title,
+          message: body,
+          type: type,
+          payload: jsonEncode(data),
+        );
+      } catch (e) {
+        // En cas d'indisponibilité serveur, ne pas afficher une notification
+        // dont l'état de lecture/suppression ne peut pas être confirmé.
+        debugPrint('[FCM] Push ignored: status verification failed: $e');
+        return;
       }
 
       // Si la notification a déjà été sauvegardée (et donc affichée) par le
       // chemin Realtime, on ne l'affiche pas une deuxième fois.
-      if (saved && body.isNotEmpty) {
+      final isCurrentSalon = type == 'community_salon_message' &&
+          (data['salon_id']?.toString() ??
+                  (data['data'] is Map
+                      ? (data['data'] as Map)['salon_id']?.toString()
+                      : null)) ==
+              _activeSalonId;
+      if (saved && body.isNotEmpty && !isCurrentSalon) {
         debugPrint('[FCM] Showing local notification: $title - $body');
         await showNotification(
           id: notifId.hashCode.abs(),
@@ -745,6 +888,14 @@ class NotificationService {
       // A malformed payload must not prevent normal notifications from working.
       return true;
     }
+  }
+
+  Future<void> cancelNotification(String notificationId) async {
+    await _plugin.cancel(id: notificationId.hashCode.abs());
+  }
+
+  Future<void> cancelAllNotifications() async {
+    await _plugin.cancelAll();
   }
 
   Future<void> showNotification({

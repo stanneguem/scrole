@@ -225,6 +225,10 @@ class AppSearchController extends GetxController {
       case 'community':
         _openCommunity(item);
         break;
+      case 'tag':
+      case 'hashtag':
+        Get.toNamed(AppPages.hashtagFeedPath(item.title.replaceFirst(RegExp(r'^#+'), '')));
+        break;
       default:
         break;
     }

@@ -526,7 +526,13 @@ class MessagingRepository {
     if (id.startsWith('draft_')) return const Stream.empty();
     final c = _typingControllers.putIfAbsent(id, () => StreamController<bool>.broadcast());
     if (!_typingChannels.containsKey(id)) {
-      _typingChannels[id] = _remote.subscribeTyping(id, c.add);
+      _typingChannels[id] = _remote.subscribeTyping(id, (value) {
+        // Presence events may arrive while the channel is being removed.
+        // Never emit into a stream that has already been closed or replaced.
+        if (!c.isClosed && identical(_typingControllers[id], c)) {
+          c.add(value);
+        }
+      });
     }
     return c.stream;
   }
@@ -534,7 +540,16 @@ class MessagingRepository {
   Future<MessagingResult<void>> setTyping(String id, bool typing) async {
     if (id.startsWith('draft_')) return const MessagingResult.success();
     try {
-      final ch = _typingChannels[id] ??= _remote.subscribeTyping(id, (v) => _typingControllers.putIfAbsent(id, () => StreamController<bool>.broadcast()).add(v));
+      final controller = _typingControllers.putIfAbsent(
+        id,
+        () => StreamController<bool>.broadcast(),
+      );
+      final ch = _typingChannels[id] ??= _remote.subscribeTyping(id, (value) {
+        if (!controller.isClosed &&
+            identical(_typingControllers[id], controller)) {
+          controller.add(value);
+        }
+      });
       await _remote.sendTyping(ch, typing);
       return const MessagingResult.success();
     } catch (e) {

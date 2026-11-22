@@ -106,36 +106,42 @@ class CommunityScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           onRefresh: () => controller.loadCommunities(),
-          child: ListView.builder(
+          child: GridView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1,
+            ),
             itemCount: controller.communities.length,
             itemBuilder: (context, index) {
               final community = controller.communities[index];
               final isPending = community.status == 'pending';
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Opacity(
-                  opacity: isPending ? 0.6 : 1.0,
-                  child: _MyCommunityTile(
-                    community: community,
-                    isPending: isPending,
-                    onTap: isPending
-                        ? () {
-                            Get.snackbar(
-                              'community_creation_in_progress'.tr,
-                              'community_creation_pending_message'.tr,
-                              snackPosition: SnackPosition.BOTTOM,
-                            );
-                          }
-                        : () {
-                            Get.to(() => CommunityFeedScreen(
-                                  communityId: community.id,
-                                  communityName: community.name,
-                                ));
-                          },
-                  ),
+              return Opacity(
+                opacity: isPending ? 0.78 : 1.0,
+                child: _MyCommunityTile(
+                  community: community,
+                  isPending: isPending,
+                  unreadCount: controller.unreadSalonCounts[community.id] ?? 0,
+                  onTap: isPending
+                      ? () {
+                          Get.snackbar(
+                            'community_creation_in_progress'.tr,
+                            'community_creation_pending_message'.tr,
+                            snackPosition: SnackPosition.BOTTOM,
+                          );
+                        }
+                      : () {
+                          Get.to(() => CommunityFeedScreen(
+                                communityId: community.id,
+                                communityName: community.name,
+                              ))?.then((_) {
+                                controller.loadCommunities();
+                              });
+                        },
                 ),
               );
             },
@@ -149,11 +155,13 @@ class CommunityScreen extends StatelessWidget {
 class _MyCommunityTile extends StatelessWidget {
   final dynamic community;
   final bool isPending;
+  final int unreadCount;
   final VoidCallback onTap;
 
   const _MyCommunityTile({
     required this.community,
     required this.isPending,
+    this.unreadCount = 0,
     required this.onTap,
   });
 
@@ -170,131 +178,137 @@ class _MyCommunityTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: SizedBox(
-            height: 196,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasCover)
-                  AppCachedImage(
-                    imageUrl: coverUrl,
-                    fit: BoxFit.cover,
-                    errorWidget: _communityImageFallback(colorScheme, initial),
-                  )
-                else
-                  _communityImageFallback(colorScheme, initial),
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xCC000000)],
-                      stops: [0.28, 1],
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (hasCover)
+                AppCachedImage(
+                  imageUrl: coverUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: _communityImageFallback(colorScheme, initial),
+                )
+              else
+                _communityImageFallback(colorScheme, initial),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x16000000),
+                      Color(0x25000000),
+                      Color(0xE6000000),
+                    ],
+                    stops: [0, 0.35, 1],
+                  ),
+                ),
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 23, minHeight: 23),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD94B50),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white, width: 1.2),
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 2))],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
                     ),
                   ),
                 ),
+              if (isPending)
                 Positioned(
-                  left: 18,
-                  right: 18,
-                  bottom: 16,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2.5),
-                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 3))],
-                        ),
-                        child: ClipOval(
-                          child: hasAvatar
-                              ? AppCachedImage(
-                                  imageUrl: avatarUrl,
-                                  fit: BoxFit.cover,
-                                  errorWidget: _communityAvatarFallback(colorScheme, initial),
-                                )
-                              : _communityAvatarFallback(colorScheme, initial),
-                        ),
-                      ),
-                      const SizedBox(width: 11),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: community.name,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      height: 1.15,
-                                      fontWeight: FontWeight.w700,
-                                      shadows: [Shadow(color: Colors.black26, blurRadius: 8)],
-                                    ),
-                                  ),
-                                  WidgetSpan(
-                                    alignment: PlaceholderAlignment.middle,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: EntityCertifiedBadge(
-                                        entityType: 'community',
-                                        entityId: community.id,
-                                        size: 19,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (isPending) ...[
-                              const SizedBox(height: 7),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFFFFD180)),
-                                  const SizedBox(width: 5),
-                                  Flexible(
-                                    child: Text(
-                                      'community_creation_in_progress'.tr,
-                                      style: const TextStyle(
-                                        color: Color(0xFFFFD180),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
-                      ),
-                    ],
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.42),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.schedule_rounded,
+                      size: 15,
+                      color: Color(0xFFFFD180),
+                    ),
                   ),
                 ),
-              ],
-            ),
+              Positioned(
+                left: 8,
+                right: 7,
+                bottom: 10,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 43,
+                      height: 43,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black38,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: hasAvatar
+                            ? AppCachedImage(
+                                imageUrl: avatarUrl,
+                                fit: BoxFit.cover,
+                                errorWidget: _communityAvatarFallback(colorScheme, initial),
+                              )
+                            : _communityAvatarFallback(colorScheme, initial),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              community.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                height: 1.12,
+                                fontWeight: FontWeight.w800,
+                                shadows: [
+                                  Shadow(color: Colors.black54, blurRadius: 7),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          EntityCertifiedBadge(
+                            entityType: 'community',
+                            entityId: community.id,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -328,7 +342,11 @@ class _MyCommunityTile extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         initial,
-        style: TextStyle(color: colors.onPrimaryContainer, fontSize: 23, fontWeight: FontWeight.w800),
+        style: TextStyle(
+          color: colors.onPrimaryContainer,
+          fontSize: 23,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

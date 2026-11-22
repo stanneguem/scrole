@@ -5,31 +5,32 @@ import 'notification_service.dart';
 
 class DeviceService extends GetxService {
   final DeviceRepository _repository = DeviceRepository();
-
   final RxList<DeviceInfos> devices = <DeviceInfos>[].obs;
   final RxBool isLoading = false.obs;
 
   Future<List<DeviceInfos>> fetchDevices() async {
+    if (isLoading.value) return devices.toList(growable: false);
+    isLoading.value = true;
     try {
-      isLoading.value = true;
-
-      String? deviceToken;
-      try {
-        deviceToken = await NotificationService.instance.getDeviceToken();
-      } catch (_) {
-        // Le token push n'est pas indispensable pour récupérer la liste.
-      }
-
-      final data = await _repository.getMyDevices(deviceToken: deviceToken);
-      devices.assignAll(data);
-      return data;
+      String? token;
+      try { token = await NotificationService.instance.getDeviceToken(); } catch (_) {}
+      final result = await _repository.getMyDevices(deviceToken: token);
+      devices.assignAll(result);
+      return result;
     } finally {
       isLoading.value = false;
     }
   }
 
   Future<void> removeDevice(String deviceId) async {
-    await _repository.deleteDevice(deviceId);
+    final token = (await NotificationService.instance.getDeviceToken())?.trim();
+    if (token == null || token.isEmpty) {
+      throw StateError('current_device_unverified');
+    }
+    await _repository.deleteDevice(
+      deviceId: deviceId,
+      currentDeviceToken: token,
+    );
     devices.removeWhere((d) => d.id == deviceId);
   }
 }

@@ -32,16 +32,19 @@ class _EventDaysSelectorScreenState extends State<EventDaysSelectorScreen> {
   final Set<String> _selectedDateStrings = {};
   bool _isLoading = false;
 
+  DateTime get _today => DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  bool _isPast(DateTime date) => DateTime(date.year, date.month, date.day).isBefore(_today);
+
   @override
   void initState() {
     super.initState();
     if (widget.preselectedDays != null && widget.preselectedDays!.isNotEmpty) {
       for (final day in widget.preselectedDays!) {
-        _selectedDateStrings.add(day.dateString);
+        if (!_isPast(day.date)) _selectedDateStrings.add(day.dateString);
       }
     } else {
       for (final day in widget.openDays) {
-        if (day.isOpen) {
+        if (day.isOpen && !_isPast(day.date)) {
           _selectedDateStrings.add(day.dateString);
         }
       }
@@ -56,7 +59,7 @@ class _EventDaysSelectorScreenState extends State<EventDaysSelectorScreen> {
     try {
       final repository = Get.find<EventRepository>();
       final selectedDates = widget.openDays
-          .where((day) => _selectedDateStrings.contains(day.dateString))
+          .where((day) => _selectedDateStrings.contains(day.dateString) && !_isPast(day.date))
           .map((day) => day.date)
           .toList();
 
@@ -89,7 +92,7 @@ class _EventDaysSelectorScreenState extends State<EventDaysSelectorScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'save_error'.tr,
+              Get.find<EventRepository>().agendaRestrictionMessageKey(e).tr,
               style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
             ),
             backgroundColor: AppColors.error,
@@ -228,11 +231,12 @@ class _EventDaysSelectorScreenState extends State<EventDaysSelectorScreen> {
                         final currentCellDate = DateTime(monthDate.year, monthDate.month, dayNumber);
                         final dateStr = DateFormat('yyyy-MM-dd').format(currentCellDate);
                         final openDay = openDaysMap[dateStr];
-                        final isAvailable = openDay != null && openDay.isOpen;
+                        final isPast = _isPast(currentCellDate);
+                        final isAvailable = openDay != null && openDay.isOpen && !isPast;
                         final isSelected = _selectedDateStrings.contains(dateStr);
 
                         return GestureDetector(
-                          onTap: isAvailable
+                          onTap: isAvailable && !isPast
                               ? () {
                                   setState(() {
                                     if (isSelected) {
@@ -261,11 +265,15 @@ class _EventDaysSelectorScreenState extends State<EventDaysSelectorScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: isSelected || isAvailable ? FontWeight.bold : FontWeight.normal,
+                                decoration: isPast ? TextDecoration.lineThrough : TextDecoration.none,
+                                decorationThickness: 1.5,
                                 color: isSelected
                                     ? Colors.white
-                                    : (isAvailable
-                                        ? colorScheme.onSurface
-                                        : colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+                                    : (isPast
+                                        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.45)
+                                        : (isAvailable
+                                            ? colorScheme.onSurface
+                                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.3))),
                               ),
                             ),
                           ),

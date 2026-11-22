@@ -9,7 +9,7 @@ import '../../centre/models/event_model.dart';
 import '../controllers/event_controller.dart';
 import '../widgets/event_bottom_sheet.dart';
 import '../widgets/event_filter.dart';
-import 'event_detail_page.dart';
+import 'event_preview_screen.dart';
 
 class CalendarTab extends StatefulWidget {
   const CalendarTab({super.key});
@@ -32,7 +32,7 @@ class _CalendarTabState extends State<CalendarTab> {
 
   void _onDayTap(DateTime date) {
     // On filtre les événements chargés pour ce jour spécifique
-    final rawEvents = controller.calendarEvents.where((e) {
+    final rawEvents = controller.filterCalendarEvents(controller.calendarEvents).where((e) {
       final localDate = e.startsAt.toLocal();
       return localDate.year == date.year &&
           localDate.month == date.month &&
@@ -44,7 +44,7 @@ class _CalendarTabState extends State<CalendarTab> {
     if (events.isEmpty) return;
 
     if (events.length == 1) {
-      Get.to(() => EventDetailPage(event: events.first));
+      Get.to(() => EventPreviewScreen(initialEvent: events.first));
     } else {
       showModalBottomSheet(
         context: context,
@@ -55,7 +55,7 @@ class _CalendarTabState extends State<CalendarTab> {
           events: events,
           onEventTap: (event) {
             Navigator.pop(context);
-            Get.to(() => EventDetailPage(event: event));
+            Get.to(() => EventPreviewScreen(initialEvent: event));
           },
         ),
       );
@@ -103,12 +103,17 @@ class _CalendarTabState extends State<CalendarTab> {
                   : null,
             )),
             const SizedBox(width: 12),
-            Text(
-              f.label,
-              style: AppTextStyles.body.copyWith(
-                color: controller.currentSortFilter.value == f
-                    ? colorScheme.onSurface
-                    : colorScheme.onSurfaceVariant,
+            Expanded(
+              child: Text(
+                f.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: AppTextStyles.body.copyWith(
+                  color: controller.currentSortFilter.value == f
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -324,8 +329,7 @@ class _CalendarTabState extends State<CalendarTab> {
                               children: [
                                 Expanded(
                                   child: Obx(() => Text(
-                                    controller
-                                        .currentSortFilter.value.label,
+                                    controller.currentSortFilter.value.label,
                                     style: AppTextStyles.labelMedium
                                         .copyWith(
                                         color: colorScheme.onSurface),
@@ -344,6 +348,38 @@ class _CalendarTabState extends State<CalendarTab> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  // Les filtres sont directement accessibles sans champ de recherche.
+                  const SizedBox(height: 12),
+                  // Filtres réellement appliqués aux événements affichés.
+                  Obx(() => SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: EventCalendarFilter.values.map((filter) {
+                        final selected = controller.currentCalendarFilter.value == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(filter.label),
+                            selected: selected,
+                            onSelected: (_) => controller.setCalendarFilter(filter),
+                            showCheckmark: false,
+                            labelStyle: AppTextStyles.labelMedium.copyWith(
+                              color: selected
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            selectedColor: colorScheme.primary,
+                            backgroundColor: colorScheme.surfaceContainerLow,
+                            side: BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  )),
                   const SizedBox(height: 24),
                   // ===== WEEKDAY HEADERS =====
                   Row(
@@ -389,16 +425,16 @@ class _CalendarTabState extends State<CalendarTab> {
                         final date = DateTime(
                             _currentMonth.year, _currentMonth.month, day);
 
-                        // Filtrage local depuis le cache global du calendrier
-                        final rawEvents =
-                        controller.calendarEvents.where((e) {
+                        // Les indicateurs du calendrier représentent toujours
+                        // tous les événements de la date, indépendamment du filtre.
+                        // Le filtre est appliqué uniquement à l'ouverture de la date.
+                        final rawEvents = controller.calendarEvents.where((e) {
                           final localDate = e.startsAt.toLocal();
                           return localDate.year == date.year &&
                               localDate.month == date.month &&
                               localDate.day == date.day;
                         }).toList();
 
-                        // Application du tri
                         final events = controller.sortEventList(rawEvents);
 
                         return _DayCell(
