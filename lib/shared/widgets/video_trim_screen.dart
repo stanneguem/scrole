@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:video_trimmer/video_trimmer.dart';
 import '../../app/theme/app_colors.dart';
+import '../constants/post_media_limits.dart';
 
 enum _DragMode { start, end, move }
 
@@ -27,7 +28,7 @@ class VideoTrimScreen extends StatefulWidget {
   const VideoTrimScreen({
     super.key,
     required this.videoFile,
-    this.maxDuration = const Duration(seconds: 29),
+    this.maxDuration = maxPostVideoDuration,
   });
 
   @override
