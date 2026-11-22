@@ -111,12 +111,11 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
 
               // Same trimming flow as post creation: long videos are not
               // rejected outright; the user chooses a segment of <= 29 sec.
-              const storyLimit = storyLimit
-              if (duration > storyLimit) {
+              if (duration > maxStoryVideoDuration) {
                 final trimmed = await Get.to<File>(
                   () => VideoTrimScreen(
                     videoFile: selectedFile,
-                    maxDuration: storyLimit,
+                    maxDuration: maxStoryVideoDuration,
                   ),
                 );
                 if (trimmed == null || !mounted) return;
@@ -126,7 +125,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                 try {
                   await verify.initialize();
                   if (verify.value.duration <= Duration.zero ||
-                      verify.value.duration > storyLimit) {
+                      verify.value.duration > maxStoryVideoDuration) {
                     Get.snackbar(
                       'post_composer_attention'.tr,
                       'post_composer_trim_invalid'.tr,
