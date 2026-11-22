@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
 import 'package:video_player/video_player.dart';
+import 'package:scrole/shared/constants/post_media_limits.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:scrole/modules/module_principale/externe/repositories/stories_repository.dart';
 import 'package:scrole/modules/module_principale/centre/models/community_post.dart';
@@ -404,7 +405,7 @@ class StoriesController extends GetxController {
             if (duration <= Duration.zero) {
               throw StateError('Impossible de déterminer la durée de la vidéo.');
             }
-            if (duration > const Duration(seconds: 29)) {
+            if (duration > maxStoryVideoDuration) {
               Get.snackbar(
                 'post_composer_attention'.tr,
                 'post_composer_video_too_long'.tr,
