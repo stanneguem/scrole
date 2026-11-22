@@ -897,15 +897,15 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       }
 
       try {
-        // Le trim est obligatoire, même pour une vidéo de moins de 29 secondes.
+        // Le trim est obligatoire, même pour une vidéo de moins de 60 secondes.
         final trimmed = await Get.to<File>(() => VideoTrimScreen(
               videoFile: file,
-              maxDuration: const Duration(seconds: 29),
+              maxDuration: maxPostVideoDuration,
             ));
         if (trimmed == null || !mounted) continue;
         final videoFile = trimmed;
         final trimmedDuration = await _readVideoDuration(videoFile);
-        if (trimmedDuration > const Duration(seconds: 29)) {
+        if (trimmedDuration > maxPostVideoDuration) {
           Get.snackbar('post_composer_attention'.tr, 'post_composer_video_too_long'.tr);
           continue;
         }
@@ -946,12 +946,12 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       final originalFile = File(picked.path);
       final trimmed = await Get.to<File>(() => VideoTrimScreen(
             videoFile: originalFile,
-            maxDuration: const Duration(seconds: 29),
+            maxDuration: maxPostVideoDuration,
           ));
       if (trimmed == null || !mounted) return;
       final file = trimmed;
       final trimmedDuration = await _readVideoDuration(file);
-      if (trimmedDuration > const Duration(seconds: 29)) {
+      if (trimmedDuration > maxPostVideoDuration) {
         Get.snackbar('post_composer_attention'.tr, 'post_composer_trim_invalid'.tr, backgroundColor: Colors.black87, colorText: Colors.white);
         return;
       }
@@ -980,12 +980,12 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     if (!current.isVideo) return;
     final updatedFile = await Get.to<File>(() => VideoPreviewScreen(
       videoFile: current.file,
-      maxDuration: const Duration(seconds: 29),
+      maxDuration: maxPostVideoDuration,
     ));
     if (updatedFile == null || !mounted) return;
     final duration = await _readVideoDuration(updatedFile);
-    if (duration > const Duration(seconds: 29)) {
-      Get.snackbar('Vidéo invalide', 'La vidéo ne peut pas dépasser 29 secondes.');
+    if (duration > maxPostVideoDuration) {
+      Get.snackbar('Vidéo invalide', 'La vidéo ne peut pas dépasser 60 secondes.');
       return;
     }
     try {
