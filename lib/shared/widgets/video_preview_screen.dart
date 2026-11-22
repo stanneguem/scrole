@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
 import 'video_trim_screen.dart';
+import '../constants/post_media_limits.dart';
 
 /// Lecteur dédié aux vidéos sélectionnées dans le compositeur de publication.
 /// Les opérations d'édition sont regroupées ici afin de ne pas garder un
@@ -16,7 +17,7 @@ class VideoPreviewScreen extends StatefulWidget {
   const VideoPreviewScreen({
     super.key,
     required this.videoFile,
-    this.maxDuration = const Duration(seconds: 29),
+    this.maxDuration = maxPostVideoDuration,
   });
 
   @override
