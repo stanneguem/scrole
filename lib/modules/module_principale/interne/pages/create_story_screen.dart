@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:scrole/shared/widgets/video_trim_screen.dart';
+import 'package:scrole/shared/constants/post_media_limits.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scrole/app/theme/app_colors.dart';
@@ -40,7 +41,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
   final TextEditingController _textController = TextEditingController();
   final List<File> _selectedFiles = [];
   bool _isPublishing = false;
-  static const Duration _maxVideoDuration = Duration(seconds: 30);
+  
 
   bool _commentsEnabled = true;
   bool _sharingEnabled = true;
@@ -110,12 +111,12 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
 
               // Same trimming flow as post creation: long videos are not
               // rejected outright; the user chooses a segment of <= 29 sec.
-              const maxStoryVideoDuration = Duration(seconds: 29);
-              if (duration > maxStoryVideoDuration) {
+              const storyLimit = storyLimit
+              if (duration > storyLimit) {
                 final trimmed = await Get.to<File>(
                   () => VideoTrimScreen(
                     videoFile: selectedFile,
-                    maxDuration: maxStoryVideoDuration,
+                    maxDuration: storyLimit,
                   ),
                 );
                 if (trimmed == null || !mounted) return;
@@ -125,7 +126,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                 try {
                   await verify.initialize();
                   if (verify.value.duration <= Duration.zero ||
-                      verify.value.duration > maxStoryVideoDuration) {
+                      verify.value.duration > storyLimit) {
                     Get.snackbar(
                       'post_composer_attention'.tr,
                       'post_composer_trim_invalid'.tr,
